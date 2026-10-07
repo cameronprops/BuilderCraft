@@ -75,3 +75,7 @@ Reuse StructureGraph's existing recipe staging, typed contracts, deterministic r
 ## Rust resource ownership
 
 Follow `MEMORY_AND_JOBS.md`. Ownership checking prevents many memory errors but does not prove bounded RAM, leak freedom, job cancellation, GPU cleanup or external adapter correctness. The current alpha has bounded individual NURBS inputs and a file-size limit; the full suite memory gate has not been passed.
+
+## Controller and simulation boundary
+
+Show maps Arduino-class microcontrollers, Raspberry Pi applications and industrial PLC IO to the shared scene and can connect the actual intended show-control program through tested software/hardware-in-the-loop adapters. Graph incorporates portable StructureGraph concepts and generators; host-dependent code remains an optional adapter. Unreal is the preferred initial visual/interactive scene backend, while control execution stays in its real controller/application or supported simulator. Specialized engineering solvers remain replaceable external backends. See [controller mapping and acceptance scene](SHOW_AND_PREVIS.md#controller-mapping-and-the-actual-show-control-program).

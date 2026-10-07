@@ -73,6 +73,7 @@ pub struct Drawing {
     /// Next free handle.
     pub handseed: u64,
     pub organization: organization::Organization,
+    pub production: buildercraft_kernel::ProductionModel,
     pub geometry3d: Vec<organization::GeometryObject>,
 }
 
@@ -121,6 +122,7 @@ impl Drawing {
             parametric: Parametric::default(),
             handseed: 0x100,
             organization: organization::Organization::default(),
+            production: buildercraft_kernel::ProductionModel::default(),
             geometry3d: Vec::new(),
         }
     }

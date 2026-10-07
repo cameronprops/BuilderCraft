@@ -8,6 +8,7 @@ mod dxf_write;
 pub mod pdf;
 mod project;
 pub mod svg;
+pub mod visualization;
 
 use cadcraft_doc::{Drawing, Space};
 

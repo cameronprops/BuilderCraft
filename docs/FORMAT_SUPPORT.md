@@ -13,7 +13,7 @@ Import, export and fidelity are separate acceptance gates. No extension is consi
 | IGES | Not implemented | Curves/surfaces interchange |
 | STL | Not implemented | Explicit triangulated manufacturing export/import |
 | OBJ, PLY, 3MF | Not implemented | Mesh interchange, scan colors, print metadata where supported |
-| glTF/GLB | Not implemented | Display mesh, materials and scene exchange |
+| glTF/GLB | Partial: bounded native GLB export through visualization feed | Uniform curve/surface display geometry, massing material, identity/hierarchy metadata; richer assets and host acceptance pending |
 | E57, LAS/LAZ, XYZ | Not implemented | Point clouds, scan metadata and coordinate frames |
 | SAT/SAB | Not implemented; feasibility/licensing research needed | ACIS exchange where legally and technically supportable |
 | Inventor IPT/IAM, Fusion native projects, Revit RVT/RFA, AutoCAD specialized objects | No native support promised | Prefer documented/open interchange or an explicitly licensed external adapter |
@@ -38,3 +38,5 @@ All entries below are planned, not current alpha support. Every adapter declares
 | Datasmith / FBX / Alembic / OpenVDB | Evaluate where needed for architectural or animated/VFX workflows; licensing, dependencies and fidelity gated per adapter |
 
 A file extension or third-party SDK does not establish support. Preserve source geometry and external fields, and disclose exact versus derived representations. See `architecture/SHOW_AND_PREVIS.md` and `architecture/SUITE.md`.
+
+GLB: bounded native 3D visualization export through `visualization.publish` (uniform curve/surface preview only), with independent parser tests. Full Unreal import/visualization acceptance is pending. `.bcraft` v1 now also preserves optional production records/assignments/relationships; older files default to empty production metadata.

@@ -61,3 +61,5 @@ People trust CADCraft with their drawings; a crash loses their work. **This outr
 
 ## Roadmap
 `ROADMAP.md` (committed) tracks status, milestones, parity and estimates. Update it whenever a milestone task lands. `cargo xtask parity` recomputes the command-catalog parity in `docs/parity.md`.
+
+Original native host adapter code may use the host's required language (Unreal C++/UBT C#) under `bridges/`; these adapters are optional, separately validated and must not copy engine implementation code. Core suite services and applications remain Rust.

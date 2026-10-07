@@ -16,7 +16,10 @@
         "named_organization",
         "native_project_v1",
         "local_command_api",
-        "bounded_uniform_preview_api"
+        "bounded_uniform_preview_api",
+        "bounded_glb_export",
+        "local_visualization_snapshot_publication",
+        "production_relationship_metadata"
       ],
       "capabilities_planned": [
         "rhino_command_equivalence",
@@ -30,7 +33,11 @@
         "kangaroo_constraint_form_finding",
         "perspective_orthographic_multiview_viewports",
         "complete_native_grasshopper_component_coverage",
-        "complete_native_kangaroo_component_coverage"
+        "complete_native_kangaroo_component_coverage",
+        "vehicle_ride_path_motion",
+        "swept_envelope_clearance",
+        "rider_camera_sightlines",
+        "banked_constant_gauge_2_to_5_rail_solid_track"
       ]
     },
     {
@@ -99,9 +106,12 @@
     "graph_evaluation",
     "show_model",
     "preview",
-    "exchange"
+    "exchange",
+    "production_scene_effect_relationships",
+    "script_storyboard_references",
+    "editable_previs_interface"
   ],
-  "bridge_status": "planned_beyond_existing_loopback_commands",
+  "bridge_status": "local_native_snapshot_feed_unreal_adapter_source_host_validation_pending",
   "memory_validation_status": "shared_geometry_budget_contract_tests_added_process_resource_gate_pending",
   "external_hosts_optional": true,
   "native_runtime_requires_paid_host": false,

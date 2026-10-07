@@ -20,6 +20,7 @@ const USAGE: &str = "usage:
   cadcraft-cli info FILE.dxf
   cadcraft-cli convert IN.dxf OUT.(dxf|svg|png)
   cadcraft-cli run [FILE | --sample | --metric] [--script TEXT] [--script-file F.scr] [--cmd 'id {json}']... [--save OUT.dxf] [--export OUT.(png|svg)]
+  cadcraft-cli visualize-watch IN.bcraft OUTDIR PROJECT_ID [--once]
   cadcraft-cli commands [FILTER]
   cadcraft-cli mcp [--connect HOST:PORT]
   cadcraft-cli perf [N]
@@ -54,6 +55,47 @@ fn export(s: &Session, out: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn visualize_watch(args: &[String]) -> Result<(), String> {
+    use std::{
+        hash::{Hash, Hasher},
+        io::Read,
+    };
+    let (Some(input), Some(output), Some(project)) = (args.first(), args.get(1), args.get(2)) else { return Err(USAGE.into()) };
+    let project = buildercraft_kernel::Id::try_from(project.clone()).map_err(|e| e.to_string())?;
+    let once = args.iter().any(|s| s == "--once");
+    let mut previous = None;
+    loop {
+        let result = (|| -> Result<(), String> {
+            let file = std::fs::File::open(input).map_err(|e| e.to_string())?;
+            let mut bytes = Vec::new();
+            file.take(8 * 1024 * 1024 + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+            if bytes.len() > 8 * 1024 * 1024 {
+                return Err("watch input limit is 8 MiB".into());
+            }
+            let mut hash = std::collections::hash_map::DefaultHasher::new();
+            bytes.hash(&mut hash);
+            let hash = hash.finish();
+            if previous == Some(hash) {
+                return Ok(());
+            }
+            let drawing = cadcraft_io::read(&bytes, input).map_err(|e| e.to_string())?;
+            let mut scene =
+                cadcraft_io::visualization::snapshot(&drawing, project, 0, Default::default(), &Default::default()).map_err(|e| e.to_string())?;
+            scene.source_revision = format!("file:{hash:016x}");
+            let sequence = cadcraft_io::visualization::publish(std::path::Path::new(output), scene).map_err(|e| e.to_string())?;
+            previous = Some(hash);
+            eprintln!("published visualization sequence {sequence}");
+            Ok(())
+        })();
+        if once {
+            return result;
+        }
+        if let Err(e) = result {
+            eprintln!("visualization kept previous scene: {e}");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+}
 fn sample(args: &[String]) -> Result<(), String> {
     let (Some(which), Some(out)) = (args.first(), args.get(1)) else { return Err(USAGE.into()) };
     let d = match which.as_str() {
@@ -277,6 +319,7 @@ fn main() -> ExitCode {
             }
             _ => Err(USAGE.into()),
         },
+        Some("visualize-watch") => visualize_watch(&rest),
         Some("run") => run(&rest),
         Some("perf") => perf(&rest),
         Some("sample") => sample(&rest),

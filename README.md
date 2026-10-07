@@ -55,3 +55,5 @@ The Houdini-like component with Grasshopper functionality is requested but not i
 MIT OR Apache-2.0, retaining CADCraft's copyright notices and third-party attribution. BuilderCraft is an independent fork, not an ArtCraft product. Upstream trademark assets have been removed from the current source tree; upstream history remains intact.
 
 The first shared scene/geometry kernel is implemented in `crates/kernel`; see [kernel usage and limits](docs/architecture/KERNEL.md). Embedded CAD parametric modeling and native Kangaroo-style solving are accepted roadmap items.
+
+A local saved-project visualization feed and GLB export are available; see [Unreal bridge setup and validation status](bridges/unreal/README.md). [Production organization](docs/architecture/PRODUCTION_ORGANIZATION.md) now persists scene/effect and department relationships.

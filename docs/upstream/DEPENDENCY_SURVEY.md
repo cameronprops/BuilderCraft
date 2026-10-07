@@ -13,3 +13,5 @@ Reviewed public repository metadata on 2026-10-07. These are candidates, not new
 | [nalgebra](https://github.com/dimforge/nalgebra) | b2466e6c4070b06240d929895473c9141fe24720 | Apache-2.0 | Registration/constraint numerical foundations |
 
 Acceptance must include geometry accuracy, hostile inputs, cancellation and retained/temporary memory workloads, native/WASM builds and deterministic fixtures. Rapier does not itself provide Grasshopper/Kangaroo component semantics. Exact CAD remains authoritative when preview meshes/physics are derived.
+
+The visualization increment uses `gltf` 1.4.1 as a dev-only independent GLB parser. Registry manifests for it and its gltf-json/gltf-derive components declare MIT OR Apache-2.0; application export code remains original. No proprietary Rhino or engine code was imported.

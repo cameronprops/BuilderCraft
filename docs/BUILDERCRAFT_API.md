@@ -13,6 +13,9 @@ Use the returned model ID as `parent` when creating a component or body.
 | Command | Parameters |
 |---|---|
 | buildercraft.capabilities | API/schema version and implemented geometry capabilities |
+| visualization.publish | project_id, directory; native bounded GLB + full scene snapshot, persistent publication sequence; no drawing mutation |
+| production.model | returns native production records, bindings and links |
+| production.set | records, bindings, links; validated, undoable replacement of production organization |
 | geometry3d.preview | id; optional curve_segments (1–4096), surface_u and surface_v (1–128); bounded uniform polyline/triangle data plus source revision, no edit |
 | kernel.manifest | project_id (32 hex digits), optional geometry_budget_bytes; metadata-only 3D scene projection, no edit |
 | model.create | name, kind (assembly/component/body), optional parent ID and hex entity handles; bodies use current selection if handles are absent |

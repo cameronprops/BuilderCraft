@@ -15,3 +15,11 @@ The GitHub alpha workflow now triggers on main and uses Rust 1.95.0, with a comp
 ## Tessellation increment
 
 Full `cargo xtask ci` passed on Rust 1.95.0 with 344 tests and all six gates. New fixtures verify rational curve sampling against the exact evaluator, surface extents/index counts/consistent winding, invalid resolution and sample/work/buffer budget rejection, cancellation, retained-budget failure/release and non-mutating CAD preview API with hostile parameters. This does not certify adaptive error tolerance, manifoldness, trims or viewport visual quality.
+
+## Visualization feed and production metadata increment
+
+Full `cargo xtask ci` passed on Rust 1.95.0: 352 tests, formatting, Clippy with warnings denied, asset attribution, dependency layering and all configured WebAssembly checks. Independent MIT/Apache-2.0 glTF 1.4.1 parser tests check the emitted GLB container, accessor counts/bounds, empty/hidden scenes and geometry update fingerprints. Production metadata save/reopen, multiple assignments, hierarchy/reference validation and undo/failed-edit preservation are tested. Local publication tests check monotonic sequences, project mismatch and single-writer rejection.
+
+Native CLI smoke test ran the saved-project watcher through five publications: initial massing, rename, geometry edit, deletion and delete-all. IDs stayed stable on rename, geometry fingerprint changed on edit, the empty snapshot cleared all objects and two GLBs were retained. The original synthetic fixture is reproducible with `cargo run -p cadcraft-io --example massing_feed -- /tmp/massing.bcraft`.
+
+The original Unreal adapter is SOURCE ONLY pending host compilation/editor/runtime acceptance. Neither UnrealEditor nor UnrealBuildTool is available here. Native publication/portable export results do not establish a working Unreal walkthrough, collision fidelity, bidirectional editing, equipment simulation or whole-process/GPU memory performance. See `bridges/unreal/README.md` for the acceptance procedure.

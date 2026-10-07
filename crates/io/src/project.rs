@@ -12,14 +12,23 @@ struct Project {
     organization: Organization,
     #[serde(default)]
     geometry3d: Vec<cadcraft_doc::organization::GeometryObject>,
+    #[serde(default)]
+    production: buildercraft_kernel::ProductionModel,
 }
 pub fn write(d: &Drawing) -> Result<Vec<u8>> {
+    d.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
     let mut organization = d.organization.clone();
     for node in &mut organization.nodes {
         node.entities.retain(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0));
     }
-    serde_json::to_vec(&Project { version: 1, drawing_dxf: dxf_write::write(d), organization, geometry3d: d.geometry3d.clone() })
-        .map_err(|e| IoError::Format(e.to_string()))
+    serde_json::to_vec(&Project {
+        version: 1,
+        drawing_dxf: dxf_write::write(d),
+        organization,
+        geometry3d: d.geometry3d.clone(),
+        production: d.production.clone(),
+    })
+    .map_err(|e| IoError::Format(e.to_string()))
 }
 pub fn read(bytes: &[u8]) -> Result<Drawing> {
     if bytes.len() > 128 << 20 {
@@ -79,6 +88,8 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
         }
         d.bump_handseed(cadcraft_doc::Handle(object.id));
     }
+    p.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
+    d.production = p.production;
     d.geometry3d = p.geometry3d;
     d.organization = p.organization;
     Ok(d)

@@ -8,9 +8,12 @@ use serde_json::json;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
+        CommandSpec::new("production.model", "Production Organization", |s,_|serde_json::to_value(&s.doc()?.production).map_err(|e|error(&e.to_string()))).noundo(),
+        CommandSpec::new("production.set", "Set Production Organization", |s,p|{let model:buildercraft_kernel::ProductionModel=serde_json::from_value(p.clone()).map_err(|e|error(&e.to_string()))?;model.validate().map_err(|e|error(&e.to_string()))?;s.doc_mut()?.production=model;Ok(json!({"ok":true}))}).params("{records,bindings,links}"),
+        CommandSpec::new("visualization.publish", "Publish Visualization Scene", publish_visualization).params("{project_id:32 hex digits,directory}").noundo(),
         CommandSpec::new("geometry3d.preview", "Tessellate 3D Preview", preview3d).params("{id,curve_segments?:64,surface_u?:16,surface_v?:16}").noundo(),
         CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
-        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"geometry":["rationalCurve3d","controlSurface"],"nativeProject":"bcraft","solids":false,"meshTools":false,"changeSubscriptions":false}))).enabled(always).noundo(),
+        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface"],"nativeProject":"bcraft","solids":false,"meshTools":false,"changeSubscriptions":false}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
         CommandSpec::new("nurbs.surface", "NURBS Control Surface", surface3d).params("{name, surface:{rows:[curve,...],degree_v,knots_v}}"),
         CommandSpec::new("geometry3d.controlpoint", "Edit NURBS Control Point", controlpoint).params("{id,row?:0,index,point:[x,y,z]}"),
@@ -24,6 +27,25 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("model.select", "Select Model Item", select).params("{id}").noundo(),
         CommandSpec::new("model.visible", "Set Body Visibility", visible).params("{id, visible: bool}"),
     ]
+}
+fn publish_visualization(s: &mut Session, p: &Value) -> Result<Value> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (s, p);
+        Err(error("local visualization publication is native-only"))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let project = p.get("project_id").and_then(Value::as_str).ok_or_else(|| error("project_id required"))?;
+        let project = buildercraft_kernel::Id::try_from(project.to_string()).map_err(|e| error(&e.to_string()))?;
+        let directory = p.get("directory").and_then(Value::as_str).filter(|p| !p.is_empty()).ok_or_else(|| error("directory required"))?;
+        let snapshot = cadcraft_io::visualization::snapshot(s.doc()?, project, s.state()?.revision, Default::default(), &Default::default())
+            .map_err(|e| error(&e.to_string()))?;
+        let sequence = cadcraft_io::visualization::publish(std::path::Path::new(directory), snapshot).map_err(|e| error(&e.to_string()))?;
+        Ok(
+            json!({"sequence":sequence.to_string(),"snapshot":std::path::Path::new(directory).join("snapshot.json"),"glb":std::path::Path::new(directory).join(format!("scene-{sequence}.glb"))}),
+        )
+    }
 }
 fn preview3d(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
@@ -301,6 +323,19 @@ mod tests {
             )
             .unwrap();
         (s, result["id"].clone())
+    }
+    #[test]
+    fn production_updates_are_validated_and_undoable() {
+        let (mut s, _) = curve_session();
+        let records =
+            json!({"records":[{"id":"00000000000000000000000000000064","kind":"scene","name":"Geyser","parent":null}],"bindings":[],"links":[]});
+        s.execute("production.set", &records).unwrap();
+        assert_eq!(s.doc().unwrap().production.records.len(), 1);
+        let revision = s.state().unwrap().revision;
+        assert!(s.execute("production.set",&json!({"records":[{"id":"00000000000000000000000000000064","kind":"scene","name":"Geyser","parent":"00000000000000000000000000000065"}]})).is_err());
+        assert_eq!(s.state().unwrap().revision, revision);
+        s.undo().unwrap();
+        assert!(s.doc().unwrap().production.records.is_empty());
     }
     #[test]
     fn preview_uses_exact_source_without_mutation_and_rejects_hostile_counts() {

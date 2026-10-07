@@ -54,3 +54,11 @@ The native solver is required; a licensed-host adapter cannot substitute for it.
 Implemented bounded uniform-parameter curve polylines and untrimmed surface triangle previews in the shared kernel, plus the non-mutating `geometry3d.preview` API. Resolution, sample, output-capacity and complexity limits are checked before sampling; jobs support cancellation and final retained-byte admission. Exact CAD data is preserved. This is preview sampling, not adaptive/tolerance-certified meshing, trimmed Brep meshing, a new viewport renderer or a GLB exporter.
 
 Required native command/component inventories and viewport work are tracked in `../commands/NATIVE_COVERAGE.md`. All native code must be original or verified open source; the native suite must remain free to run without paid hosts.
+
+## Visualization feed and production organization increment
+
+Implemented: native bounded 3D scene snapshot, portable GLB, explicit coordinate/winding conversion, persisted feed sequence, single-writer local publication, saved-project watch CLI, and stable IDs for recurring scene updates. Production records, multiple object assignments and relationships persist in `.bcraft`, are undoable through API and travel with the scene. Original Unreal polling adapter source is provided; compilation and editor/runtime walkthrough acceptance are still pending on an Unreal host. Automatic publication of every unsaved edit, asynchronous/coalesced jobs, richer rendering and delta transfer remain work items.
+
+Added required native ride-path assembly motion, swept envelopes, clearances and sightlines; 2–5 rail Track generation with maintained gauges, banking and smooth solids; script/storyboard references and optional Scripto discovery; BIM/cross-discipline smart connectors. See `../architecture/PRODUCTION_ORGANIZATION.md`. These geometry/adapters/UI capabilities are planned, not implemented by metadata alone.
+
+BuilderCraft-owned editable previs UI over the Unreal backend is required, including geometry/placement, lighting, automation, vehicles, cameras, audio/projection, effects and production organization. Current bridge is one-way visualization; bidirectional editing and the custom workspace remain pending. See `../architecture/PREVIS_INTERFACE.md`.

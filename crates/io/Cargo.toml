@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+buildercraft-kernel = { workspace = true }
 cadcraft-geom = { workspace = true }
 cadcraft-color = { workspace = true }
 cadcraft-doc = { workspace = true }
@@ -19,3 +20,6 @@ thiserror = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 miniz_oxide = "0.8"
+
+[dev-dependencies]
+gltf = { version = "1.4", default-features = false }

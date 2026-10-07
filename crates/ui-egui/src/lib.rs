@@ -205,6 +205,9 @@ impl CadApp {
 
     /// Per-frame logic before layout.
     pub fn logic(&mut self, ctx: &egui::Context) {
+        if self.session.running.is_none() {
+            self.session.poll_visualization();
+        }
         if !self.styled {
             theme::install_fonts(ctx);
             theme::apply(ctx);

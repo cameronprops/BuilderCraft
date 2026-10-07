@@ -38,3 +38,11 @@ Use the returned model ID as `parent` when creating a component or body.
 Commands are discoverable through the inherited command catalog. IDs remain stable within this alpha; a formal version-negotiated integration SDK, change subscriptions and structured transfer diagnostics are planned. Scripts should use command results and query the document after mutations rather than assuming success. API integration does not automatically synchronize external Rhino/Autodesk documents.
 
 Shared kernel usage, identity mapping and current bridge limitations: [KERNEL.md](architecture/KERNEL.md).
+
+Native live visualization commands:
+
+- `visualization.start {project_id,directory}` starts a background feed for the current document, immediately submitting its unsaved drawing.
+- `visualization.status {}` reports running/pending/busy, document UID, published sequence and source revision, and error.
+- `visualization.stop {}` cancels and joins the worker. Stop the previous feed before starting another.
+
+Edits coalesce into one pending drawing. Native command completion and undo/redo submit automatically; direct document-mutating integrations call `Session::poll_visualization`. The desktop also polls after interactive commands finish. The feed follows its starting document rather than the active tab. These commands do not provide bidirectional engine edits or show control yet.

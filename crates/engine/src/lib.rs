@@ -18,6 +18,8 @@ pub mod snap;
 pub mod spatial;
 pub mod sysvars;
 pub mod units;
+#[cfg(not(target_arch = "wasm32"))]
+mod visualization;
 
 use std::sync::Arc;
 
@@ -306,6 +308,8 @@ pub struct Session {
     pub untitled_counter: u32,
     /// The last dimension created (DIMCONTINUE / DIMBASELINE).
     pub last_dim: Option<Handle>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) visualization_feed: Option<visualization::Feed>,
 }
 
 impl Default for Session {
@@ -337,6 +341,8 @@ impl Session {
             pending_window: None,
             untitled_counter: 0,
             last_dim: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            visualization_feed: None,
         }
     }
     pub fn new_drawing(&mut self, metric: bool) -> usize {
@@ -474,6 +480,7 @@ impl Session {
                 st.undo.remove(0);
             }
         }
+        self.poll_visualization();
         result
     }
 
@@ -659,6 +666,19 @@ impl Session {
             st.redo.clear();
             st.revision += 1;
         }
+        self.poll_visualization();
+    }
+
+    /// Schedule the latest committed drawing without tessellating on the editing thread.
+    pub fn poll_visualization(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(feed) = &mut self.visualization_feed {
+            if let Some(st) = self.docs.iter().find(|st| st.uid == feed.uid) {
+                feed.submit(st.doc.clone(), st.revision);
+            } else {
+                self.visualization_feed = None;
+            }
+        }
     }
 
     /// Cancel the running command (Esc). With no command, clears the selection.
@@ -829,7 +849,9 @@ impl Session {
         st.selection = Vec::new();
         st.redo.push(cur);
         st.revision += 1;
-        Ok(Some(snap.label))
+        let label = snap.label;
+        self.poll_visualization();
+        Ok(Some(label))
     }
     pub fn redo(&mut self) -> Result<Option<String>> {
         let st = self.state_mut()?;
@@ -839,7 +861,9 @@ impl Session {
         st.selection = Vec::new();
         st.undo.push(cur);
         st.revision += 1;
-        Ok(Some(snap.label))
+        let label = snap.label;
+        self.poll_visualization();
+        Ok(Some(label))
     }
 
     // ---------------- picking without a command ----------------

@@ -62,3 +62,10 @@ Implemented: native bounded 3D scene snapshot, portable GLB, explicit coordinate
 Added required native ride-path assembly motion, swept envelopes, clearances and sightlines; 2–5 rail Track generation with maintained gauges, banking and smooth solids; script/storyboard references and optional Scripto discovery; BIM/cross-discipline smart connectors. See `../architecture/PRODUCTION_ORGANIZATION.md`. These geometry/adapters/UI capabilities are planned, not implemented by metadata alone.
 
 BuilderCraft-owned editable previs UI over the Unreal backend is required, including geometry/placement, lighting, automation, vehicles, cameras, audio/projection, effects and production organization. Current bridge is one-way visualization; bidirectional editing and the custom workspace remain pending. See `../architecture/PREVIS_INTERFACE.md`.
+
+### Native unsaved visualization feed
+
+Implemented a document-bound background publisher with one replaceable pending drawing,
+cooperative cancellation, start/status/stop API, committed interactive edit polling and
+undo/redo submission. Validation covers unsaved metadata bursts and tab isolation.
+Unreal host validation and bidirectional editing remain subsequent milestones.

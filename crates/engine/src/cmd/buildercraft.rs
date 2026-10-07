@@ -10,6 +10,9 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("production.model", "Production Organization", |s,_|serde_json::to_value(&s.doc()?.production).map_err(|e|error(&e.to_string()))).noundo(),
         CommandSpec::new("production.set", "Set Production Organization", |s,p|{let model:buildercraft_kernel::ProductionModel=serde_json::from_value(p.clone()).map_err(|e|error(&e.to_string()))?;model.validate().map_err(|e|error(&e.to_string()))?;s.doc_mut()?.production=model;Ok(json!({"ok":true}))}).params("{records,bindings,links}"),
+        CommandSpec::new("visualization.start", "Start Live Visualization", live_visualization).params("{project_id,directory}").noundo(),
+        CommandSpec::new("visualization.status", "Live Visualization Status", visualization_status).noundo(),
+        CommandSpec::new("visualization.stop", "Stop Live Visualization", stop_visualization).noundo(),
         CommandSpec::new("visualization.publish", "Publish Visualization Scene", publish_visualization).params("{project_id:32 hex digits,directory}").noundo(),
         CommandSpec::new("geometry3d.preview", "Tessellate 3D Preview", preview3d).params("{id,curve_segments?:64,surface_u?:16,surface_v?:16}").noundo(),
         CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
@@ -27,6 +30,44 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("model.select", "Select Model Item", select).params("{id}").noundo(),
         CommandSpec::new("model.visible", "Set Body Visibility", visible).params("{id, visible: bool}"),
     ]
+}
+fn visualization_status(s: &mut Session, _: &Value) -> Result<Value> {
+    s.poll_visualization();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Ok(s.visualization_feed.as_ref().map(|f| f.status()).unwrap_or_else(|| json!({"running":false})))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(json!({"running":false,"native_only":true}))
+    }
+}
+fn stop_visualization(s: &mut Session, _: &Value) -> Result<Value> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        s.visualization_feed = None;
+    }
+    let _ = s;
+    Ok(json!({"running":false}))
+}
+fn live_visualization(s: &mut Session, p: &Value) -> Result<Value> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (s, p);
+        Err(error("live visualization is native-only"))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let project = p.get("project_id").and_then(Value::as_str).ok_or_else(|| error("project_id required"))?;
+        let project = buildercraft_kernel::Id::try_from(project.to_string()).map_err(|e| error(&e.to_string()))?;
+        let directory = p.get("directory").and_then(Value::as_str).filter(|v| !v.is_empty()).ok_or_else(|| error("directory required"))?;
+        let uid = s.state()?.uid;
+        if s.visualization_feed.is_some() {
+            return Err(error("stop the current visualization feed before starting another"));
+        }
+        s.visualization_feed = Some(crate::visualization::Feed::new(uid, project, directory.into()).map_err(|e| error(&e.to_string()))?);
+        visualization_status(s, p)
+    }
 }
 fn publish_visualization(s: &mut Session, p: &Value) -> Result<Value> {
     #[cfg(target_arch = "wasm32")]

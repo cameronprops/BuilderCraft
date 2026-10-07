@@ -276,7 +276,14 @@ pub fn glb(snapshot: &Snapshot) -> Result<Vec<u8>> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn publish(directory: &std::path::Path, mut snapshot: Snapshot) -> Result<u64> {
+pub fn publish(directory: &std::path::Path, snapshot: Snapshot) -> Result<u64> {
+    publish_cancellable(directory, snapshot, &Cancellation::default())
+}
+
+/// Cancellation is checked before staging and immediately before committing the scene marker.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn publish_cancellable(directory: &std::path::Path, mut snapshot: Snapshot, cancel: &Cancellation) -> Result<u64> {
+    cancel.check().map_err(|e| bad(e.to_string()))?;
     use std::fs;
     fs::create_dir_all(directory).map_err(|e| bad(e.to_string()))?;
     let lock = directory.join("writer.lock");
@@ -311,10 +318,12 @@ pub fn publish(directory: &std::path::Path, mut snapshot: Snapshot) -> Result<u6
     if json.len() > MAX_PACKAGE_BYTES {
         return Err(bad("snapshot size limit"));
     }
+    cancel.check().map_err(|e| bad(e.to_string()))?;
     let asset = directory.join(&snapshot.glb_file);
     fs::write(&asset, glb).map_err(|e| bad(e.to_string()))?;
     let temp = directory.join("snapshot.next");
     fs::write(&temp, json).map_err(|e| bad(e.to_string()))?;
+    cancel.check().map_err(|e| bad(e.to_string()))?;
     fs::rename(&temp, &current).map_err(|e| bad(e.to_string()))?;
     if sequence > 2 {
         let _ = fs::remove_file(directory.join(format!("scene-{}.glb", sequence - 2)));

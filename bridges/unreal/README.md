@@ -31,3 +31,27 @@ Snapshot coordinates: left-handed Z-up **metres**. The adapter multiplies positi
 Preview surfaces are uniform untrimmed samples, not robust solids. No calibrated lighting/AV, original materials, instancing, textures, trims, ride motion, envelope/sightline analysis or full scene delta transport yet. Limits: 256 objects, 50,000 vertices, 100,000 triangles, 32 MiB packages, 8 MiB watch input. Work is bounded but native command export and host parsing are synchronous; async/coalesced jobs and measured RSS/GPU performance are release gates. Fingerprints are non-security cache hints, not authentication or cryptographic provenance. GLB validation here uses the independent MIT/Apache-2.0 `gltf` parser; full Khronos and Unreal host acceptance remain separate.
 
 References: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html and https://dev.epicgames.com/documentation/en-us/unreal-engine/coordinate-system-and-spaces-in-unreal-engine .
+
+### Unsaved editor updates
+
+Start a native session feed with `visualization.start` and JSON parameters
+`{"project_id":"00000000000000000000000000000001","directory":"/absolute/local/feed"}`.
+The Unreal actor watches that directory's `snapshot.json`. `visualization.status`
+reports pending work, publication sequence, source revision and the last error.
+`visualization.stop` cancels pending work and joins the worker. No model save is required.
+
+The feed remains bound to its starting document, even when another tab becomes active.
+Closing that document stops the feed on the next editor poll. Command completion,
+undo, redo and idle editor frames submit changed drawing references. Interactive
+commands publish after completion. Other embedders that mutate documents directly
+must call `Session::poll_visualization` after committing their edits.
+
+One worker holds at most one active export and one pending drawing; drawing references
+share immutable geometry. Rapid submissions replace the pending drawing and cancel the
+active tessellation. Publication checks cancellation before staging and before the
+atomic scene marker rename. An edit arriving immediately after that final check can
+briefly display the preceding valid revision, followed by the latest pending revision.
+This is eventual synchronization, not a transaction across CAD and Unreal. Stop can
+wait for bounded export or filesystem work already in progress. A failed export leaves
+the previous committed scene and exposes the error; edit again or stop/start to retry.
+The Unreal host build and end-to-end display still require validation in Unreal.

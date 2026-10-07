@@ -52,3 +52,25 @@ First walkthrough gate: a massing model and one fixture become a navigable Unrea
 - Unreal glTF: https://dev.epicgames.com/documentation/en-us/unreal-engine/gltf-file-format-support-in-unreal-engine
 
 References reviewed 2026-10-07. Actual adapters pin and test a supported version; these links are research, not implemented compatibility.
+
+## Controller mapping and the actual show-control program
+
+Requested 2026-10-07: Show must map Arduino-class microcontrollers, Raspberry Pi applications and industrial PLCs, and use the intended experience/ride show-control program during previs where an appropriate execution backend exists. This is planned integration, not current alpha support.
+
+Controllers are equipment records with stable UUIDs, hardware model, firmware/program revision or hash, execution backend, endpoints, protocol/version and IO definitions. Map pins, digital/analog IO, PLC tags/registers, network signals, units/scaling, state, quality and direction to scene sensors, actuator commands, lighting/media cues and interlocks. Preserve mappings for reports, wiring/IO schedules and simulation. Do not assume a controller supports every protocol.
+
+Execution modes:
+- Mock IO for early design without controller code/hardware.
+- Software in the loop: run the actual control application/firmware in a supported host, emulator or vendor PLC simulator; record code/version and modeled IO/timing differences.
+- Hardware in the loop: a real Arduino, Pi or PLC exchanges IO with the simulated scene; physical actuator outputs require a separate explicit configuration.
+- Record/replay: timestamped IO, controller state, scene revisions and cue events for repeatable inspection.
+
+The adapter layer translates supported serial/framed device protocols, TCP/UDP/OSC, MQTT, Modbus or OPC UA and vendor simulator APIs as applicable. Some PLC integrations require proprietary runtimes or simulation licenses. No universal firmware/PLC emulator is promised. Code running in a simulator is distinguished from a behavioral approximation.
+
+Closed loop: controller output commands simulated motion/effects; scene state produces virtual sensors (presence, position, limit switches and other declared inputs); the bridge returns them to the controller. Model update rates, scan cycles, clocks, latency, stale values and connection loss explicitly. Simulation updates and control timing are not assumed identical to render frame timing. Bounded queues, latest-value policies where appropriate, sequence numbers and timestamps prevent unbounded buffering and outdated actuator intent.
+
+Show owns mappings, execution sessions, IO routing, cue intent and logging. Graph supplies procedural assets, kinematic/physical recipes and reusable virtual-sensor models. Unreal is the preferred initial visualization/scene simulation adapter, not the sole execution engine for PLC logic or all engineering physics. Headless and alternate visualization backends remain possible through the same contracts.
+
+First acceptance scene: a real or vendor-simulated controller drives a virtual door; a virtual end-stop signal returns through the mapping to advance the same controller sequence. Include a light/media cue, pause/reset, disconnection/stale-data handling and recorded replay. Only claim same-program execution for a tested controller/backend; otherwise identify mock/approximate behavior.
+
+Reference: Siemens PLCSIM Advanced exposes controller-program simulation and a co-simulation API: https://developer.siemens.com/s7-plcsim-advanced/overview.html . Unreal provides separate DMX, OSC and Chaos capabilities; these do not establish native industrial PLC execution.

@@ -21,3 +21,20 @@ Import, export and fidelity are separate acceptance gates. No extension is consi
 .bcraft v1 preserves only what its embedded DXF serializer supports for drafting. It is not an archival guarantee for all unsupported DXF/DWG records. The exact new 3D control data is stored separately and does not pass through DXF. Formats that cannot represent BuilderCraft 3D objects currently return an error rather than silently exporting an empty 3D model. The same preservation policy should extend to assembly metadata and future mesh attributes before broad export is enabled.
 
 Every future adapter needs tests for units, axes, tolerances, geometry, object names, layers, organization, materials and unsupported-data reporting. Import must preserve the original file and return a conversion report. Export must disclose exact versus tessellated geometry and all dropped attributes.
+
+## Suite scene, show and simulation targets
+
+All entries below are planned, not current alpha support. Every adapter declares import/export, schema/app version, metadata loss and tested scope separately.
+
+| Format/route | Target role |
+|---|---|
+| glTF 2.0/GLB + semantic manifest | First massing/walkthrough pipeline; tessellated display scene and stable identity sidecar |
+| OpenUSD | Later scene composition, instances, variants and animation; test individual payload features |
+| GDTF | Fixture profiles, modes, attributes and physical/geometry metadata |
+| MVR | Rig/scene/device/patch exchange, persistent IDs and resources; not universal cue/showfile interchange |
+| CSV/JSON | Equipment reports, neutral patch and versioned cue-intent data |
+| Manufacturer-specific adapters | Console patch and pre-cue exports tested per product/version; unsupported semantics reported |
+| Unreal adapter | Import and update scenes, collision, spawn/cameras and equipment actor mapping; engine-specific data separate from source CAD |
+| Datasmith / FBX / Alembic / OpenVDB | Evaluate where needed for architectural or animated/VFX workflows; licensing, dependencies and fidelity gated per adapter |
+
+A file extension or third-party SDK does not establish support. Preserve source geometry and external fields, and disclose exact versus derived representations. See `architecture/SHOW_AND_PREVIS.md` and `architecture/SUITE.md`.

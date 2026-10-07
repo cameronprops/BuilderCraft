@@ -1,3 +1,15 @@
+# BuilderCraft suite instructions
+
+BuilderCraft's accepted scope is CAD for themed entertainment professionals, implemented as independently runnable CAD, Scan, Graph and Show apps with shared core services and optional bridges. Read `docs/architecture/SUITE.md`, `docs/roadmap/SUITE_ROADMAP.md`, `docs/architecture/MEMORY_AND_JOBS.md` and `docs/commands/README.md` first. These BuilderCraft product priorities supersede inherited CADCraft parity percentages, app naming and AutoCAD-only command/UI priorities below; inherited engineering/attribution/never-crash rules still apply.
+
+Preserve the independent native core: Rhino-style means functional/UI reference, not a mandatory licensed Rhino dependency. External Rhino/Autodesk/metrology/console adapters are optional and capability-labeled. All apps must run alone. Share geometry/identity/units/revisions/transactions and do not create duplicate modeling or patch engines. Graph nodes use the same command services as direct modeling and APIs. StructureGraph source reuse must follow the reviewed register before extraction; do not treat planned contracts as working tools.
+
+Track documented Rhino command coverage in `docs/commands/rhino8.json`. Never mark a name match as working parity. Implementation, options and acceptance evidence must accompany status changes. Prioritize an early massing-to-engine walkthrough without waiting for advanced VFX. Patch, cue programming and live output have separate validation gates. Rust memory safety does not waive aggregate RAM, undo, cache, IPC, cancellation or GPU teardown budgets.
+
+The inherited local `plan/` and external `craftrules` references may be absent in this fork. Record missing references and proceed with checked-in suite architecture and engineering rules; do not invent their content. No automatic cloud upload of design geometry. Update suite status/roadmap alongside actual feature changes.
+
+## Inherited CADCraft engineering instructions
+
 # CADCraft — instructions for agents
 
 CADCraft is a clean-room, open-source, pure-Rust computer-aided design and drafting application targeting Autodesk AutoCAD parity — and superiority (speed, openness, agent control). It runs natively on macOS, Windows, Linux and FreeBSD, and on the web via WASM. Siblings with the same conventions: `../photocraft` (Photoshop-class), `../vectorcraft` (Illustrator), `../filmcraft` (Premiere), `../lightcraft` (Lightroom), `../pdfcraft` (Acrobat), `../effectcraft` (After Effects), `../designcraft` (InDesign).

@@ -1,7 +1,5 @@
-# Procedural modeling scope
+# Procedural modeling
 
-Requested by Cameron: a Houdini-like procedural component including Grasshopper functionality, integrated into BuilderCraft as one shared project.
+BuilderCraft Graph is an independent Houdini-style procedural modeling and VFX app with Grasshopper-style data flow, lists/data trees, reusable subgraphs and preview/bake. It shares BuilderCraft's geometry, commands, scene and show systems, and connects to Unreal or other engines for immersive simulation.
 
-Status: requested; not implemented in alpha 0.1.
-
-Share existing geometry, document, commands/API, undo, organization and persistence. Planned: typed node ports, parameters, lists and Grasshopper-style data trees, subgraphs, incremental evaluation, previews and baking into bodies/layers. Graphs should be saved natively and controllable through the API. Mesh repair tools should use the same services when implemented.
+Status: requested/planned; not implemented in alpha 0.1. Read [the suite architecture](architecture/SUITE.md), [show/previs contract](architecture/SHOW_AND_PREVIS.md) and [delivery milestones](roadmap/SUITE_ROADMAP.md). Graph should run without the CAD UI or a proprietary host; host integrations remain optional adapters.

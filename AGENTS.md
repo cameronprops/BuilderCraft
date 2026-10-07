@@ -1,5 +1,7 @@
 # BuilderCraft suite instructions
 
+Native BuilderCraft must be entirely free and open source. Use original implementations or dependencies whose relevant source and redistribution licenses have been verified. Rhino/Grasshopper/Kangaroo are public-behavior references only: never copy proprietary implementation code or require a paid host for native capabilities. Optional third-party adapters must not replace native functionality or become a required runtime dependency.
+
 BuilderCraft's accepted scope is CAD for themed entertainment professionals, implemented as independently runnable CAD, Scan, Graph and Show apps with shared core services and optional bridges. Read `docs/architecture/SUITE.md`, `docs/roadmap/SUITE_ROADMAP.md`, `docs/architecture/MEMORY_AND_JOBS.md` and `docs/commands/README.md` first. These BuilderCraft product priorities supersede inherited CADCraft parity percentages, app naming and AutoCAD-only command/UI priorities below; inherited engineering/attribution/never-crash rules still apply.
 
 Preserve the independent native core: Rhino-style means functional/UI reference, not a mandatory licensed Rhino dependency. External Rhino/Autodesk/metrology/console adapters are optional and capability-labeled. All apps must run alone. Share geometry/identity/units/revisions/transactions and do not create duplicate modeling or patch engines. Graph nodes use the same command services as direct modeling and APIs. StructureGraph source reuse must follow the reviewed register before extraction; do not treat planned contracts as working tools.

@@ -48,3 +48,9 @@ Implemented: dependency-light `buildercraft-kernel`, immutable shared exact geom
 5. Reuse reviewed StructureGraph recipes through these shared geometry/graph services.
 
 The native solver is required; a licensed-host adapter cannot substitute for it.
+
+## Tessellation increment
+
+Implemented bounded uniform-parameter curve polylines and untrimmed surface triangle previews in the shared kernel, plus the non-mutating `geometry3d.preview` API. Resolution, sample, output-capacity and complexity limits are checked before sampling; jobs support cancellation and final retained-byte admission. Exact CAD data is preserved. This is preview sampling, not adaptive/tolerance-certified meshing, trimmed Brep meshing, a new viewport renderer or a GLB exporter.
+
+Required native command/component inventories and viewport work are tracked in `../commands/NATIVE_COVERAGE.md`. All native code must be original or verified open source; the native suite must remain free to run without paid hosts.

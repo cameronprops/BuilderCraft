@@ -4,8 +4,10 @@
 
 mod geometry;
 mod scene;
+mod tessellation;
 pub use geometry::*;
 pub use scene::*;
+pub use tessellation::*;
 
 use serde::{Deserialize, Serialize};
 

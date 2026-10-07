@@ -8,6 +8,7 @@ use serde_json::json;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
+        CommandSpec::new("geometry3d.preview", "Tessellate 3D Preview", preview3d).params("{id,curve_segments?:64,surface_u?:16,surface_v?:16}").noundo(),
         CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
         CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"geometry":["rationalCurve3d","controlSurface"],"nativeProject":"bcraft","solids":false,"meshTools":false,"changeSubscriptions":false}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
@@ -23,6 +24,32 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("model.select", "Select Model Item", select).params("{id}").noundo(),
         CommandSpec::new("model.visible", "Set Body Visibility", visible).params("{id, visible: bool}"),
     ]
+}
+fn preview3d(s: &mut Session, p: &Value) -> Result<Value> {
+    let object_id = id(p)?;
+    let count = |key: &str, fallback: usize| -> Result<usize> {
+        match p.get(key) {
+            None => Ok(fallback),
+            Some(v) => v.as_u64().and_then(|n| usize::try_from(n).ok()).ok_or_else(|| error("invalid preview segment count")),
+        }
+    };
+    let options = buildercraft_kernel::TessellationOptions {
+        curve_segments: count("curve_segments", 64)?,
+        surface_u: count("surface_u", 16)?,
+        surface_v: count("surface_v", 16)?,
+    };
+    let object = s.doc()?.geometry3d.iter().find(|o| o.id == object_id).ok_or_else(|| error("unknown geometry id"))?;
+    let budget = buildercraft_kernel::GeometryBudget::new(8 * 1024 * 1024, 65536);
+    let preview = buildercraft_kernel::tessellate(
+        &object.shape,
+        options,
+        buildercraft_kernel::TessellationLimits::default(),
+        &budget,
+        &buildercraft_kernel::Cancellation::default(),
+    )
+    .map_err(|e| error(&e.to_string()))?;
+    Ok(json!({"source_id":object_id,"source_revision":s.state()?.revision,"sampling":"uniform_parameter",
+        "tolerance_certified":false,"preview":preview.data(),"estimated_geometry_bytes":preview.estimated_bytes()}))
 }
 fn kernel_manifest(s: &mut Session, p: &Value) -> Result<Value> {
     let project = p.get("project_id").and_then(Value::as_str).ok_or_else(|| error("project_id required"))?;
@@ -274,6 +301,20 @@ mod tests {
             )
             .unwrap();
         (s, result["id"].clone())
+    }
+    #[test]
+    fn preview_uses_exact_source_without_mutation_and_rejects_hostile_counts() {
+        let (mut s, _) = curve_session();
+        let object_id = s.doc().unwrap().geometry3d[0].id;
+        let before = s.state().unwrap().revision;
+        let result = s.execute("geometry3d.preview", &json!({"id":object_id,"curve_segments":4})).unwrap();
+        assert_eq!(result["source_revision"], before);
+        assert_eq!(result["preview"]["Polyline"].as_array().unwrap().len(), 5);
+        assert_eq!(s.state().unwrap().revision, before);
+        for count in [json!(0), json!(4097), json!(u64::MAX), json!(-1), json!("huge")] {
+            assert!(s.execute("geometry3d.preview", &json!({"id":object_id,"curve_segments":count})).is_err());
+            assert_eq!(s.state().unwrap().revision, before);
+        }
     }
     #[test]
     fn kernel_manifest_is_metadata_only_and_does_not_edit() {

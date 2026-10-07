@@ -15,7 +15,8 @@
         "numeric_control_edit",
         "named_organization",
         "native_project_v1",
-        "local_command_api"
+        "local_command_api",
+        "bounded_uniform_preview_api"
       ],
       "capabilities_planned": [
         "rhino_command_equivalence",
@@ -26,7 +27,10 @@
         "engine_scene_export",
         "embedded_grasshopper_workspace",
         "parametric_live_preview_bake",
-        "kangaroo_constraint_form_finding"
+        "kangaroo_constraint_form_finding",
+        "perspective_orthographic_multiview_viewports",
+        "complete_native_grasshopper_component_coverage",
+        "complete_native_kangaroo_component_coverage"
       ]
     },
     {
@@ -99,5 +103,7 @@
   ],
   "bridge_status": "planned_beyond_existing_loopback_commands",
   "memory_validation_status": "shared_geometry_budget_contract_tests_added_process_resource_gate_pending",
-  "external_hosts_optional": true
+  "external_hosts_optional": true,
+  "native_runtime_requires_paid_host": false,
+  "native_source_policy": "original_or_verified_open_source"
 }

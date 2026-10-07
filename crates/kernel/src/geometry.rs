@@ -52,6 +52,7 @@ pub enum GeometryData {
     Exact(ExactShape),
     Mesh(TriangleMesh),
     PointCloud(Vec<Vec3>),
+    Polyline(Vec<Vec3>),
 }
 impl GeometryData {
     pub fn kind(&self) -> &'static str {
@@ -60,6 +61,7 @@ impl GeometryData {
             Self::Exact(ExactShape::Surface(_)) => "nurbsSurface",
             Self::Mesh(_) => "triangleMesh",
             Self::PointCloud(_) => "pointCloud",
+            Self::Polyline(_) => "polyline",
         }
     }
     fn validate(&self, max_samples: usize) -> Result<()> {
@@ -79,6 +81,7 @@ impl GeometryData {
                     }
             }
             Self::PointCloud(p) => valid_points(p),
+            Self::Polyline(p) => p.len() >= 2 && valid_points(p),
             Self::Mesh(m) => {
                 valid_points(&m.vertices)
                     && !m.triangles.is_empty()
@@ -94,7 +97,7 @@ impl GeometryData {
         let vertices = |n: usize| n.checked_mul(size_of::<Vec3>()).ok_or(KernelError::Budget);
         let bytes = match self {
             Self::Exact(s) => s.estimated_bytes()?,
-            Self::PointCloud(p) => vertices(p.capacity())?,
+            Self::PointCloud(p) | Self::Polyline(p) => vertices(p.capacity())?,
             Self::Mesh(m) => vertices(m.vertices.capacity())?
                 .checked_add(m.triangles.capacity().checked_mul(size_of::<[u32; 3]>()).ok_or(KernelError::Budget)?)
                 .ok_or(KernelError::Budget)?,
@@ -118,6 +121,14 @@ impl GeometryBudget {
     }
     pub fn limit(&self) -> usize {
         self.limit
+    }
+    pub(crate) fn preview_fits(&self, vertices: usize, triangles: usize, buffer_bytes: usize) -> bool {
+        vertices <= self.max_samples
+            && triangles <= self.max_samples
+            && buffer_bytes
+                .checked_add(size_of::<Resource>() + 2 * size_of::<usize>())
+                .and_then(|bytes| self.used().checked_add(bytes))
+                .is_some_and(|bytes| bytes <= self.limit)
     }
     /// Input data already exists: callers must limit decoding/workspace separately.
     pub fn retain(self: &Arc<Self>, data: GeometryData) -> Result<GeometryLease> {

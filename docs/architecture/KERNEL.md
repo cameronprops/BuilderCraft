@@ -23,3 +23,9 @@ Legacy CAD handles map to kernel IDs as handle + 1; this is project-scoped. The 
 Retained geometry accounting conservatively includes vector capacity. Cloned leases count once; independently retained wrappers may count shared exact buffers twice. Validation/admission happens after input buffers exist, so decoding and temporary allocation need separate upstream budgets. Metadata, process RSS, CAD undo, worker queues, caches and GPU buffers are not covered by this geometry budget. Rust ownership and these contract tests do not establish whole-suite memory performance.
 
 Next vertical workflow: controlled tessellation plus scene export and engine import, then the shared typed graph evaluator and embedded CAD component workspace with native Kangaroo-style goals. Separate apps and proprietary adapters remain optional consumers of the kernel.
+
+## Bounded preview tessellation
+
+`tessellate` samples exact curves into `GeometryData::Polyline` and untrimmed control surfaces into indexed triangle meshes. The authoritative exact shape is never replaced. Segment and sample counts, a per-job output-buffer capacity limit and a conservative complexity score bound admission before sampling. Output buffers use fallible reservation; retained resources use the existing shared budget. Cancellation is checked between samples/faces and before returning the completed lease. Evaluator temporary allocations and whole-process RAM still require separate accounting.
+
+`geometry3d.preview` exposes this headlessly with CAD object ID and source revision. It returns drawing-coordinate geometry, not transformed engine coordinates. Uniform parameter spacing is explicitly not a geometric-error tolerance guarantee. Degenerate/folded surfaces may produce degenerate/folded triangles; topology/normal validation, adaptive error control, trims, seam welding, export and viewport caching are later gates.

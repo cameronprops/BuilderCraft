@@ -1,0 +1,32 @@
+name: BuilderCraft alpha builds
+on:
+  workflow_dispatch:
+  push:
+    branches: ['buildercraft/**']
+  pull_request:
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libegl1-mesa-dev
+      - run: cargo test --workspace
+      - run: cargo build --release -p cadcraft -p cadcraft-cli
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BuilderCraft-${{ runner.os }}-unsigned
+          path: |
+            target/release/cadcraft
+            target/release/cadcraft.exe
+            target/release/cadcraft-cli
+            target/release/cadcraft-cli.exe
+            LICENSE-MIT
+            LICENSE-APACHE
+            NOTICE

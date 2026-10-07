@@ -2,9 +2,21 @@ name: BuilderCraft alpha builds
 on:
   workflow_dispatch:
   push:
-    branches: ['buildercraft/**']
+    branches: ['main', 'buildercraft/**']
   pull_request:
 jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux desktop dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libegl1-mesa-dev
+      - run: cargo xtask ci
   desktop:
     strategy:
       matrix:
@@ -12,7 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
       - name: Linux desktop dependencies
         if: runner.os == 'Linux'

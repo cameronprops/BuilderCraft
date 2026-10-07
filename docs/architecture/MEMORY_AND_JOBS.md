@@ -8,7 +8,7 @@ Review date: 2026-10-07. Inspection of alpha source, not a completed memory/leak
 |---|---|---|
 | Unsafe code | Workspace `unsafe_code = "forbid"` in `Cargo.toml` | Check each crate inherits lints; review dependencies/FFI separately |
 | Drawing ownership | `Arc<Drawing>` snapshots and chunked `Arc` entity store | Track actual retained bytes, deduplicate immutable large geometry |
-| New 3D storage | `Vec<GeometryObject>` with owned NURBS control vectors | Drawing copy-on-write can deep-clone all 3D geometry; use immutable geometry handles/chunks before scan-scale work |
+| New 3D storage | `Vec<GeometryObject>` with `Arc` exact shapes; edits use copy-on-write | Shared retained geometry budget in kernel; CAD undo aggregate byte limit, decoder/temporary workspace and GPU accounting still pending |
 | Undo | Programmatic path caps snapshots at 2,000 | Count is not a byte budget; audit interactive/redo paths, add per-document byte budget and spill/checkpoint policy |
 | NURBS bounds | Curves capped at 4,096 controls/degree 5; surface axes capped at 128 | Aggregate scene/job budgets, mesh/point cloud caps and CPU work limits |
 | Project input | 128 MiB byte check and post-parse item/shape checks | Deserialization allocates before structural checks; bound input upstream and decoded arrays, nesting, total samples and archive expansion |

@@ -1,0 +1,25 @@
+# First shared kernel increment
+
+Build the complete workspace with Rust 1.95 or newer, as required by the existing egui 0.36 dependencies.
+
+`buildercraft-kernel` is a headless Rust crate beneath document/UI services. It reuses the current rational geometry evaluator. Run `cargo run -p buildercraft-kernel --example scene` for a small scene transaction/snapshot/manifest demonstration.
+
+## Implemented contracts
+
+- Nonzero 128-bit identities serialize as hexadecimal strings, avoiding JSON number precision loss. Callers supply and persist project IDs.
+- Immutable exact curves/surfaces, triangle meshes and point clouds; sample/index/finite-value validation; shared leases with concurrent retained-byte admission and release after the last owner drops.
+- Scene objects with layers and ID-based parent links, bounded hierarchy validation, revision conflicts, atomic command batches, cooperative cancellation and shared snapshots.
+- Point conversion among mm/metres/inches/feet and three declared axis frames. Mesh winding, transforms and full scene exchange are future work.
+- Existing CAD exact shapes share buffers across undo snapshots; a control edit copies only the affected exact shape. Existing `.bcraft` v1 shape encoding is retained.
+
+## CAD API
+
+Call `kernel.manifest` with `{"project_id":"00000000000000000000000000000001"}`. Optional `geometry_budget_bytes` defaults to 64 MiB and is capped at 1 GiB. The command returns protocol version, revision, frame, organization and 3D geometry metadata. It does not mutate the drawing.
+
+Legacy CAD handles map to kernel IDs as handle + 1; this is project-scoped. The caller must retain the supplied project identity. This projection covers organization and exact 3D geometry, not inherited 2D drafting, materials or show equipment. Unsupported drawing units return an error. It is not a live bridge or a geometry payload exporter.
+
+## Resource limits and next work
+
+Retained geometry accounting conservatively includes vector capacity. Cloned leases count once; independently retained wrappers may count shared exact buffers twice. Validation/admission happens after input buffers exist, so decoding and temporary allocation need separate upstream budgets. Metadata, process RSS, CAD undo, worker queues, caches and GPU buffers are not covered by this geometry budget. Rust ownership and these contract tests do not establish whole-suite memory performance.
+
+Next vertical workflow: controlled tessellation plus scene export and engine import, then the shared typed graph evaluator and embedded CAD component workspace with native Kangaroo-style goals. Separate apps and proprietary adapters remain optional consumers of the kernel.

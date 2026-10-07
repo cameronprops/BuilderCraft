@@ -9,8 +9,25 @@
       "label": "BuilderCraft CAD",
       "status": "alpha_in_existing_desktop",
       "independent_execution_target": true,
-      "capabilities_current": ["rational_curve3d", "control_surface3d", "numeric_control_edit", "named_organization", "native_project_v1", "local_command_api"],
-      "capabilities_planned": ["rhino_command_equivalence", "brep_solids", "snaps3d", "surface_projection", "flow_along_surface", "engine_scene_export"]
+      "capabilities_current": [
+        "rational_curve3d",
+        "control_surface3d",
+        "numeric_control_edit",
+        "named_organization",
+        "native_project_v1",
+        "local_command_api"
+      ],
+      "capabilities_planned": [
+        "rhino_command_equivalence",
+        "brep_solids",
+        "snaps3d",
+        "surface_projection",
+        "flow_along_surface",
+        "engine_scene_export",
+        "embedded_grasshopper_workspace",
+        "parametric_live_preview_bake",
+        "kangaroo_constraint_form_finding"
+      ]
     },
     {
       "id": "scan",
@@ -18,7 +35,18 @@
       "status": "planned",
       "independent_execution_target": true,
       "capabilities_current": [],
-      "capabilities_planned": ["mesh_diagnostics", "smoothing", "offset", "shell", "hole_fill", "repair", "best_fit", "deviation_report", "point_clouds", "scan_reconstruction"]
+      "capabilities_planned": [
+        "mesh_diagnostics",
+        "smoothing",
+        "offset",
+        "shell",
+        "hole_fill",
+        "repair",
+        "best_fit",
+        "deviation_report",
+        "point_clouds",
+        "scan_reconstruction"
+      ]
     },
     {
       "id": "graph",
@@ -26,7 +54,19 @@
       "status": "planned",
       "independent_execution_target": true,
       "capabilities_current": [],
-      "capabilities_planned": ["typed_nodes", "grasshopper_data_trees", "houdini_attribute_streams", "subgraphs", "incremental_evaluation", "preview_bake", "kinematics", "simulation", "vfx", "engine_pipeline"]
+      "capabilities_planned": [
+        "typed_nodes",
+        "grasshopper_data_trees",
+        "houdini_attribute_streams",
+        "subgraphs",
+        "incremental_evaluation",
+        "preview_bake",
+        "kinematics",
+        "simulation",
+        "vfx",
+        "engine_pipeline",
+        "kangaroo_constraint_form_finding"
+      ]
     },
     {
       "id": "show",
@@ -34,11 +74,30 @@
       "status": "planned",
       "independent_execution_target": true,
       "capabilities_current": [],
-      "capabilities_planned": ["lighting_av_automation_units", "unit_organization", "dmx_patch_validation", "reports", "cue_intent", "previs", "gdtf", "mvr", "console_patch_adapters", "console_precue_adapters"]
+      "capabilities_planned": [
+        "lighting_av_automation_units",
+        "unit_organization",
+        "dmx_patch_validation",
+        "reports",
+        "cue_intent",
+        "previs",
+        "gdtf",
+        "mvr",
+        "console_patch_adapters",
+        "console_precue_adapters"
+      ]
     }
   ],
-  "shared_services_target": ["geometry", "scene_identity_units_revisions", "commands_transactions_jobs", "graph_evaluation", "show_model", "preview", "exchange"],
+  "shared_services_target": [
+    "geometry",
+    "scene_identity_units_revisions",
+    "commands_transactions_jobs",
+    "graph_evaluation",
+    "show_model",
+    "preview",
+    "exchange"
+  ],
   "bridge_status": "planned_beyond_existing_loopback_commands",
-  "memory_validation_status": "source_review_done_runtime_resource_gate_pending",
+  "memory_validation_status": "shared_geometry_budget_contract_tests_added_process_resource_gate_pending",
   "external_hosts_optional": true
 }

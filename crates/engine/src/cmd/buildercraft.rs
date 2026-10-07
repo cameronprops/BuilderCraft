@@ -8,7 +8,8 @@ use serde_json::json;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"geometry":["rationalCurve3d","controlSurface"],"nativeProject":"bcraft","solids":false,"meshTools":false,"changeSubscriptions":false}))).enabled(always).noundo(),
+        CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
+        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"geometry":["rationalCurve3d","controlSurface"],"nativeProject":"bcraft","solids":false,"meshTools":false,"changeSubscriptions":false}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
         CommandSpec::new("nurbs.surface", "NURBS Control Surface", surface3d).params("{name, surface:{rows:[curve,...],degree_v,knots_v}}"),
         CommandSpec::new("geometry3d.controlpoint", "Edit NURBS Control Point", controlpoint).params("{id,row?:0,index,point:[x,y,z]}"),
@@ -22,6 +23,20 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("model.select", "Select Model Item", select).params("{id}").noundo(),
         CommandSpec::new("model.visible", "Set Body Visibility", visible).params("{id, visible: bool}"),
     ]
+}
+fn kernel_manifest(s: &mut Session, p: &Value) -> Result<Value> {
+    let project = p.get("project_id").and_then(Value::as_str).ok_or_else(|| error("project_id required"))?;
+    let project = buildercraft_kernel::Id::try_from(project.to_string()).map_err(|e| error(&e.to_string()))?;
+    let bytes = match p.get("geometry_budget_bytes") {
+        None => 64 * 1024 * 1024,
+        Some(v) => v
+            .as_u64()
+            .filter(|n| *n > 0 && *n <= 1024 * 1024 * 1024)
+            .and_then(|n| usize::try_from(n).ok())
+            .ok_or_else(|| error("invalid geometry budget"))?,
+    };
+    let manifest = cadcraft_doc::kernel::manifest(s.doc()?, project, s.state()?.revision, bytes).map_err(|e| error(&e.to_string()))?;
+    serde_json::to_value(manifest).map_err(|e| error(&e.to_string()))
 }
 fn error(message: &str) -> EngineError {
     EngineError::Other(message.into())
@@ -193,7 +208,7 @@ fn curve3d(s: &mut Session, p: &Value) -> Result<Value> {
     if !curve.valid() {
         return Err(error("invalid NURBS curve"));
     }
-    add3d(s, p, cadcraft_doc::organization::Shape::Curve(curve))
+    add3d(s, p, cadcraft_doc::organization::Shape::Curve(curve.into()))
 }
 fn surface3d(s: &mut Session, p: &Value) -> Result<Value> {
     let surface: cadcraft_geom::nurbs3d::Surface =
@@ -201,7 +216,7 @@ fn surface3d(s: &mut Session, p: &Value) -> Result<Value> {
     if !surface.valid() {
         return Err(error("invalid NURBS surface"));
     }
-    add3d(s, p, cadcraft_doc::organization::Shape::Surface(surface))
+    add3d(s, p, cadcraft_doc::organization::Shape::Surface(surface.into()))
 }
 
 fn geometry3d_set(s: &mut Session, p: &Value) -> Result<Value> {
@@ -228,11 +243,19 @@ fn controlpoint(s: &mut Session, p: &Value) -> Result<Value> {
     let a = p.get("point").and_then(Value::as_array).filter(|a| a.len() == 3).ok_or_else(|| error("point must be [x,y,z]"))?;
     let number = |i| a.get(i).and_then(Value::as_f64).filter(|v| v.is_finite() && v.abs() <= 1e12).ok_or_else(|| error("invalid coordinate"));
     let point = cadcraft_geom::Vec3::new(number(0)?, number(1)?, number(2)?);
+    let source = s.doc()?.geometry3d.iter().find(|o| o.id == id).ok_or_else(|| error("3D body does not exist"))?;
+    let valid_index = match &source.shape {
+        cadcraft_doc::organization::Shape::Curve(c) => row == 0 && index < c.control.len(),
+        cadcraft_doc::organization::Shape::Surface(surface) => surface.rows.get(row as usize).is_some_and(|r| index < r.control.len()),
+    };
+    if !valid_index {
+        return Err(error("control point does not exist"));
+    }
     let object = s.doc_mut()?.geometry3d.iter_mut().find(|o| o.id == id).ok_or_else(|| error("3D body does not exist"))?;
     let control = match &mut object.shape {
-        cadcraft_doc::organization::Shape::Curve(c) => &mut c.control,
+        cadcraft_doc::organization::Shape::Curve(c) => &mut std::sync::Arc::make_mut(c).control,
         cadcraft_doc::organization::Shape::Surface(surface) => {
-            &mut surface.rows.get_mut(row as usize).ok_or_else(|| error("row does not exist"))?.control
+            &mut std::sync::Arc::make_mut(surface).rows.get_mut(row as usize).ok_or_else(|| error("row does not exist"))?.control
         }
     };
     *control.get_mut(index).ok_or_else(|| error("control point does not exist"))? = point;
@@ -242,6 +265,57 @@ fn controlpoint(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn curve_session() -> (Session, Value) {
+        let mut s = Session::new();
+        let result = s
+            .execute(
+                "nurbs.curve3d",
+                &json!({"name":"Arch","curve":{"degree":1,"control":[{"x":0,"y":0,"z":0},{"x":1,"y":2,"z":3}],"weights":[1,1],"knots":[0,0,1,1]}}),
+            )
+            .unwrap();
+        (s, result["id"].clone())
+    }
+    #[test]
+    fn kernel_manifest_is_metadata_only_and_does_not_edit() {
+        let (mut s, id) = curve_session();
+        let revision = s.state().unwrap().revision;
+        let manifest = s.execute("kernel.manifest", &json!({"project_id":"ffffffffffffffffffffffffffffffff"})).unwrap();
+        assert_eq!(manifest["revision"], revision);
+        assert_eq!(manifest["objects"][0]["name"], "Arch");
+        assert_eq!(manifest["objects"][0]["geometry_kind"], "nurbsCurve");
+        assert!(manifest["objects"][0].get("control").is_none());
+        assert_eq!(s.state().unwrap().revision, revision);
+        assert!(s.execute("kernel.manifest", &json!({"project_id":"ffffffffffffffffffffffffffffffff","geometry_budget_bytes":1})).is_err());
+        assert_eq!(s.doc().unwrap().geometry3d[0].id, id.as_u64().unwrap());
+    }
+    #[test]
+    fn cad_snapshots_share_geometry_until_valid_control_edit() {
+        let (mut s, id) = curve_session();
+        let before = s.doc().unwrap().clone();
+        s.execute("geometry3d.set", &json!({"id":id,"name":"Renamed"})).unwrap();
+        let (cadcraft_doc::organization::Shape::Curve(a), cadcraft_doc::organization::Shape::Curve(b)) =
+            (&before.geometry3d[0].shape, &s.doc().unwrap().geometry3d[0].shape)
+        else {
+            panic!()
+        };
+        assert!(std::sync::Arc::ptr_eq(a, b));
+        let revision = s.state().unwrap().revision;
+        assert!(s.execute("geometry3d.controlpoint", &json!({"id":id,"index":99,"point":[4,5,6]})).is_err());
+        assert_eq!(s.state().unwrap().revision, revision);
+        s.execute("geometry3d.controlpoint", &json!({"id":id,"index":0,"point":[4,5,6]})).unwrap();
+        let (cadcraft_doc::organization::Shape::Curve(a), cadcraft_doc::organization::Shape::Curve(b)) =
+            (&before.geometry3d[0].shape, &s.doc().unwrap().geometry3d[0].shape)
+        else {
+            panic!()
+        };
+        assert!(!std::sync::Arc::ptr_eq(a, b));
+        assert_eq!(a.control[0].x, 0.);
+        assert_eq!(b.control[0].x, 4.);
+        s.undo().unwrap();
+        let cadcraft_doc::organization::Shape::Curve(b) = &s.doc().unwrap().geometry3d[0].shape else { panic!() };
+        let cadcraft_doc::organization::Shape::Curve(a) = &before.geometry3d[0].shape else { panic!() };
+        assert!(std::sync::Arc::ptr_eq(a, b));
+    }
     #[test]
     fn organization_undo_and_selection() {
         let mut s = Session::new();

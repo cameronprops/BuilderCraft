@@ -489,6 +489,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "buildercraft-kernel"
+version = "0.1.0"
+dependencies = [
+ "cadcraft-geom",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -580,6 +590,7 @@ dependencies = [
 name = "cadcraft-doc"
 version = "0.1.0"
 dependencies = [
+ "buildercraft-kernel",
  "cadcraft-color",
  "cadcraft-geom",
  "serde",
@@ -605,6 +616,7 @@ dependencies = [
 name = "cadcraft-engine"
 version = "0.1.0"
 dependencies = [
+ "buildercraft-kernel",
  "cadcraft-color",
  "cadcraft-constraints",
  "cadcraft-doc",

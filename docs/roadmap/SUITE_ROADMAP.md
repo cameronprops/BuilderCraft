@@ -22,7 +22,7 @@ S1 walkthrough does not wait for S6 VFX or complete Rhino parity. Show schema an
 
 ## Priority work queues
 
-- CAD: snaps, 3D transform/selection, curve creation/editing, projection/intersection, surface creation (loft/revolve/sweep), trim/join, topology/solids, offset/fillet, Flow/FlowAlongSrf and fabrication tools. `Project` and `FlowAlongSrf` have explicit acceptance cases.
+- CAD: embedded Grasshopper-style component canvas, live parametric modeling and preview/bake through Graph's shared evaluator; Kangaroo-style constraints, relaxation and form-finding; snaps, 3D transform/selection, curve creation/editing, projection/intersection, surface creation (loft/revolve/sweep), trim/join, topology/solids, offset/fillet, Flow/FlowAlongSrf and fabrication tools. `Project` and `FlowAlongSrf` have explicit acceptance cases.
 - Scan: diagnose manifoldness/degenerates/self-intersections; preserve colors/normals/tags; smooth with feature boundaries; fill holes; offset/shell with thickness validation; rigid landmarks + ICP best fit with masks/weights/outlier rejection; residual/deviation reporting and scan-to-CAD later.
 - Graph: exact CAD and mesh ports first, Grasshopper data-tree semantics and Houdini attributes, immutable recipes, incremental jobs, bake, kinematics, then particles/volumes/VFX.
 - Show: lighting/AV/automation equipment schema, patch and reports, cue intent, portable rig exchange, then individually validated console exporters.
@@ -34,3 +34,17 @@ S1 walkthrough does not wait for S6 VFX or complete Rhino parity. Show schema an
 Working: implemented and acceptance fixtures pass in a stated representation/scope. Partial: implemented subset with explicit options/limitations. Unvalidated: candidate implementation exists but reference acceptance is pending. Not implemented: absent native equivalent. External adapter: separately labeled; host-supported behavior is not counted as native parity.
 
 Track import and export separately for every format; track patch and cue features separately for every console. Update status only alongside implementation evidence. No claiming full Rhino/Houdini/metrology/Lightwright parity from menu names or dependency availability.
+
+## First kernel increment
+
+Implemented: dependency-light `buildercraft-kernel`, immutable shared exact geometry, bounded mesh/point-cloud resources, unit/axis point conversion, revision-checked atomic scene batches, hierarchy validation, cancellation, snapshots and metadata manifest. Existing CAD now uses shared exact buffers and copy-on-write control edits; `kernel.manifest` projects current 3D organization into these contracts. See `../architecture/KERNEL.md` for usage and limitations. Graph evaluation, embedded CAD canvas, Kangaroo solver, independent Scan/Graph/Show executables and engine export remain planned.
+
+## Next concrete tasks
+
+1. Tessellate exact curves/surfaces into bounded preview resources, preserving exact source and revision.
+2. Export a massing scene to GLB with the semantic manifest; validate units, identity and hierarchy in an engine import fixture.
+3. Add the shared typed graph evaluator and persistent parameters/data trees, then embed its component canvas inside CAD.
+4. Implement original native constraint goals and bounded iterative relaxation for Kangaroo-style form-finding; verify convergence, anchors, units and cancellation.
+5. Reuse reviewed StructureGraph recipes through these shared geometry/graph services.
+
+The native solver is required; a licensed-host adapter cannot substitute for it.

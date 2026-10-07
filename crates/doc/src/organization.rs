@@ -30,8 +30,4 @@ pub struct GeometryObject {
     pub visible: bool,
     pub shape: Shape,
 }
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum Shape {
-    Curve(crate::geom::nurbs3d::Curve),
-    Surface(crate::geom::nurbs3d::Surface),
-}
+pub use buildercraft_kernel::ExactShape as Shape;

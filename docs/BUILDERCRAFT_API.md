@@ -13,6 +13,7 @@ Use the returned model ID as `parent` when creating a component or body.
 | Command | Parameters |
 |---|---|
 | buildercraft.capabilities | API/schema version and implemented geometry capabilities |
+| kernel.manifest | project_id (32 hex digits), optional geometry_budget_bytes; metadata-only 3D scene projection, no edit |
 | model.create | name, kind (assembly/component/body), optional parent ID and hex entity handles; bodies use current selection if handles are absent |
 | model.list | returns organization nodes |
 | model.rename | id, name |
@@ -31,3 +32,5 @@ Use the returned model ID as `parent` when creating a component or body.
 ```
 
 Commands are discoverable through the inherited command catalog. IDs remain stable within this alpha; a formal version-negotiated integration SDK, change subscriptions and structured transfer diagnostics are planned. Scripts should use command results and query the document after mutations rather than assuming success. API integration does not automatically synchronize external Rhino/Autodesk documents.
+
+Shared kernel usage, identity mapping and current bridge limitations: [KERNEL.md](architecture/KERNEL.md).

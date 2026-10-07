@@ -1,0 +1,17 @@
+[package]
+name = "buildercraft-kernel"
+description = "Headless BuilderCraft scene, shared geometry ownership, transactions and exchange contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+cadcraft-geom = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

@@ -10,6 +10,7 @@ mod constraint;
 mod entity;
 mod extents;
 mod header;
+pub mod kernel;
 pub mod library;
 pub mod organization;
 mod store;

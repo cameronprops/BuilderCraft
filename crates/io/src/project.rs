@@ -132,12 +132,15 @@ mod tests {
             name: "Exact curve".into(),
             layer: "0".into(),
             visible: true,
-            shape: cadcraft_doc::organization::Shape::Curve(cadcraft_geom::nurbs3d::Curve {
-                degree: 1,
-                control: vec![cadcraft_geom::Vec3::ZERO, cadcraft_geom::Vec3::new(1., 2., 3.)],
-                weights: vec![1., 1.],
-                knots: vec![0., 0., 1., 1.],
-            }),
+            shape: cadcraft_doc::organization::Shape::Curve(
+                cadcraft_geom::nurbs3d::Curve {
+                    degree: 1,
+                    control: vec![cadcraft_geom::Vec3::ZERO, cadcraft_geom::Vec3::new(1., 2., 3.)],
+                    weights: vec![1., 1.],
+                    knots: vec![0., 0., 1., 1.],
+                }
+                .into(),
+            ),
         });
         let reopened = read(&write(&d).unwrap()).unwrap();
         assert_eq!(reopened.geometry3d, d.geometry3d);

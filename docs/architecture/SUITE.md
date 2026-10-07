@@ -6,7 +6,7 @@ Decision date: 2026-10-07. This is the accepted product direction. App separatio
 
 | App (working designation) | Owns | Must also work independently |
 |---|---|---|
-| BuilderCraft CAD | Rhino-style direct NURBS/Brep modeling, drafting, layers and assembly/component/body browser; command coverage | Create/edit/save without the other apps or a Rhino license |
+| BuilderCraft CAD | Rhino-style direct NURBS/Brep modeling, embedded Grasshopper-style parametric workspace with Kangaroo-style form-finding, drafting, layers and assembly/component/body browser; command coverage | Create/edit/save without the other apps or a Rhino license |
 | BuilderCraft Scan | Mesh and point-cloud editing, smoothing, offset, shell, hole filling, repair, alignment, best fit and inspection inspired by GOM, PolyWorks and DesignX | Scan-to-mesh and mesh repair without CAD or Graph; optional external CAD reference |
 | BuilderCraft Graph | Houdini-style procedural modeling and VFX with Grasshopper-style parametric data flow; kinematics, simulation, procedural scenery and engine handoff | Generate/evaluate/export without the CAD UI; import assets from external tools |
 | BuilderCraft Show | Lightwright-style production database expanded to lighting, AV and mechanical/automation equipment; reports, patch, cue preparation and previs | Work on equipment and show data without geometry; connect to external CAD/visualizers/consoles |
@@ -61,6 +61,10 @@ Native core commands, UI aliases and scripting syntax are separate interfaces. C
 ## Procedural and immersive design
 
 Graph combines Grasshopper lists/data trees, component parameters, reusable clusters, preview and bake with Houdini-style attribute streams, operator networks, staged geometry processing, simulation state, time evaluation and caches. Shared ports carry exact CAD, meshes, point clouds, attributes, signals, units, provenance, solver state and equipment references.
+
+CAD must include an embedded Grasshopper-style component canvas, with parameters, lists/data trees, clusters, live geometry preview and transactional bake. It shares Graph's evaluation engine and can run without the standalone Graph app. This is accepted scope, not an implemented canvas yet.
+
+Kangaroo-style functionality is required in both the embedded CAD workspace and Graph: particle/constraint goals, anchors, length and angle constraints, springs, relaxation, mesh form-finding and bounded iterative solving. Solver jobs need convergence/residual reporting, deterministic fixtures, cancellation and explicit unit/time semantics. Implement native functionality independently; actual Kangaroo in licensed Rhino is an optional host adapter. StructureGraph recipes must declare which backend goals they require. Physics/form-finding and safety-critical engineering analysis have separate acceptance gates.
 
 Expose existing engine commands as nodes. Distinguish pure evaluation from document mutations. Cycles are rejected except through explicit time/state nodes with bounded stepping. Bake is a revision-checked transaction; manual edits must have an explicit relationship to source graphs. Deterministic seeds, reproducible recipes and cheap previews are required. Cancellation discards incomplete results and leaves the last valid model available.
 

@@ -29,7 +29,7 @@ pub const OPERATIONS: &[OperationDescriptor] = &[
         label: "Mesh Repair Pipeline",
         category: "mesh",
         inputs: &["mesh", "options"],
-        outputs: &["mesh", "before", "after", "retained_source_faces", "collapsed_source_faces", "duplicate_source_faces", "degenerate_source_faces", "original_to_final_vertices"],
+        outputs: &["mesh", "before", "after", "retained_source_faces", "collapsed_source_faces", "duplicate_source_faces", "degenerate_source_faces", "removed_unused_vertices", "original_to_final_vertices"],
         status: OperationStatus::Implemented,
     },
     OperationDescriptor {

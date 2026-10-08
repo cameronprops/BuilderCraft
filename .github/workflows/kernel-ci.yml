@@ -1,14 +1,7 @@
 name: BuilderCraft Kernel CI
 
+# Local/offline tests preferred; no automatic Actions usage for source-control pushes.
 on:
-  push:
-    branches:
-      - main
-      - 'feature/**'
-      - 'buildercraft/**'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:

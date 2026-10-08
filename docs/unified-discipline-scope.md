@@ -17,6 +17,17 @@ with a flexible scratchpad beside rigorous geometry, simulation and production
 deliverables. No discipline needs to surrender its specialized methodology
 to participate in the same project.
 
+## Neuroinclusive workflow architecture
+
+The entire platform is adjustable for different attention, sensory,
+communication and task-sequencing preferences. A user may choose a minimal
+canvas, guided step sequence, dense professional workspace or custom mix,
+without fragmenting the shared project. Interruption recovery, pinned notes,
+visible command state, configurable toolbars and predictable undo support
+CAD, mesh repair, scan alignment, StructureGraph, show systems, data and
+publishing alike. See
+[Neuroinclusive and Customizable Workflows](neuroinclusive-customizable-workflows.md).
+
 ## Capability matrix
 
 | Discipline / workflow | Native authoring and analysis goals | Shared project outputs |

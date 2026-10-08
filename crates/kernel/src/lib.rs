@@ -4,12 +4,14 @@
 
 mod geometry;
 mod production;
+mod point_ops;
 mod registry;
 mod scene;
 mod tessellation;
 mod transform;
 pub use geometry::*;
 pub use production::*;
+pub use point_ops::*;
 pub use registry::*;
 pub use scene::*;
 pub use tessellation::*;

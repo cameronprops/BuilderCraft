@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.polygon.delete_faces",
+        label: "Delete Selected Polygon Faces",
+        category: "mesh",
+        inputs: &["polygon_mesh", "current_revision", "selection_revision", "selected_faces"],
+        outputs: &["polygon_mesh", "revision", "old_to_new_faces", "removed_faces"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.polygon.topology",
         label: "Polygon Half-Edge Topology",
         category: "mesh",

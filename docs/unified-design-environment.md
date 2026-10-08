@@ -32,6 +32,19 @@ capability matrix, StructureGraph integration, architecture invariants,
 working example and phased delivery. Planned capabilities are not
 implemented simply because they appear in this specification.
 
+## Neuroinclusive, fully customizable interaction
+
+BuilderCraft must support neurodivergent and other individually preferred
+workflows through customizable UI density, sensory load, shortcuts, guided
+GO/Next sequences, resumable tasks, project-linked notes, clear feedback,
+optional focus modes and configurable workspace layouts. Every feature is
+opt-in or adjustable and available to all users, not tied to diagnoses.
+No workspace preset changes authoritative geometry or collaborators' layouts.
+Safety-relevant status remains visible in every mode.
+
+See [Neuroinclusive and Customizable Workflows](neuroinclusive-customizable-workflows.md)
+for settings, workflow-state requirements and acceptance tests.
+
 ## Designer-led BIM, with engineered handoff
 
 BuilderCraft is a designer-first spatial and semantic model, not a structural

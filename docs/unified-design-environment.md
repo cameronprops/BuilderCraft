@@ -14,6 +14,24 @@ construction coordination, BIM, previs, visualization, engineering, and
 asset handoff, structured data, show-control previs, and project paperwork
 without forcing everyone into the same editing methodology.
 
+## Full cross-disciplinary design scope
+
+This is an integrated CAD, surfacing, scan/metrology, mesh/quad repair,
+parametric/StructureGraph, environment and rockwork, ride vehicle,
+animatronic, automation, lighting, AV, previs, data, paperwork,
+model-shop/fabrication and designer-led BIM environment.
+
+All disciplines must share assembly identities, spatial coordinates,
+typed data, revisioning, procedural dependencies and publication services
+instead of exchanging disconnected copies. The same scene can generate
+editable CAD, BIM coordination handoff, game/previs assets, fabrication
+meshes and production documents with explicit conversion reports.
+
+See [Unified Discipline Scope](unified-discipline-scope.md) for the complete
+capability matrix, StructureGraph integration, architecture invariants,
+working example and phased delivery. Planned capabilities are not
+implemented simply because they appear in this specification.
+
 ## Designer-led BIM, with engineered handoff
 
 BuilderCraft is a designer-first spatial and semantic model, not a structural

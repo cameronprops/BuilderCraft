@@ -25,6 +25,38 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.polygon.validate",
+        label: "Validate Editable Polygon Mesh",
+        category: "mesh",
+        inputs: &["polygon_mesh"],
+        outputs: &["validation"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.polygon.from_triangles",
+        label: "Convert Triangle Mesh to Editable Polygons",
+        category: "mesh",
+        inputs: &["mesh"],
+        outputs: &["polygon_mesh"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.polygon.triangulate",
+        label: "Triangulate Editable Polygon Mesh",
+        category: "mesh",
+        inputs: &["polygon_mesh"],
+        outputs: &["mesh", "source_face_indices"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.polygon.add_quad",
+        label: "Add Native Quad",
+        category: "mesh",
+        inputs: &["polygon_mesh", "corners"],
+        outputs: &["polygon_mesh"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.mesh.validate_selection",
         label: "Validate Mesh Component Selection",
         category: "mesh",

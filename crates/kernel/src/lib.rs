@@ -5,6 +5,7 @@
 mod bounds_ops;
 mod geometry;
 mod mesh_analysis;
+mod mesh_cleanup;
 mod mesh_edges;
 mod mesh_weld_map;
 mod mesh_weld;
@@ -19,6 +20,7 @@ mod vector_ops;
 pub use bounds_ops::*;
 pub use geometry::*;
 pub use mesh_analysis::*;
+pub use mesh_cleanup::*;
 pub use mesh_edges::*;
 pub use mesh_weld_map::*;
 pub use mesh_weld::*;

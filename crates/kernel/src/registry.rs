@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.mesh.repair",
+        label: "Mesh Repair Pipeline",
+        category: "mesh",
+        inputs: &["mesh", "options"],
+        outputs: &["mesh", "before", "after", "retained_source_faces", "collapsed_source_faces", "duplicate_source_faces", "degenerate_source_faces", "original_to_final_vertices"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.mesh.duplicate_faces",
         label: "Duplicate Mesh Faces",
         category: "mesh",

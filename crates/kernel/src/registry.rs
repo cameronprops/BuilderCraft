@@ -25,6 +25,38 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.polyline.segment_lengths",
+        label: "Polyline Segment Lengths",
+        category: "polyline",
+        inputs: &["points"],
+        outputs: &["lengths"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.polyline.length",
+        label: "Polyline Total Length",
+        category: "polyline",
+        inputs: &["points"],
+        outputs: &["length"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.polyline.divide_count",
+        label: "Divide Polyline by Count",
+        category: "polyline",
+        inputs: &["points", "count"],
+        outputs: &["points"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.polyline.divide_distance",
+        label: "Divide Polyline by Distance",
+        category: "polyline",
+        inputs: &["points", "spacing"],
+        outputs: &["points"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.vector.normalize",
         label: "Normalize Vector",
         category: "vector",

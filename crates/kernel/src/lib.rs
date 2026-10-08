@@ -4,11 +4,13 @@
 
 mod geometry;
 mod production;
+mod registry;
 mod scene;
 mod tessellation;
 mod transform;
 pub use geometry::*;
 pub use production::*;
+pub use registry::*;
 pub use scene::*;
 pub use tessellation::*;
 pub use transform::*;

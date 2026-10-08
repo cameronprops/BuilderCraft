@@ -2,6 +2,21 @@
 
 Status: planned architecture; this is a product design specification, not a completed implementation.
 
+## Designer-first BIM interpretation
+
+This is a spatially coordinated, information-rich model driven by the
+designer's point of view. It is legitimate for a concept-stage wall to have
+sculpted mesh, visual treatments, show lights and approximate speaker
+positions before any approved engineering design exists. The same object ID
+gains construction metadata, fabrication sections, mounting details and BIM
+classification over time without replacing the creative source.
+
+A holistic wall may be exported into Revit-oriented workflows through
+versioned and verified geometry + semantic exchange mappings. Keep the
+native editable source, and make every converted object or family link back
+to its originating assembly and revision. Missing Revit categories or
+unsupported geometry are surfaced in export diagnostics, not silently erased.
+
 ## Design goal
 One real-world assembly, such as a themed rock wall, is one coordinated project object with nested disciplinary components, shared coordinates and revisions. The wall may contain scenic surfaces, framing, embedded luminaires, speakers, sensors, access doors, mounting brackets, cable paths and fabrication parts.
 

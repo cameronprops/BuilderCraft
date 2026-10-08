@@ -88,3 +88,73 @@ pub fn polygon_mesh_fill_hole(
         mesh:output,revision:next_revision,boundary_vertices:ids.clone(),new_face_indices
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn ring()->PolygonMesh {
+        PolygonMesh {
+            vertices:vec![
+                Vec3::new(0.,0.,0.),Vec3::new(4.,0.,0.),
+                Vec3::new(4.,4.,0.),Vec3::new(0.,4.,0.),
+                Vec3::new(1.,1.,0.),Vec3::new(3.,1.,0.),
+                Vec3::new(3.,3.,0.),Vec3::new(1.,3.,0.),
+            ],
+            faces:vec![
+                PolygonFace::Quad([0,1,5,4]),
+                PolygonFace::Quad([1,2,6,5]),
+                PolygonFace::Quad([2,3,7,6]),
+                PolygonFace::Quad([3,0,4,7]),
+            ],
+        }
+    }
+    fn inner(mesh:&PolygonMesh)->u32 {
+        match polygon_mesh_boundary_loops(mesh) {
+            Ok(r)=>r.closed_loops.iter().position(|l|l.vertices.iter().all(|&v|v>=4))
+                .map_or(u32::MAX,|i|i as u32),
+            Err(_)=>u32::MAX,
+        }
+    }
+    #[test]
+    fn fills_inner_hole_and_preserves_original() {
+        let source=ring();
+        let snapshot=source.clone();
+        let result=polygon_mesh_fill_hole(&source,8,8,inner(&source));
+        assert!(result.is_ok());
+        if let Ok(r)=result {
+            assert_eq!(r.revision,9);
+            assert_eq!(r.new_face_indices,vec![4,5]);
+            assert_eq!(r.mesh.faces.len(),6);
+            assert!(polygon_mesh_boundary_loops(&r.mesh)
+                .is_ok_and(|b|b.closed_loops.len()==1));
+        }
+        assert_eq!(source,snapshot);
+    }
+    #[test]
+    fn rejects_outer_perimeter() {
+        let source=ring();
+        let outer=if inner(&source)==0 {1} else {0};
+        assert!(polygon_mesh_fill_hole(&source,0,0,outer).is_err());
+    }
+    #[test]
+    fn rejects_stale_selection() {
+        assert_eq!(polygon_mesh_fill_hole(&ring(),3,2,0),
+            Err(KernelError::Conflict{expected:2,actual:3}));
+    }
+    #[test]
+    fn rejects_nonplanar_and_nonconvex_loops() {
+        let mut source=ring();
+        source.vertices[4].z=0.1;
+        assert!(polygon_mesh_fill_hole(&source,0,0,inner(&source)).is_err());
+        let mut source=ring();
+        source.vertices[5]=Vec3::new(1.25,2.25,0.);
+        assert!(polygon_mesh_fill_hole(&source,0,0,inner(&source)).is_err());
+    }
+    #[test]
+    fn rejects_invalid_index_and_revision_overflow() {
+        let source=ring();
+        assert!(polygon_mesh_fill_hole(&source,0,0,99).is_err());
+        assert_eq!(polygon_mesh_fill_hole(&source,u64::MAX,u64::MAX,inner(&source)),
+            Err(KernelError::Budget));
+    }
+}

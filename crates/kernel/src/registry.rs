@@ -25,6 +25,38 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.vector.normalize",
+        label: "Normalize Vector",
+        category: "vector",
+        inputs: &["vector"],
+        outputs: &["unit_vector"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.vector.dot",
+        label: "Vector Dot Product",
+        category: "vector",
+        inputs: &["vector_a", "vector_b"],
+        outputs: &["scalar"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.vector.cross",
+        label: "Vector Cross Product",
+        category: "vector",
+        inputs: &["vector_a", "vector_b"],
+        outputs: &["vector"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.vector.angle",
+        label: "Angle Between Vectors",
+        category: "vector",
+        inputs: &["vector_a", "vector_b"],
+        outputs: &["angle_radians"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.point.distance",
         label: "Distance Between Points",
         category: "point",

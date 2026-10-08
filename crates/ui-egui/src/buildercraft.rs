@@ -124,8 +124,8 @@ fn show_node(app: &mut CadApp, ui: &mut egui::Ui, nodes: &[ModelNode], node: &Mo
 }
 
 pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.label("3D orthographic view • drag to orbit • scroll to zoom");
+    ui.horizontal_wrapped(|ui| {
+        ui.label("Orthographic 3D").on_hover_text("Drag to orbit; Shift-drag to pan; scroll to zoom");
         if ui.button("New editable curve").clicked() {
             let _ = new_curve(app);
         }
@@ -133,23 +133,44 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             let _ = new_surface(app);
         }
     });
+    ui.horizontal_wrapped(|ui| {
+        for (label, id) in [
+            ("Top", "ui.buildercraft.top"),
+            ("Front", "ui.buildercraft.front"),
+            ("Right", "ui.buildercraft.right"),
+            ("Isometric", "ui.buildercraft.iso"),
+            ("Fit", "ui.buildercraft.fit"),
+        ] {
+            if ui.button(label).clicked() {
+                let _ = app.run(id, json!({}));
+            }
+        }
+    });
     let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
+    let rect = rect.intersect(ui.clip_rect());
+    app.session.viewport_px = (f64::from(rect.width()), f64::from(rect.height()));
     if response.dragged() {
         let d = ui.input(|i| i.pointer.delta());
-        app.ui.orbit_yaw += f64::from(d.x) * 0.01;
-        app.ui.orbit_pitch = (app.ui.orbit_pitch + f64::from(d.y) * 0.01).clamp(-1.5, 1.5);
+        if ui.input(|i| i.modifiers.shift) {
+            let frame = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
+            if let Some(center) = frame.pan(app.ui.center3d, cadcraft_geom::Vec2::new(f64::from(d.x), f64::from(d.y)), app.ui.scale3d) {
+                app.ui.center3d = center;
+            }
+        } else {
+            app.ui.orbit_yaw = (app.ui.orbit_yaw + f64::from(d.x) * 0.01).rem_euclid(std::f64::consts::TAU);
+            app.ui.orbit_pitch = (app.ui.orbit_pitch + f64::from(d.y) * 0.01).clamp(-std::f64::consts::FRAC_PI_2, std::f64::consts::FRAC_PI_2);
+        }
     }
     if response.hovered() {
         let d = ui.input(|i| i.smooth_scroll_delta.y);
-        app.ui.scale3d = (app.ui.scale3d * (f64::from(d) * 0.002).exp()).clamp(0.01, 10000.);
+        app.ui.scale3d = (app.ui.scale3d * (f64::from(d) * 0.002).exp()).clamp(1e-9, 1e9);
     }
     let yaw = app.ui.orbit_yaw;
     let pitch = app.ui.orbit_pitch;
     let scale = app.ui.scale3d;
     let project = |p: cadcraft_geom::Vec3| {
-        let x = p.x * yaw.cos() - p.y * yaw.sin();
-        let y = p.x * yaw.sin() + p.y * yaw.cos();
-        egui::pos2(rect.center().x + (x * scale) as f32, rect.center().y - ((p.z * pitch.cos() - y * pitch.sin()) * scale) as f32)
+        let q = cadcraft_geom::camera::OrthoFrame { yaw, pitch }.project(p, app.ui.center3d);
+        egui::pos2(rect.center().x + (q.x * scale) as f32, rect.center().y - (q.y * scale) as f32)
     };
     let painter = ui.painter_at(rect);
     let line = |a, b, color| {
@@ -208,4 +229,38 @@ pub fn new_surface(app: &mut CadApp) -> Result<serde_json::Value, String> {
         "nurbs.surface",
         json!({"name":"Control surface","surface":{"rows":[row(-10.,0.),row(0.,18.),row(10.,0.)],"degree_v":2,"knots_v":[0.,0.,0.,1.,1.,1.]}}),
     )
+}
+
+/// UI camera commands do not change drawing geometry or document undo history.
+pub fn camera_command(app: &mut CadApp, id: &str) -> Result<serde_json::Value, String> {
+    let angles = match id {
+        "ui.buildercraft.top" => Some((0., -std::f64::consts::FRAC_PI_2)),
+        "ui.buildercraft.front" => Some((0., 0.)),
+        "ui.buildercraft.right" => Some((-std::f64::consts::FRAC_PI_2, 0.)),
+        "ui.buildercraft.iso" => Some((-std::f64::consts::FRAC_PI_4, -(1.0_f64 / 3.0_f64.sqrt()).asin())),
+        _ => None,
+    };
+    if let Some((yaw, pitch)) = angles {
+        app.ui.orbit_yaw = yaw;
+        app.ui.orbit_pitch = pitch;
+    } else if id == "ui.buildercraft.fit" {
+        let d = app.session.doc().map_err(|e| e.to_string())?;
+        let points = d.geometry3d.iter().filter(|o| o.visible && d.layer(&o.layer).is_none_or(|l| l.visible())).flat_map(|o| {
+            let rows: Box<dyn Iterator<Item = &cadcraft_geom::nurbs3d::Curve> + '_> = match &o.shape {
+                cadcraft_doc::organization::Shape::Curve(c) => Box::new(std::iter::once(c.as_ref())),
+                cadcraft_doc::organization::Shape::Surface(s) => Box::new(s.rows.iter()),
+            };
+            rows.flat_map(|c| c.control.iter().copied())
+        });
+        let frame = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
+        let (center, scale) = frame
+            .fit(points, app.session.viewport_px.0, app.session.viewport_px.1)
+            .ok_or_else(|| "No finite visible control hull to fit, or viewport/control budget exceeded".to_string())?;
+        app.ui.center3d = center;
+        app.ui.scale3d = scale;
+    } else {
+        return Err("Unknown camera command".into());
+    }
+    app.ui.view3d = true;
+    Ok(json!({"projection":"orthographic","center":[app.ui.center3d.x,app.ui.center3d.y,app.ui.center3d.z],"scale":app.ui.scale3d}))
 }

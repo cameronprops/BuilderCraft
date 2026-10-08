@@ -60,6 +60,7 @@ pub struct UiState {
     pub orbit_yaw: f64,
     pub orbit_pitch: f64,
     pub scale3d: f64,
+    pub center3d: cadcraft_geom::Vec3,
 }
 
 impl Default for UiState {
@@ -84,9 +85,10 @@ impl Default for UiState {
             buildercraft_workspace: true,
             model_name: "Body".into(),
             view3d: true,
-            orbit_yaw: 0.7,
-            orbit_pitch: 0.6,
+            orbit_yaw: -std::f64::consts::FRAC_PI_4,
+            orbit_pitch: -(1.0_f64 / 3.0_f64.sqrt()).asin(),
             scale3d: 20.0,
+            center3d: cadcraft_geom::Vec3::ZERO,
         }
     }
 }

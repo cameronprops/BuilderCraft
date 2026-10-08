@@ -42,3 +42,9 @@ Generated-in-code assets are original and have no file to list:
 
 | `docs/images/buildercraft-alpha.png` | BuilderCraft contributors | Screenshot of this fork with its original synthetic canopy model | MIT OR Apache-2.0 | Alpha UI verification |
 | `examples/buildercraft-canopy.bcraft` | BuilderCraft contributors | Generated using BuilderCraft's original NURBS commands | MIT OR Apache-2.0 | Synthetic geometry, no proprietary model data |
+
+## Reference catalog metadata
+
+| Reference data | Publisher | Source | Permission | Scope |
+|---|---|---|---|---|
+| `docs/components/grasshopper1-kangaroo2.json` names, categories, versions and purpose summaries | Grasshopper Docs, Robin Rodricks and contributors | https://grasshopperdocs.com/feeds/components.json and https://grasshopperdocs.com/feeds/addons.json | Publisher explicitly permits third-party processing and use of its live metadata feeds: https://github.com/grasshopper3d/GrasshopperDocsSite#live-json-feeds | Reference metadata only. This permission is not an open-source license for Grasshopper or add-on implementation code. No icons or implementation source copied. Native registry fields are original BuilderCraft work. |

@@ -57,3 +57,9 @@ MIT OR Apache-2.0, retaining CADCraft's copyright notices and third-party attrib
 The first shared scene/geometry kernel is implemented in `crates/kernel`; see [kernel usage and limits](docs/architecture/KERNEL.md). Embedded CAD parametric modeling and native Kangaroo-style solving are accepted roadmap items.
 
 A local saved-project visualization feed and GLB export are available; see [Unreal bridge setup and validation status](bridges/unreal/README.md). [Production organization](docs/architecture/PRODUCTION_ORGANIZATION.md) now persists scene/effect and department relationships.
+
+## Native CAD and parametric coverage
+
+Current priority is the CAD workspace with native Rhino-like tools, a full embedded Grasshopper-style workspace and SolidWorks-style sketch/feature workflows. The component-by-component build register is [Grasshopper 1 and Kangaroo 2](docs/components/README.md), containing 817 and 110 public-index entries respectively. None is currently marked implemented; runtime/version reconciliation and full port/tree contracts remain pending.
+
+The 3D viewport now offers Top, Front, Right, Isometric and Fit through the View menu and viewport controls. Drag to orbit, Shift-drag to pan, scroll to zoom. Fit frames visible control hulls conservatively and is bounded to 100,000 controls. These remain orthographic wireframe previews; perspective, geometry picking and full parametric authoring are subsequent work.

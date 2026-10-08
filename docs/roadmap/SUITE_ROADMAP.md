@@ -4,7 +4,7 @@ Accepted direction: CAD for themed entertainment professionals, 2026-10-07. This
 
 ## Current baseline
 
-One CADCraft-derived executable with initial rational 3D curves/control surfaces, numerical control editing, named assemblies/components/bodies, native `.bcraft` v1, undoable commands and local command API. Inherited drafting exists; full Rhino equivalence is unverified. Separate Scan/Graph/Show apps, mesh repair/metrology, live bridges, engine scene export and console exporters are not implemented.
+One CADCraft-derived executable with initial rational 3D curves/control surfaces, numerical control editing, named assemblies/components/bodies, native `.bcraft` v1, undoable commands and local command API. Inherited drafting exists; full Rhino equivalence is unverified. Separate Scan/Graph/Show apps, mesh repair/metrology and console exporters are not implemented. Native bounded GLB export and saved/unsaved local scene feeds now exist; the optional Unreal adapter is source-only and awaits host validation.
 
 ## Sequence and completion gates
 
@@ -69,3 +69,13 @@ Implemented a document-bound background publisher with one replaceable pending d
 cooperative cancellation, start/status/stop API, committed interactive edit polling and
 undo/redo submission. Validation covers unsaved metadata bursts and tab isolation.
 Unreal host validation and bidirectional editing remain subsequent milestones.
+
+### CAD-first priority and component inventory
+
+Current user priority is the native CAD app: Rhino-like modeling, embedded full Grasshopper-style parametric authoring, and SolidWorks-style sketch/feature workflows. Scan, Show and Unreal interface expansion are deferred; existing bridges remain optional. Grasshopper 2 is a separate reference generation.
+
+The public reference register contains 817 built-in Grasshopper 1 entries and 110 Kangaroo 2 entries, all not implemented. Purpose summaries and links are recorded; typed ports, runtime GUIDs, tree matching and exact-version reconciliation are pending. Three pairs of 1D/2D domain entries share source URLs and are explicitly flagged.
+
+Added orthographic Top, Front, Right and Isometric camera commands, Fit of visible exact-geometry control hulls, and Shift-drag pan. Fit bounds work to 100,000 controls and rejects invalid/empty hulls without changing the camera. It conservatively frames the control hull, not tight trimmed geometry bounds. No perspective, geometry picking, multiple viewports or full Grasshopper canvas is claimed.
+
+The component register explicitly tracks known public-feed omissions: Point/Curve and other basic typed parameters require a separate reconciliation queue in `docs/components/GAP_REVIEW.md`. Public API documentation currently identifying a Rhino 9 build must not certify Rhino 8 coverage.

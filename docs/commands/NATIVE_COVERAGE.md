@@ -5,8 +5,8 @@ Accepted scope: every documented Rhino command and every Grasshopper/Kangaroo co
 ## Current facts
 
 - Rhino 8 Windows/Mac public command headings are inventoried in `rhino8.json`. Candidate mappings are not verified native parity. Options, platform differences, UI commands and aliases need separate review.
-- Grasshopper and Kangaroo component-by-component inventories are not complete. Their native engines/canvases/solvers are not implemented. A native tessellation function or a similarly named node is not evidence of component parity.
-- Current CAD viewport is an orbitable orthographic projection with curve/control-surface previews. Perspective, named top/front/right views, multiple viewports, selection/snaps and robust shaded scene rendering remain work items.
+- Public-index inventories now contain 817 Grasshopper 1 built-in entries and 110 Kangaroo 2 entries in `docs/components/grasshopper1-kangaroo2.json`, with purpose summaries and reference links. Exact installed-version completeness, runtime GUIDs, ports and matching/tree contracts remain unverified. Their native engines/canvases/solvers are not implemented. A native tessellation function or a similarly named node is not evidence of component parity.
+- Current CAD viewport is an orbitable orthographic projection with curve/control-surface previews. Named top/front/right/isometric views, bounded control-hull fitting and Shift-drag panning are now implemented. Perspective, multiple viewports, selection/snaps and robust shaded scene rendering remain work items.
 
 ## Inventory and rebuild tasks
 

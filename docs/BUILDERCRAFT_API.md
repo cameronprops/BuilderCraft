@@ -46,3 +46,5 @@ Native live visualization commands:
 - `visualization.stop {}` cancels and joins the worker. Stop the previous feed before starting another.
 
 Edits coalesce into one pending drawing. Native command completion and undo/redo submit automatically; direct document-mutating integrations call `Session::poll_visualization`. The desktop also polls after interactive commands finish. The feed follows its starting document rather than the active tab. These commands do not provide bidirectional engine edits or show control yet.
+
+Desktop camera commands: `ui.buildercraft.top`, `ui.buildercraft.front`, `ui.buildercraft.right`, `ui.buildercraft.iso`, and `ui.buildercraft.fit`. All use orthographic projection and return camera center and scale through the UI command API. Fit targets visible 3D control hulls, excludes hidden layers, and rejects empty/nonfinite/over-budget hulls without changing the camera. Shift-drag pans in the camera plane. Camera changes do not modify CAD geometry or document undo history.

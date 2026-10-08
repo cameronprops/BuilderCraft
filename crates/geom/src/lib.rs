@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 mod bounds;
+pub mod camera;
 mod curve;
 mod intersect;
 mod mat;

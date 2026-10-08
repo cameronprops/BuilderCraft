@@ -10,6 +10,11 @@ pub const MENUS: &[&str] = &["File", "Edit", "View", "Insert", "Format", "Tools"
 
 /// UI-only commands: (id, label, menu path, shortcut).
 pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
+    ("ui.buildercraft.top", "Top", &["View", "3D", "Top"], None),
+    ("ui.buildercraft.front", "Front", &["View", "3D", "Front"], None),
+    ("ui.buildercraft.right", "Right", &["View", "3D", "Right"], None),
+    ("ui.buildercraft.iso", "Isometric", &["View", "3D", "Isometric"], None),
+    ("ui.buildercraft.fit", "Fit 3D Geometry", &["View", "3D", "Fit 3D Geometry"], None),
     ("ui.buildercraft.curve", "New editable 3D curve", &["Draw", "NURBS", "3D Curve"], None),
     ("ui.buildercraft.surface", "New control surface", &["Draw", "NURBS", "Control Surface"], None),
     ("ui.open", "Open...", &[], Some("Cmd+O")),
@@ -49,6 +54,9 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
     };
     let no_path = params.is_null() || (params.get("path").is_none() && params.get("data").is_none());
     let r = match id {
+        "ui.buildercraft.top" | "ui.buildercraft.front" | "ui.buildercraft.right" | "ui.buildercraft.iso" | "ui.buildercraft.fit" => {
+            crate::buildercraft::camera_command(app, id)
+        }
         "ui.buildercraft.curve" => crate::buildercraft::new_curve(app),
         "ui.buildercraft.surface" => crate::buildercraft::new_surface(app),
         "ui.open" | "open" if no_path => {

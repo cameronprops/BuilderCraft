@@ -14,6 +14,37 @@ construction coordination, BIM, previs, visualization, engineering, and
 asset handoff, structured data, show-control previs, and project paperwork
 without forcing everyone into the same editing methodology.
 
+## Designer-led BIM, with engineered handoff
+
+BuilderCraft is a designer-first spatial and semantic model, not a structural
+engineering package with a decorative modeling layer. A designer can block
+out, sculpt, surface, assemble and art-direct the whole environment from blue
+sky through detailed design. BIM identities, typed relationships, properties
+and revision history are preserved without demanding that early concepts be
+forced into engineering-specific families, taxonomies or construction
+constraints.
+
+Modeling begins with design intent and creative flexibility. Gradually add
+materials, fabrication methods, disciplines, quantities, clearances, locations,
+construction data and verified specifications as the concept matures.
+Organize around authored spaces, experiences, show sets, themed assets,
+assemblies, scenic systems and guest pathways, with optional mappings into
+architecture/MEP/structural vocabularies.
+
+Revit is an important downstream exchange target, but not the canonical
+native project format. Favor open IFC and other proven geometry/metadata
+interchange; evaluate version-specific Revit integration and family/category
+mapping separately. A Revit-compatible output must report which geometry,
+categories, parameters, instancing, transforms and references survive, which
+are approximated, and which are lost. Never promise native editable Revit
+families or perfect roundtrips from a mesh-only exchange.
+
+Designers can choose lightweight proxy objects in early concept stages and
+progressively resolve them into production-ready assemblies. Prevent
+unreviewed estimates from masquerading as certified calculations. The tool
+supports engineering coordination and handoff, not replacement of discipline
+engineering review.
+
 ## Fundamental principle: one project, multiple methodologies
 
 Three distinct kinds of switches:

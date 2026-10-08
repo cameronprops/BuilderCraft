@@ -10,7 +10,7 @@ pub enum OperationStatus {
     Planned,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct OperationDescriptor {
     /// Stable, namespaced API key; do not rename without a compatibility alias.
     pub id: &'static str,

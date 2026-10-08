@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.mesh.weld",
+        label: "Weld Mesh Vertices",
+        category: "mesh",
+        inputs: &["mesh", "tolerance", "collapsed_face_policy"],
+        outputs: &["mesh", "old_to_new", "retained_face_indices", "removed_face_indices"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.mesh.vertex_weld_map",
         label: "Duplicate Vertex Weld Map",
         category: "mesh",

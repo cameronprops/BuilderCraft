@@ -8,6 +8,7 @@ use serde_json::json;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
+        CommandSpec::new("geometry3d.transform", "Transform Exact 3D Geometry", transform3d).params("{ids:[id,...],operation:{kind:move|rotate|scale|mirror,...},copy?:false}"),
         CommandSpec::new("production.model", "Production Organization", |s,_|serde_json::to_value(&s.doc()?.production).map_err(|e|error(&e.to_string()))).noundo(),
         CommandSpec::new("production.set", "Set Production Organization", |s,p|{let model:buildercraft_kernel::ProductionModel=serde_json::from_value(p.clone()).map_err(|e|error(&e.to_string()))?;model.validate().map_err(|e|error(&e.to_string()))?;s.doc_mut()?.production=model;Ok(json!({"ok":true}))}).params("{records,bindings,links}"),
         CommandSpec::new("visualization.start", "Start Live Visualization", live_visualization).params("{project_id,directory}").noundo(),
@@ -350,6 +351,85 @@ fn controlpoint(s: &mut Session, p: &Value) -> Result<Value> {
     };
     *control.get_mut(index).ok_or_else(|| error("control point does not exist"))? = point;
     Ok(json!({"id":id,"index":index}))
+}
+
+fn transform3d(s: &mut Session, p: &Value) -> Result<Value> {
+    use std::collections::BTreeSet;
+    let params = p.as_object().ok_or_else(|| error("transform parameters must be an object"))?;
+    if params.keys().any(|key| !["ids", "operation", "copy"].contains(&key.as_str())) {
+        return Err(error("unsupported transform option"));
+    }
+    let ids = p
+        .get("ids")
+        .and_then(Value::as_array)
+        .filter(|v| !v.is_empty() && v.len() <= 128)
+        .ok_or_else(|| error("ids must contain 1 to 128 exact geometry IDs"))?;
+    let ids = ids.iter().map(|v| v.as_u64().ok_or_else(|| error("invalid geometry ID"))).collect::<Result<BTreeSet<_>>>()?;
+    if ids.len() != p["ids"].as_array().map_or(0, Vec::len) {
+        return Err(error("duplicate geometry IDs"));
+    }
+    let operation: buildercraft_kernel::Transform =
+        serde_json::from_value(p.get("operation").cloned().ok_or_else(|| error("operation required"))?).map_err(|e| error(&e.to_string()))?;
+    let copy = match p.get("copy") {
+        None => false,
+        Some(v) => v.as_bool().ok_or_else(|| error("copy must be boolean"))?,
+    };
+    let source = s.doc()?;
+    if copy && (source.geometry3d.len().checked_add(ids.len()).is_none_or(|n| n > 4096) || source.handseed.checked_add(ids.len() as u64).is_none()) {
+        return Err(error("3D object or identity limit reached"));
+    }
+    if copy {
+        for offset in 0..ids.len() as u64 {
+            let next = source.handseed.checked_add(offset).ok_or_else(|| error("identity limit"))?;
+            if source.geometry3d.iter().any(|o| o.id == next)
+                || source.organization.nodes.iter().any(|n| n.id == next)
+                || source.entity(Handle(next)).is_some()
+            {
+                return Err(error("copy identity collision"));
+            }
+        }
+    }
+    let mut bytes = 0usize;
+    let mut controls = 0usize;
+    let objects = ids
+        .iter()
+        .map(|id| source.geometry3d.iter().find(|o| o.id == *id).ok_or_else(|| error("unknown exact geometry ID")))
+        .collect::<Result<Vec<_>>>()?;
+    for o in &objects {
+        if !o.shape.valid() {
+            return Err(error("invalid source shape"));
+        }
+        bytes = bytes.checked_add(o.shape.estimated_bytes().map_err(|e| error(&e.to_string()))?).ok_or_else(|| error("transform byte budget"))?;
+        controls = controls.checked_add(buildercraft_kernel::exact_control_count(&o.shape)).ok_or_else(|| error("transform control budget"))?;
+        if bytes > 32 * 1024 * 1024 || controls > 100_000 {
+            return Err(error("transform batch budget exceeded"));
+        }
+    }
+    let cancel = buildercraft_kernel::Cancellation::default();
+    let transformed = objects
+        .iter()
+        .map(|o| buildercraft_kernel::transform_exact(&o.shape, &operation, &cancel, 16 * 1024 * 1024).map_err(|e| error(&e.to_string())))
+        .collect::<Result<Vec<_>>>()?;
+    let mut objects = objects.into_iter().cloned().collect::<Vec<_>>();
+    for (o, shape) in objects.iter_mut().zip(transformed) {
+        o.shape = shape;
+    }
+    let drawing = s.doc_mut()?;
+    let mut output = Vec::with_capacity(objects.len());
+    for mut object in objects {
+        let source_id = object.id;
+        if copy {
+            object.id = drawing.new_handle().0;
+            output.push(json!({"source_id":source_id,"id":object.id}));
+            drawing.geometry3d.push(object);
+        } else {
+            output.push(json!({"source_id":source_id,"id":source_id}));
+            if let Some(target) = drawing.geometry3d.iter_mut().find(|o| o.id == source_id) {
+                *target = object;
+            }
+        }
+    }
+    Ok(json!({"objects":output,"copy":copy,"scope":"exact_curves_and_control_surfaces"}))
 }
 
 #[cfg(test)]

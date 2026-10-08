@@ -79,3 +79,16 @@ The public reference register contains 817 built-in Grasshopper 1 entries and 11
 Added orthographic Top, Front, Right and Isometric camera commands, Fit of visible exact-geometry control hulls, and Shift-drag pan. Fit bounds work to 100,000 controls and rejects invalid/empty hulls without changing the camera. It conservatively frames the control hull, not tight trimmed geometry bounds. No perspective, geometry picking, multiple viewports or full Grasshopper canvas is claimed.
 
 The component register explicitly tracks known public-feed omissions: Point/Curve and other basic typed parameters require a separate reconciliation queue in `docs/components/GAP_REVIEW.md`. Public API documentation currently identifying a Rhino 9 build must not certify Rhino 8 coverage.
+
+### Manual-driven CAD kernel development
+
+Target is systematic feature-by-feature reconstruction of the latest released Rhino
+manual, with platform/options/type coverage tracked separately. Rhino 8 stable help
+is the current baseline; WIP and exact-build reconciliation remain separate. Added
+manual topic seeds and review gates in `docs/commands/MANUAL_REBUILD.md`.
+
+First kernel/API/browser increment implements exact 3D translation, axis rotation,
+positive uniform scale and plane reflection, with atomic batch validation, optional
+fresh-ID copies and undo. Move/Rotate3D/Scale/Mirror are partial, limited to native
+exact curves/control surfaces. Numeric editing is implemented; viewport gumball,
+other representations, richer options and associative history remain pending.

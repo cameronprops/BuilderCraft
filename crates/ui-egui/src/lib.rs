@@ -61,6 +61,12 @@ pub struct UiState {
     pub orbit_pitch: f64,
     pub scale3d: f64,
     pub center3d: cadcraft_geom::Vec3,
+    pub transform_delta: [f64; 3],
+    pub transform_origin: [f64; 3],
+    pub transform_axis: [f64; 3],
+    pub transform_angle: f64,
+    pub transform_factor: f64,
+    pub transform_copy: bool,
 }
 
 impl Default for UiState {
@@ -89,6 +95,12 @@ impl Default for UiState {
             orbit_pitch: -(1.0_f64 / 3.0_f64.sqrt()).asin(),
             scale3d: 20.0,
             center3d: cadcraft_geom::Vec3::ZERO,
+            transform_delta: [0.; 3],
+            transform_origin: [0.; 3],
+            transform_axis: [0., 0., 1.],
+            transform_angle: 90.,
+            transform_factor: 1.,
+            transform_copy: false,
         }
     }
 }

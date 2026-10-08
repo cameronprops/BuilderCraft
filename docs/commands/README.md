@@ -29,3 +29,9 @@ The refresh retains reviewed status/options/evidence and records commands remove
 | OffsetSrf / Shell | Geometry-aware offset/thickness, collision/self-intersection diagnostics and validated output policy | Robust topology, intersections and offset kernel |
 
 These acceptance definitions are BuilderCraft implementation plans. They are not a copied complete specification of Rhino behavior; option-by-option reference review is still required.
+
+## Manual-driven native rebuild
+
+See [MANUAL_REBUILD.md](MANUAL_REBUILD.md) for the stable-version baseline, contracts, implementation sequence and acceptance gates. `manual_inventory.json` registers 2,357 public topic URLs found in the Windows/Mac command indexes. It is a starting register, not a completed traversal or review of the entire manual.
+
+Move, Rotate3D, Scale and Mirror now have partial native acceptance evidence through `geometry3d.transform`. Exact rational curves and control surfaces support world-space numeric transformations, bounded atomic batches, copies and undo. Solids, meshes, interactive reference picking, gumball, history and additional Rhino options remain pending.

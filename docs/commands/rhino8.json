@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "reference_product": "Rhino 8",
-  "retrieved_at": "2026-10-07",
+  "retrieved_at": "2026-10-08",
   "scope": "Documented Windows/Mac command quick-reference headings; plug-in and undocumented commands require a separate runtime audit.",
   "source_snapshots": [
     {
@@ -8471,12 +8471,19 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/mirror.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/mirror.htm"
       ],
-      "status": "unvalidated",
-      "candidate_command": "mirror",
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Name match only; Rhino behavior and options not verified."
+      "options": [
+        "explicit world-plane origin/normal",
+        "copy",
+        "pending: two-point CPlane mirror input, 3Point, XAxis, YAxis, ZAxis, Object, SubCrv, preview, remembered Copy, other geometry types and history"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Native exact curves/control surfaces only. Original kernel affine operation with numeric browser/API controls. See MANUAL_REBUILD.md for unsupported options/types; full Rhino parity not claimed."
     },
     {
       "name": "MirrorHole",
@@ -8539,12 +8546,19 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/move.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/move.htm"
       ],
-      "status": "unvalidated",
-      "candidate_command": "move",
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Name match only; Rhino behavior and options not verified."
+      "options": [
+        "explicit world delta",
+        "native copy extension",
+        "pending: Normal, Vertical, SubCrv, drag/nudge, gumball and history"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Native exact curves/control surfaces only. Original kernel affine operation with numeric browser/API controls. See MANUAL_REBUILD.md for unsupported options/types; full Rhino parity not claimed."
     },
     {
       "name": "MoveCrv",
@@ -11864,12 +11878,19 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/rotate3d.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/rotate3d.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "explicit origin/axis and angle",
+        "copy",
+        "pending: SurfaceNormal, UseLastAxis, reference points, SubCrv, history"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Native exact curves/control surfaces only. Original kernel affine operation with numeric browser/API controls. See MANUAL_REBUILD.md for unsupported options/types; full Rhino parity not claimed."
     },
     {
       "name": "RotateCamera",
@@ -12166,12 +12187,19 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/scale.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scale.htm"
       ],
-      "status": "unvalidated",
-      "candidate_command": "scale",
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Name match only; Rhino behavior and options not verified."
+      "options": [
+        "positive uniform factor and explicit origin",
+        "copy",
+        "pending: Rigid, reference points, default center, SubCrv, remembered choices"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Native exact curves/control surfaces only. Original kernel affine operation with numeric browser/API controls. See MANUAL_REBUILD.md for unsupported options/types; full Rhino parity not claimed."
     },
     {
       "name": "Scale1D",

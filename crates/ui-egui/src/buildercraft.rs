@@ -88,6 +88,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             let _ = app.run("geometry3d.set", json!({"id":object.id,"visible":visible}));
         }
     }
+    transform_panel(app, ui);
     ui.separator();
 }
 fn show_node(app: &mut CadApp, ui: &mut egui::Ui, nodes: &[ModelNode], node: &ModelNode, depth: usize) {
@@ -263,4 +264,43 @@ pub fn camera_command(app: &mut CadApp, id: &str) -> Result<serde_json::Value, S
     }
     app.ui.view3d = true;
     Ok(json!({"projection":"orthographic","center":[app.ui.center3d.x,app.ui.center3d.y,app.ui.center3d.z],"scale":app.ui.scale3d}))
+}
+
+fn transform_panel(app: &mut CadApp, ui: &mut egui::Ui) {
+    egui::CollapsingHeader::new("Transform selected 3D objects").default_open(true).show(ui, |ui| {
+        let ids = app.session.selection().iter().map(|h| h.0).collect::<Vec<_>>();
+        ui.label(format!("Selected objects: {}", ids.len()));
+        let fields = |ui: &mut egui::Ui, label: &str, values: &mut [f64; 3]| {
+            ui.label(label);
+            ui.horizontal_wrapped(|ui| {
+                for (axis, value) in ["X", "Y", "Z"].into_iter().zip(values) {
+                    ui.add(egui::DragValue::new(value).speed(0.1).prefix(format!("{axis}: ")).max_decimals(4));
+                }
+            });
+        };
+        ui.checkbox(&mut app.ui.transform_copy, "Copy geometry (new IDs, unassigned copies)");
+        fields(ui, "Move delta", &mut app.ui.transform_delta);
+        let mut operation = None;
+        if ui.add_enabled(!ids.is_empty(), egui::Button::new("Move selected")).clicked() {
+            operation = Some(json!({"kind":"move","delta":app.ui.transform_delta}));
+        }
+        fields(ui, "Origin / plane point", &mut app.ui.transform_origin);
+        fields(ui, "Rotation axis / mirror normal", &mut app.ui.transform_axis);
+        ui.add(egui::DragValue::new(&mut app.ui.transform_angle).prefix("Angle °: ").speed(1.));
+        if ui.add_enabled(!ids.is_empty(), egui::Button::new("Rotate selected")).clicked() {
+            operation =
+                Some(json!({"kind":"rotate","origin":app.ui.transform_origin,"axis":app.ui.transform_axis,"angle_degrees":app.ui.transform_angle}));
+        }
+        ui.add(egui::DragValue::new(&mut app.ui.transform_factor).prefix("Scale: ").speed(0.01));
+        if ui.add_enabled(!ids.is_empty(), egui::Button::new("Scale selected")).clicked() {
+            operation = Some(json!({"kind":"scale","origin":app.ui.transform_origin,"factor":app.ui.transform_factor}));
+        }
+        if ui.add_enabled(!ids.is_empty(), egui::Button::new("Mirror selected")).clicked() {
+            operation = Some(json!({"kind":"mirror","origin":app.ui.transform_origin,"normal":app.ui.transform_axis}));
+        }
+        if let Some(operation) = operation {
+            let _ = app.run("geometry3d.transform", json!({"ids":ids,"operation":operation,"copy":app.ui.transform_copy}));
+        }
+        ui.small("Exact curves/control surfaces only. World coordinates; numeric controls, no gumball yet.");
+    });
 }

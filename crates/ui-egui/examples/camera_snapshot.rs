@@ -41,31 +41,43 @@ fn shape(s: &Shape, out: &mut String) {
             );
         }
         Shape::Text(t) => {
-            let text = t.galley.text().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
-            let _ = write!(
-                out,
-                "<text x='{}' y='{}' fill='{}' font-size='13' font-family='DejaVu Sans'>{}</text>",
-                t.pos.x,
-                t.pos.y + 13.,
-                color(t.fallback_color),
-                text
-            );
+            // Preserve egui's wrapping and glyph positions while substituting a system font.
+            for row in &t.galley.rows {
+                for glyph in &row.glyphs {
+                    let text = glyph.chr.to_string().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+                    let _ = write!(
+                        out,
+                        "<text x='{}' y='{}' fill='{}' font-size='{}' font-family='DejaVu Sans'>{}</text>",
+                        t.pos.x + row.pos.x + glyph.pos.x,
+                        t.pos.y + row.pos.y + glyph.pos.y,
+                        color(t.fallback_color),
+                        glyph.font_height,
+                        text
+                    );
+                }
+            }
         }
         _ => {}
     }
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output = std::env::args().nth(1).ok_or("output directory required")?;
+    let height = std::env::args().nth(2).map(|s| s.parse::<f32>()).transpose()?.unwrap_or(700.);
+    if !height.is_finite() || !(400. ..=2000.).contains(&height) {
+        return Err("capture height must be between 400 and 2000 pixels".into());
+    }
     std::fs::create_dir_all(&output)?;
     let mut app = CadApp::new(Session::new(), Services::default());
-    app.run("ui.buildercraft.curve", json!({}))?;
+    let curve = app.run("ui.buildercraft.curve", json!({}))?;
+    app.session.set_selection(vec![cadcraft_doc::Handle(curve["id"].as_u64().ok_or("curve ID missing")?)]);
     app.run("ui.buildercraft.surface", json!({}))?;
     app.session.viewport_px = (1000., 650.);
     let ctx = egui::Context::default();
     for name in ["top", "front", "right", "iso"] {
         app.run(&format!("ui.buildercraft.{name}"), json!({}))?;
         app.run("ui.buildercraft.fit", json!({}))?;
-        let input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1000., 700.))), ..Default::default() };
+        let input =
+            egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1000., height))), ..Default::default() };
         let mut initial = ctx.run_ui(input.clone(), |ui| {
             app.logic(ui.ctx());
             app.ui(ui)
@@ -78,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
         frame.textures_delta.clear();
         let mut svg =
-            String::from("<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='700'><rect width='1000' height='700' fill='#181b21'/>");
+            format!("<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='{height}'><rect width='1000' height='{height}' fill='#181b21'/>");
         for (i, clipped) in frame.shapes.into_iter().enumerate() {
             use std::fmt::Write;
             let r = clipped.clip_rect;

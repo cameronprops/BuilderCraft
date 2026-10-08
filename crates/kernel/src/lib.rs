@@ -6,10 +6,12 @@ mod geometry;
 mod production;
 mod scene;
 mod tessellation;
+mod transform;
 pub use geometry::*;
 pub use production::*;
 pub use scene::*;
 pub use tessellation::*;
+pub use transform::*;
 
 use serde::{Deserialize, Serialize};
 

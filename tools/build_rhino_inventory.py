@@ -58,7 +58,8 @@ def main():
     args = parser.parse_args()
     old = {}
     if args.output.exists():
-        old = {r["name"]: r for r in json.loads(args.output.read_text())["commands"]}
+        previous = json.loads(args.output.read_text())
+        old = {r["name"]: r for r in previous.get("removed_from_reference", []) + previous["commands"]}
     candidates = {}
     if args.candidate_root:
         for path in (args.candidate_root / "crates/engine/src/cmd").glob("*.rs"):

@@ -11,6 +11,8 @@ pub enum Transform {
     Scale { origin: [f64; 3], factor: f64 },
     Scale1d { origin: [f64; 3], axis: [f64; 3], factor: f64 },
     Scale2d { origin: [f64; 3], normal: [f64; 3], factor: f64 },
+    ScaleNu { origin: [f64; 3], factors: [f64; 3] },
+    ScaleByPlane { origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], factors: [f64; 2] },
     Mirror { origin: [f64; 3], normal: [f64; 3] },
 }
 fn point(p: [f64; 3]) -> Result<Vec3> {
@@ -26,6 +28,12 @@ fn direction(p: [f64; 3]) -> Result<Vec3> {
         return Err(KernelError::Invalid("zero transform axis"));
     }
     Ok(p * (1. / length))
+}
+fn directional_factor(factor: f64) -> Result<f64> {
+    if !factor.is_finite() || !(0.0..=1e9).contains(&factor) {
+        return Err(KernelError::Invalid("directional scale factor outside supported range"));
+    }
+    Ok(factor)
 }
 impl Transform {
     pub fn matrix(&self) -> Result<Mat4> {
@@ -48,9 +56,7 @@ impl Transform {
                 point(origin)?
             }
             Self::Scale1d { origin, axis, factor } | Self::Scale2d { origin, normal: axis, factor } => {
-                if !factor.is_finite() || !(0.0..=1e9).contains(&factor) {
-                    return Err(KernelError::Invalid("directional scale factor outside supported range"));
-                }
+                directional_factor(factor)?;
                 let axis = direction(axis)?;
                 let a = [axis.x, axis.y, axis.z];
                 let planar = matches!(self, Self::Scale2d { .. });
@@ -59,6 +65,32 @@ impl Transform {
                         let projection = a[i] * a[j];
                         let identity = if i == j { 1.0 } else { 0.0 };
                         *value = if planar { factor * identity + (1.0 - factor) * projection } else { identity + (factor - 1.0) * projection };
+                    }
+                }
+                point(origin)?
+            }
+            Self::ScaleNu { origin, factors } => {
+                for (i, factor) in factors.into_iter().enumerate() {
+                    m.m[i][i] = directional_factor(factor)?;
+                }
+                point(origin)?
+            }
+            Self::ScaleByPlane { origin, x_axis, y_axis, factors } => {
+                let x = direction(x_axis)?;
+                let y = direction(y_axis)?;
+                let dot = x.dot(y);
+                if dot.abs() > 1e-9 {
+                    return Err(KernelError::Invalid("scale plane axes must be perpendicular"));
+                }
+                let y = y - x * dot;
+                let y = direction([y.x, y.y, y.z])?;
+                let x = [x.x, x.y, x.z];
+                let y = [y.x, y.y, y.z];
+                let fx = directional_factor(factors[0])? - 1.0;
+                let fy = directional_factor(factors[1])? - 1.0;
+                for (i, row) in m.m.iter_mut().take(3).enumerate() {
+                    for (j, value) in row.iter_mut().take(3).enumerate() {
+                        *value += fx * x[i] * x[j] + fy * y[i] * y[j];
                     }
                 }
                 point(origin)?

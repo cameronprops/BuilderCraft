@@ -35,3 +35,8 @@ Next vertical workflow: controlled tessellation plus scene export and engine imp
 `Transform` and `transform_exact` provide original world-space translation, axis rotation, positive uniform scale and plane reflection for exact rational curves and untrimmed control surfaces. Knots, weights and degree remain unchanged. Copy-on-write preserves existing snapshots; input validation, estimated shape bounds and cooperative cancellation protect each operation.
 
 The CAD `geometry3d.transform` command adds bounded multi-object preflight, fresh copy identities, document undo and all-or-nothing mutation. It currently accepts exact CAD shapes only. Meshes, solid topology, interactive references and parametric history require separate contracts. See [manual rebuild coverage](../commands/MANUAL_REBUILD.md) for supported options and resource limitations.
+
+Directional scaling extends this service with `Scale1d`, `Scale2d`, world-axis
+`ScaleNu` and explicit-frame `ScaleByPlane`. Plane frames reject nonperpendicular
+axes and clean only normalized dot drift within 1e-9. Numeric API coverage remains
+partial; native exact curves/control surfaces retain weights, knots and degrees.

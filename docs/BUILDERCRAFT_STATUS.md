@@ -36,3 +36,15 @@ Validation: all six `cargo xtask ci` gates passed with 366 workspace tests.
 Local development validation disables incremental compilation, uses opt-level 0,
 and one codegen unit for naga/egui to avoid invalid dependency object artifacts.
 Release profiles and shipped source configuration are unchanged.
+
+## Manual command continuation: nonuniform scaling
+
+ScaleNU world-axis numeric scaling and ScaleByPlane explicit perpendicular-frame
+scaling are implemented in the same bounded shared service. Coverage remains
+partial for native exact curves/control surfaces. Known-coordinate, rational
+curve/surface, failure preservation, copy/undo and project round-trip evidence
+is in the transform tests. Interactive and additional geometry options remain
+tracked in `docs/commands/MANUAL_REBUILD.md`.
+
+Validation: all six `cargo xtask ci` gates passed with 368 workspace tests,
+including the final tilted-plane and rounding-drift acceptance cases.

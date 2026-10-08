@@ -21,6 +21,8 @@ fn affine_edits_preserve_exact_rational_evaluation_and_source() {
         Transform::Scale { origin: [2., 3., 4.], factor: 2.5 },
         Transform::Scale1d { origin: [2., 3., 4.], axis: [1., 2., 3.], factor: 2.5 },
         Transform::Scale2d { origin: [2., 3., 4.], normal: [1., 2., 3.], factor: 2.5 },
+        Transform::ScaleNu { origin: [2., 3., 4.], factors: [2., 3., 4.] },
+        Transform::ScaleByPlane { origin: [2., 3., 4.], x_axis: [1., 1., 0.], y_axis: [-1., 1., 0.], factors: [2., 3.] },
         Transform::Mirror { origin: [2., 3., 4.], normal: [1., 2., 3.] },
     ] {
         let result = transform_exact(&original, &operation, &Cancellation::default(), 1_000_000).unwrap();
@@ -62,6 +64,8 @@ fn surface_transform_and_failure_preserve_sources() {
     for op in [
         Transform::Scale1d { origin: [1., 2., 3.], axis: [1., 2., 3.], factor: 0. },
         Transform::Scale2d { origin: [1., 2., 3.], normal: [1., 2., 3.], factor: 2. },
+        Transform::ScaleNu { origin: [1., 2., 3.], factors: [2., 3., 4.] },
+        Transform::ScaleByPlane { origin: [1., 2., 3.], x_axis: [1., 1., 0.], y_axis: [-1., 1., 0.], factors: [2., 3.] },
     ] {
         let result = transform_exact(&original, &op, &Cancellation::default(), 1_000_000).unwrap();
         let ExactShape::Surface(scaled) = result else { panic!() };
@@ -100,4 +104,23 @@ fn directional_scale_preserves_complement_and_flattens() {
         assert!(Transform::Scale2d { origin, normal: [1., 0., 0.], factor }.matrix().is_err());
     }
     assert!(Transform::Scale2d { origin, normal: [0.; 3], factor: 2. }.matrix().is_err());
+}
+
+#[test]
+fn nonuniform_scale_and_explicit_plane_have_known_results() {
+    let world = Transform::ScaleNu { origin: [1., 2., 3.], factors: [2., 3., 4.] };
+    assert_eq!(world.matrix().unwrap().apply(Vec3::new(4., 6., 8.)), Vec3::new(7., 14., 23.));
+    let plane = Transform::ScaleByPlane { origin: [1., 2., 3.], x_axis: [2., 2., 0.], y_axis: [-4., 4., 0.], factors: [2., 3.] };
+    assert!((plane.matrix().unwrap().apply(Vec3::new(3., 2., 7.)) - Vec3::new(6., 1., 7.)).len() < 1e-12);
+    let tilted = Transform::ScaleByPlane { origin: [0.; 3], x_axis: [1., 0., 1.], y_axis: [0., 1., 0.], factors: [2., 3.] };
+    assert!((tilted.matrix().unwrap().apply(Vec3::new(2., 3., 4.)) - Vec3::new(5., 9., 7.)).len() < 1e-12);
+    let drift = Transform::ScaleByPlane { origin: [0.; 3], x_axis: [1., 0., 0.], y_axis: [1e-10, 1., 0.], factors: [2., 3.] };
+    assert_eq!(drift.matrix().unwrap().apply(Vec3::new(2., 3., 4.)), Vec3::new(4., 9., 4.));
+    for y_axis in [[0.; 3], [1., 1., 0.], [0., 1., 0.]] {
+        assert!(Transform::ScaleByPlane { origin: [0.; 3], x_axis: [1., 1., 0.], y_axis, factors: [2., 3.] }.matrix().is_err());
+    }
+    for factor in [-1., f64::NAN, f64::INFINITY, 1e10] {
+        assert!(Transform::ScaleNu { origin: [0.; 3], factors: [1., factor, 1.] }.matrix().is_err());
+        assert!(Transform::ScaleByPlane { origin: [0.; 3], x_axis: [1., 0., 0.], y_axis: [0., 1., 0.], factors: [1., factor] }.matrix().is_err());
+    }
 }

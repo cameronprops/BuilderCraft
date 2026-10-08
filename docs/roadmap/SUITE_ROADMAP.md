@@ -99,3 +99,10 @@ Added original native Scale1D/Scale2D API operations for exact curves and contro
 surfaces, including explicit arbitrary directions/planes, zero-factor flattening,
 copy and undo. Coverage remains partial; interactive CPlane/reference workflows
 and other geometry types are pending. See `../commands/MANUAL_REBUILD.md`.
+
+### Nonuniform scaling increment
+
+Added original native ScaleNU world-axis and ScaleByPlane explicit-frame API
+operations for exact curves/control surfaces. Parameterization, atomic batch
+behavior, copying, undo and persistence are preserved. Reference/CPlane/preset
+UI, Rigid/history and other representations remain pending. Next: ScalePositions.

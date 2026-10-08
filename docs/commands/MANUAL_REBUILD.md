@@ -93,3 +93,29 @@ Numeric API examples (IDs must identify native exact geometry):
 ```json
 {"command":"geometry3d.transform","params":{"ids":[42],"operation":{"kind":"scale2d","origin":[0,0,0],"normal":[0,0,1],"factor":2},"copy":true}}
 ```
+
+## Third reviewed increment: ScaleNU and ScaleByPlane
+
+Original `geometry3d.transform` operations `scale_nu` and `scale_by_plane` extend
+nonuniform scaling through the same exact geometry, atomic batch, copy and undo
+services. ScaleNU accepts explicit origin and world XYZ `factors:[sx,sy,sz]`.
+ScaleByPlane accepts origin, `x_axis`, `y_axis` and `factors:[sx,sy]`, scales each
+plane direction independently and preserves displacement normal to the plane.
+Factors are finite from 0 through 1e9; negative factors are rejected. Flattening
+can create degenerate geometry and is not a solid-topology validity guarantee.
+
+Plane directions are normalized and must be perpendicular within a normalized
+dot tolerance of 1e-9. Accepted numerical drift is orthogonalized before scaling;
+nonperpendicular, parallel and zero directions are rejected before mutation.
+This explicit-frame service does not infer a CPlane or a plane from an object.
+
+Both Windows/Mac combined Scale topics were reviewed. WorldCoordinates numerical
+behavior is implemented for ScaleNU. ActiveCPlane/3Point/Object/FromView and named
+plane presets, reference inputs, interactive aliases, Rigid, history, remembered
+choices, SubCrv and non-exact representations remain pending. Preset planes can
+be expressed by explicit axes; no native preset selector is claimed.
+
+Evidence includes off-origin world XYZ coordinates, a known oblique-plane result,
+rational curve/surface evaluation, invalid frame/factor/unsupported-field rejection,
+atomic failure preservation, copy/undo and `.bcraft` save/reopen in the shared
+transform tests. Next: ScalePositions (spacing without deforming each object).

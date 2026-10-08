@@ -8,7 +8,7 @@ use serde_json::json;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        CommandSpec::new("geometry3d.transform", "Transform Exact 3D Geometry", transform3d).params("{ids:[id,...],operation:{kind:move|rotate|scale|scale1d|scale2d|mirror,...},copy?:false}"),
+        CommandSpec::new("geometry3d.transform", "Transform Exact 3D Geometry", transform3d).params("{ids:[id,...],operation:{kind:move|rotate|scale|scale1d|scale2d|scale_nu|scale_by_plane|mirror,...},copy?:false}"),
         CommandSpec::new("production.model", "Production Organization", |s,_|serde_json::to_value(&s.doc()?.production).map_err(|e|error(&e.to_string()))).noundo(),
         CommandSpec::new("production.set", "Set Production Organization", |s,p|{let model:buildercraft_kernel::ProductionModel=serde_json::from_value(p.clone()).map_err(|e|error(&e.to_string()))?;model.validate().map_err(|e|error(&e.to_string()))?;s.doc_mut()?.production=model;Ok(json!({"ok":true}))}).params("{records,bindings,links}"),
         CommandSpec::new("visualization.start", "Start Live Visualization", live_visualization).params("{project_id,directory}").noundo(),

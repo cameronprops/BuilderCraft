@@ -12261,12 +12261,20 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/scalebyplane.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scalebyplane.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "explicit origin",
+        "explicit perpendicular plane axes and two numeric factors",
+        "copy",
+        "pending: Rigid, reference picking, active CPlane, remembered choices, history, SubCrv and other geometry representations"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Original bounded kernel/API scaling for exact curves/control surfaces. Nonnegative factors from 0 through 1e9; negative factors rejected. ScaleNU uses world axes only. ScaleByPlane normalizes explicit axes, rejects nonperpendicular frames, and preserves plane-normal displacement. No interactive parity claimed."
     },
     {
       "name": "ScaleNU",
@@ -12278,12 +12286,20 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/scalenu.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scalenu.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "explicit origin",
+        "world XYZ numeric factors",
+        "copy",
+        "pending: Rigid, reference picking, active CPlane, remembered choices, history, SubCrv and other geometry representations"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Original bounded kernel/API scaling for exact curves/control surfaces. Nonnegative factors from 0 through 1e9; negative factors rejected. ScaleNU uses world axes only. ScaleByPlane normalizes explicit axes, rejects nonperpendicular frames, and preserves plane-normal displacement. No interactive parity claimed."
     },
     {
       "name": "ScalePositions",

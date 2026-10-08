@@ -74,6 +74,8 @@ fn directional_scale_copy_undo_and_invalid_axis_are_atomic() {
     for operation in [
         json!({"kind":"scale1d","origin":[1.,0.,0.],"axis":[1.,0.,0.],"factor":3.}),
         json!({"kind":"scale2d","origin":[1.,0.,0.],"normal":[0.,0.,1.],"factor":3.}),
+        json!({"kind":"scale_nu","origin":[1.,0.,0.],"factors":[3.,2.,4.]}),
+        json!({"kind":"scale_by_plane","origin":[1.,0.,0.],"x_axis":[1.,0.,0.],"y_axis":[0.,1.,0.],"factors":[3.,2.]}),
     ] {
         s.execute("geometry3d.transform", &json!({"ids":[id],"operation":operation,"copy":true})).unwrap();
         let cadcraft_doc::organization::Shape::Curve(c) = &s.doc().unwrap().geometry3d[1].shape else { panic!() };
@@ -89,4 +91,21 @@ fn directional_scale_copy_undo_and_invalid_axis_are_atomic() {
             .is_err()
     );
     assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+}
+
+#[test]
+fn nonuniform_invalid_options_and_plane_preserve_document_revision() {
+    let mut s = Session::new();
+    let id = object(&mut s, 2.);
+    for operation in [
+        json!({"kind":"scale_by_plane","origin":[0.,0.,0.],"x_axis":[1.,0.,0.],"y_axis":[1.,1.,0.],"factors":[2.,3.]}),
+        json!({"kind":"scale_nu","origin":[0.,0.,0.],"factors":[2.,-1.,3.]}),
+        json!({"kind":"scale_nu","origin":[0.,0.,0.],"factors":[2.,1.,3.],"cplane":true}),
+    ] {
+        let before = s.state().unwrap().doc.clone();
+        let revision = s.state().unwrap().revision;
+        assert!(s.execute("geometry3d.transform", &json!({"ids":[id],"operation":operation,"copy":true})).is_err());
+        assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+        assert_eq!(s.state().unwrap().revision, revision);
+    }
 }

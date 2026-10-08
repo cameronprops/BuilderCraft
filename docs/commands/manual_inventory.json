@@ -7084,10 +7084,12 @@
       "path": "commands/scale.htm",
       "topic_family": "commands",
       "review_status": "partial",
-      "contract": "MANUAL_REBUILD.md: Second reviewed increment; combined Scale topic reviewed for Scale1D/Scale2D. Remaining scaling commands/options pending.",
+      "contract": "MANUAL_REBUILD.md: Second and third reviewed increments; Scale1D/Scale2D/ScaleNU/ScaleByPlane subsets. ScalePositions and remaining options pending.",
       "native_services": [
         "geometry3d.transform:scale1d",
-        "geometry3d.transform:scale2d"
+        "geometry3d.transform:scale2d",
+        "geometry3d.transform:scale_nu",
+        "geometry3d.transform:scale_by_plane"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",
@@ -18768,10 +18770,12 @@
       "path": "commands/scale.htm",
       "topic_family": "commands",
       "review_status": "partial",
-      "contract": "MANUAL_REBUILD.md: Second reviewed increment; combined Scale topic reviewed for Scale1D/Scale2D. Remaining scaling commands/options pending.",
+      "contract": "MANUAL_REBUILD.md: Second and third reviewed increments; Scale1D/Scale2D/ScaleNU/ScaleByPlane subsets. ScalePositions and remaining options pending.",
       "native_services": [
         "geometry3d.transform:scale1d",
-        "geometry3d.transform:scale2d"
+        "geometry3d.transform:scale2d",
+        "geometry3d.transform:scale_nu",
+        "geometry3d.transform:scale_by_plane"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",

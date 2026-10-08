@@ -9,6 +9,7 @@ mod registry;
 mod scene;
 mod tessellation;
 mod transform;
+mod vector_ops;
 pub use geometry::*;
 pub use production::*;
 pub use point_ops::*;
@@ -16,6 +17,7 @@ pub use registry::*;
 pub use scene::*;
 pub use tessellation::*;
 pub use transform::*;
+pub use vector_ops::*;
 
 use serde::{Deserialize, Serialize};
 

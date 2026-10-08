@@ -5,6 +5,7 @@
 mod geometry;
 mod production;
 mod point_ops;
+mod polyline_ops;
 mod registry;
 mod scene;
 mod tessellation;
@@ -13,6 +14,7 @@ mod vector_ops;
 pub use geometry::*;
 pub use production::*;
 pub use point_ops::*;
+pub use polyline_ops::*;
 pub use registry::*;
 pub use scene::*;
 pub use tessellation::*;

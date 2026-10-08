@@ -11,7 +11,7 @@ procedural environment generation, and manufacturable output.
 
 A single cohesive project should serve design, digital fabrication,
 construction coordination, BIM, previs, visualization, engineering, and
-asset handoff without forcing everyone into the same editing methodology.
+asset handoff, and project paperwork without forcing everyone into the same editing methodology.
 
 ## Fundamental principle: one project, multiple methodologies
 
@@ -72,6 +72,10 @@ reimport when the target format permits.
 9. Systems: AV, lighting, automation, ride/show control geometry and metadata,
    routing/pathways, kinematic envelopes and interfaces. Simulation must
    be distinguished from certified real-world machine control.
+10. Paperwork / Documentation: live drawing sheets, elevations, details,
+    cut lists, schedules, bills of materials, equipment and cable schedules,
+    labels, shop tickets, submittals, issue logs, revision packages, field
+    reports, fabrication instructions, print sheets and PDFs.
 
 The user may install/expose only tools relevant to a task, but all tools
 operate on the same project and kernel services.
@@ -87,7 +91,8 @@ operate on the same project and kernel services.
   contracts, preview results, transactions, undo/redo, and predictable errors.
 - Workspaces are optional, customizable presets: CAD/Surfacing, Sculpt/Scan,
   Rockwork/Scenic, Architecture/BIM, AV/Lighting, Automation/Kinematics,
-  Carpentry/Fabrication, Model Shop/3D Printing, Environment, Previs.
+  Carpentry/Fabrication, Model Shop/3D Printing, Environment, Previs,
+  Paperwork/Documentation.
 - Customizable shortcuts, toolbar sets, radial/context menus, saved presets,
   macros, palettes and nodes; UI layouts are user preferences, not data silos.
 - Non-destructive default, and explicit confirmation for precision-losing
@@ -114,6 +119,41 @@ operate on the same project and kernel services.
   coordination and IFC/BIM delivery.
 - **Previs:** linked cameras/materials/rigs/timelines, geometry LODs,
   Unreal and other engine exports, upstream source IDs.
+- **Documentation:** model-linked plans/sections/details, quantity takeoffs,
+  rockwork panel schedules, cable/equipment inventories, carpentry cut lists,
+  drawing sets, build tickets, change logs and review/submittal packages.
+
+## Paperwork is a first-class workspace
+
+Documentation is part of the project, not a downstream disconnected export.
+A rockwork grouping, rail, lighting fixture, shop assembly, or model-shop
+segment should be queryable in the drawing, in a schedule, and in a build
+ticket using the SAME persistent object/assembly identifier.
+
+Planned workflows:
+- **2D drafting:** model-derived plans, elevations, sections, details, notes,
+  dimensions, symbols, tables, title blocks and revision clouds; allow manual
+  drafting overlays that do not silently alter 3D geometry.
+- **Live schedules:** BOMs, material and cut lists, fabrication quantities,
+  weight/dimensions, group and zone reports, equipment/cable schedules, costs
+  and purchasing fields with provenance and unit handling.
+- **Operational paperwork:** job travelers, shop tickets, RFI and submittal
+  registers, punch lists, QA/inspection records, install packages, redlines
+  and approval workflows.
+- **Templates:** customizable company and discipline-specific sheet sizes,
+  title blocks, legends, fields, numbering systems, signoffs and revision
+  conventions. Maintain a usable neutral default.
+- **Linked edits:** updates to model geometry/metadata mark affected documents
+  dirty, offer controlled regeneration/diff and preserve historical issued
+  versions. Document-only annotations remain stable when regenerating.
+- **Output:** PDF drawing packages, print-ready sheets, CSV/XLSX schedules,
+  DXF/DWG 2D exchange and other supported document exports. Separate PDF
+  vector fidelity from raster 3D previews and report unsupported mappings.
+
+Never make paperwork depend on a separate discipline project or a one-way
+export. Manual override fields require ownership/provenance and should not
+be overwritten silently by regeneration. Issued revisions are immutable
+snapshots with references back to source model revisions.
 
 ## Interoperability contracts
 
@@ -156,7 +196,8 @@ Extend in stages, with backward-compatible contract changes.
 4. Source/derived geometry links, explicit conversion policies and versioning.
 5. Discipline-specific workspaces as *presets* over the same commands.
 6. Export adapters, round-trip checks and unit/coordinate guarantees.
-7. Fabrication, BIM, previs and systems integration using shared attributes.
+7. Fabrication, BIM, previs, paperwork and systems integration using shared
+   object attributes; introduce model-linked sheets and schedules early.
 8. Collaborative references, permissioning, approval/review and large-scene
    performance.
 
@@ -171,6 +212,9 @@ Extend in stages, with backward-compatible contract changes.
 - Every conversion reports accuracy, expected data loss and unit mapping.
 - An export never silently rewrites native editable geometry.
 - A team member with a different workspace sees the same project state.
+- Changing a referenced rockwork panel updates its linked quantity schedule
+  and flags affected drawing sheets for regeneration without rewriting an
+  already-issued construction package.
 - Large projects remain selectable and editable with bounded operations.
 
 A user should think about the design rather than the application's modes.

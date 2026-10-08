@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.polygon.boundary_loops",
+        label: "Find Polygon Boundary Loops",
+        category: "mesh",
+        inputs: &["polygon_mesh"],
+        outputs: &["closed_loops", "unresolved_edges", "ambiguous_vertices", "non_manifold_edges", "inconsistent_winding_edges"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.polygon.add_triangle_from_edge",
         label: "Create Triangle From Boundary Edge and Point",
         category: "mesh",

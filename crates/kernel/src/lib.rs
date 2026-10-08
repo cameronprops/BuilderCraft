@@ -5,6 +5,7 @@
 mod bounds_ops;
 mod geometry;
 mod mesh_analysis;
+mod mesh_edges;
 mod production;
 mod point_ops;
 mod polyline_ops;
@@ -16,6 +17,7 @@ mod vector_ops;
 pub use bounds_ops::*;
 pub use geometry::*;
 pub use mesh_analysis::*;
+pub use mesh_edges::*;
 pub use production::*;
 pub use point_ops::*;
 pub use polyline_ops::*;

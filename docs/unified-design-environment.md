@@ -107,6 +107,20 @@ operate on the same project and kernel services.
 - Immediate preview, clear constraints and repair suggestions, units-aware
   settings, accessible discoverability, no modal dead ends.
 
+## Holistic spatial assemblies
+
+The same parent object can contain scenic skin, structure, lighting,
+audio, embedded sensors, cable routing, motion envelopes, fabrication parts,
+reports and schematic references. Nested components have stable IDs and
+typed spatial/functional links. A wall is one interdisciplinary assembly,
+not eight discipline-specific file copies.
+
+Selecting the wall exposes its complete cross-disciplinary context and
+coordinated exports. Selection of a fixture or sensor highlights the linked
+3D location, data row, schematic symbol, cue and relevant paperwork.
+See [Holistic Spatial Assemblies](holistic-spatial-assemblies.md) for
+the example and staged implementation.
+
 ## Discipline workflows, same project
 
 - **Rockwork:** modeled/scanned geology, zones, panel seams, steel and

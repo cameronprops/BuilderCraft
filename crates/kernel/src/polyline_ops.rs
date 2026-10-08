@@ -40,19 +40,33 @@ pub fn polyline_length(points: &[Vec3]) -> Result<f64> {
     Ok(total)
 }
 
-fn sample_at(points: &[Vec3], distance: f64, total: f64) -> Result<Vec3> {
-    if distance <= 0.0 { return Ok(points[0]); }
-    if distance >= total { return Ok(points[points.len() - 1]); }
-    let mut covered = 0.0;
-    for segment in points.windows(2) {
-        let length = point_distance(segment[0], segment[1])?;
-        if length > 0.0 && distance <= covered + length {
-            let t = ((distance - covered) / length).clamp(0.0, 1.0);
-            return point_interpolate(segment[0], segment[1], t);
-        }
-        covered += length;
+/// Monotone arc-length sampler. A division pass visits each segment once.
+struct Sampler<'a> {
+    points: &'a [Vec3],
+    segment: usize,
+    covered: f64,
+}
+
+impl<'a> Sampler<'a> {
+    fn new(points: &'a [Vec3]) -> Self {
+        Self { points, segment: 0, covered: 0.0 }
     }
-    Ok(points[points.len() - 1])
+
+    fn sample(&mut self, distance: f64, total: f64) -> Result<Vec3> {
+        if distance <= 0.0 { return Ok(self.points[0]); }
+        if distance >= total { return Ok(self.points[self.points.len() - 1]); }
+        while self.segment + 1 < self.points.len() {
+            let a = self.points[self.segment];
+            let b = self.points[self.segment + 1];
+            let length = point_distance(a, b)?;
+            if length > 0.0 && distance <= self.covered + length {
+                return point_interpolate(a, b, ((distance - self.covered) / length).clamp(0.0, 1.0));
+            }
+            self.covered += length;
+            self.segment += 1;
+        }
+        Ok(self.points[self.points.len() - 1])
+    }
 }
 
 /// Divide into `count` equal arc-length pieces; return count+1 points including endpoints.
@@ -64,8 +78,9 @@ pub fn polyline_divide_count(points: &[Vec3], count: usize) -> Result<Vec<Vec3>>
     }
     let mut output = Vec::new();
     output.try_reserve_exact(count + 1).map_err(|_| KernelError::Budget)?;
+    let mut sampler = Sampler::new(points);
     for i in 0..=count {
-        output.push(sample_at(points, total * (i as f64 / count as f64), total)?);
+        output.push(sampler.sample(total * (i as f64 / count as f64), total)?);
     }
     Ok(output)
 }
@@ -84,9 +99,10 @@ pub fn polyline_divide_distance(points: &[Vec3], spacing: f64) -> Result<Vec<Vec
     let mut output = Vec::new();
     output.try_reserve_exact(intervals as usize + 1).map_err(|_| KernelError::Budget)?;
     output.push(points[0]);
+    let mut sampler = Sampler::new(points);
     let mut index = 1usize;
     while (index as f64) * spacing < total {
-        output.push(sample_at(points, (index as f64) * spacing, total)?);
+        output.push(sampler.sample((index as f64) * spacing, total)?);
         index += 1;
     }
     output.push(points[points.len() - 1]);

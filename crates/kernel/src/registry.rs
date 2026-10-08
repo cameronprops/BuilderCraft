@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.mesh.add_triangle",
+        label: "Add Triangle From Selected Vertices",
+        category: "mesh",
+        inputs: &["mesh", "selected_vertices"],
+        outputs: &["mesh"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.mesh.repair",
         label: "Mesh Repair Pipeline",
         category: "mesh",

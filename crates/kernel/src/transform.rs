@@ -9,6 +9,8 @@ pub enum Transform {
     Move { delta: [f64; 3] },
     Rotate { origin: [f64; 3], axis: [f64; 3], angle_degrees: f64 },
     Scale { origin: [f64; 3], factor: f64 },
+    Scale1d { origin: [f64; 3], axis: [f64; 3], factor: f64 },
+    Scale2d { origin: [f64; 3], normal: [f64; 3], factor: f64 },
     Mirror { origin: [f64; 3], normal: [f64; 3] },
 }
 fn point(p: [f64; 3]) -> Result<Vec3> {
@@ -42,6 +44,22 @@ impl Transform {
                 }
                 for i in 0..3 {
                     m.m[i][i] = factor;
+                }
+                point(origin)?
+            }
+            Self::Scale1d { origin, axis, factor } | Self::Scale2d { origin, normal: axis, factor } => {
+                if !factor.is_finite() || !(0.0..=1e9).contains(&factor) {
+                    return Err(KernelError::Invalid("directional scale factor outside supported range"));
+                }
+                let axis = direction(axis)?;
+                let a = [axis.x, axis.y, axis.z];
+                let planar = matches!(self, Self::Scale2d { .. });
+                for (i, row) in m.m.iter_mut().take(3).enumerate() {
+                    for (j, value) in row.iter_mut().take(3).enumerate() {
+                        let projection = a[i] * a[j];
+                        let identity = if i == j { 1.0 } else { 0.0 };
+                        *value = if planar { factor * identity + (1.0 - factor) * projection } else { identity + (factor - 1.0) * projection };
+                    }
                 }
                 point(origin)?
             }

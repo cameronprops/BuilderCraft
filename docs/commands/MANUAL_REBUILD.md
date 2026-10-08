@@ -59,3 +59,37 @@ Evidence: `crates/kernel/tests/transforms.rs`, `crates/engine/tests/transforms3d
 Source: official Move, Rotate3D, Scale and Mirror command pages under
 https://docs.mcneel.com/rhino/8/help/en-us/commands/ . Behavior descriptions here are
 original summaries, not copied help text.
+
+## Second reviewed increment: Scale1D and Scale2D
+
+Reviewed the combined Scale command topic on both Rhino 8 Windows and Mac help.
+The per-command redirect pages do not carry the complete options. Original native
+`geometry3d.transform` operations `scale1d` and `scale2d` take explicit origin,
+axis (1D) or plane normal (2D), and numeric factor from 0 through 1e9. Directions
+are normalized; zero/nonfinite directions and out-of-range factors are rejected.
+1D scales the axial component and leaves perpendicular components unchanged;
+2D uniformly scales the plane and leaves the normal component unchanged.
+Zero allows flattening, which may create degenerate geometry; it is not evidence
+of valid solid topology. Rational weights, knots and degrees are retained.
+
+The existing bounded atomic batch, new-ID copy and undo service applies. API only:
+active viewport CPlane, reference picking, default bounding-box center, Rigid,
+SubCrv, history, remembered choices and native interactive aliases remain pending.
+Negative factors are rejected. Existing UI uniform Scale is unchanged.
+
+Evidence: rational evaluation at oblique axes, off-origin known-coordinate cases,
+zero-factor flattening, bad factor/axis rejection, copy identity, native project save/reopen and undo/source
+preservation in `crates/kernel/tests/transforms.rs` and
+`crates/engine/tests/transforms3d.rs`. Next: ScaleNU and explicit frame contracts.
+References: https://docs.mcneel.com/rhino/8/help/en-us/commands/scale.htm and
+https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scale.htm .
+
+Numeric API examples (IDs must identify native exact geometry):
+
+```json
+{"command":"geometry3d.transform","params":{"ids":[42],"operation":{"kind":"scale1d","origin":[0,0,0],"axis":[1,0,0],"factor":2},"copy":false}}
+```
+
+```json
+{"command":"geometry3d.transform","params":{"ids":[42],"operation":{"kind":"scale2d","origin":[0,0,0],"normal":[0,0,1],"factor":2},"copy":true}}
+```

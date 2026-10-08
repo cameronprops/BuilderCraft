@@ -92,3 +92,10 @@ positive uniform scale and plane reflection, with atomic batch validation, optio
 fresh-ID copies and undo. Move/Rotate3D/Scale/Mirror are partial, limited to native
 exact curves/control surfaces. Numeric editing is implemented; viewport gumball,
 other representations, richer options and associative history remain pending.
+
+### Directional scaling increment
+
+Added original native Scale1D/Scale2D API operations for exact curves and control
+surfaces, including explicit arbitrary directions/planes, zero-factor flattening,
+copy and undo. Coverage remains partial; interactive CPlane/reference workflows
+and other geometry types are pending. See `../commands/MANUAL_REBUILD.md`.

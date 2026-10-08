@@ -7083,11 +7083,11 @@
       "platform": "windows",
       "path": "commands/scale.htm",
       "topic_family": "commands",
-      "review_status": "partial_contract",
-      "contract": "Exact curve/control-surface affine subset; see MANUAL_REBUILD.md",
+      "review_status": "partial",
+      "contract": "MANUAL_REBUILD.md: Second reviewed increment; combined Scale topic reviewed for Scale1D/Scale2D. Remaining scaling commands/options pending.",
       "native_services": [
-        "buildercraft_kernel::transform_exact",
-        "geometry3d.transform"
+        "geometry3d.transform:scale1d",
+        "geometry3d.transform:scale2d"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",
@@ -18767,11 +18767,11 @@
       "platform": "mac",
       "path": "commands/scale.htm",
       "topic_family": "commands",
-      "review_status": "partial_contract",
-      "contract": "Exact curve/control-surface affine subset; see MANUAL_REBUILD.md",
+      "review_status": "partial",
+      "contract": "MANUAL_REBUILD.md: Second reviewed increment; combined Scale topic reviewed for Scale1D/Scale2D. Remaining scaling commands/options pending.",
       "native_services": [
-        "buildercraft_kernel::transform_exact",
-        "geometry3d.transform"
+        "geometry3d.transform:scale1d",
+        "geometry3d.transform:scale2d"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",

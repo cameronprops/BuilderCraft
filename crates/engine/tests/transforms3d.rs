@@ -65,3 +65,28 @@ fn copy_rejects_colliding_or_exhausted_identity_seed_before_mutation() {
         assert_eq!(s.state().unwrap().revision, revision);
     }
 }
+
+#[test]
+fn directional_scale_copy_undo_and_invalid_axis_are_atomic() {
+    let mut s = Session::new();
+    let id = object(&mut s, 2.);
+    let before = s.state().unwrap().doc.clone();
+    for operation in [
+        json!({"kind":"scale1d","origin":[1.,0.,0.],"axis":[1.,0.,0.],"factor":3.}),
+        json!({"kind":"scale2d","origin":[1.,0.,0.],"normal":[0.,0.,1.],"factor":3.}),
+    ] {
+        s.execute("geometry3d.transform", &json!({"ids":[id],"operation":operation,"copy":true})).unwrap();
+        let cadcraft_doc::organization::Shape::Curve(c) = &s.doc().unwrap().geometry3d[1].shape else { panic!() };
+        assert_eq!(c.control[0], cadcraft_geom::Vec3::new(4., 0., 0.));
+        let bytes = cadcraft_io::write(s.doc().unwrap(), "scaled.bcraft").unwrap();
+        let reopened = cadcraft_io::read(&bytes, "scaled.bcraft").unwrap();
+        assert_eq!(reopened.geometry3d, s.doc().unwrap().geometry3d);
+        s.undo().unwrap();
+        assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+    }
+    assert!(
+        s.execute("geometry3d.transform", &json!({"ids":[id],"operation":{"kind":"scale1d","origin":[0.,0.,0.],"axis":[0.,0.,0.],"factor":2.}}))
+            .is_err()
+    );
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+}

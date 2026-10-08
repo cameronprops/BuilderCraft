@@ -12211,12 +12211,20 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/scale1d.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scale1d.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "explicit origin and axis",
+        "numeric factor from 0 to 1e9",
+        "copy",
+        "pending: active CPlane, reference picking, default bounding-box center, Rigid, SubCrv, history, remembered choices"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Original native exact-curve/control-surface API implementation. Scale1D changes the axial component; Scale2D scales the specified plane and preserves its normal component. No interactive Rhino alias or full parity claimed. Negative factors rejected."
     },
     {
       "name": "Scale2D",
@@ -12228,12 +12236,20 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/scale2d.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scale2d.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "explicit origin and plane normal",
+        "numeric factor from 0 to 1e9",
+        "copy",
+        "pending: active CPlane, reference picking, default bounding-box center, Rigid, SubCrv, history, remembered choices"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Original native exact-curve/control-surface API implementation. Scale1D changes the axial component; Scale2D scales the specified plane and preserves its normal component. No interactive Rhino alias or full parity claimed. Negative factors rejected."
     },
     {
       "name": "ScaleByPlane",

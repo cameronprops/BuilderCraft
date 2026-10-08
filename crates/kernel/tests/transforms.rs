@@ -19,6 +19,8 @@ fn affine_edits_preserve_exact_rational_evaluation_and_source() {
         Transform::Move { delta: [4., -3., 2.] },
         Transform::Rotate { origin: [2., 3., 4.], axis: [1., 2., 3.], angle_degrees: 37. },
         Transform::Scale { origin: [2., 3., 4.], factor: 2.5 },
+        Transform::Scale1d { origin: [2., 3., 4.], axis: [1., 2., 3.], factor: 2.5 },
+        Transform::Scale2d { origin: [2., 3., 4.], normal: [1., 2., 3.], factor: 2.5 },
         Transform::Mirror { origin: [2., 3., 4.], normal: [1., 2., 3.] },
     ] {
         let result = transform_exact(&original, &operation, &Cancellation::default(), 1_000_000).unwrap();
@@ -57,6 +59,18 @@ fn surface_transform_and_failure_preserve_sources() {
     for (u, v) in [(0., 0.), (0.25, 0.8), (1., 1.)] {
         assert!((b.evaluate(u, v).unwrap() - operation.matrix().unwrap().apply(a.evaluate(u, v).unwrap())).len() < 1e-9);
     }
+    for op in [
+        Transform::Scale1d { origin: [1., 2., 3.], axis: [1., 2., 3.], factor: 0. },
+        Transform::Scale2d { origin: [1., 2., 3.], normal: [1., 2., 3.], factor: 2. },
+    ] {
+        let result = transform_exact(&original, &op, &Cancellation::default(), 1_000_000).unwrap();
+        let ExactShape::Surface(scaled) = result else { panic!() };
+        for (u, v) in [(0., 0.), (0.25, 0.8), (1., 1.)] {
+            assert!((scaled.evaluate(u, v).unwrap() - op.matrix().unwrap().apply(a.evaluate(u, v).unwrap())).len() < 1e-9);
+        }
+        assert_eq!(scaled.knots_v, a.knots_v);
+        assert_eq!(scaled.rows[0].weights, a.rows[0].weights);
+    }
     let cancel = Cancellation::default();
     cancel.cancel();
     assert_eq!(transform_exact(&original, &operation, &cancel, 1_000_000), Err(KernelError::Cancelled));
@@ -65,4 +79,25 @@ fn surface_transform_and_failure_preserve_sources() {
     assert_eq!(a.rows[0].control[0], Vec3::ZERO);
     assert!(Transform::Mirror { origin: [0.; 3], normal: [0.; 3] }.matrix().is_err());
     assert!(Transform::Scale { origin: [0.; 3], factor: f64::NAN }.matrix().is_err());
+}
+
+#[test]
+fn directional_scale_preserves_complement_and_flattens() {
+    let origin = [1., 2., 3.];
+    let p = Vec3::new(4., 6., 8.);
+    let one = Transform::Scale1d { origin, axis: [0., 0., 7.], factor: 2. };
+    assert_eq!(one.matrix().unwrap().apply(p), Vec3::new(4., 6., 13.));
+    let two = Transform::Scale2d { origin, normal: [0., 0., 7.], factor: 2. };
+    assert_eq!(two.matrix().unwrap().apply(p), Vec3::new(7., 10., 8.));
+    let oblique = Transform::Scale1d { origin: [0.; 3], axis: [1., 1., 0.], factor: 2. };
+    assert!((oblique.matrix().unwrap().apply(Vec3::new(2., 0., 3.)) - Vec3::new(3., 1., 3.)).len() < 1e-12);
+    let oblique_plane = Transform::Scale2d { origin: [0.; 3], normal: [1., 1., 0.], factor: 2. };
+    assert!((oblique_plane.matrix().unwrap().apply(Vec3::new(2., 0., 3.)) - Vec3::new(3., -1., 6.)).len() < 1e-12);
+    let flat = Transform::Scale1d { origin, axis: [0., 0., 1.], factor: 0. };
+    assert_eq!(flat.matrix().unwrap().apply(p), Vec3::new(4., 6., 3.));
+    for factor in [-1., f64::NAN, f64::INFINITY, 1e10] {
+        assert!(Transform::Scale1d { origin, axis: [1., 0., 0.], factor }.matrix().is_err());
+        assert!(Transform::Scale2d { origin, normal: [1., 0., 0.], factor }.matrix().is_err());
+    }
+    assert!(Transform::Scale2d { origin, normal: [0.; 3], factor: 2. }.matrix().is_err());
 }

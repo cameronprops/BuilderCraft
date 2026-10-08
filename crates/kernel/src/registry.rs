@@ -25,6 +25,30 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.bounds.from_points",
+        label: "3D Bounding Box",
+        category: "bounds",
+        inputs: &["points"],
+        outputs: &["bounds"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.bounds.dimensions",
+        label: "Bounding Box Dimensions",
+        category: "bounds",
+        inputs: &["bounds"],
+        outputs: &["dimensions"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.bounds.center",
+        label: "Bounding Box Center",
+        category: "bounds",
+        inputs: &["bounds"],
+        outputs: &["center"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.polyline.segment_lengths",
         label: "Polyline Segment Lengths",
         category: "polyline",

@@ -25,6 +25,30 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.point.distance",
+        label: "Distance Between Points",
+        category: "point",
+        inputs: &["point_a", "point_b"],
+        outputs: &["distance"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.point.midpoint",
+        label: "Point Midpoint",
+        category: "point",
+        inputs: &["point_a", "point_b"],
+        outputs: &["point"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.point.interpolate",
+        label: "Interpolate Points",
+        category: "point",
+        inputs: &["point_a", "point_b", "parameter"],
+        outputs: &["point"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.frame.convert_point",
         label: "Convert Point Frame",
         category: "units",

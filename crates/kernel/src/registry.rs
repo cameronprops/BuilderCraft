@@ -25,6 +25,22 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.mesh.face_analysis",
+        label: "Mesh Face Analysis",
+        category: "mesh",
+        inputs: &["mesh", "relative_area_tolerance"],
+        outputs: &["face_analysis"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.mesh.degenerate_faces",
+        label: "Degenerate Mesh Faces",
+        category: "mesh",
+        inputs: &["mesh", "relative_area_tolerance"],
+        outputs: &["face_indices"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.bounds.from_points",
         label: "3D Bounding Box",
         category: "bounds",

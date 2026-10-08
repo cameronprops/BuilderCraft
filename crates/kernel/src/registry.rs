@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.mesh.edge_report",
+        label: "Mesh Edge Topology Report",
+        category: "mesh",
+        inputs: &["mesh"],
+        outputs: &["boundary_edges", "non_manifold_edges", "inconsistent_winding_edges", "boundary_loops", "unresolved_boundary_edges"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.mesh.face_analysis",
         label: "Mesh Face Analysis",
         category: "mesh",

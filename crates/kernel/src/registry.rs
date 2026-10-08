@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.polygon.topology",
+        label: "Polygon Half-Edge Topology",
+        category: "mesh",
+        inputs: &["polygon_mesh"],
+        outputs: &["halfedges", "edges", "face_neighbors", "boundary_edges", "non_manifold_edges", "inconsistent_winding_edges"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.polygon.validate",
         label: "Validate Editable Polygon Mesh",
         category: "mesh",

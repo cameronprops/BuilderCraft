@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.polygon.add_triangle_from_edge",
+        label: "Create Triangle From Boundary Edge and Point",
+        category: "mesh",
+        inputs: &["polygon_mesh", "current_revision", "picked_revision", "edge_vertices", "point_vertex"],
+        outputs: &["polygon_mesh", "revision", "new_face_index", "new_face", "selected_edge"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.polygon.delete_faces",
         label: "Delete Selected Polygon Faces",
         category: "mesh",

@@ -11,7 +11,8 @@ procedural environment generation, and manufacturable output.
 
 A single cohesive project should serve design, digital fabrication,
 construction coordination, BIM, previs, visualization, engineering, and
-asset handoff, and project paperwork without forcing everyone into the same editing methodology.
+asset handoff, structured data, show-control previs, and project paperwork
+without forcing everyone into the same editing methodology.
 
 ## Fundamental principle: one project, multiple methodologies
 
@@ -76,6 +77,9 @@ reimport when the target format permits.
     cut lists, schedules, bills of materials, equipment and cable schedules,
     labels, shop tickets, submittals, issue logs, revision packages, field
     reports, fabrication instructions, print sheets and PDFs.
+11. Data / Spreadsheet / Database: Excel-style workbook, relational records,
+    fixtures and patch schedules, unit-aware formulas, bidirectional scene
+    bindings, cue/timeline records and vendor interchange adapters.
 
 The user may install/expose only tools relevant to a task, but all tools
 operate on the same project and kernel services.
@@ -92,7 +96,7 @@ operate on the same project and kernel services.
 - Workspaces are optional, customizable presets: CAD/Surfacing, Sculpt/Scan,
   Rockwork/Scenic, Architecture/BIM, AV/Lighting, Automation/Kinematics,
   Carpentry/Fabrication, Model Shop/3D Printing, Environment, Previs,
-  Paperwork/Documentation.
+  Paperwork/Documentation, Data/Spreadsheet.
 - Customizable shortcuts, toolbar sets, radial/context menus, saved presets,
   macros, palettes and nodes; UI layouts are user preferences, not data silos.
 - Non-destructive default, and explicit confirmation for precision-losing
@@ -119,9 +123,34 @@ operate on the same project and kernel services.
   coordination and IFC/BIM delivery.
 - **Previs:** linked cameras/materials/rigs/timelines, geometry LODs,
   Unreal and other engine exports, upstream source IDs.
+- **Data and show systems:** Lightwright-style fixture database, QLab/Q-SYS
+  show data, ETC/Hog/grandMA patch and cue exchange, automation position
+  timelines, focus data, and reactive CAD/previs. Per-vendor capability must
+  be validated; a design table never automatically actuates real equipment.
 - **Documentation:** model-linked plans/sections/details, quantity takeoffs,
   rockwork panel schedules, cable/equipment inventories, carpentry cut lists,
   drawing sets, build tickets, change logs and review/submittal packages.
+
+## Shared Data workspace: spreadsheet, database and live scene data
+
+Provide a native offline spreadsheet/database viewer/editor sharing the same
+kernel object IDs, scene properties, coordinates, units, revisions, expression
+and dependency graph. Rows and cells can reference 3D objects and cue/timeline
+states. Editing authorized design values can update the CAD/previs scene; a
+scene manipulation can update corresponding data. Keep authored, simulated,
+observed and commanded values strictly separate to prevent feedback loops
+and unintended physical actuation.
+
+Offer spreadsheet, database, property inspector, chart, patch schedule, and
+cue timeline presentations over the same typed records. Evaluate optional
+LibreOffice/OpenOffice engine integration without making the kernel depend on
+an office process; prioritize stable interchange and native project records.
+
+Target Lightwright, Q-SYS, QLab, ETC Eos, Hog and grandMA3 via versioned
+purpose-built import/export adapters, with format tests and explicit loss
+reports. Realtime communications, if added, must require separate authorization
+and safety controls. See [Data workspace and show-control design](data-workspace-and-show-control.md)
+for detailed design, phasing and acceptance tests.
 
 ## Paperwork is a first-class workspace
 
@@ -196,9 +225,11 @@ Extend in stages, with backward-compatible contract changes.
 4. Source/derived geometry links, explicit conversion policies and versioning.
 5. Discipline-specific workspaces as *presets* over the same commands.
 6. Export adapters, round-trip checks and unit/coordinate guarantees.
-7. Fabrication, BIM, previs, paperwork and systems integration using shared
+7. Shared Data workspace with typed tables, offline spreadsheet viewing,
+   model bindings and deterministic cue/timeline simulation.
+8. Fabrication, BIM, previs, paperwork and systems integration using shared
    object attributes; introduce model-linked sheets and schedules early.
-8. Collaborative references, permissioning, approval/review and large-scene
+9. Collaborative references, permissioning, approval/review and large-scene
    performance.
 
 ## Acceptance tests
@@ -212,6 +243,10 @@ Extend in stages, with backward-compatible contract changes.
 - Every conversion reports accuracy, expected data loss and unit mapping.
 - An export never silently rewrites native editable geometry.
 - A team member with a different workspace sees the same project state.
+- Spreadsheet focus targets and automation simulation positions update shared
+  3D viewport previews; manipulating those design targets updates linked
+  records without uncontrolled feedback or modifying live hardware state.
+- Vendor patch/cue exports state unsupported attributes and target versions.
 - Changing a referenced rockwork panel updates its linked quantity schedule
   and flags affected drawing sheets for regeneration without rewriting an
   already-issued construction package.

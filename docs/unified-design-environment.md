@@ -32,6 +32,20 @@ capability matrix, StructureGraph integration, architecture invariants,
 working example and phased delivery. Planned capabilities are not
 implemented simply because they appear in this specification.
 
+## Shared reference and materials library
+
+Provide an integrated offline-capable library for images, drawings, PDFs,
+historical research, scans, CAD assets, textures, material finishes,
+manufacturer device cutsheets, equipment data, and reusable fabrication
+and paperwork templates. References can be attached to scene objects,
+shown as image planes, dropped on scratchpads, calibrated for scale, or
+queried from data and report views. Retain source, licensing, version,
+coordinate transforms and attribution. Keep large data reusable rather
+than copying it into every scene or Git revision.
+
+See [Reference Library Roadmap](reference-library-roadmap.md).
+Detailed workflow decisions can be refined later.
+
 ## Neuroinclusive, fully customizable interaction
 
 BuilderCraft must support neurodivergent and other individually preferred

@@ -1,7 +1,7 @@
 //! Optional, scoped feature-history browser in the Worldwright 3D model view.
 //! All changes go through undoable engine commands, never direct UI mutation.
 use crate::CadApp;
-use buildercraft_kernel::{FeatureScope, FeatureTimeline, FeatureStatus};
+use buildercraft_kernel::{FeatureScope, FeatureTimeline};
 use serde_json::{json, Value};
 
 fn scope_label(scope: &FeatureScope) -> String {
@@ -127,13 +127,7 @@ pub fn panel(app: &mut CadApp, ui: &mut egui::Ui) {
                             }
                         });
                     }
-                    if let Ok(result) = history.evaluate() {
-                        for state in result.states.iter().filter(|state|
-                            !matches!(state.status, FeatureStatus::Computed)
-                        ) {
-                            ui.small(format!("Step {}: {:?}", state.id, state.status));
-                        }
-                    }
+                    ui.small("Recompute reports blocked or invalid dependencies. Preview/bake is not yet available.");
                 });
             }
             ui.small("Sketch solids and the visual feature editor are later dependencies.");

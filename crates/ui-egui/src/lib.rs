@@ -65,6 +65,9 @@ pub struct UiState {
     pub mesh_face_object_id: Option<u64>,
     pub mesh_face_document_uid: Option<u64>,
     pub mesh_face_revision: Option<u64>,
+    /// Transient gizmo drag state must not be serialized with UI preferences.
+    #[serde(skip)]
+    pub gizmo: gizmo::Gizmo,
     pub view3d: bool,
     pub orbit_yaw: f64,
     pub orbit_pitch: f64,
@@ -108,6 +111,7 @@ impl Default for UiState {
             mesh_face_object_id: None,
             mesh_face_document_uid: None,
             mesh_face_revision: None,
+            gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,
             orbit_pitch: -(1.0_f64 / 3.0_f64.sqrt()).asin(),

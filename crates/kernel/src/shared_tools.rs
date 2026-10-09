@@ -2,7 +2,9 @@
 //! and Orb Weaver nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
-    KernelError, Result, point_distance, point_midpoint,
+    KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
+    tree_flatten, tree_graft, tree_simplify, tree_match, tree_validate,
+    point_distance, point_midpoint,
     point_interpolate, vector_length, vector_normalize, vector_dot,
     vector_cross, polyline_length, polyline_divide_count,
     polyline_divide_distance,
@@ -19,6 +21,9 @@ pub enum ToolType {
     Point,
     Vector,
     Polyline,
+    Tree,
+    MatchMode,
+    Pair,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -29,6 +34,10 @@ pub enum ToolValue {
     Point(Vec3),
     Vector(Vec3),
     Polyline(Vec<Vec3>),
+    /// Native ordered branches, compatible with direct Worldwright commands.
+    Tree(DataTree<ToolValue>),
+    MatchMode(TreeMatchPolicy),
+    Pair(Box<(ToolValue, ToolValue)>),
 }
 
 impl ToolValue {
@@ -39,6 +48,9 @@ impl ToolValue {
             Self::Point(_) => ToolType::Point,
             Self::Vector(_) => ToolType::Vector,
             Self::Polyline(_) => ToolType::Polyline,
+            Self::Tree(_) => ToolType::Tree,
+            Self::MatchMode(_) => ToolType::MatchMode,
+            Self::Pair(_) => ToolType::Pair,
         }
     }
 }
@@ -86,6 +98,14 @@ const POLYLINE_LENGTH: &[ToolPort] = &[
 const POLYLINE_COUNT: &[ToolPort] = &[
     ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "count", kind: ToolType::Count, modifier: true },
+];
+const ONE_TREE: &[ToolPort] = &[
+    ToolPort { name: "tree", kind: ToolType::Tree, modifier: false },
+];
+const TREE_MATCH: &[ToolPort] = &[
+    ToolPort { name: "a", kind: ToolType::Tree, modifier: false },
+    ToolPort { name: "b", kind: ToolType::Tree, modifier: false },
+    ToolPort { name: "mode", kind: ToolType::MatchMode, modifier: true },
 ];
 const POLYLINE_DISTANCE: &[ToolPort] = &[
     ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
@@ -174,6 +194,38 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_DISTANCE, output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.flatten",
+        cad_command: "worldwright.tree.flatten",
+        orbweaver_node: "orbweaver.tree.flatten",
+        dependency_group: "graph.list_tree",
+        prerequisites: &[],
+        inputs: ONE_TREE, output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.graft",
+        cad_command: "worldwright.tree.graft",
+        orbweaver_node: "orbweaver.tree.graft",
+        dependency_group: "graph.list_tree",
+        prerequisites: &[],
+        inputs: ONE_TREE, output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.simplify",
+        cad_command: "worldwright.tree.simplify",
+        orbweaver_node: "orbweaver.tree.simplify",
+        dependency_group: "graph.list_tree",
+        prerequisites: &[],
+        inputs: ONE_TREE, output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.match",
+        cad_command: "worldwright.tree.match",
+        orbweaver_node: "orbweaver.tree.match",
+        dependency_group: "graph.list_tree",
+        prerequisites: &[],
+        inputs: TREE_MATCH, output: ToolType::Tree,
     },
 ];
 

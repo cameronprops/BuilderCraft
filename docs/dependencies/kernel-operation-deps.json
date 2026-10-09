@@ -2,12 +2,20 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 46,
-    "explicit_dependencies_mapped": 28,
+    "total": 47,
+    "explicit_dependencies_mapped": 29,
     "pending_source_review": 18,
     "paired": 15
   },
   "entries": [
+    {
+      "id": "kernel.geometry.preview_wires",
+      "group": "workflow.display",
+      "depends_on": [],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "geometry",
+      "paired_cad_graph": false
+    },
     {
       "id": "kernel.vector.length",
       "group": "math.vector",

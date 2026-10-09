@@ -32,7 +32,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.lock crates/geom/src/robust_predicates.rs crates/io/src/mesh_formats.rs crates/io/tests/mesh_formats.rs crates/geom/src/lib.rs crates/io/src/lib.rs
+          git add Cargo.lock crates/geom/src/robust_predicates.rs crates/io/src/mesh_formats.rs crates/io/tests/mesh_formats.rs crates/geom/src/lib.rs crates/io/src/lib.rs crates/kernel/src/procedural_noise.rs crates/kernel/src/lib.rs
           if ! git diff --cached --quiet; then
             git commit -m "build: pin MIT dependencies and apply Rust 1.95 rustfmt"
             git push origin HEAD:integration/mit-geometry-formats

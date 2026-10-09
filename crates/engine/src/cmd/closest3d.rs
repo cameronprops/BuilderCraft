@@ -45,27 +45,14 @@ fn point(coords: [f64; 3]) -> Vec3 {
 
 fn mesh(_: &mut Session, p: &Value) -> Result<Value> {
     let source = p.get("mesh").ok_or_else(|| invalid("mesh object required"))?;
-    let vertex_count = source
-        .get("vertices")
-        .and_then(Value::as_array)
-        .map(Vec::len)
-        .ok_or_else(|| invalid("mesh vertices array required"))?;
-    let face_count = source
-        .get("triangles")
-        .and_then(Value::as_array)
-        .map(Vec::len)
-        .ok_or_else(|| invalid("mesh triangles array required"))?;
+    let vertex_count = source.get("vertices").and_then(Value::as_array).map(Vec::len).ok_or_else(|| invalid("mesh vertices array required"))?;
+    let face_count = source.get("triangles").and_then(Value::as_array).map(Vec::len).ok_or_else(|| invalid("mesh triangles array required"))?;
     if vertex_count == 0 || face_count == 0 || vertex_count > 65_536 || face_count > 65_536 {
         return Err(invalid("mesh query budget exceeded"));
     }
     let query: MeshQuery = serde_json::from_value(p.clone()).map_err(|e| invalid(&e.to_string()))?;
-    let result = mesh_closest_point(
-        &query.mesh,
-        point(query.query),
-        query.max_distance,
-        &Cancellation::default(),
-    )
-    .map_err(|e| invalid(&e.to_string()))?;
+    let result =
+        mesh_closest_point(&query.mesh, point(query.query), query.max_distance, &Cancellation::default()).map_err(|e| invalid(&e.to_string()))?;
     Ok(json!({
         "hit": result.map(|hit| json!({
             "point": [hit.point.x, hit.point.y, hit.point.z],
@@ -80,22 +67,13 @@ fn mesh(_: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn cloud(_: &mut Session, p: &Value) -> Result<Value> {
-    let sample_count = p
-        .get("points")
-        .and_then(Value::as_array)
-        .map(Vec::len)
-        .ok_or_else(|| invalid("points array required"))?;
+    let sample_count = p.get("points").and_then(Value::as_array).map(Vec::len).ok_or_else(|| invalid("points array required"))?;
     if sample_count == 0 || sample_count > 65_536 {
         return Err(invalid("point-cloud query budget exceeded"));
     }
     let query: CloudQuery = serde_json::from_value(p.clone()).map_err(|e| invalid(&e.to_string()))?;
-    let result = cloud_closest_point(
-        &query.points,
-        point(query.query),
-        query.max_distance,
-        &Cancellation::default(),
-    )
-    .map_err(|e| invalid(&e.to_string()))?;
+    let result =
+        cloud_closest_point(&query.points, point(query.query), query.max_distance, &Cancellation::default()).map_err(|e| invalid(&e.to_string()))?;
     Ok(json!({
         "hit": result.map(|hit| json!({
             "point": [hit.point.x, hit.point.y, hit.point.z],
@@ -148,20 +126,38 @@ mod tests {
         assert_eq!(out["hit"]["point_index"], 0);
         assert_eq!(out["hit"]["distance"], 1.0);
         assert_eq!(s.state().unwrap().revision, revision);
-        assert!(s.execute("worldwright.cloud.closest_point", &json!({
-            "points":[{"x":0.0,"y":0.0,"z":0.0}],"query":[0.0,0.0,0.0],"max_distance":-1.0
-        })).is_err());
+        assert!(
+            s.execute(
+                "worldwright.cloud.closest_point",
+                &json!({
+                    "points":[{"x":0.0,"y":0.0,"z":0.0}],"query":[0.0,0.0,0.0],"max_distance":-1.0
+                })
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn invalid_indices_or_nonfinite_limits_are_rejected() {
         let mut s = Session::new();
-        assert!(s.execute("worldwright.mesh.closest_point", &json!({
-            "mesh":{"vertices":[{"x":0.0,"y":0.0,"z":0.0}],"triangles":[[0,0,3]]},
-            "query":[0.0,0.0,0.0]
-        })).is_err());
-        assert!(s.execute("worldwright.cloud.closest_point", &json!({
-            "points":[],"query":[0.0,0.0,0.0]
-        })).is_err());
+        assert!(
+            s.execute(
+                "worldwright.mesh.closest_point",
+                &json!({
+                    "mesh":{"vertices":[{"x":0.0,"y":0.0,"z":0.0}],"triangles":[[0,0,3]]},
+                    "query":[0.0,0.0,0.0]
+                })
+            )
+            .is_err()
+        );
+        assert!(
+            s.execute(
+                "worldwright.cloud.closest_point",
+                &json!({
+                    "points":[],"query":[0.0,0.0,0.0]
+                })
+            )
+            .is_err()
+        );
     }
 }

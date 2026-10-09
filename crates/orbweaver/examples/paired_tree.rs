@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version: 1,
         nodes: vec![Node {
             id: 1,
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.tree.flatten".into(),
             inputs: BTreeMap::from([(
                 "tree".into(),

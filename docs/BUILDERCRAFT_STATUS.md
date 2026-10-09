@@ -48,3 +48,12 @@ tracked in `docs/commands/MANUAL_REBUILD.md`.
 
 Validation: all six `cargo xtask ci` gates passed with 368 workspace tests,
 including the final tilted-plane and rounding-drift acceptance cases.
+
+## ScalePositions increment
+
+Native exact curves/control surfaces now support 1D, 2D and 3D spacing through
+`geometry3d.transform`, with Space buttons in the transform panel. Bounds come
+from rational span subdivision; objects retain their sizes and parameterization.
+Shared batch work limits, copy, undo/redo, failed-operation preservation and
+`.bcraft` round trips have regression coverage. See
+[command contract](commands/MANUAL_REBUILD.md) for tolerance, scope and pending options.

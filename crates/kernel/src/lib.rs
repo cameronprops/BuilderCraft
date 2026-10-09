@@ -2,6 +2,8 @@
 //! not total process RSS; callers must budget input decoding and job workspace.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod bounds;
+pub use bounds::*;
 mod geometry;
 mod production;
 mod scene;

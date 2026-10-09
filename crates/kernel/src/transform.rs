@@ -13,7 +13,15 @@ pub enum Transform {
     Scale2d { origin: [f64; 3], normal: [f64; 3], factor: f64 },
     ScaleNu { origin: [f64; 3], factors: [f64; 3] },
     ScaleByPlane { origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], factors: [f64; 2] },
+    ScalePositions { origin: [f64; 3], factor: f64, mode: SpacingMode, tolerance: f64 },
     Mirror { origin: [f64; 3], normal: [f64; 3] },
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SpacingMode {
+    OneD { axis: [f64; 3] },
+    TwoD { normal: [f64; 3] },
+    ThreeD,
 }
 fn point(p: [f64; 3]) -> Result<Vec3> {
     if p.iter().any(|v| !v.is_finite() || v.abs() > 1e12) {
@@ -39,6 +47,7 @@ impl Transform {
     pub fn matrix(&self) -> Result<Mat4> {
         let mut m = Mat4::IDENTITY;
         let origin = match *self {
+            Self::ScalePositions { .. } => return Err(KernelError::Invalid("ScalePositions requires per-object bounds")),
             Self::Move { delta } => {
                 let d = point(delta)?;
                 m.m[0][3] = d.x;
@@ -142,6 +151,17 @@ pub fn exact_control_count(shape: &ExactShape) -> usize {
 }
 /// Preflight before copy-on-write; source and parameterization stay intact on failure.
 pub fn transform_exact(shape: &ExactShape, operation: &Transform, cancel: &Cancellation, max_bytes: usize) -> Result<ExactShape> {
+    let mut work = 200_000;
+    transform_exact_with_work(shape, operation, cancel, max_bytes, &mut work)
+}
+/// Batch callers share the subdivision work limit across all objects.
+pub fn transform_exact_with_work(
+    shape: &ExactShape,
+    operation: &Transform,
+    cancel: &Cancellation,
+    max_bytes: usize,
+    work: &mut usize,
+) -> Result<ExactShape> {
     cancel.check()?;
     if !shape.valid() {
         return Err(KernelError::Invalid("source exact shape"));
@@ -149,7 +169,24 @@ pub fn transform_exact(shape: &ExactShape, operation: &Transform, cancel: &Cance
     if shape.estimated_bytes()? > max_bytes || exact_control_count(shape) > 100_000 {
         return Err(KernelError::Budget);
     }
-    let matrix = operation.matrix()?;
+    let matrix = if let Transform::ScalePositions { origin, factor, mode, tolerance } = operation {
+        directional_factor(*factor)?;
+        point(*origin)?;
+        let scaling = match mode {
+            SpacingMode::OneD { axis } => Transform::Scale1d { origin: *origin, axis: *axis, factor: *factor },
+            SpacingMode::TwoD { normal } => Transform::Scale2d { origin: *origin, normal: *normal, factor: *factor },
+            SpacingMode::ThreeD => Transform::ScaleNu { origin: *origin, factors: [*factor; 3] },
+        }
+        .matrix()?;
+        if !tolerance.is_finite() || !(1e-9..=1.).contains(tolerance) {
+            return Err(KernelError::Invalid("bounds tolerance must be 1e-9 to 1 model units"));
+        }
+        let center = crate::exact_bounds_center(shape, *tolerance, cancel, work)?;
+        let d = scaling.apply(center) - center;
+        Transform::Move { delta: [d.x, d.y, d.z] }.matrix()?
+    } else {
+        operation.matrix()?
+    };
     let edit = |points: &mut [Vec3]| -> Result<()> {
         for p in points {
             cancel.check()?;

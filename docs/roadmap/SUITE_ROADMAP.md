@@ -106,3 +106,12 @@ Added original native ScaleNU world-axis and ScaleByPlane explicit-frame API
 operations for exact curves/control surfaces. Parameterization, atomic batch
 behavior, copying, undo and persistence are preserved. Reference/CPlane/preset
 UI, Rigid/history and other representations remain pending. Next: ScalePositions.
+
+## ScalePositions increment
+
+Native exact curves/control surfaces now support 1D, 2D and 3D spacing through
+`geometry3d.transform`, with Space buttons in the transform panel. Bounds come
+from rational span subdivision; objects retain their sizes and parameterization.
+Shared batch work limits, copy, undo/redo, failed-operation preservation and
+`.bcraft` round trips have regression coverage. See
+[command contract](../commands/MANUAL_REBUILD.md) for tolerance, scope and pending options.

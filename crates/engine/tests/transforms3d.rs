@@ -109,3 +109,31 @@ fn nonuniform_invalid_options_and_plane_preserve_document_revision() {
         assert_eq!(s.state().unwrap().revision, revision);
     }
 }
+
+#[test]
+fn spacing_copy_undo_redo_and_atomic_failure() {
+    let mut s = Session::new();
+    let a = object(&mut s, 2.);
+    let b = object(&mut s, 10.);
+    let before = s.doc().unwrap().geometry3d.clone();
+    let op = json!({"kind":"scale_positions","origin":[0.,0.,0.],"factor":2.,"mode":{"kind":"three_d"},"tolerance":0.000001});
+    s.execute("geometry3d.transform", &json!({"ids":[a,b],"operation":op,"copy":true})).unwrap();
+    let after = s.doc().unwrap().geometry3d.clone();
+    let bytes = cadcraft_io::write(s.doc().unwrap(), "spacing.bcraft").unwrap();
+    let reopened = cadcraft_io::read(&bytes, "spacing.bcraft").unwrap();
+    assert_eq!(reopened.geometry3d, after);
+    assert_eq!(&after[..2], &before);
+    let cadcraft_doc::organization::Shape::Curve(c) = &after[2].shape else { panic!() };
+    assert_eq!(c.control[0].x, 4.5);
+    assert_eq!(c.control[1].x, 5.5);
+    s.undo().unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+    s.redo().unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, after);
+    let snapshot = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let bad = json!({"kind":"scale_positions","origin":[0.,0.,0.],"factor":2.,"mode":{"kind":"one_d","axis":[0.,0.,0.]},"tolerance":0.000001});
+    assert!(s.execute("geometry3d.transform", &json!({"ids":[a,b],"operation":bad})).is_err());
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(std::sync::Arc::ptr_eq(&snapshot, &s.state().unwrap().doc));
+}

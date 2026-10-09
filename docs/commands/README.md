@@ -45,7 +45,7 @@ implemented; interactive CPlane/reference input and other options remain pending
 All Rhino command, Grasshopper, Kangaroo and Rhino manual reference entries
 have provisional dependency-group coverage in
 [`docs/dependencies/reference-index.json`](../dependencies/reference-index.json).
-The group DAG and shared CAD/Orb Weaver operation pair plan are in
+The group DAG and shared CAD/OrbWeaver operation pair plan are in
 [`docs/dependencies/tool-groups.json`](../dependencies/tool-groups.json).
 These are **not** per-command reviewed dependencies and do not change
 Rhino command parity statuses. New paired primitives must share one kernel

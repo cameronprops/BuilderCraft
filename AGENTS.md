@@ -1,29 +1,30 @@
 # BuilderCraft suite instructions
 
-## Dependency-first native tool policy (Worldwright + Orb Weaver)
+## Dependency-first native tool policy (Worldwright + OrbWeaver)
 
 The [dependency DAG and pair register](docs/dependencies/README.md) govern
-the sequence for **both** native CAD commands and Orb Weaver nodes. Prefer
+the sequence for **both** native CAD commands and OrbWeaver nodes. Prefer
 lower-tier primitives, then add modifiers and document/graph adapters as
 thin wrappers. One geometry algorithm must serve both interfaces; never
-reimplement the same operation in the Orb Weaver node evaluator.
+reimplement the same operation in the OrbWeaver node evaluator.
 All 1,072 Rhino commands, 817 Grasshopper components, 110 Kangaroo components
 and 2,357 manual topics have preliminary category coverage, **not** verified
 per-item dependencies. Review unresolved entries and exact port/tree behavior
 before claiming parity. For every new pair update the Rust
 `SHARED_TOOLS` contracts and `docs/dependencies/tool-groups.json`,
-add CAD and Orb Weaver tests, run the local inventory/pair consistency scripts,
+add CAD and OrbWeaver tests, run the local inventory/pair consistency scripts,
 and leave entries unvalidated until compilation/conformance tests pass.
 Do not run paid GitHub Actions automatically.
 
-Orb Weaver now has native `DataTree<T>` structure operations in the **shared
+OrbWeaver now has native `DataTree<T>` structure operations in the **shared
 kernel**: `kernel.tree.validate/flatten/graft/simplify/match`. CAD
 `worldwright.tree.*` commands and `orbweaver.tree.*` nodes must call that
 same kernel contract. Tree branches use lexicographically ordered unique paths;
 matching is explicit and strict by identical path, not automatic Grasshopper
 path matching. Keep modifier policies named and typed (shortest, longest,
-cross-reference), and preserve empty branches. The next dependency is
-**tree-aware numeric node broadcasting**, then immutable geometry handles,
+cross-reference), and preserve empty branches. The next dependency is **immutable geometry handles** and document-scoped
+reference resolution. Tree-aware numeric broadcasting is now authored and
+must remain a thin shared-kernel adapter, not a second CAD/graph algorithm.
 not another copy of tree algorithms in the graph crate. Rust code remains
 pending compiled validation.
 

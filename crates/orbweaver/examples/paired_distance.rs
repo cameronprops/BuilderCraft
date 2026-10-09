@@ -1,8 +1,8 @@
-//! Headless example: evaluate Orb Weaver and direct CAD/API dispatch against
+//! Headless example: evaluate OrbWeaver and direct CAD/API dispatch against
 //! the same geometry kernel. Run: cargo run -p orbweaver --example paired_distance
-use buildercraft_kernel::{ToolRequest, ToolValue, execute_shared_tool};
+use buildercraft_kernel::{ToolRequest, ToolValue, TreeMatchPolicy, execute_shared_tool};
 use cadcraft_geom::Vec3;
-use orb_weaver::{Graph, InputBinding, Node, evaluate};
+use orbweaver::{Graph, InputBinding, Node, evaluate};
 use std::collections::BTreeMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version: 1,
         nodes: vec![Node {
             id: 1,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.point.distance".into(),
             inputs: inputs.into_iter().map(|(key, value)| (
                 key, InputBinding::Constant { value },
@@ -30,9 +31,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph_result = evaluate(&graph)?;
     let graph_value = graph_result.values.get(&1).ok_or_else(|| std::io::Error::other("missing graph output"))?;
     if graph_value != &cad_result {
-        return Err("CAD and Orb Weaver results differ".into());
+        return Err("CAD and OrbWeaver results differ".into());
     }
-    println!("Worldwright CAD + Orb Weaver: {graph_value:?}");
+    println!("Worldwright CAD + OrbWeaver: {graph_value:?}");
     println!("1 shared kernel algorithm; zero duplicate implementations.");
     Ok(())
 }

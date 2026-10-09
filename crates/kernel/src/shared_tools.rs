@@ -1,5 +1,5 @@
 //! Typed, host-independent operation contracts shared by Worldwright commands
-//! and Orb Weaver nodes. The algorithm lives in the existing kernel; this module
+//! and OrbWeaver nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
     KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
@@ -341,7 +341,7 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
         _ => Ok(1),
     }
 }
-/// Cost of nested typed values for both CAD/API and Orb Weaver graph limits.
+/// Cost of nested typed values for both CAD/API and OrbWeaver graph limits.
 /// Limits are abstract item units, not an RSS/byte guarantee.
 pub fn shared_tool_value_cost(value: &ToolValue) -> Result<usize> {
     value_cost(value, 0)
@@ -406,19 +406,43 @@ fn match_tree_values(
 /// nonfinite inputs fail before host document mutation. The native geometry
 /// functions apply their original bounds and degeneracy checks.
 pub fn execute_shared_tool(request: &ToolRequest) -> Result<ToolValue> {
+    execute_shared_tool_with_matching(request, TreeMatchPolicy::Shortest)
+}
+
+/// Explicit native list/branch matching modifier. Any scalar/point/vector/
+/// polyline port may accept a typed tree of that leaf kind. Each item is
+/// evaluated by EXACTLY the same scalar kernel operation as the direct CAD
+/// command. No implicit path expansion is attempted.
+pub fn execute_shared_tool_with_matching(
+    request: &ToolRequest, matching: TreeMatchPolicy,
+) -> Result<ToolValue> {
     let contract = shared_tool(&request.operation)
         .ok_or(KernelError::Invalid("unregistered shared operation"))?;
     if request.inputs.len() != contract.inputs.len() {
         return Err(KernelError::Invalid("missing or unexpected tool port"));
     }
+    let mut lifted = false;
     for port in contract.inputs {
         let value = request.inputs.get(port.name)
             .ok_or(KernelError::Invalid("missing tool port"))?;
-        if value.kind() != port.kind {
-            return Err(KernelError::Invalid("tool port type mismatch"));
+        crate::tool_broadcast::tool_value_matches_port(port.kind, value)?;
+        if port.kind != ToolType::Tree && value.kind() == ToolType::Tree {
+            lifted = true;
         }
-        value_cost(value, 0)?;
     }
+    if lifted {
+        return crate::tool_broadcast::execute_lifted(
+            request, contract, matching, dispatch_scalar,
+        );
+    }
+    dispatch_scalar(request)
+}
+
+/// The only implementation of native scalar/geometry operations. The lifted
+/// adapter constructs strictly typed per-item requests and delegates here.
+fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
+    let contract = shared_tool(&request.operation)
+        .ok_or(KernelError::Invalid("unregistered shared operation"))?;
     match contract.operation {
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(
             point(&request.inputs, "a")?, point(&request.inputs, "b")?,

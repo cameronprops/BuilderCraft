@@ -125,9 +125,9 @@ editable quad-mesh interchange format. All new integration tests require local
 Rust execution before the implementation can be claimed verified.
 
 
-## Paired native CAD/Orb Weaver tool API (source authored)
+## Paired native CAD/OrbWeaver tool API (source authored)
 
-The new numeric CAD/API commands and Orb Weaver nodes both delegate to
+The new numeric CAD/API commands and OrbWeaver nodes both delegate to
 `buildercraft_kernel::execute_shared_tool`. No per-interface geometry
 algorithm is duplicated. No active drawing or undo transaction is needed to
 calculate a pure point/vector/polyline result.
@@ -166,7 +166,7 @@ The equivalent generic command:
 
 Both use the **same** typed dispatcher and return `output` as a tagged
 `ToolValue` (`number`, `count`, `point`, `vector`, or `polyline`).
-A Orb Weaver node has the component ID `orbweaver.point.distance`; node ports
+An OrbWeaver node has the component ID `orbweaver.point.distance`; node ports
 accept `{"source":"constant","value":{...}}` literals or
 `{"source":"output","node":<upstream node ID>}` links. The graph
 schema is version 1 and deterministic for supported scalar-valued nodes.
@@ -179,18 +179,18 @@ document bake/persistence are future milestones. Inputs reject unknown ports,
 wrong kinds, nonfinite values, and invalid domain/spacing policies.
 
 See `docs/dependencies/` for the group-level hierarchy and all 46 native
-kernel operation DAG nodes; `crates/orb-weaver/examples/paired_distance.rs`
+kernel operation DAG nodes; `crates/orbweaver/examples/paired_distance.rs`
 for an executable headless equivalence demo. Run the local validation scripts
 before marking any new code tested.
 
 
-## Orb Weaver tree operations (source authored; Rust validation pending)
+## OrbWeaver tree operations (source authored; Rust validation pending)
 
 The same native data-tree services can be called as pure Worldwright CAD/API
-commands or wired as Orb Weaver graph nodes. These five new paired commands
+commands or wired as OrbWeaver graph nodes. These five new paired commands
 extend the prior ten numeric operations:
 
-| Worldwright command | Orb Weaver node | Inputs | Output |
+| Worldwright command | OrbWeaver node | Inputs | Output |
 |---|---|---|---|
 | `worldwright.tree.validate` | `orbweaver.tree.validate` | tree | Top-level item count |
 | `worldwright.tree.flatten` | `orbweaver.tree.flatten` | tree | One ordered branch |
@@ -226,7 +226,7 @@ Example direct CAD/API flatten request:
 }
 ```
 
-The equivalent Orb Weaver graph uses node ID `orbweaver.tree.flatten`
+The equivalent OrbWeaver graph uses node ID `orbweaver.tree.flatten`
 with a `Constant` binding carrying the same tagged tree, or an `Output`
 binding connecting it to another tree node. Results use `ToolValue::Tree`.
 Generated paired values use `ToolValue::Pair`, and output/error checks are
@@ -234,6 +234,9 @@ shared by both interfaces.
 
 Native trees preserve empty branches, require ordered unique paths of depth
 1–16, and enforce count/clone limits. Graph-level `.dftba` persistence,
-geometry handle ports, global tree broadcasting and graphical editing are
-still pending. See `crates/orb-weaver/examples/paired_tree.rs`. Local compilation
+geometry handle ports, exact Grasshopper implicit path matching and graphical
+editing are still pending. Native tree-item broadcasting is available for the
+ten point/vector/polyline operations; use the top-level optional `matching`
+modifier (`shortest`, `longest`, `cross_reference`) on CAD commands, or the
+per-node `matching` field on OrbWeaver graph nodes. See `crates/orbweaver/examples/paired_tree.rs`. Local compilation
 and runtime tests have not yet been performed.

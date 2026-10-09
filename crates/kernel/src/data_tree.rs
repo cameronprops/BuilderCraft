@@ -40,6 +40,12 @@ pub enum TreeMatchPolicy {
     CrossReference,
 }
 
+impl Default for TreeMatchPolicy {
+    fn default() -> Self {
+        Self::Shortest
+    }
+}
+
 pub fn tree_validate<T>(tree: &DataTree<T>) -> Result<usize> {
     if tree.branches.len() > MAX_TREE_BRANCHES {
         return Err(KernelError::Budget);

@@ -93,6 +93,8 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
         let selected = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
         if ui.selectable_label(selected, format!("Polygon mesh: {}", object.name)).clicked() {
             app.session.set_selection(vec![cadcraft_doc::Handle(object.id)]);
+            app.ui.mesh_face_object_id = None;
+            app.ui.mesh_face_revision = None;
         }
         let mut name = object.name.clone();
         if ui.text_edit_singleline(&mut name).lost_focus() && name != object.name {
@@ -106,22 +108,30 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             .id_salt(("mesh", object.id))
             .show(ui, |ui| {
                 ui.label(format!("{} vertices, {} native faces", object.mesh.vertices.len(), object.mesh.faces.len()));
-                ui.small("Numeric face editing; viewport face picking is still in development.");
+                ui.small("Click a visible polygon face in the 3D viewport, or enter its index.");
+                let live_revision = app.session.state().ok().map(|s| s.revision);
+                if app.ui.mesh_face_object_id == Some(object.id) && app.ui.mesh_face_revision.is_some() {
+                    if app.ui.mesh_face_revision == live_revision {
+                        ui.label(format!("Viewport pick: face {}", app.ui.mesh_face_index));
+                    } else {
+                        ui.label("Viewport pick is stale; click the mesh again.");
+                    }
+                }
                 ui.horizontal(|ui| {
                     ui.label("Face:");
-                    ui.add(egui::DragValue::new(&mut app.ui.mesh_face_index)
-                        .range(0..=object.mesh.faces.len().saturating_sub(1) as u32));
+                    if ui.add(egui::DragValue::new(&mut app.ui.mesh_face_index)
+                        .range(0..=object.mesh.faces.len().saturating_sub(1) as u32)).changed() {
+                        app.ui.mesh_face_object_id = None;
+                        app.ui.mesh_face_revision = None;
+                    }
                     if ui.add_enabled(!object.mesh.faces.is_empty(), egui::Button::new("Delete face")).clicked() {
-                        if let Ok(state) = app.session.state() {
-                            let revision = state.revision;
-                            let _ = app.run("mesh3d.edit", json!({
-                                "id":object.id,
-                                "edit":{
-                                    "kind":"delete_faces",
-                                    "selected_revision":revision,
-                                    "selected_faces":[app.ui.mesh_face_index]
-                                }
-                            }));
+                        if let Some(now) = live_revision {
+                            let revision = if app.ui.mesh_face_object_id == Some(object.id) {
+                                app.ui.mesh_face_revision.unwrap_or(now)
+                            } else {
+                                now
+                            };
+                            let _ = delete_mesh_face(app, object.id, revision, app.ui.mesh_face_index);
                         }
                     }
                 });
@@ -183,6 +193,22 @@ fn show_node(app: &mut CadApp, ui: &mut egui::Ui, nodes: &[ModelNode], node: &Mo
     });
 }
 
+fn delete_mesh_face(
+    app: &mut CadApp, object_id: u64, selected_revision: u64, face_index: u32,
+) -> Result<serde_json::Value, String> {
+    let result = app.run("mesh3d.edit", json!({
+        "id": object_id,
+        "edit": {
+            "kind": "delete_faces",
+            "selected_revision": selected_revision,
+            "selected_faces": [face_index]
+        }
+    }))?;
+    app.ui.mesh_face_object_id = None;
+    app.ui.mesh_face_revision = None;
+    Ok(result)
+}
+
 pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| {
         ui.label("Orthographic 3D").on_hover_text("Drag to orbit; Shift-drag to pan; scroll to zoom");
@@ -208,8 +234,22 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 let _ = app.run(id, json!({}));
             }
         }
+        if let (Some(object_id), Some(picked_revision)) =
+            (app.ui.mesh_face_object_id, app.ui.mesh_face_revision)
+        {
+            let current = app.session.state().ok().map(|s| s.revision);
+            let fresh = current == Some(picked_revision);
+            ui.label(if fresh {
+                format!("Mesh {object_id} · face {}", app.ui.mesh_face_index)
+            } else {
+                "Mesh face selection is stale".into()
+            });
+            if ui.add_enabled(fresh, egui::Button::new("Delete picked face")).clicked() {
+                let _ = delete_mesh_face(app, object_id, picked_revision, app.ui.mesh_face_index);
+            }
+        }
     });
-    let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
+    let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     let rect = rect.intersect(ui.clip_rect());
     app.session.viewport_px = (f64::from(rect.width()), f64::from(rect.height()));
     if response.dragged() {
@@ -227,6 +267,41 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     if response.hovered() {
         let d = ui.input(|i| i.smooth_scroll_delta.y);
         app.ui.scale3d = (app.ui.scale3d * (f64::from(d) * 0.002).exp()).clamp(1e-9, 1e9);
+    }
+    // Short click picks the frontmost rendered polygon. Orbit/pan drags do not
+    // commit picks, and selection itself never modifies the document revision.
+    if response.clicked() {
+        if let Some(pointer) = response.interact_pointer_pos().filter(|p| rect.contains(*p)) {
+            let offset = cadcraft_geom::Vec2::new(
+                f64::from(pointer.x - rect.center().x),
+                f64::from(rect.center().y - pointer.y),
+            );
+            let camera = cadcraft_geom::camera::OrthoFrame {
+                yaw: app.ui.orbit_yaw,
+                pitch: app.ui.orbit_pitch,
+            };
+            let picked = app.session.doc().ok().and_then(|d| {
+                crate::mesh_picking::pick_visible_mesh_face(
+                    d.mesh3d.iter()
+                        .filter(|o| o.visible && d.layer(&o.layer).is_none_or(|layer| layer.visible()))
+                        .map(|o| (o.id, o.mesh.as_ref())),
+                    camera,
+                    app.ui.center3d,
+                    app.ui.scale3d,
+                    offset,
+                )
+            });
+            if let Some(hit) = picked {
+                app.ui.mesh_face_object_id = Some(hit.object_id);
+                app.ui.mesh_face_index = hit.face_index;
+                app.ui.mesh_face_revision = app.session.state().ok().map(|state| state.revision);
+                app.session.set_selection(vec![cadcraft_doc::Handle(hit.object_id)]);
+            } else {
+                app.ui.mesh_face_object_id = None;
+                app.ui.mesh_face_revision = None;
+                app.session.set_selection(Vec::new());
+            }
+        }
     }
     let yaw = app.ui.orbit_yaw;
     let pitch = app.ui.orbit_pitch;
@@ -278,7 +353,8 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         }
         // Native polygon wireframe: no destructive triangulation or hidden quad split.
-        // The cap prevents an accidental 100k-face scan from freezing the UI painter.
+        // The same face cap is applied by the picker: no invisible pickable faces.
+        let current_revision = app.session.state().ok().map(|state| state.revision);
         for object in &d.mesh3d {
             if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible()) {
                 continue;
@@ -289,12 +365,24 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             } else {
                 egui::Color32::from_rgb(110, 230, 180)
             };
-            for face in object.mesh.faces.iter().take(15_000) {
+            for (face_index, face) in object.mesh.faces.iter()
+                .take(crate::mesh_picking::MAX_VIEWPORT_FACES).enumerate()
+            {
+                let highlighted = current_revision.is_some()
+                    && app.ui.mesh_face_revision == current_revision
+                    && app.ui.mesh_face_object_id == Some(object.id)
+                    && app.ui.mesh_face_index as usize == face_index;
+                let color = if highlighted {
+                    egui::Color32::from_rgb(255, 245, 80)
+                } else {
+                    color
+                };
+                let stroke = egui::Stroke::new(if highlighted { 3.0 } else { 1.0 }, color);
                 let corners = face.indices();
                 for side in 0..corners.len() {
                     let a = object.mesh.vertices[corners[side] as usize];
                     let b = object.mesh.vertices[corners[(side + 1) % corners.len()] as usize];
-                    line(a, b, color);
+                    painter.line_segment([project(a), project(b)], stroke);
                 }
             }
         }

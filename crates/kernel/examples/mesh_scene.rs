@@ -24,18 +24,11 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         ],
     };
     let report = polygon_mesh_boundary_loops(&polygon)?;
-    let inner = report.closed_loops.iter()
-        .position(|entry| entry.vertices.iter().all(|&id| id >= 4))
-        .ok_or("inner boundary not found")?;
+    let inner = report.closed_loops.iter().position(|entry| entry.vertices.iter().all(|&id| id >= 4)).ok_or("inner boundary not found")?;
     let budget = GeometryBudget::new(1024 * 1024, 100);
     let lease = budget.retain(GeometryData::PolygonMesh(polygon))?;
     let cancel = Cancellation::default();
-    let mut scene = Scene::new(
-        Id::new(1)?,
-        Frame { unit: LengthUnit::Metre, axes: Axes::RightHandedZUp },
-        budget.clone(),
-        16,
-    );
+    let mut scene = Scene::new(Id::new(1)?, Frame { unit: LengthUnit::Metre, axes: Axes::RightHandedZUp }, budget.clone(), 16);
     scene.apply(
         0,
         vec![SceneCommand::Insert(SceneObject {
@@ -52,13 +45,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("Before: {}", serde_json::to_string(&scene.manifest())?);
     scene.apply(
         1,
-        vec![SceneCommand::EditPolygon(
-            Id::new(2)?,
-            PolygonSceneEdit::FillPlanarHole {
-                selected_revision: 1,
-                loop_index: u32::try_from(inner)?,
-            },
-        )],
+        vec![SceneCommand::EditPolygon(Id::new(2)?, PolygonSceneEdit::FillPlanarHole { selected_revision: 1, loop_index: u32::try_from(inner)? })],
         &cancel,
     )?;
     let after = scene.object(Id::new(2)?).ok_or("mesh object missing")?;

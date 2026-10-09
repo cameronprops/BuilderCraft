@@ -3,8 +3,7 @@
 //! overwrite authoritative CAD geometry. Feature algorithms live in the
 //! same kernel dispatcher as CAD commands and OrbWeaver graph nodes.
 use crate::{
-    KernelError, Result, ToolValue, TreeMatchPolicy, shared_tool,
-    shared_tool_value_cost, tool_value_matches_port, tool_output_may_match_port,
+    KernelError, Result, ToolValue, TreeMatchPolicy, shared_tool, shared_tool_value_cost, tool_output_may_match_port, tool_value_matches_port,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -26,10 +25,9 @@ impl FeatureScope {
             Self::Document => Ok(()),
             Self::ModelNode(0) => Err(KernelError::Identity),
             Self::ModelNode(_) => Ok(()),
-            Self::BlockDefinition(name)
-                if name.trim().is_empty() || name.len() > 256
-                    || name.chars().any(char::is_control) =>
-                Err(KernelError::Invalid("feature block name")),
+            Self::BlockDefinition(name) if name.trim().is_empty() || name.len() > 256 || name.chars().any(char::is_control) => {
+                Err(KernelError::Invalid("feature block name"))
+            }
             Self::BlockDefinition(_) => Ok(()),
         }
     }
@@ -101,8 +99,7 @@ pub struct FeatureEvaluation {
 pub(crate) fn valid_history_parameter(name: &str) -> Result<()> {
     let mut chars = name.chars();
     let start_ok = chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
-    if !start_ok || name.len() > 128
-        || !chars.all(|c| c.is_ascii_alphanumeric() || c == '_') {
+    if !start_ok || name.len() > 128 || !chars.all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(KernelError::Invalid("feature parameter name"));
     }
     Ok(())
@@ -111,10 +108,7 @@ pub(crate) fn valid_history_parameter(name: &str) -> Result<()> {
 impl FeatureTimeline {
     pub fn new(scope: FeatureScope) -> Result<Self> {
         scope.validate()?;
-        Ok(Self {
-            scope, revision: 0, parameters: BTreeMap::new(),
-            steps: Vec::new(), rollback_after: None,
-        })
+        Ok(Self { scope, revision: 0, parameters: BTreeMap::new(), steps: Vec::new(), rollback_after: None })
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -134,8 +128,7 @@ impl FeatureTimeline {
             if step.name.trim().is_empty() || step.name.len() > 256 {
                 return Err(KernelError::Invalid("feature name"));
             }
-            let op = shared_tool(&step.operation)
-                .ok_or(KernelError::Invalid("feature operation not yet implemented"))?;
+            let op = shared_tool(&step.operation).ok_or(KernelError::Invalid("feature operation not yet implemented"))?;
             if op.operation != step.operation {
                 return Err(KernelError::Invalid("feature requires canonical kernel operation ID"));
             }
@@ -143,21 +136,18 @@ impl FeatureTimeline {
                 return Err(KernelError::Invalid("feature port count"));
             }
             for port in op.inputs {
-                let source = step.inputs.get(port.name)
-                    .ok_or(KernelError::Invalid("missing feature input port"))?;
+                let source = step.inputs.get(port.name).ok_or(KernelError::Invalid("missing feature input port"))?;
                 match source {
                     FeatureInput::Constant { value } => {
                         tool_value_matches_port(port.kind, value)?;
                     }
                     FeatureInput::Parameter { name } => {
                         valid_history_parameter(name)?;
-                        let value = self.parameters.get(name)
-                            .ok_or(KernelError::Invalid("missing feature parameter"))?;
+                        let value = self.parameters.get(name).ok_or(KernelError::Invalid("missing feature parameter"))?;
                         tool_value_matches_port(port.kind, value)?;
                     }
                     FeatureInput::PreviousFeature { id } => {
-                        let output = earlier.get(id)
-                            .ok_or(KernelError::Invalid("feature must reference earlier step"))?;
+                        let output = earlier.get(id).ok_or(KernelError::Invalid("feature must reference earlier step"))?;
                         if !tool_output_may_match_port(port.kind, *output) {
                             return Err(KernelError::Invalid("feature output/port mismatch"));
                         }
@@ -187,28 +177,29 @@ pub fn validate_feature_timelines(histories: &[FeatureTimeline]) -> Result<()> {
         // Native block names are case-insensitive. Reject alias histories
         // targeting the same definition under different capitalization.
         let canonical_scope = match &history.scope {
-            FeatureScope::BlockDefinition(name) =>
-                FeatureScope::BlockDefinition(name.to_ascii_lowercase()),
+            FeatureScope::BlockDefinition(name) => FeatureScope::BlockDefinition(name.to_ascii_lowercase()),
             other => other.clone(),
         };
         if !scopes.insert(canonical_scope) {
             return Err(KernelError::Invalid("duplicate feature scope"));
         }
         all_steps = all_steps.checked_add(history.steps.len()).ok_or(KernelError::Budget)?;
-        if all_steps > 8192 { return Err(KernelError::Budget); }
+        if all_steps > 8192 {
+            return Err(KernelError::Budget);
+        }
         for value in history.parameters.values() {
-            retained_values = retained_values
-                .checked_add(shared_tool_value_cost(value)?).ok_or(KernelError::Budget)?;
+            retained_values = retained_values.checked_add(shared_tool_value_cost(value)?).ok_or(KernelError::Budget)?;
         }
         for step in &history.steps {
             for source in step.inputs.values() {
                 if let FeatureInput::Constant { value } = source {
-                    retained_values = retained_values
-                        .checked_add(shared_tool_value_cost(value)?).ok_or(KernelError::Budget)?;
+                    retained_values = retained_values.checked_add(shared_tool_value_cost(value)?).ok_or(KernelError::Budget)?;
                 }
             }
         }
-        if retained_values > crate::MAX_TREE_ITEMS { return Err(KernelError::Budget); }
+        if retained_values > crate::MAX_TREE_ITEMS {
+            return Err(KernelError::Budget);
+        }
     }
     Ok(())
 }

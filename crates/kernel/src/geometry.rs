@@ -84,11 +84,7 @@ impl GeometryData {
             }
             Self::PointCloud(p) => valid_points(p),
             Self::Polyline(p) => p.len() >= 2 && valid_points(p),
-            Self::PolygonMesh(m) => {
-                m.vertices.len() <= max_samples
-                    && m.faces.len() <= max_samples
-                    && polygon_mesh_validate(m).is_ok()
-            }
+            Self::PolygonMesh(m) => m.vertices.len() <= max_samples && m.faces.len() <= max_samples && polygon_mesh_validate(m).is_ok(),
             Self::Mesh(m) => {
                 valid_points(&m.vertices)
                     && !m.triangles.is_empty()

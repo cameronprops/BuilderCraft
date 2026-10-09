@@ -172,7 +172,10 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
         for value in values {
             let hex = value.as_str().ok_or_else(|| error("handles must be hex strings"))?;
             let handle = Handle(u64::from_str_radix(hex, 16).map_err(|_| error("invalid handle"))?);
-            if s.doc()?.entity(handle).is_none() && !s.doc()?.geometry3d.iter().any(|o| o.id == handle.0) && !s.doc()?.mesh3d.iter().any(|o| o.id == handle.0) {
+            if s.doc()?.entity(handle).is_none()
+                && !s.doc()?.geometry3d.iter().any(|o| o.id == handle.0)
+                && !s.doc()?.mesh3d.iter().any(|o| o.id == handle.0)
+            {
                 return Err(error("entity does not exist"));
             }
             if !entities.contains(&handle) {
@@ -219,7 +222,12 @@ fn members(s: &Session, p: &Value) -> Result<Vec<Handle>> {
         let Some(current) = ids.get(cursor).copied() else { break };
         for n in &d.organization.nodes {
             if n.id == current {
-                members.extend(n.entities.iter().copied().filter(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0)));
+                members.extend(
+                    n.entities
+                        .iter()
+                        .copied()
+                        .filter(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0)),
+                );
             }
             if n.parent == Some(current) && !ids.contains(&n.id) {
                 ids.push(n.id);

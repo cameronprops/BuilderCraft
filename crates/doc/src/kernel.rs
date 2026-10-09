@@ -4,7 +4,14 @@ use crate::Drawing;
 use buildercraft_kernel::*;
 
 pub fn manifest(drawing: &Drawing, project_id: Id, revision: u64, geometry_budget_bytes: usize) -> Result<Manifest> {
-    if drawing.organization.nodes.len().checked_add(drawing.geometry3d.len()).and_then(|n| n.checked_add(drawing.mesh3d.len())).is_none_or(|n| n > 8192) {
+    if drawing
+        .organization
+        .nodes
+        .len()
+        .checked_add(drawing.geometry3d.len())
+        .and_then(|n| n.checked_add(drawing.mesh3d.len()))
+        .is_none_or(|n| n > 8192)
+    {
         return Err(KernelError::Invalid("CAD manifest object limit"));
     }
     let unit = match drawing.header.i64("INSUNITS", 0) {
@@ -41,9 +48,13 @@ pub fn manifest(drawing: &Drawing, project_id: Id, revision: u64, geometry_budge
         }));
     }
     for object in &drawing.mesh3d {
-        let owner = drawing.organization.nodes.iter()
+        let owner = drawing
+            .organization
+            .nodes
+            .iter()
             .find(|node| node.entities.iter().any(|handle| handle.0 == object.id))
-            .map(|node| convert(node.id)).transpose()?;
+            .map(|node| convert(node.id))
+            .transpose()?;
         let lease = budget.retain(GeometryData::PolygonMesh((*object.mesh).clone()))?;
         commands.push(SceneCommand::Insert(SceneObject {
             id: convert(object.id)?,

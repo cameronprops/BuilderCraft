@@ -116,39 +116,30 @@ fn external_snapshot_with_cycle_or_nonfinite_coordinate_is_rejected() {
 
 #[test]
 fn native_quad_mesh_is_visible_in_scene_and_glb_without_mutating_source() {
-    use cadcraft_doc::organization::PolygonGeometryObject;
     use buildercraft_kernel::{PolygonFace, PolygonMesh};
+    use cadcraft_doc::organization::PolygonGeometryObject;
     use std::sync::Arc;
     let mut d = Drawing::new_metric();
     let mesh = Arc::new(PolygonMesh {
-        vertices: vec![
-            Vec3::new(0.,0.,0.), Vec3::new(1000.,0.,0.),
-            Vec3::new(1000.,1000.,0.), Vec3::new(0.,1000.,0.),
-        ],
-        faces: vec![PolygonFace::Quad([0,1,2,3])],
+        vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(1000., 0., 0.), Vec3::new(1000., 1000., 0.), Vec3::new(0., 1000., 0.)],
+        faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
     });
-    d.mesh3d.push(PolygonGeometryObject {
-        id: 41,
-        name: "Quad floor".into(),
-        layer: "0".into(),
-        visible: true,
-        mesh: mesh.clone(),
-    });
-    let a = snapshot(&d,id(1),7,Default::default(),&Default::default()).unwrap();
-    assert_eq!(a.objects.len(),1);
-    assert_eq!(a.objects[0].id,id(42));
-    assert_eq!(a.objects[0].triangles.len(),2);
-    assert_eq!(a.objects[0].positions.len(),4);
-    let binary=glb(&a).unwrap();
-    let parsed=gltf::Gltf::from_slice(&binary).unwrap();
-    assert_eq!(parsed.meshes().count(),1);
-    assert_eq!(parsed.meshes().next().unwrap().primitives().next().unwrap().indices().unwrap().count(),6);
-    assert!(matches!(d.mesh3d[0].mesh.faces[0],PolygonFace::Quad(_)));
+    d.mesh3d.push(PolygonGeometryObject { id: 41, name: "Quad floor".into(), layer: "0".into(), visible: true, mesh: mesh.clone() });
+    let a = snapshot(&d, id(1), 7, Default::default(), &Default::default()).unwrap();
+    assert_eq!(a.objects.len(), 1);
+    assert_eq!(a.objects[0].id, id(42));
+    assert_eq!(a.objects[0].triangles.len(), 2);
+    assert_eq!(a.objects[0].positions.len(), 4);
+    let binary = glb(&a).unwrap();
+    let parsed = gltf::Gltf::from_slice(&binary).unwrap();
+    assert_eq!(parsed.meshes().count(), 1);
+    assert_eq!(parsed.meshes().next().unwrap().primitives().next().unwrap().indices().unwrap().count(), 6);
+    assert!(matches!(d.mesh3d[0].mesh.faces[0], PolygonFace::Quad(_)));
 
-    d.mesh3d[0].name="Renamed floor".into();
-    let b=snapshot(&d,id(1),8,Default::default(),&Default::default()).unwrap();
-    assert_eq!(a.objects[0].geometry_key,b.objects[0].geometry_key);
-    Arc::make_mut(&mut d.mesh3d[0].mesh).vertices[0].z=500.;
-    let c=snapshot(&d,id(1),9,Default::default(),&Default::default()).unwrap();
-    assert_ne!(a.objects[0].geometry_key,c.objects[0].geometry_key);
+    d.mesh3d[0].name = "Renamed floor".into();
+    let b = snapshot(&d, id(1), 8, Default::default(), &Default::default()).unwrap();
+    assert_eq!(a.objects[0].geometry_key, b.objects[0].geometry_key);
+    Arc::make_mut(&mut d.mesh3d[0].mesh).vertices[0].z = 500.;
+    let c = snapshot(&d, id(1), 9, Default::default(), &Default::default()).unwrap();
+    assert_ne!(a.objects[0].geometry_key, c.objects[0].geometry_key);
 }

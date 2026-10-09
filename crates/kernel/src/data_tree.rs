@@ -79,10 +79,7 @@ pub fn tree_flatten<T: Clone>(tree: &DataTree<T>) -> Result<DataTree<T>> {
     for branch in &tree.branches {
         items.extend_from_slice(&branch.items);
     }
-    Ok(DataTree { branches: vec![TreeBranch {
-        path: TreePath(vec![0]),
-        items,
-    }] })
+    Ok(DataTree { branches: vec![TreeBranch { path: TreePath(vec![0]), items }] })
 }
 
 /// Graft each item to a unique child path, suffixing its source item index.
@@ -127,8 +124,7 @@ pub fn tree_simplify<T: Clone>(tree: &DataTree<T>) -> Result<DataTree<T>> {
     let Some(first) = tree.branches.first() else {
         return Ok(DataTree { branches: Vec::new() });
     };
-    let shortest_depth = tree.branches.iter()
-        .map(|branch| branch.path.0.len()).min().unwrap_or(1);
+    let shortest_depth = tree.branches.iter().map(|branch| branch.path.0.len()).min().unwrap_or(1);
     let mut drop_prefix = 0usize;
     for index in 0..shortest_depth.saturating_sub(1) {
         if tree.branches.iter().all(|branch| branch.path.0[index] == first.path.0[index]) {
@@ -137,10 +133,11 @@ pub fn tree_simplify<T: Clone>(tree: &DataTree<T>) -> Result<DataTree<T>> {
             break;
         }
     }
-    let branches = tree.branches.iter().map(|branch| TreeBranch {
-        path: TreePath(branch.path.0[drop_prefix..].to_vec()),
-        items: branch.items.clone(),
-    }).collect();
+    let branches = tree
+        .branches
+        .iter()
+        .map(|branch| TreeBranch { path: TreePath(branch.path.0[drop_prefix..].to_vec()), items: branch.items.clone() })
+        .collect();
     let result = DataTree { branches };
     tree_validate(&result)?;
     Ok(result)
@@ -150,9 +147,7 @@ pub fn tree_simplify<T: Clone>(tree: &DataTree<T>) -> Result<DataTree<T>> {
 /// by Shortest, Longest(last-item repeat) or CrossReference(cartesian) policy.
 /// Missing branches and repeating from an empty list are explicit errors.
 /// This deliberately avoids guessing Grasshopper path matching rules.
-pub fn tree_match<A: Clone, B: Clone>(
-    left: &DataTree<A>, right: &DataTree<B>, mode: TreeMatchPolicy,
-) -> Result<DataTree<(A, B)>> {
+pub fn tree_match<A: Clone, B: Clone>(left: &DataTree<A>, right: &DataTree<B>, mode: TreeMatchPolicy) -> Result<DataTree<(A, B)>> {
     tree_validate(left)?;
     tree_validate(right)?;
     if left.branches.len() != right.branches.len() {
@@ -173,8 +168,7 @@ pub fn tree_match<A: Clone, B: Clone>(
                 }
                 a.items.len().max(b.items.len())
             }
-            TreeMatchPolicy::CrossReference => a.items.len()
-                .checked_mul(b.items.len()).ok_or(KernelError::Budget)?,
+            TreeMatchPolicy::CrossReference => a.items.len().checked_mul(b.items.len()).ok_or(KernelError::Budget)?,
         };
         total = total.checked_add(n).ok_or(KernelError::Budget)?;
         if total > MAX_TREE_ITEMS {
@@ -224,10 +218,7 @@ mod tests {
         TreeBranch { path: TreePath(path.to_vec()), items }
     }
     fn fixture() -> DataTree<i32> {
-        DataTree { branches: vec![
-            branch(&[0, 1], vec![1, 2]),
-            branch(&[0, 2], vec![3]),
-        ] }
+        DataTree { branches: vec![branch(&[0, 1], vec![1, 2]), branch(&[0, 2], vec![3])] }
     }
     #[test]
     fn flatten_preserves_order_and_tree_json_roundtrip() {
@@ -238,37 +229,27 @@ mod tests {
     }
     #[test]
     fn graft_each_item_and_preserve_empty_branch() {
-        let tree = DataTree { branches: vec![
-            branch(&[0], vec![4, 5]), branch(&[1], Vec::<i32>::new()),
-        ] };
+        let tree = DataTree { branches: vec![branch(&[0], vec![4, 5]), branch(&[1], Vec::<i32>::new())] };
         let graft = tree_graft(&tree).unwrap();
-        assert_eq!(graft.branches, vec![
-            branch(&[0, 0], vec![4]),
-            branch(&[0, 1], vec![5]),
-            branch(&[1, 0], vec![]),
-        ]);
+        assert_eq!(graft.branches, vec![branch(&[0, 0], vec![4]), branch(&[0, 1], vec![5]), branch(&[1, 0], vec![]),]);
     }
     #[test]
     fn simplify_only_shared_leading_path() {
         let simplified = tree_simplify(&fixture()).unwrap();
-        assert_eq!(simplified.branches, vec![
-            branch(&[1], vec![1, 2]), branch(&[2], vec![3]),
-        ]);
-        let unchanged = DataTree { branches: vec![
-            branch(&[0, 1], vec![1]), branch(&[1, 1], vec![2]),
-        ] };
+        assert_eq!(simplified.branches, vec![branch(&[1], vec![1, 2]), branch(&[2], vec![3]),]);
+        let unchanged = DataTree { branches: vec![branch(&[0, 1], vec![1]), branch(&[1, 1], vec![2])] };
         assert_eq!(tree_simplify(&unchanged).unwrap(), unchanged);
     }
     #[test]
     fn list_matching_supports_shortest_longest_and_cross() {
         let a = DataTree { branches: vec![branch(&[0], vec![1, 2])] };
         let b = DataTree { branches: vec![branch(&[0], vec![9, 10, 11])] };
-        assert_eq!(tree_match(&a, &b, TreeMatchPolicy::Shortest).unwrap().branches[0].items,
-                   vec![(1,9), (2,10)]);
-        assert_eq!(tree_match(&a, &b, TreeMatchPolicy::Longest).unwrap().branches[0].items,
-                   vec![(1,9), (2,10), (2,11)]);
-        assert_eq!(tree_match(&a, &b, TreeMatchPolicy::CrossReference).unwrap().branches[0].items,
-                   vec![(1,9), (1,10), (1,11), (2,9), (2,10), (2,11)]);
+        assert_eq!(tree_match(&a, &b, TreeMatchPolicy::Shortest).unwrap().branches[0].items, vec![(1, 9), (2, 10)]);
+        assert_eq!(tree_match(&a, &b, TreeMatchPolicy::Longest).unwrap().branches[0].items, vec![(1, 9), (2, 10), (2, 11)]);
+        assert_eq!(
+            tree_match(&a, &b, TreeMatchPolicy::CrossReference).unwrap().branches[0].items,
+            vec![(1, 9), (1, 10), (1, 11), (2, 9), (2, 10), (2, 11)]
+        );
     }
     #[test]
     fn missing_or_unsorted_branches_rejected() {
@@ -288,9 +269,7 @@ mod tests {
     }
     #[test]
     fn strict_budgets_apply_before_materialization() {
-        let huge = DataTree { branches: vec![
-            branch(&[0], vec![0u32; MAX_TREE_ITEMS + 1]),
-        ] };
+        let huge = DataTree { branches: vec![branch(&[0], vec![0u32; MAX_TREE_ITEMS + 1])] };
         assert_eq!(tree_validate(&huge), Err(KernelError::Budget));
         let many = DataTree { branches: vec![branch(&[0], vec![1u32; MAX_TREE_BRANCHES + 1])] };
         assert_eq!(tree_graft(&many), Err(KernelError::Budget));

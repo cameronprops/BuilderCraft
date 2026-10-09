@@ -50,7 +50,14 @@ fn key(points: &[[f64; 3]], triangles: &[[u32; 3]], polyline: bool) -> String {
 }
 pub fn snapshot(drawing: &Drawing, project_id: Id, revision: u64, options: TessellationOptions, cancel: &Cancellation) -> Result<Snapshot> {
     cancel.check().map_err(|e| bad(e.to_string()))?;
-    if drawing.organization.nodes.len().checked_add(drawing.geometry3d.len()).and_then(|n| n.checked_add(drawing.mesh3d.len())).is_none_or(|n| n > 256) {
+    if drawing
+        .organization
+        .nodes
+        .len()
+        .checked_add(drawing.geometry3d.len())
+        .and_then(|n| n.checked_add(drawing.mesh3d.len()))
+        .is_none_or(|n| n > 256)
+    {
         return Err(bad("visualization object limit (256)"));
     }
     let manifest = cadcraft_doc::kernel::manifest(drawing, project_id, revision, 16 * 1024 * 1024).map_err(|e| bad(e.to_string()))?;
@@ -113,14 +120,12 @@ pub fn snapshot(drawing: &Drawing, project_id: Id, revision: u64, options: Tesse
     for object in &drawing.mesh3d {
         cancel.check().map_err(|e| bad(e.to_string()))?;
         let id = Id::new(u128::from(object.id) + 1).map_err(|e| bad(e.to_string()))?;
-        let output = objects.iter_mut().find(|o| o.id == id)
-            .ok_or_else(|| bad("missing polygon scene identity"))?;
+        let output = objects.iter_mut().find(|o| o.id == id).ok_or_else(|| bad("missing polygon scene identity"))?;
         output.visible &= drawing.layer(&object.layer).is_none_or(|l| l.visible());
         if object.mesh.faces.is_empty() {
             continue;
         }
-        let triangulated = buildercraft_kernel::polygon_mesh_triangulate(&object.mesh)
-            .map_err(|e| bad(e.to_string()))?;
+        let triangulated = buildercraft_kernel::polygon_mesh_triangulate(&object.mesh).map_err(|e| bad(e.to_string()))?;
         let mesh = triangulated.mesh;
         total_points = total_points.checked_add(mesh.vertices.len()).ok_or_else(|| bad("point overflow"))?;
         total_faces = total_faces.checked_add(mesh.triangles.len()).ok_or_else(|| bad("triangle overflow"))?;

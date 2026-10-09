@@ -8,10 +8,8 @@
 #![forbid(unsafe_code)]
 
 use buildercraft_kernel::{
-    KernelError, SharedToolContract, ToolRequest, ToolValue, TreeMatchPolicy,
-    execute_shared_tool, execute_shared_tool_with_matching, shared_tool,
-    shared_tool_value_cost, tool_value_matches_port,
-    tool_output_may_match_port, SHARED_TOOLS,
+    KernelError, SHARED_TOOLS, SharedToolContract, ToolRequest, ToolValue, TreeMatchPolicy, execute_shared_tool, execute_shared_tool_with_matching,
+    shared_tool, shared_tool_value_cost, tool_output_may_match_port, tool_value_matches_port,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -114,28 +112,23 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
             let binding = node.inputs.get(port.name).ok_or(GraphError::Port(node.id))?;
             match binding {
                 InputBinding::Constant { value } => {
-                    retained_items = retained_items.checked_add(graph_value_cost(value)?)
-                        .ok_or(GraphError::Budget)?;
+                    retained_items = retained_items.checked_add(graph_value_cost(value)?).ok_or(GraphError::Budget)?;
                     if retained_items > MAX_GRAPH_VALUE_ITEMS {
                         return Err(GraphError::Budget);
                     }
                     if tool_value_matches_port(port.kind, value).is_err() {
-                        return Err(GraphError::Type {
-                            node: node.id,
-                            port: port.name.into(),
-                        });
+                        return Err(GraphError::Type { node: node.id, port: port.name.into() });
                     }
                 }
                 InputBinding::Output { node: predecessor } => {
                     edge_count = edge_count.checked_add(1).ok_or(GraphError::Budget)?;
-                    if edge_count > MAX_GRAPH_CONNECTIONS { return Err(GraphError::Budget); }
+                    if edge_count > MAX_GRAPH_CONNECTIONS {
+                        return Err(GraphError::Budget);
+                    }
                     let source = nodes.get(predecessor).ok_or(GraphError::MissingNode(*predecessor))?;
                     let source_contract = require_component(&source.component)?;
                     if !tool_output_may_match_port(port.kind, source_contract.output) {
-                        return Err(GraphError::Type {
-                            node: node.id,
-                            port: port.name.into(),
-                        });
+                        return Err(GraphError::Type { node: node.id, port: port.name.into() });
                     }
                 }
             }
@@ -153,7 +146,9 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
     while values.len() < nodes.len() {
         let mut progressed = false;
         for (&id, node) in &nodes {
-            if values.contains_key(&id) { continue; }
+            if values.contains_key(&id) {
+                continue;
+            }
             let contract = require_component(&node.component)?;
             let mut ready = true;
             let mut inputs = BTreeMap::new();
@@ -171,7 +166,9 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 };
                 inputs.insert(port.name.into(), value);
             }
-            if !ready { continue; }
+            if !ready {
+                continue;
+            }
             // Upstream operators may dynamically lift scalar output types to
             // trees. Validate the ACTUAL runtime value before executing a
             // downstream node, not only the source's static output type.
@@ -180,19 +177,12 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 if let Err(error) = tool_value_matches_port(port.kind, value) {
                     return Err(match error {
                         KernelError::Budget => GraphError::Budget,
-                        _ => GraphError::Type {
-                            node: id,
-                            port: port.name.into(),
-                        },
+                        _ => GraphError::Type { node: id, port: port.name.into() },
                     });
                 }
             }
-            let value = execute_shared_tool_with_matching(&ToolRequest {
-                operation: contract.operation.into(),
-                inputs,
-            }, node.matching)?;
-            retained_items = retained_items.checked_add(graph_value_cost(&value)?)
-                .ok_or(GraphError::Budget)?;
+            let value = execute_shared_tool_with_matching(&ToolRequest { operation: contract.operation.into(), inputs }, node.matching)?;
+            retained_items = retained_items.checked_add(graph_value_cost(&value)?).ok_or(GraphError::Budget)?;
             if retained_items > MAX_GRAPH_VALUE_ITEMS {
                 return Err(GraphError::Budget);
             }
@@ -240,10 +230,7 @@ mod tests {
             id,
             matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.point.distance".into(),
-            inputs: BTreeMap::from([
-                ("a".into(), constant(Point(a))),
-                ("b".into(), constant(Point(b))),
-            ]),
+            inputs: BTreeMap::from([("a".into(), constant(Point(a))), ("b".into(), constant(Point(b)))]),
         }
     }
     #[test]
@@ -254,11 +241,9 @@ mod tests {
         let from_graph = evaluate(&graph).unwrap().values.get(&1).cloned();
         let direct = execute_shared_tool(&ToolRequest {
             operation: "worldwright.point.distance".into(),
-            inputs: BTreeMap::from([
-                ("a".into(), Point(a)),
-                ("b".into(), Point(b)),
-            ]),
-        }).ok();
+            inputs: BTreeMap::from([("a".into(), Point(a)), ("b".into(), Point(b))]),
+        })
+        .ok();
         assert_eq!(from_graph, direct);
         assert_eq!(from_graph, Some(Number(13.)));
     }
@@ -268,28 +253,19 @@ mod tests {
             id: 3,
             matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.normalize".into(),
-            inputs: BTreeMap::from([
-                ("v".into(), constant(Vector(Vec3::new(3., 4., 0.)))),
-            ]),
+            inputs: BTreeMap::from([("v".into(), constant(Vector(Vec3::new(3., 4., 0.))))]),
         };
         let length = Node {
             id: 9,
             matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.length".into(),
-            inputs: BTreeMap::from([
-                ("v".into(), InputBinding::Output { node: 3 }),
-            ]),
+            inputs: BTreeMap::from([("v".into(), InputBinding::Output { node: 3 })]),
         };
-        let graph = Graph {
-            version: 1,
-            nodes: vec![length, normalized],
-            outputs: vec![9],
-        };
+        let graph = Graph { version: 1, nodes: vec![length, normalized], outputs: vec![9] };
         let result = evaluate(&graph).unwrap();
         assert_eq!(result.evaluated_node_count, 2);
         assert_eq!(result.values.len(), 1);
-        assert!(result.values.get(&9).is_some_and(|v|
-            matches!(v, Number(x) if (*x - 1.).abs() < 1e-12)));
+        assert!(result.values.get(&9).is_some_and(|v| matches!(v, Number(x) if (*x - 1.).abs() < 1e-12)));
     }
     #[test]
     fn division_count_is_a_modifier_not_a_new_sampling_engine() {
@@ -300,22 +276,17 @@ mod tests {
                 matching: TreeMatchPolicy::Shortest,
                 component: "orbweaver.polyline.divide_count".into(),
                 inputs: BTreeMap::from([
-                    ("points".into(), constant(Polyline(vec![
-                        Vec3::ZERO, Vec3::new(8., 0., 0.),
-                    ]))),
+                    ("points".into(), constant(Polyline(vec![Vec3::ZERO, Vec3::new(8., 0., 0.)]))),
                     ("count".into(), constant(Count(4))),
                 ]),
             }],
             outputs: vec![],
         };
         let result = evaluate(&graph).unwrap();
-        assert_eq!(result.values.get(&4), Some(&Polyline(vec![
-            Vec3::ZERO,
-            Vec3::new(2.,0.,0.),
-            Vec3::new(4.,0.,0.),
-            Vec3::new(6.,0.,0.),
-            Vec3::new(8.,0.,0.),
-        ])));
+        assert_eq!(
+            result.values.get(&4),
+            Some(&Polyline(vec![Vec3::ZERO, Vec3::new(2., 0., 0.), Vec3::new(4., 0., 0.), Vec3::new(6., 0., 0.), Vec3::new(8., 0., 0.),]))
+        );
     }
     #[test]
     fn cycles_and_dangling_references_are_errors() {
@@ -323,13 +294,11 @@ mod tests {
             id,
             matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.normalize".into(),
-            inputs: BTreeMap::from([
-                ("v".into(), InputBinding::Output {node:predecessor}),
-            ]),
+            inputs: BTreeMap::from([("v".into(), InputBinding::Output { node: predecessor })]),
         };
-        let cyclic = Graph {version:1, nodes:vec![n(1,2),n(2,1)], outputs:vec![]};
+        let cyclic = Graph { version: 1, nodes: vec![n(1, 2), n(2, 1)], outputs: vec![] };
         assert_eq!(evaluate(&cyclic), Err(GraphError::Cycle));
-        let dangling = Graph {version:1, nodes:vec![n(1,99)], outputs:vec![]};
+        let dangling = Graph { version: 1, nodes: vec![n(1, 99)], outputs: vec![] };
         assert_eq!(evaluate(&dangling), Err(GraphError::MissingNode(99)));
     }
     #[test]
@@ -338,18 +307,10 @@ mod tests {
             id: 2,
             matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.length".into(),
-            inputs: BTreeMap::from([
-                ("v".into(), InputBinding::Output { node: 1 }),
-            ]),
+            inputs: BTreeMap::from([("v".into(), InputBinding::Output { node: 1 })]),
         };
-        let graph = Graph {
-            version: 1,
-            nodes: vec![dist(1, Vec3::ZERO, Vec3::new(1.,0.,0.)),n],
-            outputs: vec![],
-        };
-        assert_eq!(evaluate(&graph), Err(GraphError::Type {
-            node:2, port:"v".into()
-        }));
+        let graph = Graph { version: 1, nodes: vec![dist(1, Vec3::ZERO, Vec3::new(1., 0., 0.)), n], outputs: vec![] };
+        assert_eq!(evaluate(&graph), Err(GraphError::Type { node: 2, port: "v".into() }));
     }
     #[test]
     fn invalid_modifier_propagates_kernel_error_atomically() {
@@ -362,9 +323,7 @@ mod tests {
                     matching: TreeMatchPolicy::Shortest,
                     component: "orbweaver.polyline.divide_count".into(),
                     inputs: BTreeMap::from([
-                        ("points".into(), constant(Polyline(vec![
-                            Vec3::ZERO, Vec3::new(3., 0., 0.),
-                        ]))),
+                        ("points".into(), constant(Polyline(vec![Vec3::ZERO, Vec3::new(3., 0., 0.)]))),
                         ("count".into(), constant(Count(0))),
                     ]),
                 },
@@ -375,12 +334,9 @@ mod tests {
     }
     #[test]
     fn rejects_duplicate_ids_and_invalid_schema() {
-        let g = Graph {version:1, nodes:vec![
-            dist(7,Vec3::ZERO,Vec3::Z),
-            dist(7,Vec3::ZERO,Vec3::Z),
-        ], outputs:vec![]};
+        let g = Graph { version: 1, nodes: vec![dist(7, Vec3::ZERO, Vec3::Z), dist(7, Vec3::ZERO, Vec3::Z)], outputs: vec![] };
         assert_eq!(evaluate(&g), Err(GraphError::NodeId(7)));
-        let g = Graph {version:2,nodes:vec![],outputs:vec![]};
+        let g = Graph { version: 2, nodes: vec![], outputs: vec![] };
         assert_eq!(evaluate(&g), Err(GraphError::Version));
     }
     #[test]
@@ -392,9 +348,7 @@ mod tests {
                 id: 5,
                 matching: TreeMatchPolicy::Shortest,
                 component: "orbweaver.polyline.length".into(),
-                inputs: BTreeMap::from([
-                    ("points".into(), constant(Polyline(samples))),
-                ]),
+                inputs: BTreeMap::from([("points".into(), constant(Polyline(samples)))]),
             }],
             outputs: vec![],
         };
@@ -404,12 +358,8 @@ mod tests {
     #[test]
     fn native_tree_nodes_graft_then_flatten_without_losing_values() {
         use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
-        let start = ToolValue::Tree(DataTree {
-            branches: vec![TreeBranch {
-                path: TreePath(vec![0, 4]),
-                items: vec![Number(1.), Number(2.), Number(3.)],
-            }],
-        });
+        let start =
+            ToolValue::Tree(DataTree { branches: vec![TreeBranch { path: TreePath(vec![0, 4]), items: vec![Number(1.), Number(2.), Number(3.)] }] });
         let graph = Graph {
             version: 1,
             nodes: vec![
@@ -417,39 +367,30 @@ mod tests {
                     id: 2,
                     matching: TreeMatchPolicy::Shortest,
                     component: "orbweaver.tree.flatten".into(),
-                    inputs: BTreeMap::from([(
-                        "tree".into(), InputBinding::Output {node: 1},
-                    )]),
+                    inputs: BTreeMap::from([("tree".into(), InputBinding::Output { node: 1 })]),
                 },
                 Node {
                     id: 1,
                     matching: TreeMatchPolicy::Shortest,
                     component: "orbweaver.tree.graft".into(),
-                    inputs: BTreeMap::from([(
-                        "tree".into(), constant(start),
-                    )]),
+                    inputs: BTreeMap::from([("tree".into(), constant(start))]),
                 },
             ],
             outputs: vec![2],
         };
         let result = evaluate(&graph).unwrap();
         assert_eq!(result.evaluated_node_count, 2);
-        assert_eq!(result.values.get(&2), Some(&ToolValue::Tree(DataTree {
-            branches: vec![TreeBranch {
-                path: TreePath(vec![0]),
-                items: vec![Number(1.), Number(2.), Number(3.)],
-            }],
-        })));
+        assert_eq!(
+            result.values.get(&2),
+            Some(&ToolValue::Tree(DataTree {
+                branches: vec![TreeBranch { path: TreePath(vec![0]), items: vec![Number(1.), Number(2.), Number(3.)] }],
+            }))
+        );
     }
     #[test]
     fn native_tree_matching_respects_mode_modifier_and_budget() {
         use buildercraft_kernel::{DataTree, TreeBranch, TreeMatchPolicy, TreePath};
-        let tree = |values: Vec<ToolValue>| ToolValue::Tree(DataTree {
-            branches: vec![TreeBranch {
-                path: TreePath(vec![0]),
-                items: values,
-            }],
-        });
+        let tree = |values: Vec<ToolValue>| ToolValue::Tree(DataTree { branches: vec![TreeBranch { path: TreePath(vec![0]), items: values }] });
         let graph = Graph {
             version: 1,
             nodes: vec![Node {
@@ -469,10 +410,10 @@ mod tests {
             assert!(false, "matching must return a tree");
             return;
         };
-        assert_eq!(tree.branches[0].items, vec![
-            ToolValue::Pair(Box::new((Number(1.),Number(8.)))),
-            ToolValue::Pair(Box::new((Number(2.),Number(8.)))),
-        ]);
+        assert_eq!(
+            tree.branches[0].items,
+            vec![ToolValue::Pair(Box::new((Number(1.), Number(8.)))), ToolValue::Pair(Box::new((Number(2.), Number(8.)))),]
+        );
     }
     #[test]
     fn tree_input_types_are_validated_before_graph_execution() {
@@ -488,9 +429,7 @@ mod tests {
                     constant(ToolValue::Tree(DataTree {
                         branches: vec![TreeBranch {
                             path: TreePath(vec![0]),
-                            items: vec![ToolValue::Polyline(vec![
-                                Vec3::ZERO; MAX_GRAPH_VALUE_ITEMS + 1
-                            ])],
+                            items: vec![ToolValue::Polyline(vec![Vec3::ZERO; MAX_GRAPH_VALUE_ITEMS + 1])],
                         }],
                     })),
                 )]),
@@ -502,15 +441,9 @@ mod tests {
     #[test]
     fn linked_numerical_tree_output_flows_into_structural_node() {
         use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
-        let source = ToolValue::Tree(DataTree { branches: vec![
-            TreeBranch {
-                path: TreePath(vec![0, 5]),
-                items: vec![
-                    Point(Vec3::new(3., 4., 0.)),
-                    Point(Vec3::new(6., 8., 0.)),
-                ],
-            },
-        ]});
+        let source = ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch { path: TreePath(vec![0, 5]), items: vec![Point(Vec3::new(3., 4., 0.)), Point(Vec3::new(6., 8., 0.))] }],
+        });
         // Node 1 applies existing distance math across two points. Node 2
         // consumes its tree output even though Distance's scalar output type
         // is Number. Both graph node orders must behave identically.
@@ -518,75 +451,56 @@ mod tests {
             id: 1,
             component: "orbweaver.point.distance".into(),
             matching: TreeMatchPolicy::Shortest,
-            inputs: BTreeMap::from([
-                ("a".into(), constant(source)),
-                ("b".into(), constant(Point(Vec3::ZERO))),
-            ]),
+            inputs: BTreeMap::from([("a".into(), constant(source)), ("b".into(), constant(Point(Vec3::ZERO)))]),
         };
         let flatten = Node {
             id: 2,
             component: "orbweaver.tree.flatten".into(),
             matching: TreeMatchPolicy::Shortest,
-            inputs: BTreeMap::from([(
-                "tree".into(), InputBinding::Output { node: 1 },
-            )]),
+            inputs: BTreeMap::from([("tree".into(), InputBinding::Output { node: 1 })]),
         };
         let graph = Graph { version: 1, nodes: vec![flatten, distance], outputs: vec![2] };
         let result = evaluate(&graph).unwrap();
         assert_eq!(result.evaluated_node_count, 2);
-        assert_eq!(result.values.get(&2), Some(&ToolValue::Tree(DataTree {
-            branches: vec![TreeBranch {
-                path: TreePath(vec![0]),
-                items: vec![Number(5.), Number(10.)],
-            }],
-        })));
+        assert_eq!(
+            result.values.get(&2),
+            Some(&ToolValue::Tree(DataTree { branches: vec![TreeBranch { path: TreePath(vec![0]), items: vec![Number(5.), Number(10.)] }] }))
+        );
     }
 
     #[test]
     fn cross_reference_modifier_is_applied_by_both_graph_and_direct_cad() {
         use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
-        let make = |xs: Vec<f64>| ToolValue::Tree(DataTree { branches: vec![
-            TreeBranch {
-                path: TreePath(vec![0]),
-                items: xs.into_iter().map(|x| Point(Vec3::new(x, 0., 0.))).collect(),
-            },
-        ]});
-        let inputs = BTreeMap::from([
-            ("a".into(), make(vec![1., 2.])),
-            ("b".into(), make(vec![4., 8., 16.])),
-        ]);
+        let make = |xs: Vec<f64>| {
+            ToolValue::Tree(DataTree {
+                branches: vec![TreeBranch { path: TreePath(vec![0]), items: xs.into_iter().map(|x| Point(Vec3::new(x, 0., 0.))).collect() }],
+            })
+        };
+        let inputs = BTreeMap::from([("a".into(), make(vec![1., 2.])), ("b".into(), make(vec![4., 8., 16.]))]);
         let node = Node {
             id: 11,
             component: "orbweaver.point.distance".into(),
             matching: TreeMatchPolicy::CrossReference,
-            inputs: inputs.iter().map(|(name, value)| (
-                name.clone(), constant(value.clone()),
-            )).collect(),
+            inputs: inputs.iter().map(|(name, value)| (name.clone(), constant(value.clone()))).collect(),
         };
-        let graph = Graph {version: 1, nodes: vec![node], outputs: vec![11]};
+        let graph = Graph { version: 1, nodes: vec![node], outputs: vec![11] };
         let computed = evaluate(&graph).unwrap();
-        let direct = execute_shared_tool_with_matching(&ToolRequest {
-            operation: "worldwright.point.distance".into(),
-            inputs,
-        }, TreeMatchPolicy::CrossReference).unwrap();
+        let direct = execute_shared_tool_with_matching(
+            &ToolRequest { operation: "worldwright.point.distance".into(), inputs },
+            TreeMatchPolicy::CrossReference,
+        )
+        .unwrap();
         assert_eq!(computed.values.get(&11), Some(&direct));
         let ToolValue::Tree(tree) = direct else {
             assert!(false, "cross-reference must return a tree");
             return;
         };
-        assert_eq!(tree.branches[0].items, vec![
-            Number(3.), Number(7.), Number(15.),
-            Number(2.), Number(6.), Number(14.),
-        ]);
+        assert_eq!(tree.branches[0].items, vec![Number(3.), Number(7.), Number(15.), Number(2.), Number(6.), Number(14.),]);
     }
 
     #[test]
     fn old_version_one_graph_nodes_default_to_shortest_matching() {
-        let graph = Graph {
-            version: 1,
-            nodes: vec![dist(7, Vec3::ZERO, Vec3::new(0., 3., 4.))],
-            outputs: vec![7],
-        };
+        let graph = Graph { version: 1, nodes: vec![dist(7, Vec3::ZERO, Vec3::new(0., 3., 4.))], outputs: vec![7] };
         let mut encoded = serde_json::to_value(&graph).unwrap();
         let nodes = encoded["nodes"].as_array_mut().unwrap();
         nodes[0].as_object_mut().unwrap().remove("matching");
@@ -598,12 +512,7 @@ mod tests {
     #[test]
     fn linked_output_with_an_incompatible_runtime_leaf_reports_a_type_error() {
         use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
-        let number_tree = ToolValue::Tree(DataTree {
-            branches: vec![TreeBranch {
-                path: TreePath(vec![0]),
-                items: vec![Number(12.)],
-            }],
-        });
+        let number_tree = ToolValue::Tree(DataTree { branches: vec![TreeBranch { path: TreePath(vec![0]), items: vec![Number(12.)] }] });
         let source = Node {
             id: 1,
             component: "orbweaver.tree.flatten".into(),
@@ -614,35 +523,23 @@ mod tests {
             id: 2,
             component: "orbweaver.point.distance".into(),
             matching: TreeMatchPolicy::Shortest,
-            inputs: BTreeMap::from([
-                ("a".into(), InputBinding::Output { node: 1 }),
-                ("b".into(), constant(Point(Vec3::ZERO))),
-            ]),
+            inputs: BTreeMap::from([("a".into(), InputBinding::Output { node: 1 }), ("b".into(), constant(Point(Vec3::ZERO)))]),
         };
         let graph = Graph { version: 1, nodes: vec![consumer, source], outputs: vec![2] };
-        assert_eq!(evaluate(&graph), Err(GraphError::Type {
-            node: 2,
-            port: "a".into(),
-        }));
+        assert_eq!(evaluate(&graph), Err(GraphError::Type { node: 2, port: "a".into() }));
     }
 
     #[test]
     fn numeric_node_may_feed_a_tree_structural_port_when_lifted() {
         use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
         let points = ToolValue::Tree(DataTree {
-            branches: vec![TreeBranch {
-                path: TreePath(vec![0, 4]),
-                items: vec![Point(Vec3::new(0., 3., 4.)), Point(Vec3::new(0., 0., 2.))],
-            }],
+            branches: vec![TreeBranch { path: TreePath(vec![0, 4]), items: vec![Point(Vec3::new(0., 3., 4.)), Point(Vec3::new(0., 0., 2.))] }],
         });
         let distance = Node {
             id: 1,
             component: "orbweaver.point.distance".into(),
             matching: TreeMatchPolicy::Shortest,
-            inputs: BTreeMap::from([
-                ("a".into(), constant(points)),
-                ("b".into(), constant(Point(Vec3::ZERO))),
-            ]),
+            inputs: BTreeMap::from([("a".into(), constant(points)), ("b".into(), constant(Point(Vec3::ZERO)))]),
         };
         let count = Node {
             id: 2,
@@ -656,14 +553,15 @@ mod tests {
 
     #[test]
     fn roundtrip_and_node_order_are_deterministic() {
-        let graph = Graph { version:1, nodes:vec![
-            dist(11,Vec3::ZERO,Vec3::new(0.,3.,4.)),
-            dist(2,Vec3::ZERO,Vec3::new(3.,4.,0.)),
-        ], outputs:vec![] };
+        let graph = Graph {
+            version: 1,
+            nodes: vec![dist(11, Vec3::ZERO, Vec3::new(0., 3., 4.)), dist(2, Vec3::ZERO, Vec3::new(3., 4., 0.))],
+            outputs: vec![],
+        };
         let json = serde_json::to_string(&graph).unwrap();
         let restored: Graph = serde_json::from_str(&json).unwrap();
         assert_eq!(graph, restored);
-        let mut reordered=restored.clone();
+        let mut reordered = restored.clone();
         reordered.nodes.reverse();
         assert_eq!(evaluate(&restored), evaluate(&reordered));
     }

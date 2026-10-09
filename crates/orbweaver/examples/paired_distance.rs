@@ -8,23 +8,15 @@ use std::collections::BTreeMap;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let point_a = Vec3::ZERO;
     let point_b = Vec3::new(3., 4., 12.);
-    let inputs = BTreeMap::from([
-        ("a".to_string(), ToolValue::Point(point_a)),
-        ("b".to_string(), ToolValue::Point(point_b)),
-    ]);
-    let cad_result = execute_shared_tool(&ToolRequest {
-        operation: "worldwright.point.distance".into(),
-        inputs: inputs.clone(),
-    })?;
+    let inputs = BTreeMap::from([("a".to_string(), ToolValue::Point(point_a)), ("b".to_string(), ToolValue::Point(point_b))]);
+    let cad_result = execute_shared_tool(&ToolRequest { operation: "worldwright.point.distance".into(), inputs: inputs.clone() })?;
     let graph = Graph {
         version: 1,
         nodes: vec![Node {
             id: 1,
             matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.point.distance".into(),
-            inputs: inputs.into_iter().map(|(key, value)| (
-                key, InputBinding::Constant { value },
-            )).collect(),
+            inputs: inputs.into_iter().map(|(key, value)| (key, InputBinding::Constant { value })).collect(),
         }],
         outputs: vec![1],
     };

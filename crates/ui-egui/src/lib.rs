@@ -10,18 +10,18 @@
 
 pub mod about;
 pub mod buildercraft;
-pub mod gizmo;
-mod feature_history;
-pub mod mesh_picking;
 pub mod canvas;
 pub mod chrome;
 pub mod cmdline;
 pub mod control;
 pub mod dialogs;
+mod feature_history;
+pub mod gizmo;
 pub mod gpu;
 pub mod icons;
 pub mod layers;
 pub mod menus;
+pub mod mesh_picking;
 pub mod palettes;
 pub mod parametric;
 pub mod quick;

@@ -1,8 +1,8 @@
 //! Deterministic, double-sided polygon face picking for Worldwright's orthographic
 //! wireframe viewport. This is a face picker, not a full depth-buffer occlusion
 //! service (NURBS curves/surfaces are currently only displayed as wireframes).
-use cadcraft_geom::{Vec2, Vec3, camera::OrthoFrame};
 use buildercraft_kernel::{PolygonFace, PolygonMesh};
+use cadcraft_geom::{Vec2, Vec3, camera::OrthoFrame};
 
 /// Keep selection and drawing limits identical. Larger meshes need a spatial
 /// index/LOD service rather than invisible interactive faces.
@@ -44,19 +44,11 @@ fn hit_triangle(
     if !area.is_finite() || area.abs() <= 1e-10 {
         return None;
     }
-    let weights = [
-        cross2(p1 - cursor, p2 - cursor) / area,
-        cross2(p2 - cursor, p0 - cursor) / area,
-        cross2(p0 - cursor, p1 - cursor) / area,
-    ];
+    let weights = [cross2(p1 - cursor, p2 - cursor) / area, cross2(p2 - cursor, p0 - cursor) / area, cross2(p0 - cursor, p1 - cursor) / area];
     if weights.iter().any(|w| !w.is_finite() || *w < -1e-9 || *w > 1.0 + 1e-9) {
         return None;
     }
-    let depth = [a, b, c]
-        .into_iter()
-        .zip(weights)
-        .map(|(point, weight)| (point - center).dot(toward_camera) * weight)
-        .sum::<f64>();
+    let depth = [a, b, c].into_iter().zip(weights).map(|(point, weight)| (point - center).dot(toward_camera) * weight).sum::<f64>();
     depth.is_finite().then_some(depth)
 }
 
@@ -84,9 +76,7 @@ pub fn pick_visible_mesh_face<'a>(
     scale: f64,
     cursor: Vec2,
 ) -> Option<PickedMeshFace> {
-    if !cursor.is_finite() || !center.is_finite()
-        || !camera.yaw.is_finite() || !camera.pitch.is_finite()
-        || !scale.is_finite() || scale <= 0.0 {
+    if !cursor.is_finite() || !center.is_finite() || !camera.yaw.is_finite() || !camera.pitch.is_finite() || !scale.is_finite() || scale <= 0.0 {
         return None;
     }
     let toward_camera = camera.right().cross(camera.up());
@@ -99,11 +89,7 @@ pub fn pick_visible_mesh_face<'a>(
             };
             for triangle in triangles.into_iter().flatten() {
                 if let Some(depth) = hit_triangle(mesh, triangle, camera, center, toward_camera, scale, cursor) {
-                    let candidate = PickedMeshFace {
-                        object_id,
-                        face_index: index as u32,
-                        depth,
-                    };
+                    let candidate = PickedMeshFace { object_id, face_index: index as u32, depth };
                     if preferred(candidate, best) {
                         best = Some(candidate);
                     }
@@ -123,19 +109,11 @@ mod tests {
     }
     fn square(z: f64) -> PolygonMesh {
         PolygonMesh {
-            vertices: vec![
-                Vec3::new(0., 0., z),
-                Vec3::new(2., 0., z),
-                Vec3::new(2., 2., z),
-                Vec3::new(0., 2., z),
-            ],
+            vertices: vec![Vec3::new(0., 0., z), Vec3::new(2., 0., z), Vec3::new(2., 2., z), Vec3::new(0., 2., z)],
             faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
         }
     }
-    fn pick<'a>(
-        objects: impl IntoIterator<Item=(u64, &'a PolygonMesh)>,
-        cursor: Vec2,
-    ) -> Option<PickedMeshFace> {
+    fn pick<'a>(objects: impl IntoIterator<Item = (u64, &'a PolygonMesh)>, cursor: Vec2) -> Option<PickedMeshFace> {
         pick_visible_mesh_face(objects, top(), Vec3::ZERO, 100., cursor)
     }
 
@@ -162,10 +140,7 @@ mod tests {
     #[test]
     fn picks_triangle_faces_and_rejects_outside_silhouette() {
         let mut mesh = square(0.);
-        mesh.faces = vec![
-            PolygonFace::Triangle([0, 1, 2]),
-            PolygonFace::Triangle([0, 2, 3]),
-        ];
+        mesh.faces = vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 2, 3])];
         assert_eq!(pick([(5, &mesh)], Vec2::new(150., 50.)).map(|hit| hit.face_index), Some(0));
         assert_eq!(pick([(5, &mesh)], Vec2::new(50., 150.)).map(|hit| hit.face_index), Some(1));
         assert_eq!(pick([(5, &mesh)], Vec2::new(-5., 50.)).map(|hit| hit.face_index), None);
@@ -175,20 +150,14 @@ mod tests {
     fn top_view_edges_are_not_pickable_in_edge_on_front_view() {
         let mesh = square(0.);
         let front = OrthoFrame { yaw: 0., pitch: 0. };
-        assert!(pick_visible_mesh_face(
-            [(4, &mesh)], front, Vec3::ZERO, 100., Vec2::new(100., 0.)
-        ).is_none());
+        assert!(pick_visible_mesh_face([(4, &mesh)], front, Vec3::ZERO, 100., Vec2::new(100., 0.)).is_none());
     }
 
     #[test]
     fn rejects_bad_viewport_parameters() {
         let mesh = square(0.);
-        assert!(pick_visible_mesh_face(
-            [(4, &mesh)], top(), Vec3::ZERO, 0., Vec2::new(100., 100.)
-        ).is_none());
-        assert!(pick_visible_mesh_face(
-            [(4, &mesh)], top(), Vec3::ZERO, 100., Vec2::new(f64::NAN, 50.)
-        ).is_none());
+        assert!(pick_visible_mesh_face([(4, &mesh)], top(), Vec3::ZERO, 0., Vec2::new(100., 100.)).is_none());
+        assert!(pick_visible_mesh_face([(4, &mesh)], top(), Vec3::ZERO, 100., Vec2::new(f64::NAN, 50.)).is_none());
     }
 
     #[test]
@@ -203,13 +172,7 @@ mod tests {
     #[test]
     fn off_center_camera_and_scale_are_respected() {
         let mesh = square(0.);
-        let hit = pick_visible_mesh_face(
-            [(7, &mesh)],
-            top(),
-            Vec3::new(1., 1., 0.),
-            30.,
-            Vec2::new(0., 0.),
-        );
+        let hit = pick_visible_mesh_face([(7, &mesh)], top(), Vec3::new(1., 1., 0.), 30., Vec2::new(0., 0.));
         assert_eq!(hit.map(|hit| hit.object_id), Some(7));
     }
 

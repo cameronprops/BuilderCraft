@@ -2,13 +2,9 @@
 //! and OrbWeaver nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
-    KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
-    tree_flatten, tree_graft, tree_simplify, tree_match, tree_validate,
-    MAX_TREE_ITEMS,
-    point_distance, point_midpoint,
-    point_interpolate, vector_length, vector_normalize, vector_dot,
-    vector_cross, polyline_length, polyline_divide_count,
-    polyline_divide_distance,
+    DataTree, KernelError, MAX_TREE_ITEMS, Result, TreeBranch, TreeMatchPolicy, point_distance, point_interpolate, point_midpoint,
+    polyline_divide_count, polyline_divide_distance, polyline_length, tree_flatten, tree_graft, tree_match, tree_simplify, tree_validate,
+    vector_cross, vector_dot, vector_length, vector_normalize,
 };
 use cadcraft_geom::Vec3;
 use serde::{Deserialize, Serialize};
@@ -77,41 +73,27 @@ pub struct SharedToolContract {
     pub output: ToolType,
 }
 
-const A_B_POINTS: &[ToolPort] = &[
-    ToolPort { name: "a", kind: ToolType::Point, modifier: false },
-    ToolPort { name: "b", kind: ToolType::Point, modifier: false },
-];
-const A_B_VECTORS: &[ToolPort] = &[
-    ToolPort { name: "a", kind: ToolType::Vector, modifier: false },
-    ToolPort { name: "b", kind: ToolType::Vector, modifier: false },
-];
-const ONE_VECTOR: &[ToolPort] = &[
-    ToolPort { name: "v", kind: ToolType::Vector, modifier: false },
-];
+const A_B_POINTS: &[ToolPort] =
+    &[ToolPort { name: "a", kind: ToolType::Point, modifier: false }, ToolPort { name: "b", kind: ToolType::Point, modifier: false }];
+const A_B_VECTORS: &[ToolPort] =
+    &[ToolPort { name: "a", kind: ToolType::Vector, modifier: false }, ToolPort { name: "b", kind: ToolType::Vector, modifier: false }];
+const ONE_VECTOR: &[ToolPort] = &[ToolPort { name: "v", kind: ToolType::Vector, modifier: false }];
 const POINT_INTERPOLATE: &[ToolPort] = &[
     ToolPort { name: "a", kind: ToolType::Point, modifier: false },
     ToolPort { name: "b", kind: ToolType::Point, modifier: false },
     ToolPort { name: "t", kind: ToolType::Number, modifier: true },
 ];
-const POLYLINE_LENGTH: &[ToolPort] = &[
-    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
-];
-const POLYLINE_COUNT: &[ToolPort] = &[
-    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
-    ToolPort { name: "count", kind: ToolType::Count, modifier: true },
-];
-const ONE_TREE: &[ToolPort] = &[
-    ToolPort { name: "tree", kind: ToolType::Tree, modifier: false },
-];
+const POLYLINE_LENGTH: &[ToolPort] = &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }];
+const POLYLINE_COUNT: &[ToolPort] =
+    &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "count", kind: ToolType::Count, modifier: true }];
+const ONE_TREE: &[ToolPort] = &[ToolPort { name: "tree", kind: ToolType::Tree, modifier: false }];
 const TREE_MATCH: &[ToolPort] = &[
     ToolPort { name: "a", kind: ToolType::Tree, modifier: false },
     ToolPort { name: "b", kind: ToolType::Tree, modifier: false },
     ToolPort { name: "mode", kind: ToolType::MatchMode, modifier: true },
 ];
-const POLYLINE_DISTANCE: &[ToolPort] = &[
-    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
-    ToolPort { name: "spacing", kind: ToolType::Number, modifier: true },
-];
+const POLYLINE_DISTANCE: &[ToolPort] =
+    &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "spacing", kind: ToolType::Number, modifier: true }];
 
 /// One record per shared, executable operation. No copy of any algorithm exists
 /// in the CAD or Graph adapters.
@@ -122,7 +104,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.point.distance",
         dependency_group: "geometry.point",
         prerequisites: &[],
-        inputs: A_B_POINTS, output: ToolType::Number,
+        inputs: A_B_POINTS,
+        output: ToolType::Number,
     },
     SharedToolContract {
         operation: "kernel.point.midpoint",
@@ -130,7 +113,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.point.midpoint",
         dependency_group: "geometry.point",
         prerequisites: &[],
-        inputs: A_B_POINTS, output: ToolType::Point,
+        inputs: A_B_POINTS,
+        output: ToolType::Point,
     },
     SharedToolContract {
         operation: "kernel.point.interpolate",
@@ -138,7 +122,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.point.interpolate",
         dependency_group: "geometry.point",
         prerequisites: &[],
-        inputs: POINT_INTERPOLATE, output: ToolType::Point,
+        inputs: POINT_INTERPOLATE,
+        output: ToolType::Point,
     },
     SharedToolContract {
         operation: "kernel.vector.length",
@@ -146,7 +131,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.vector.length",
         dependency_group: "math.vector",
         prerequisites: &[],
-        inputs: ONE_VECTOR, output: ToolType::Number,
+        inputs: ONE_VECTOR,
+        output: ToolType::Number,
     },
     SharedToolContract {
         operation: "kernel.vector.normalize",
@@ -154,7 +140,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.vector.normalize",
         dependency_group: "math.vector",
         prerequisites: &["kernel.vector.length"],
-        inputs: ONE_VECTOR, output: ToolType::Vector,
+        inputs: ONE_VECTOR,
+        output: ToolType::Vector,
     },
     SharedToolContract {
         operation: "kernel.vector.dot",
@@ -162,7 +149,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.vector.dot",
         dependency_group: "math.vector",
         prerequisites: &[],
-        inputs: A_B_VECTORS, output: ToolType::Number,
+        inputs: A_B_VECTORS,
+        output: ToolType::Number,
     },
     SharedToolContract {
         operation: "kernel.vector.cross",
@@ -170,7 +158,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.vector.cross",
         dependency_group: "math.vector",
         prerequisites: &[],
-        inputs: A_B_VECTORS, output: ToolType::Vector,
+        inputs: A_B_VECTORS,
+        output: ToolType::Vector,
     },
     SharedToolContract {
         operation: "kernel.polyline.length",
@@ -178,7 +167,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.polyline.length",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.point.distance"],
-        inputs: POLYLINE_LENGTH, output: ToolType::Number,
+        inputs: POLYLINE_LENGTH,
+        output: ToolType::Number,
     },
     SharedToolContract {
         operation: "kernel.polyline.divide_count",
@@ -186,7 +176,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.polyline.divide_count",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
-        inputs: POLYLINE_COUNT, output: ToolType::Polyline,
+        inputs: POLYLINE_COUNT,
+        output: ToolType::Polyline,
     },
     SharedToolContract {
         operation: "kernel.polyline.divide_distance",
@@ -194,7 +185,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.polyline.divide_distance",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
-        inputs: POLYLINE_DISTANCE, output: ToolType::Polyline,
+        inputs: POLYLINE_DISTANCE,
+        output: ToolType::Polyline,
     },
     SharedToolContract {
         operation: "kernel.tree.validate",
@@ -202,7 +194,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.tree.validate",
         dependency_group: "graph.list_tree",
         prerequisites: &[],
-        inputs: ONE_TREE, output: ToolType::Count,
+        inputs: ONE_TREE,
+        output: ToolType::Count,
     },
     SharedToolContract {
         operation: "kernel.tree.flatten",
@@ -210,7 +203,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.tree.flatten",
         dependency_group: "graph.list_tree",
         prerequisites: &["kernel.tree.validate"],
-        inputs: ONE_TREE, output: ToolType::Tree,
+        inputs: ONE_TREE,
+        output: ToolType::Tree,
     },
     SharedToolContract {
         operation: "kernel.tree.graft",
@@ -218,7 +212,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.tree.graft",
         dependency_group: "graph.list_tree",
         prerequisites: &["kernel.tree.validate"],
-        inputs: ONE_TREE, output: ToolType::Tree,
+        inputs: ONE_TREE,
+        output: ToolType::Tree,
     },
     SharedToolContract {
         operation: "kernel.tree.simplify",
@@ -226,7 +221,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.tree.simplify",
         dependency_group: "graph.list_tree",
         prerequisites: &["kernel.tree.validate"],
-        inputs: ONE_TREE, output: ToolType::Tree,
+        inputs: ONE_TREE,
+        output: ToolType::Tree,
     },
     SharedToolContract {
         operation: "kernel.tree.match",
@@ -234,7 +230,8 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         orbweaver_node: "orbweaver.tree.match",
         dependency_group: "graph.list_tree",
         prerequisites: &["kernel.tree.validate"],
-        inputs: TREE_MATCH, output: ToolType::Tree,
+        inputs: TREE_MATCH,
+        output: ToolType::Tree,
     },
 ];
 
@@ -246,11 +243,7 @@ pub struct ToolRequest {
 }
 
 pub fn shared_tool(operation: &str) -> Option<&'static SharedToolContract> {
-    SHARED_TOOLS.iter().find(|tool| {
-        tool.operation == operation
-            || tool.cad_command == operation
-            || tool.orbweaver_node == operation
-    })
+    SHARED_TOOLS.iter().find(|tool| tool.operation == operation || tool.cad_command == operation || tool.orbweaver_node == operation)
 }
 
 fn point(inputs: &BTreeMap<String, ToolValue>, name: &str) -> Result<Vec3> {
@@ -303,25 +296,19 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
         return Err(KernelError::Budget);
     }
     match value {
-        ToolValue::Number(value) if !value.is_finite() => {
-            Err(KernelError::Invalid("nonfinite numeric value"))
-        }
-        ToolValue::Point(v) | ToolValue::Vector(v)
-            if !v.is_finite() || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12) => {
+        ToolValue::Number(value) if !value.is_finite() => Err(KernelError::Invalid("nonfinite numeric value")),
+        ToolValue::Point(v) | ToolValue::Vector(v) if !v.is_finite() || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12) => {
             Err(KernelError::Invalid("nonfinite or oversized geometric value"))
         }
         ToolValue::Polyline(points) => {
-            if points.len() > MAX_TREE_ITEMS || points.iter().any(|v| !v.is_finite()
-                || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12)) {
+            if points.len() > MAX_TREE_ITEMS || points.iter().any(|v| !v.is_finite() || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12)) {
                 Err(KernelError::Budget)
             } else {
                 Ok(points.len().max(1))
             }
         }
         ToolValue::Pair(pair) => {
-            let total = value_cost(&pair.0, depth + 1)?
-                .checked_add(value_cost(&pair.1, depth + 1)?)
-                .ok_or(KernelError::Budget)?;
+            let total = value_cost(&pair.0, depth + 1)?.checked_add(value_cost(&pair.1, depth + 1)?).ok_or(KernelError::Budget)?;
             if total > MAX_TREE_ITEMS { Err(KernelError::Budget) } else { Ok(total) }
         }
         ToolValue::Tree(tree) => {
@@ -329,8 +316,7 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
             let mut total = tree.branches.len();
             for branch in &tree.branches {
                 for item in &branch.items {
-                    total = total.checked_add(value_cost(item, depth + 1)?)
-                        .ok_or(KernelError::Budget)?;
+                    total = total.checked_add(value_cost(item, depth + 1)?).ok_or(KernelError::Budget)?;
                     if total > MAX_TREE_ITEMS {
                         return Err(KernelError::Budget);
                     }
@@ -347,9 +333,7 @@ pub fn shared_tool_value_cost(value: &ToolValue) -> Result<usize> {
     value_cost(value, 0)
 }
 
-fn match_tree_values(
-    a: &DataTree<ToolValue>, b: &DataTree<ToolValue>, mode: TreeMatchPolicy,
-) -> Result<DataTree<ToolValue>> {
+fn match_tree_values(a: &DataTree<ToolValue>, b: &DataTree<ToolValue>, mode: TreeMatchPolicy) -> Result<DataTree<ToolValue>> {
     // Preflight cloned value units BEFORE allocating the Cartesian or
     // longest-list result, not merely checking the number of output pairs.
     tree_validate(a)?;
@@ -365,40 +349,38 @@ fn match_tree_values(
         let n = match mode {
             TreeMatchPolicy::Shortest => left.items.len().min(right.items.len()),
             TreeMatchPolicy::Longest => left.items.len().max(right.items.len()),
-            TreeMatchPolicy::CrossReference => left.items.len()
-                .checked_mul(right.items.len()).ok_or(KernelError::Budget)?,
+            TreeMatchPolicy::CrossReference => left.items.len().checked_mul(right.items.len()).ok_or(KernelError::Budget)?,
         };
-        if matches!(mode, TreeMatchPolicy::Longest)
-            && left.items.is_empty() != right.items.is_empty() {
+        if matches!(mode, TreeMatchPolicy::Longest) && left.items.is_empty() != right.items.is_empty() {
             return Err(KernelError::Invalid("cannot repeat missing tree item"));
         }
-        if n > MAX_TREE_ITEMS { return Err(KernelError::Budget); }
+        if n > MAX_TREE_ITEMS {
+            return Err(KernelError::Budget);
+        }
         for index in 0..n {
             let (ai, bi) = match mode {
-                TreeMatchPolicy::CrossReference => {
-                    (index / right.items.len(), index % right.items.len())
-                }
+                TreeMatchPolicy::CrossReference => (index / right.items.len(), index % right.items.len()),
                 TreeMatchPolicy::Shortest => (index, index),
-                TreeMatchPolicy::Longest => {
-                    (index.min(left.items.len() - 1), index.min(right.items.len() - 1))
-                }
+                TreeMatchPolicy::Longest => (index.min(left.items.len() - 1), index.min(right.items.len() - 1)),
             };
-            budget = budget.checked_add(2)
+            budget = budget
+                .checked_add(2)
                 .and_then(|x| x.checked_add(value_cost(&left.items[ai], 1).ok()?))
                 .and_then(|x| x.checked_add(value_cost(&right.items[bi], 1).ok()?))
                 .ok_or(KernelError::Budget)?;
-            if budget > MAX_TREE_ITEMS { return Err(KernelError::Budget); }
+            if budget > MAX_TREE_ITEMS {
+                return Err(KernelError::Budget);
+            }
         }
     }
     let paired = tree_match(a, b, mode)?;
-    let result = DataTree { branches: paired.branches.into_iter().map(|branch| {
-        TreeBranch {
-            path: branch.path,
-            items: branch.items.into_iter().map(|(a, b)| {
-                ToolValue::Pair(Box::new((a, b)))
-            }).collect(),
-        }
-    }).collect() };
+    let result = DataTree {
+        branches: paired
+            .branches
+            .into_iter()
+            .map(|branch| TreeBranch { path: branch.path, items: branch.items.into_iter().map(|(a, b)| ToolValue::Pair(Box::new((a, b)))).collect() })
+            .collect(),
+    };
     Ok(result)
 }
 
@@ -413,27 +395,21 @@ pub fn execute_shared_tool(request: &ToolRequest) -> Result<ToolValue> {
 /// polyline port may accept a typed tree of that leaf kind. Each item is
 /// evaluated by EXACTLY the same scalar kernel operation as the direct CAD
 /// command. No implicit path expansion is attempted.
-pub fn execute_shared_tool_with_matching(
-    request: &ToolRequest, matching: TreeMatchPolicy,
-) -> Result<ToolValue> {
-    let contract = shared_tool(&request.operation)
-        .ok_or(KernelError::Invalid("unregistered shared operation"))?;
+pub fn execute_shared_tool_with_matching(request: &ToolRequest, matching: TreeMatchPolicy) -> Result<ToolValue> {
+    let contract = shared_tool(&request.operation).ok_or(KernelError::Invalid("unregistered shared operation"))?;
     if request.inputs.len() != contract.inputs.len() {
         return Err(KernelError::Invalid("missing or unexpected tool port"));
     }
     let mut lifted = false;
     for port in contract.inputs {
-        let value = request.inputs.get(port.name)
-            .ok_or(KernelError::Invalid("missing tool port"))?;
+        let value = request.inputs.get(port.name).ok_or(KernelError::Invalid("missing tool port"))?;
         crate::tool_broadcast::tool_value_matches_port(port.kind, value)?;
         if port.kind != ToolType::Tree && value.kind() == ToolType::Tree {
             lifted = true;
         }
     }
     if lifted {
-        return crate::tool_broadcast::execute_lifted(
-            request, contract, matching, dispatch_scalar,
-        );
+        return crate::tool_broadcast::execute_lifted(request, contract, matching, dispatch_scalar);
     }
     dispatch_scalar(request)
 }
@@ -441,58 +417,33 @@ pub fn execute_shared_tool_with_matching(
 /// The only implementation of native scalar/geometry operations. The lifted
 /// adapter constructs strictly typed per-item requests and delegates here.
 fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
-    let contract = shared_tool(&request.operation)
-        .ok_or(KernelError::Invalid("unregistered shared operation"))?;
+    let contract = shared_tool(&request.operation).ok_or(KernelError::Invalid("unregistered shared operation"))?;
     match contract.operation {
-        "kernel.point.distance" => Ok(ToolValue::Number(point_distance(
-            point(&request.inputs, "a")?, point(&request.inputs, "b")?,
-        )?)),
-        "kernel.point.midpoint" => Ok(ToolValue::Point(point_midpoint(
-            point(&request.inputs, "a")?, point(&request.inputs, "b")?,
-        )?)),
-        "kernel.point.interpolate" => Ok(ToolValue::Point(point_interpolate(
-            point(&request.inputs, "a")?, point(&request.inputs, "b")?,
-            number(&request.inputs, "t")?,
-        )?)),
-        "kernel.vector.length" => Ok(ToolValue::Number(vector_length(
-            vector(&request.inputs, "v")?,
-        )?)),
-        "kernel.vector.normalize" => Ok(ToolValue::Vector(vector_normalize(
-            vector(&request.inputs, "v")?,
-        )?)),
-        "kernel.vector.dot" => Ok(ToolValue::Number(vector_dot(
-            vector(&request.inputs, "a")?, vector(&request.inputs, "b")?,
-        )?)),
-        "kernel.vector.cross" => Ok(ToolValue::Vector(vector_cross(
-            vector(&request.inputs, "a")?, vector(&request.inputs, "b")?,
-        )?)),
-        "kernel.polyline.length" => Ok(ToolValue::Number(polyline_length(
-            polyline(&request.inputs, "points")?,
-        )?)),
-        "kernel.polyline.divide_count" => Ok(ToolValue::Polyline(polyline_divide_count(
-            polyline(&request.inputs, "points")?, count(&request.inputs, "count")?,
-        )?)),
-        "kernel.polyline.divide_distance" => Ok(ToolValue::Polyline(polyline_divide_distance(
-            polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?,
-        )?)),
-        "kernel.tree.validate" => Ok(ToolValue::Count(
-            u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?)
-                .map_err(|_| KernelError::Budget)?,
-        )),
-        "kernel.tree.flatten" => Ok(ToolValue::Tree(tree_flatten(
-            tree(&request.inputs, "tree")?,
-        )?)),
-        "kernel.tree.graft" => Ok(ToolValue::Tree(tree_graft(
-            tree(&request.inputs, "tree")?,
-        )?)),
-        "kernel.tree.simplify" => Ok(ToolValue::Tree(tree_simplify(
-            tree(&request.inputs, "tree")?,
-        )?)),
-        "kernel.tree.match" => Ok(ToolValue::Tree(match_tree_values(
-            tree(&request.inputs, "a")?,
-            tree(&request.inputs, "b")?,
-            match_mode(&request.inputs, "mode")?,
-        )?)),
+        "kernel.point.distance" => Ok(ToolValue::Number(point_distance(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
+        "kernel.point.midpoint" => Ok(ToolValue::Point(point_midpoint(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
+        "kernel.point.interpolate" => {
+            Ok(ToolValue::Point(point_interpolate(point(&request.inputs, "a")?, point(&request.inputs, "b")?, number(&request.inputs, "t")?)?))
+        }
+        "kernel.vector.length" => Ok(ToolValue::Number(vector_length(vector(&request.inputs, "v")?)?)),
+        "kernel.vector.normalize" => Ok(ToolValue::Vector(vector_normalize(vector(&request.inputs, "v")?)?)),
+        "kernel.vector.dot" => Ok(ToolValue::Number(vector_dot(vector(&request.inputs, "a")?, vector(&request.inputs, "b")?)?)),
+        "kernel.vector.cross" => Ok(ToolValue::Vector(vector_cross(vector(&request.inputs, "a")?, vector(&request.inputs, "b")?)?)),
+        "kernel.polyline.length" => Ok(ToolValue::Number(polyline_length(polyline(&request.inputs, "points")?)?)),
+        "kernel.polyline.divide_count" => {
+            Ok(ToolValue::Polyline(polyline_divide_count(polyline(&request.inputs, "points")?, count(&request.inputs, "count")?)?))
+        }
+        "kernel.polyline.divide_distance" => {
+            Ok(ToolValue::Polyline(polyline_divide_distance(polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?)?))
+        }
+        "kernel.tree.validate" => {
+            Ok(ToolValue::Count(u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?).map_err(|_| KernelError::Budget)?))
+        }
+        "kernel.tree.flatten" => Ok(ToolValue::Tree(tree_flatten(tree(&request.inputs, "tree")?)?)),
+        "kernel.tree.graft" => Ok(ToolValue::Tree(tree_graft(tree(&request.inputs, "tree")?)?)),
+        "kernel.tree.simplify" => Ok(ToolValue::Tree(tree_simplify(tree(&request.inputs, "tree")?)?)),
+        "kernel.tree.match" => {
+            Ok(ToolValue::Tree(match_tree_values(tree(&request.inputs, "a")?, tree(&request.inputs, "b")?, match_mode(&request.inputs, "mode")?)?))
+        }
         _ => Err(KernelError::Invalid("shared operation implementation missing")),
     }
 }
@@ -501,10 +452,7 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
 mod tests {
     use super::*;
     fn point_input(a: Vec3, b: Vec3) -> BTreeMap<String, ToolValue> {
-        BTreeMap::from([
-            ("a".into(), ToolValue::Point(a)),
-            ("b".into(), ToolValue::Point(b)),
-        ])
+        BTreeMap::from([("a".into(), ToolValue::Point(a)), ("b".into(), ToolValue::Point(b))])
     }
     #[test]
     fn contracts_reference_real_kernel_operations_and_are_unique() {
@@ -531,9 +479,7 @@ mod tests {
     #[test]
     fn distance_is_shared_across_both_entry_points() {
         let inputs = point_input(Vec3::ZERO, Vec3::new(3., 4., 0.));
-        let run = |operation: &str| execute_shared_tool(&ToolRequest {
-            operation: operation.into(), inputs: inputs.clone(),
-        });
+        let run = |operation: &str| execute_shared_tool(&ToolRequest { operation: operation.into(), inputs: inputs.clone() });
         assert_eq!(run("kernel.point.distance"), Ok(ToolValue::Number(5.)));
         assert_eq!(run("orbweaver.point.distance"), run("worldwright.point.distance"));
     }
@@ -541,9 +487,7 @@ mod tests {
     fn interpolation_modifier_changes_one_algorithm() {
         let mut inputs = point_input(Vec3::ZERO, Vec3::new(8., 0., 0.));
         inputs.insert("t".into(), ToolValue::Number(0.25));
-        let run = |i: BTreeMap<String, ToolValue>| execute_shared_tool(&ToolRequest {
-            operation: "kernel.point.interpolate".into(), inputs: i,
-        });
+        let run = |i: BTreeMap<String, ToolValue>| execute_shared_tool(&ToolRequest { operation: "kernel.point.interpolate".into(), inputs: i });
         assert_eq!(run(inputs.clone()), Ok(ToolValue::Point(Vec3::new(2., 0., 0.))));
         inputs.insert("t".into(), ToolValue::Number(0.5));
         assert_eq!(run(inputs.clone()), Ok(ToolValue::Point(Vec3::new(4., 0., 0.))));
@@ -552,21 +496,17 @@ mod tests {
     }
     #[test]
     fn tree_operations_remain_paired_and_roundtrip_tagged_values() {
-        let tree = DataTree { branches: vec![TreeBranch {
-            path: crate::TreePath(vec![0, 2]),
-            items: vec![ToolValue::Point(Vec3::new(2., 0., 0.)),
-                        ToolValue::Point(Vec3::new(4., 0., 0.))],
-        }] };
+        let tree = DataTree {
+            branches: vec![TreeBranch {
+                path: crate::TreePath(vec![0, 2]),
+                items: vec![ToolValue::Point(Vec3::new(2., 0., 0.)), ToolValue::Point(Vec3::new(4., 0., 0.))],
+            }],
+        };
         let original = ToolValue::Tree(tree.clone());
-        let decoded: ToolValue = serde_json::from_str(
-            &serde_json::to_string(&original).unwrap(),
-        ).unwrap();
+        let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
         assert_eq!(SHARED_TOOLS.len(), 15);
-        let cmd = |op: &str| execute_shared_tool(&ToolRequest {
-            operation: op.into(),
-            inputs: BTreeMap::from([("tree".into(), original.clone())]),
-        });
+        let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();
         assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());
         let ToolValue::Tree(grafted_tree) = graft else { panic!("expected tree") };
@@ -574,10 +514,7 @@ mod tests {
     }
     #[test]
     fn tree_matching_modifier_keeps_branch_paths_and_pairs() {
-        let make = |items| ToolValue::Tree(DataTree { branches: vec![TreeBranch {
-            path: crate::TreePath(vec![7]),
-            items,
-        }] });
+        let make = |items| ToolValue::Tree(DataTree { branches: vec![TreeBranch { path: crate::TreePath(vec![7]), items }] });
         let matched = execute_shared_tool(&ToolRequest {
             operation: "orbweaver.tree.match".into(),
             inputs: BTreeMap::from([
@@ -585,22 +522,24 @@ mod tests {
                 ("b".into(), make(vec![ToolValue::Count(3), ToolValue::Count(4)])),
                 ("mode".into(), ToolValue::MatchMode(TreeMatchPolicy::Longest)),
             ]),
-        }).unwrap();
+        })
+        .unwrap();
         let ToolValue::Tree(result) = matched else { panic!("tree needed") };
         assert_eq!(result.branches[0].path.0, vec![7]);
-        assert_eq!(result.branches[0].items, vec![
-            ToolValue::Pair(Box::new((ToolValue::Count(1),ToolValue::Count(3)))),
-            ToolValue::Pair(Box::new((ToolValue::Count(1),ToolValue::Count(4)))),
-        ]);
+        assert_eq!(
+            result.branches[0].items,
+            vec![
+                ToolValue::Pair(Box::new((ToolValue::Count(1), ToolValue::Count(3)))),
+                ToolValue::Pair(Box::new((ToolValue::Count(1), ToolValue::Count(4)))),
+            ]
+        );
     }
     #[test]
     fn strict_ports_prevent_hidden_coercion() {
         let a = Vec3::new(2., 0., 0.);
         let b = Vec3::new(1., 0., 0.);
         let mut inputs = point_input(a, b);
-        let run = |i: BTreeMap<String, ToolValue>| execute_shared_tool(&ToolRequest {
-            operation: "kernel.point.distance".into(), inputs: i,
-        });
+        let run = |i: BTreeMap<String, ToolValue>| execute_shared_tool(&ToolRequest { operation: "kernel.point.distance".into(), inputs: i });
         inputs.insert("other".into(), ToolValue::Number(1.));
         assert!(run(inputs.clone()).is_err());
         inputs.remove("other");
@@ -614,15 +553,11 @@ mod tests {
         let request = ToolRequest {
             operation: "orbweaver.polyline.divide_count".into(),
             inputs: BTreeMap::from([
-                ("points".into(), ToolValue::Polyline(vec![
-                    Vec3::ZERO, Vec3::new(10., 0., 0.),
-                ])),
+                ("points".into(), ToolValue::Polyline(vec![Vec3::ZERO, Vec3::new(10., 0., 0.)])),
                 ("count".into(), ToolValue::Count(2)),
             ]),
         };
         let parsed: ToolRequest = serde_json::from_str(&serde_json::to_string(&request).unwrap()).unwrap();
-        assert_eq!(execute_shared_tool(&parsed), Ok(ToolValue::Polyline(vec![
-            Vec3::ZERO, Vec3::new(5., 0., 0.), Vec3::new(10., 0., 0.),
-        ])));
+        assert_eq!(execute_shared_tool(&parsed), Ok(ToolValue::Polyline(vec![Vec3::ZERO, Vec3::new(5., 0., 0.), Vec3::new(10., 0., 0.),])));
     }
 }

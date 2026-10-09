@@ -6,10 +6,7 @@ fn id(n: u128) -> Id {
     Id::new(n).unwrap()
 }
 fn frame() -> Frame {
-    Frame {
-        unit: LengthUnit::Metre,
-        axes: Axes::RightHandedZUp,
-    }
+    Frame { unit: LengthUnit::Metre, axes: Axes::RightHandedZUp }
 }
 fn ring() -> PolygonMesh {
     PolygonMesh {
@@ -41,32 +38,14 @@ fn polygon(scene: &Scene) -> &PolygonMesh {
 fn fixture(budget: std::sync::Arc<GeometryBudget>) -> Scene {
     let lease = budget.retain(GeometryData::PolygonMesh(ring())).unwrap();
     let mut scene = Scene::new(id(1), frame(), budget, 20);
-    let object = SceneObject {
-        id: id(2),
-        name: "Scenic mesh panel".into(),
-        layer: "Rockwork".into(),
-        parent: None,
-        visible: true,
-        geometry: Some(lease),
-    };
-    scene
-        .apply(
-            0,
-            vec![SceneCommand::Insert(object)],
-            &Cancellation::default(),
-        )
-        .unwrap();
+    let object =
+        SceneObject { id: id(2), name: "Scenic mesh panel".into(), layer: "Rockwork".into(), parent: None, visible: true, geometry: Some(lease) };
+    scene.apply(0, vec![SceneCommand::Insert(object)], &Cancellation::default()).unwrap();
     scene
 }
 fn inner_loop(mesh: &PolygonMesh) -> u32 {
     let report = polygon_mesh_boundary_loops(mesh).unwrap();
-    u32::try_from(
-        report.closed_loops
-            .iter()
-            .position(|item| item.vertices.iter().all(|&index| index >= 4))
-            .unwrap(),
-    )
-    .unwrap()
+    u32::try_from(report.closed_loops.iter().position(|item| item.vertices.iter().all(|&index| index >= 4)).unwrap()).unwrap()
 }
 
 #[test]
@@ -91,13 +70,7 @@ fn filling_a_hole_is_one_undoable_scene_transaction() {
     let updated = scene
         .apply(
             1,
-            vec![SceneCommand::EditPolygon(
-                id(2),
-                PolygonSceneEdit::FillPlanarHole {
-                    selected_revision: 1,
-                    loop_index,
-                },
-            )],
+            vec![SceneCommand::EditPolygon(id(2), PolygonSceneEdit::FillPlanarHole { selected_revision: 1, loop_index })],
             &Cancellation::default(),
         )
         .unwrap();
@@ -123,13 +96,7 @@ fn deletion_and_edge_triangle_are_revision_bound_and_atomic() {
     scene
         .apply(
             1,
-            vec![SceneCommand::EditPolygon(
-                id(2),
-                PolygonSceneEdit::DeleteFaces {
-                    selected_revision: 1,
-                    selected_faces: vec![0],
-                },
-            )],
+            vec![SceneCommand::EditPolygon(id(2), PolygonSceneEdit::DeleteFaces { selected_revision: 1, selected_faces: vec![0] })],
             &Cancellation::default(),
         )
         .unwrap();
@@ -140,18 +107,11 @@ fn deletion_and_edge_triangle_are_revision_bound_and_atomic() {
         2,
         vec![SceneCommand::EditPolygon(
             id(2),
-            PolygonSceneEdit::AddTriangleFromEdge {
-                selected_revision: 1,
-                edge_vertices: [0, 1],
-                point_vertex: 4,
-            },
+            PolygonSceneEdit::AddTriangleFromEdge { selected_revision: 1, edge_vertices: [0, 1], point_vertex: 4 },
         )],
         &Cancellation::default(),
     );
-    assert_eq!(
-        failed.unwrap_err(),
-        KernelError::Conflict { expected: 1, actual: 2 }
-    );
+    assert_eq!(failed.unwrap_err(), KernelError::Conflict { expected: 1, actual: 2 });
     assert_eq!(scene.revision(), 2);
     assert_eq!(polygon(&scene).faces.len(), 3);
 }
@@ -165,13 +125,7 @@ fn malformed_edit_rolls_back_prior_commands_in_same_batch() {
         1,
         vec![
             SceneCommand::Rename(id(2), "Unwanted rename".into()),
-            SceneCommand::EditPolygon(
-                id(2),
-                PolygonSceneEdit::DeleteFaces {
-                    selected_revision: 1,
-                    selected_faces: vec![999],
-                },
-            ),
+            SceneCommand::EditPolygon(id(2), PolygonSceneEdit::DeleteFaces { selected_revision: 1, selected_faces: vec![999] }),
         ],
         &Cancellation::default(),
     );
@@ -185,22 +139,13 @@ fn malformed_edit_rolls_back_prior_commands_in_same_batch() {
 #[test]
 fn budget_exhaustion_rejects_edit_without_modifying_scene() {
     let sizing = GeometryBudget::new(1_000_000, 100);
-    let byte_size = sizing
-        .retain(GeometryData::PolygonMesh(ring()))
-        .unwrap()
-        .estimated_bytes();
+    let byte_size = sizing.retain(GeometryData::PolygonMesh(ring())).unwrap().estimated_bytes();
     let budget = GeometryBudget::new(byte_size, 100);
     let mut scene = fixture(budget.clone());
     assert_eq!(budget.used(), byte_size);
     let failed = scene.apply(
         1,
-        vec![SceneCommand::EditPolygon(
-            id(2),
-            PolygonSceneEdit::DeleteFaces {
-                selected_revision: 1,
-                selected_faces: vec![0],
-            },
-        )],
+        vec![SceneCommand::EditPolygon(id(2), PolygonSceneEdit::DeleteFaces { selected_revision: 1, selected_faces: vec![0] })],
         &Cancellation::default(),
     );
     assert_eq!(failed.unwrap_err(), KernelError::Budget);
@@ -220,10 +165,7 @@ fn invalid_polygon_geometry_does_not_consume_memory() {
 
 #[test]
 fn serialized_scene_edit_has_explicit_kind_and_revision() {
-    let edit = PolygonSceneEdit::DeleteFaces {
-        selected_revision: 18,
-        selected_faces: vec![2, 6],
-    };
+    let edit = PolygonSceneEdit::DeleteFaces { selected_revision: 18, selected_faces: vec![2, 6] };
     let json = serde_json::to_value(&edit).unwrap();
     assert_eq!(json["kind"], "delete_faces");
     assert_eq!(json["selected_revision"], 18);

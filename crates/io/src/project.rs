@@ -28,17 +28,12 @@ fn validate_polygons(objects: &[cadcraft_doc::organization::PolygonGeometryObjec
     let mut vertices = 0usize;
     let mut faces = 0usize;
     for object in objects {
-        if object.name.trim().is_empty() || object.name.len() > 256
-            || object.layer.len() > 256 || object.id == u64::MAX
-        {
+        if object.name.trim().is_empty() || object.name.len() > 256 || object.layer.len() > 256 || object.id == u64::MAX {
             return Err(IoError::Format("invalid polygon object metadata".into()));
         }
-        buildercraft_kernel::polygon_mesh_validate(&object.mesh)
-            .map_err(|e| IoError::Format(e.to_string()))?;
-        vertices = vertices.checked_add(object.mesh.vertices.len())
-            .ok_or_else(|| IoError::Format("polygon vertex budget exceeded".into()))?;
-        faces = faces.checked_add(object.mesh.faces.len())
-            .ok_or_else(|| IoError::Format("polygon face budget exceeded".into()))?;
+        buildercraft_kernel::polygon_mesh_validate(&object.mesh).map_err(|e| IoError::Format(e.to_string()))?;
+        vertices = vertices.checked_add(object.mesh.vertices.len()).ok_or_else(|| IoError::Format("polygon vertex budget exceeded".into()))?;
+        faces = faces.checked_add(object.mesh.faces.len()).ok_or_else(|| IoError::Format("polygon face budget exceeded".into()))?;
         if vertices > 1_000_000 || faces > 1_000_000 {
             return Err(IoError::Format("aggregate polygon geometry limit".into()));
         }
@@ -125,10 +120,7 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
         d.bump_handseed(cadcraft_doc::Handle(object.id));
     }
     for object in &p.mesh3d {
-        if object.id == u64::MAX
-            || d.entity(cadcraft_doc::Handle(object.id)).is_some()
-            || !ids.insert(object.id)
-        {
+        if object.id == u64::MAX || d.entity(cadcraft_doc::Handle(object.id)).is_some() || !ids.insert(object.id) {
             return Err(IoError::Format("invalid or duplicate polygon object identity".into()));
         }
         d.bump_handseed(cadcraft_doc::Handle(object.id));
@@ -239,9 +231,9 @@ mod tests {
         assert_eq!(reopened.mesh3d, d.mesh3d);
         assert_eq!(reopened.organization, d.organization);
         assert!(reopened.handseed > 1000);
-        assert!(crate::write(&d,"out.dxf").is_err());
-        assert!(crate::write(&d,"out.pdf").is_err());
-        assert!(crate::plot(&d,&cadcraft_doc::Space::Model,&serde_json::json!({})).is_err());
+        assert!(crate::write(&d, "out.dxf").is_err());
+        assert!(crate::write(&d, "out.pdf").is_err());
+        assert!(crate::plot(&d, &cadcraft_doc::Space::Model, &serde_json::json!({})).is_err());
 
         // Before mesh support, v1 projects had no mesh3d key. They must still load.
         let mut legacy: serde_json::Value = serde_json::from_slice(&write(&Drawing::default()).unwrap()).unwrap();
@@ -260,20 +252,15 @@ mod tests {
             layer: "0".into(),
             visible: true,
             mesh: Arc::new(buildercraft_kernel::PolygonMesh {
-                vertices: vec![
-                    cadcraft_geom::Vec3::ZERO,
-                    cadcraft_geom::Vec3::new(1.,0.,0.),
-                    cadcraft_geom::Vec3::new(0.,1.,0.),
-                ],
-                faces: vec![buildercraft_kernel::PolygonFace::Triangle([0,1,2])],
+                vertices: vec![cadcraft_geom::Vec3::ZERO, cadcraft_geom::Vec3::new(1., 0., 0.), cadcraft_geom::Vec3::new(0., 1., 0.)],
+                faces: vec![buildercraft_kernel::PolygonFace::Triangle([0, 1, 2])],
             }),
         });
         let original = write(&d).unwrap();
         let mut encoded: serde_json::Value = serde_json::from_slice(&original).unwrap();
         encoded["mesh3d"][0]["mesh"]["faces"][0]["triangle"][2] = serde_json::json!(99);
         assert!(read(&serde_json::to_vec(&encoded).unwrap()).is_err());
-        Arc::make_mut(&mut d.mesh3d[0].mesh).faces[0] =
-            buildercraft_kernel::PolygonFace::Triangle([0,1,99]);
+        Arc::make_mut(&mut d.mesh3d[0].mesh).faces[0] = buildercraft_kernel::PolygonFace::Triangle([0, 1, 99]);
         assert!(write(&d).is_err());
         let mut encoded: serde_json::Value = serde_json::from_slice(&original).unwrap();
         let twin = encoded["mesh3d"][0].clone();
@@ -310,37 +297,36 @@ mod tests {
 
     #[test]
     fn dftba_roundtrip_retains_document_and_block_local_histories() {
-        use buildercraft_kernel::{
-            FeatureHistoryEdit, FeatureScope, FeatureStep, FeatureInput,
-            FeatureTimeline, ToolValue, TreeMatchPolicy,
-        };
+        use buildercraft_kernel::{FeatureHistoryEdit, FeatureInput, FeatureScope, FeatureStep, FeatureTimeline, ToolValue, TreeMatchPolicy};
         use std::collections::BTreeMap;
         let mut d = Drawing::new_metric();
         let mut block = cadcraft_doc::Block::new("Bracket");
         block.description = "Parametric bracket definition".into();
         d.blocks.insert("Bracket".into(), std::sync::Arc::new(block));
         let mut local = FeatureTimeline::new(FeatureScope::BlockDefinition("Bracket".into())).unwrap();
-        local.apply(0, FeatureHistoryEdit::Append { step: FeatureStep {
-            id: 17,
-            name: "Parametric Midpoint".into(),
-            operation: "kernel.point.midpoint".into(),
-            inputs: BTreeMap::from([
-                ("a".into(), FeatureInput::Constant {
-                    value: ToolValue::Point(cadcraft_geom::Vec3::ZERO),
-                }),
-                ("b".into(), FeatureInput::Constant {
-                    value: ToolValue::Point(cadcraft_geom::Vec3::new(10., 0., 0.)),
-                }),
-            ]),
-            matching: TreeMatchPolicy::Shortest,
-            suppressed: false,
-        }}).unwrap();
+        local
+            .apply(
+                0,
+                FeatureHistoryEdit::Append {
+                    step: FeatureStep {
+                        id: 17,
+                        name: "Parametric Midpoint".into(),
+                        operation: "kernel.point.midpoint".into(),
+                        inputs: BTreeMap::from([
+                            ("a".into(), FeatureInput::Constant { value: ToolValue::Point(cadcraft_geom::Vec3::ZERO) }),
+                            ("b".into(), FeatureInput::Constant { value: ToolValue::Point(cadcraft_geom::Vec3::new(10., 0., 0.)) }),
+                        ]),
+                        matching: TreeMatchPolicy::Shortest,
+                        suppressed: false,
+                    },
+                },
+            )
+            .unwrap();
         d.feature_timelines.push(local);
         d.feature_timelines.push(FeatureTimeline::new(FeatureScope::Document).unwrap());
         let reopened = read(&write(&d).unwrap()).unwrap();
         assert_eq!(reopened.feature_timelines, d.feature_timelines);
-        assert_eq!(reopened.feature_timelines[0].evaluate().unwrap().outputs.get(&17),
-            Some(&ToolValue::Point(cadcraft_geom::Vec3::new(5., 0., 0.))));
+        assert_eq!(reopened.feature_timelines[0].evaluate().unwrap().outputs.get(&17), Some(&ToolValue::Point(cadcraft_geom::Vec3::new(5., 0., 0.))));
     }
 
     #[test]
@@ -353,13 +339,10 @@ mod tests {
         assert!(read(&serde_json::to_vec(&old).unwrap()).is_ok_and(|d| d.feature_timelines.is_empty()));
 
         let mut invalid = d.clone();
-        invalid.feature_timelines.push(FeatureTimeline::new(
-            FeatureScope::BlockDefinition("NotFound".into())
-        ).unwrap());
+        invalid.feature_timelines.push(FeatureTimeline::new(FeatureScope::BlockDefinition("NotFound".into())).unwrap());
         assert!(write(&invalid).is_err());
 
         old["feature_timelines"] = serde_json::to_value(&invalid.feature_timelines).unwrap();
         assert!(read(&serde_json::to_vec(&old).unwrap()).is_err());
     }
-
 }

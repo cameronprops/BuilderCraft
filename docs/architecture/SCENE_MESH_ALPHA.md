@@ -62,3 +62,58 @@ API, and no Rust compiler was available in the authoring container.
    mesh import and geometry diagnostics, then publish a packaged preview.
 
 Do not treat a headless kernel operation as a completed viewport command.
+
+## CAD document integration increment
+
+The same branch now adds native `Drawing.mesh3d` entries (copy-on-write
+`PolygonGeometryObject` retaining triangles/quads). The optional `mesh3d`
+array is persisted inside the existing version 1 `.bcraft` JSON envelope.
+Old v1 projects without the key continue to deserialize. Invalid geometry,
+duplicate IDs and over-budget meshes are rejected at load time; source meshes
+are not silently dropped by DXF/DWG/PDF/PNG save or plot operations.
+
+The shared CAD scene manifest now includes polygon objects and their existing
+model-body ownership. GLB visualization derives a triangulated copy without
+altering the saved polygon mesh.
+
+### CAD API integration
+
+The same desktop/CLI/API command engine now exposes:
+- `mesh3d.create` with a name and native `PolygonMesh` payload
+- `mesh3d.list` returning persistent mesh objects and revision
+- `mesh3d.boundaries` returning revision-stamped diagnostic loops
+- `mesh3d.preview` returning triangles and source polygon-face mappings
+- `mesh3d.edit` routing an explicit `PolygonSceneEdit` through the shared
+  pure geometry operation and native document undo
+- `mesh3d.set` for object name/visibility
+
+All three editing variants use the source document revision to reject stale
+picks. No mesh edit is published until validation is complete.
+
+### Early desktop controls
+
+The modeling viewport now displays a bounded polygon wireframe. The Model
+Browser includes mesh objects, their visibility/name, numeric face deletion,
+and selectable planar hole-loop fill buttons. A built-in editable sample ring
+can be created for an immediate smoke test. This is an **initial numeric UI**:
+direct vertex/edge/face viewport picking is still pending. The user controls
+name/visibility and can undo saved edits with the existing CAD undo command.
+
+### New acceptance path
+
+Run with an installed local Rust toolchain:
+
+```sh
+bash tools/verify-worldwright-kernel.sh
+cargo test --locked -p cadcraft-io -p cadcraft-engine -p cadcraft-ui-egui
+cargo run -p cadcraft -- --sample
+```
+
+Then click **3D → New editable mesh**, select its entry in **Model Browser**,
+open **Polygon mesh repair**, fill its inner loop, undo the operation, save a
+`.bcraft` file, reopen it, and use **Fit** to frame its vertices. Repeat a
+second save after face deletion. Confirm the GLB visualization exporter shows
+the same mesh and stable object ID.
+
+No local compiler or desktop runtime was available to execute these gates
+during this repository-editing session; keep the PR unmerged until they pass.

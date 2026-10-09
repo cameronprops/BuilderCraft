@@ -229,3 +229,16 @@ fn serialized_scene_edit_has_explicit_kind_and_revision() {
     assert_eq!(json["selected_revision"], 18);
     assert_eq!(serde_json::from_value::<PolygonSceneEdit>(json).unwrap(), edit);
 }
+
+#[test]
+fn native_polygon_json_roundtrip_preserves_quads_and_indices() {
+    let geometry = GeometryData::PolygonMesh(ring());
+    let json = serde_json::to_string(&geometry).unwrap();
+    let restored: GeometryData = serde_json::from_str(&json).unwrap();
+    assert_eq!(restored, geometry);
+    let GeometryData::PolygonMesh(mesh) = restored else {
+        panic!("polygon mesh was lost during JSON roundtrip");
+    };
+    assert_eq!(mesh.faces.len(), 4);
+    assert!(matches!(mesh.faces[0], PolygonFace::Quad(_)));
+}

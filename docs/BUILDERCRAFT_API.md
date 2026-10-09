@@ -123,3 +123,62 @@ Native meshes are not silently exported to unsupported 2D file formats. Use
 `.dftba` for editable persistence (legacy `.bcraft` reads still work); GLB is a derived visualization, not an
 editable quad-mesh interchange format. All new integration tests require local
 Rust execution before the implementation can be claimed verified.
+
+
+## Paired native CAD/Calisoga tool API (source authored)
+
+The new numeric CAD/API commands and Calisoga nodes both delegate to
+`buildercraft_kernel::execute_shared_tool`. No per-interface geometry
+algorithm is duplicated. No active drawing or undo transaction is needed to
+calculate a pure point/vector/polyline result.
+
+`worldwright.tool.list {}` enumerates the first ten shared native tool
+contracts, including typed ports, modifier flags and kernel prerequisites.
+
+Direct CAD distance command:
+
+```json
+{
+  "command": "worldwright.point.distance",
+  "params": {
+    "inputs": {
+      "a": {"kind":"point","value":{"x":0,"y":0,"z":0}},
+      "b": {"kind":"point","value":{"x":3,"y":4,"z":12}}
+    }
+  }
+}
+```
+
+The equivalent generic command:
+
+```json
+{
+  "command": "worldwright.tool.run",
+  "params": {
+    "operation": "kernel.point.distance",
+    "inputs": {
+      "a": {"kind":"point","value":{"x":0,"y":0,"z":0}},
+      "b": {"kind":"point","value":{"x":3,"y":4,"z":12}}
+    }
+  }
+}
+```
+
+Both use the **same** typed dispatcher and return `output` as a tagged
+`ToolValue` (`number`, `count`, `point`, `vector`, or `polyline`).
+A Calisoga node has the component ID `calisoga.point.distance`; node ports
+accept `{"source":"constant","value":{...}}` literals or
+`{"source":"output","node":<upstream node ID>}` links. The graph
+schema is version 1 and deterministic for supported scalar-valued nodes.
+
+The initial modifier ports are `t` for interpolation, `count` for
+polyline division by count, and `spacing` for division by distance. These
+are named typed settings, not duplicate geometry solvers. Exact graph
+list/tree matching, reference Grasshopper option equivalence, and graph
+document bake/persistence are future milestones. Inputs reject unknown ports,
+wrong kinds, nonfinite values, and invalid domain/spacing policies.
+
+See `docs/dependencies/` for the group-level hierarchy and all 41 native
+kernel operation DAG nodes; `crates/calisoga/examples/paired_distance.rs`
+for an executable headless equivalence demo. Run the local validation scripts
+before marking any new code tested.

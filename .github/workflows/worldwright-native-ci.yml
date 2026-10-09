@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - feature/worldwright-mesh-scene
   pull_request:
     branches:
       - main

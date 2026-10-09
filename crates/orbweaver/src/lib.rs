@@ -172,6 +172,21 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 inputs.insert(port.name.into(), value);
             }
             if !ready { continue; }
+            // Upstream operators may dynamically lift scalar output types to
+            // trees. Validate the ACTUAL runtime value before executing a
+            // downstream node, not only the source's static output type.
+            for port in contract.inputs {
+                let value = inputs.get(port.name).ok_or(GraphError::Port(id))?;
+                if let Err(error) = tool_value_matches_port(port.kind, value) {
+                    return Err(match error {
+                        KernelError::Budget => GraphError::Budget,
+                        _ => GraphError::Type {
+                            node: id,
+                            port: port.name.into(),
+                        },
+                    });
+                }
+            }
             let value = execute_shared_tool_with_matching(&ToolRequest {
                 operation: contract.operation.into(),
                 inputs,
@@ -605,9 +620,10 @@ mod tests {
             ]),
         };
         let graph = Graph { version: 1, nodes: vec![consumer, source], outputs: vec![2] };
-        assert!(matches!(evaluate(&graph), Err(GraphError::Kernel(
-            KernelError::Invalid("tree leaf type does not match port")
-        ))));
+        assert_eq!(evaluate(&graph), Err(GraphError::Type {
+            node: 2,
+            port: "a".into(),
+        }));
     }
 
     #[test]

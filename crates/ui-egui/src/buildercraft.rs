@@ -93,8 +93,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
         let selected = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
         if ui.selectable_label(selected, format!("Polygon mesh: {}", object.name)).clicked() {
             app.session.set_selection(vec![cadcraft_doc::Handle(object.id)]);
-            app.ui.mesh_face_object_id = None;
-            app.ui.mesh_face_revision = None;
+            clear_picked_mesh_face(app);
         }
         let mut name = object.name.clone();
         if ui.text_edit_singleline(&mut name).lost_focus() && name != object.name {
@@ -111,7 +110,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                 ui.small("Click a visible polygon face in the 3D viewport, or enter its index.");
                 let live_revision = app.session.state().ok().map(|s| s.revision);
                 if app.ui.mesh_face_object_id == Some(object.id) && app.ui.mesh_face_revision.is_some() {
-                    if app.ui.mesh_face_revision == live_revision {
+                    if picked_face_is_current(app, object.id) {
                         ui.label(format!("Viewport pick: face {}", app.ui.mesh_face_index));
                     } else {
                         ui.label("Viewport pick is stale; click the mesh again.");
@@ -121,12 +120,13 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                     ui.label("Face:");
                     if ui.add(egui::DragValue::new(&mut app.ui.mesh_face_index)
                         .range(0..=object.mesh.faces.len().saturating_sub(1) as u32)).changed() {
-                        app.ui.mesh_face_object_id = None;
-                        app.ui.mesh_face_revision = None;
+                        clear_picked_mesh_face(app);
                     }
-                    if ui.add_enabled(!object.mesh.faces.is_empty(), egui::Button::new("Delete face")).clicked() {
+                    let stale_pick = app.ui.mesh_face_object_id == Some(object.id)
+                        && !picked_face_is_current(app, object.id);
+                    if ui.add_enabled(!object.mesh.faces.is_empty() && !stale_pick, egui::Button::new("Delete face")).clicked() {
                         if let Some(now) = live_revision {
-                            let revision = if app.ui.mesh_face_object_id == Some(object.id) {
+                            let revision = if picked_face_is_current(app, object.id) {
                                 app.ui.mesh_face_revision.unwrap_or(now)
                             } else {
                                 now
@@ -193,6 +193,20 @@ fn show_node(app: &mut CadApp, ui: &mut egui::Ui, nodes: &[ModelNode], node: &Mo
     });
 }
 
+fn clear_picked_mesh_face(app: &mut CadApp) {
+    app.ui.mesh_face_object_id = None;
+    app.ui.mesh_face_document_uid = None;
+    app.ui.mesh_face_revision = None;
+}
+
+fn picked_face_is_current(app: &CadApp, object_id: u64) -> bool {
+    app.ui.mesh_face_object_id == Some(object_id)
+        && app.session.state().is_ok_and(|state| {
+            app.ui.mesh_face_document_uid == Some(state.uid)
+                && app.ui.mesh_face_revision == Some(state.revision)
+        })
+}
+
 fn delete_mesh_face(
     app: &mut CadApp, object_id: u64, selected_revision: u64, face_index: u32,
 ) -> Result<serde_json::Value, String> {
@@ -204,8 +218,7 @@ fn delete_mesh_face(
             "selected_faces": [face_index]
         }
     }))?;
-    app.ui.mesh_face_object_id = None;
-    app.ui.mesh_face_revision = None;
+    clear_picked_mesh_face(app);
     Ok(result)
 }
 
@@ -237,8 +250,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
         if let (Some(object_id), Some(picked_revision)) =
             (app.ui.mesh_face_object_id, app.ui.mesh_face_revision)
         {
-            let current = app.session.state().ok().map(|s| s.revision);
-            let fresh = current == Some(picked_revision);
+            let fresh = picked_face_is_current(app, object_id);
             ui.label(if fresh {
                 format!("Mesh {object_id} · face {}", app.ui.mesh_face_index)
             } else {
@@ -294,11 +306,13 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             if let Some(hit) = picked {
                 app.ui.mesh_face_object_id = Some(hit.object_id);
                 app.ui.mesh_face_index = hit.face_index;
-                app.ui.mesh_face_revision = app.session.state().ok().map(|state| state.revision);
+                if let Ok(state) = app.session.state() {
+                    app.ui.mesh_face_document_uid = Some(state.uid);
+                    app.ui.mesh_face_revision = Some(state.revision);
+                }
                 app.session.set_selection(vec![cadcraft_doc::Handle(hit.object_id)]);
             } else {
-                app.ui.mesh_face_object_id = None;
-                app.ui.mesh_face_revision = None;
+                clear_picked_mesh_face(app);
                 app.session.set_selection(Vec::new());
             }
         }
@@ -354,7 +368,6 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
         }
         // Native polygon wireframe: no destructive triangulation or hidden quad split.
         // The same face cap is applied by the picker: no invisible pickable faces.
-        let current_revision = app.session.state().ok().map(|state| state.revision);
         for object in &d.mesh3d {
             if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible()) {
                 continue;
@@ -368,9 +381,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             for (face_index, face) in object.mesh.faces.iter()
                 .take(crate::mesh_picking::MAX_VIEWPORT_FACES).enumerate()
             {
-                let highlighted = current_revision.is_some()
-                    && app.ui.mesh_face_revision == current_revision
-                    && app.ui.mesh_face_object_id == Some(object.id)
+                let highlighted = picked_face_is_current(app, object.id)
                     && app.ui.mesh_face_index as usize == face_index;
                 let color = if highlighted {
                     egui::Color32::from_rgb(255, 245, 80)
@@ -664,11 +675,13 @@ mod mesh_ui_tests {
         assert_eq!(face.face_index, 0);
 
         app.ui.mesh_face_object_id = Some(id);
+        app.ui.mesh_face_document_uid = Some(app.session.state().unwrap().uid);
         app.ui.mesh_face_revision = Some(revision);
         app.ui.mesh_face_index = face.face_index;
         delete_mesh_face(&mut app, id, revision, face.face_index).unwrap();
         assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.faces.len(), 3);
         assert_eq!(app.ui.mesh_face_object_id, None);
+        assert_eq!(app.ui.mesh_face_document_uid, None);
         assert_eq!(app.ui.mesh_face_revision, None);
 
         let after = app.session.state().unwrap().revision;
@@ -721,6 +734,7 @@ mod mesh_ui_tests {
         }
         assert_eq!(app.ui.mesh_face_object_id, Some(id));
         assert_eq!(app.ui.mesh_face_index, 0);
+        assert_eq!(app.ui.mesh_face_document_uid, Some(app.session.state().unwrap().uid));
         assert_eq!(app.ui.mesh_face_revision, Some(revision));
         assert!(app.session.selection().contains(&cadcraft_doc::Handle(id)));
         assert_eq!(app.session.state().unwrap().revision, revision);

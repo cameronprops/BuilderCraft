@@ -90,8 +90,9 @@ mod tests {
         assert_eq!(validated["valid"], true);
         assert_eq!(validated["kind"], "polygon_mesh");
         session.touch();
+        let new_revision = session.state().unwrap().revision;
         assert!(session.execute("worldwright.geometry.ref.resolve", &json!({
-            "project_id":project_id,"expected_revision":session.state().unwrap().revision,
+            "project_id":project_id,"expected_revision":new_revision,
             "reference":reference
         })).is_err());
     }

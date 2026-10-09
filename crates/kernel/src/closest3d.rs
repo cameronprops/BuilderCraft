@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn nearest_face_and_stable_ties_preserve_barycentric_coordinates() {
         let source = mesh();
-        let query = Vec3::new(0.5, 0.5, 1.0);
+        let query = Vec3::new(0.5, 0.5, -1.0);
         let result = mesh_closest_point(&source, query, None, &Cancellation::default()).unwrap().unwrap();
         assert_eq!(result.triangle_index, 0);
         assert_eq!(result.point, Vec3::new(0.5, 0.5, 0.0));

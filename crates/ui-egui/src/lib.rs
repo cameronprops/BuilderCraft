@@ -10,6 +10,7 @@
 
 pub mod about;
 pub mod buildercraft;
+pub mod mesh_picking;
 pub mod canvas;
 pub mod chrome;
 pub mod cmdline;
@@ -58,6 +59,9 @@ pub struct UiState {
     pub model_name: String,
     /// Index of the polygon face selected for numeric mesh edit commands.
     pub mesh_face_index: u32,
+    /// Last viewport-picked mesh identity and its source document revision.
+    pub mesh_face_object_id: Option<u64>,
+    pub mesh_face_revision: Option<u64>,
     pub view3d: bool,
     pub orbit_yaw: f64,
     pub orbit_pitch: f64,
@@ -98,6 +102,8 @@ impl Default for UiState {
             buildercraft_workspace: true,
             model_name: "Body".into(),
             mesh_face_index: 0,
+            mesh_face_object_id: None,
+            mesh_face_revision: None,
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,
             orbit_pitch: -(1.0_f64 / 3.0_f64.sqrt()).asin(),

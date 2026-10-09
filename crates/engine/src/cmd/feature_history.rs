@@ -22,10 +22,10 @@ fn scope_from(session: &Session, p: &Value) -> Result<FeatureScope> {
     let scope: FeatureScope = serde_json::from_value(value.clone()).map_err(|e| bad("worldwright.history", e.to_string()))?;
     // CAD block names are case-insensitive. Normalize to the canonical
     // definition name before finding a local history or creating one.
-    if let FeatureScope::BlockDefinition(name) = &scope {
-        if let Some(block) = session.doc()?.block(name) {
-            return Ok(FeatureScope::BlockDefinition(block.name.clone()));
-        }
+    if let FeatureScope::BlockDefinition(name) = &scope
+        && let Some(block) = session.doc()?.block(name)
+    {
+        return Ok(FeatureScope::BlockDefinition(block.name.clone()));
     }
     Ok(scope)
 }

@@ -17,7 +17,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("visualization.publish", "Publish Visualization Scene", publish_visualization).params("{project_id:32 hex digits,directory}").noundo(),
         CommandSpec::new("geometry3d.preview", "Tessellate 3D Preview", preview3d).params("{id,curve_segments?:64,surface_u?:16,surface_v?:16}").noundo(),
         CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
-        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface"],"nativeProject":"bcraft","solids":false,"meshTools":false,"changeSubscriptions":false}))).enabled(always).noundo(),
+        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface","polygonMesh"],"nativeProject":"bcraft","solids":false,"meshTools":true,"meshViewport":false,"changeSubscriptions":false}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
         CommandSpec::new("nurbs.surface", "NURBS Control Surface", surface3d).params("{name, surface:{rows:[curve,...],degree_v,knots_v}}"),
         CommandSpec::new("geometry3d.controlpoint", "Edit NURBS Control Point", controlpoint).params("{id,row?:0,index,point:[x,y,z]}"),
@@ -172,7 +172,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
         for value in values {
             let hex = value.as_str().ok_or_else(|| error("handles must be hex strings"))?;
             let handle = Handle(u64::from_str_radix(hex, 16).map_err(|_| error("invalid handle"))?);
-            if s.doc()?.entity(handle).is_none() && !s.doc()?.geometry3d.iter().any(|o| o.id == handle.0) {
+            if s.doc()?.entity(handle).is_none() && !s.doc()?.geometry3d.iter().any(|o| o.id == handle.0) && !s.doc()?.mesh3d.iter().any(|o| o.id == handle.0) {
                 return Err(error("entity does not exist"));
             }
             if !entities.contains(&handle) {
@@ -219,7 +219,7 @@ fn members(s: &Session, p: &Value) -> Result<Vec<Handle>> {
         let Some(current) = ids.get(cursor).copied() else { break };
         for n in &d.organization.nodes {
             if n.id == current {
-                members.extend(n.entities.iter().copied().filter(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0)));
+                members.extend(n.entities.iter().copied().filter(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0)));
             }
             if n.parent == Some(current) && !ids.contains(&n.id) {
                 ids.push(n.id);
@@ -241,6 +241,8 @@ fn visible(s: &mut Session, p: &Value) -> Result<Value> {
         if s.doc()?.entity(*h).is_some() {
             s.doc_mut()?.modify_entity(*h, |e| e.common.visible = visible)?;
         } else if let Some(o) = s.doc_mut()?.geometry3d.iter_mut().find(|o| o.id == h.0) {
+            o.visible = visible;
+        } else if let Some(o) = s.doc_mut()?.mesh3d.iter_mut().find(|o| o.id == h.0) {
             o.visible = visible;
         }
     }

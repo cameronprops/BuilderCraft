@@ -11,6 +11,7 @@ mod entity;
 mod extents;
 mod header;
 pub mod kernel;
+mod feature_history;
 pub mod library;
 pub mod organization;
 mod store;
@@ -77,6 +78,8 @@ pub struct Drawing {
     pub geometry3d: Vec<organization::GeometryObject>,
     /// Native editable triangle/quad geometry, independent from exact NURBS.
     pub mesh3d: Vec<organization::PolygonGeometryObject>,
+    /// Optional ordered feature histories, independent per document, component, or block.
+    pub feature_timelines: Vec<buildercraft_kernel::FeatureTimeline>,
 }
 
 impl Default for Drawing {
@@ -127,6 +130,7 @@ impl Drawing {
             production: buildercraft_kernel::ProductionModel::default(),
             geometry3d: Vec::new(),
             mesh3d: Vec::new(),
+            feature_timelines: Vec::new(),
         }
     }
 

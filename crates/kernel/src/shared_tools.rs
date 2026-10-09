@@ -58,6 +58,8 @@ pub struct SharedToolContract {
     pub cad_command: &'static str,
     pub calisoga_node: &'static str,
     pub dependency_group: &'static str,
+    /// Lower-level kernel operations required by this service/algorithm.
+    pub prerequisites: &'static [&'static str],
     pub inputs: &'static [ToolPort],
     pub output: ToolType,
 }
@@ -98,6 +100,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.point.distance",
         calisoga_node: "calisoga.point.distance",
         dependency_group: "geometry.point",
+        prerequisites: &[],
         inputs: A_B_POINTS, output: ToolType::Number,
     },
     SharedToolContract {
@@ -105,6 +108,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.point.midpoint",
         calisoga_node: "calisoga.point.midpoint",
         dependency_group: "geometry.point",
+        prerequisites: &[],
         inputs: A_B_POINTS, output: ToolType::Point,
     },
     SharedToolContract {
@@ -112,6 +116,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.point.interpolate",
         calisoga_node: "calisoga.point.interpolate",
         dependency_group: "geometry.point",
+        prerequisites: &[],
         inputs: POINT_INTERPOLATE, output: ToolType::Point,
     },
     SharedToolContract {
@@ -119,6 +124,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.vector.length",
         calisoga_node: "calisoga.vector.length",
         dependency_group: "math.vector",
+        prerequisites: &[],
         inputs: ONE_VECTOR, output: ToolType::Number,
     },
     SharedToolContract {
@@ -126,6 +132,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.vector.normalize",
         calisoga_node: "calisoga.vector.normalize",
         dependency_group: "math.vector",
+        prerequisites: &["kernel.vector.length"],
         inputs: ONE_VECTOR, output: ToolType::Vector,
     },
     SharedToolContract {
@@ -133,6 +140,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.vector.dot",
         calisoga_node: "calisoga.vector.dot",
         dependency_group: "math.vector",
+        prerequisites: &[],
         inputs: A_B_VECTORS, output: ToolType::Number,
     },
     SharedToolContract {
@@ -140,6 +148,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.vector.cross",
         calisoga_node: "calisoga.vector.cross",
         dependency_group: "math.vector",
+        prerequisites: &[],
         inputs: A_B_VECTORS, output: ToolType::Vector,
     },
     SharedToolContract {
@@ -147,6 +156,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.polyline.length",
         calisoga_node: "calisoga.polyline.length",
         dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.point.distance"],
         inputs: POLYLINE_LENGTH, output: ToolType::Number,
     },
     SharedToolContract {
@@ -154,6 +164,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.polyline.divide_count",
         calisoga_node: "calisoga.polyline.divide_count",
         dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_COUNT, output: ToolType::Polyline,
     },
     SharedToolContract {
@@ -161,6 +172,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.polyline.divide_distance",
         calisoga_node: "calisoga.polyline.divide_distance",
         dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_DISTANCE, output: ToolType::Polyline,
     },
 ];
@@ -280,6 +292,10 @@ mod tests {
         for tool in SHARED_TOOLS {
             assert!(crate::operation_by_id(tool.operation).is_some());
             assert!(operations.insert(tool.operation));
+            for prerequisite in tool.prerequisites {
+                assert_ne!(*prerequisite, tool.operation);
+                assert!(crate::operation_by_id(prerequisite).is_some());
+            }
             assert!(cad.insert(tool.cad_command));
             assert!(graph.insert(tool.calisoga_node));
             assert!(!tool.inputs.is_empty());

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: worldwright-mesh-integration-${{ github.ref }}
@@ -24,8 +24,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Linux native build dependencies
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libegl1-mesa-dev
-      - name: Format
-        run: cargo fmt --all -- --check
+      - name: Format and commit reproducible source formatting
+        shell: bash
+        run: |
+          cargo fmt --all
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -u
+            git commit -m "style: rustfmt integration workspace"
+            git push origin HEAD:integration/worldwright-mesh-scene-main-20261009
+          fi
+          cargo fmt --all -- --check
       - name: Workspace tests
         run: cargo test --workspace --locked
       - name: Desktop and CLI

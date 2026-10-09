@@ -30,7 +30,7 @@ fn invalid(message: &str) -> crate::EngineError {
 fn id(p: &Value) -> Result<u64> {
     p.get("id").and_then(Value::as_u64).ok_or_else(|| invalid("mesh ID required"))
 }
-fn selected<'a>(s: &'a Session, object_id: u64) -> Result<&'a PolygonGeometryObject> {
+fn selected(s: &Session, object_id: u64) -> Result<&PolygonGeometryObject> {
     s.doc()?.mesh3d.iter().find(|object| object.id == object_id).ok_or_else(|| invalid("unknown polygon object ID"))
 }
 fn validate_size(mesh: &PolygonMesh) -> Result<()> {

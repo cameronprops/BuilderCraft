@@ -20,36 +20,36 @@ def main() -> int:
     rust = (ROOT / "crates/kernel/src/shared_tools.rs").read_text()
     registry = (ROOT / "crates/kernel/src/registry.rs").read_text()
     engine = (ROOT / "crates/engine/src/cmd/worldwright_tools.rs").read_text()
-    graph = (ROOT / "crates/calisoga/src/lib.rs").read_text()
+    graph = (ROOT / "crates/orb-weaver/src/lib.rs").read_text()
     lock = (ROOT / "Cargo.lock").read_text()
 
     implementation = re.findall(
         r'SharedToolContract\s*\{\s*'
         r'operation:\s*"([^"]+)",\s*'
         r'cad_command:\s*"([^"]+)",\s*'
-        r'calisoga_node:\s*"([^"]+)",\s*'
+        r'orbweaver_node:\s*"([^"]+)",\s*'
         r'dependency_group:\s*"([^"]+)"',
         rust,
     )
     docs = [
-        (p["kernel_operation"], p["cad_command"], p["calisoga_node"], p["group"])
+        (p["kernel_operation"], p["cad_command"], p["orbweaver_node"], p["group"])
         for p in pairs
     ]
     if len(implementation) != len(pairs) or implementation != docs:
-        raise SystemExit("Shared CAD/Calisoga Rust contracts differ from the dependency register.")
+        raise SystemExit("Shared CAD/Orb Weaver Rust contracts differ from the dependency register.")
     for kernel, cad, node, _ in implementation:
         if f'id: "{kernel}"' not in registry:
             raise SystemExit(f"Kernel registry is missing {kernel}")
         if f'CommandSpec::new("{cad}"' not in engine:
             raise SystemExit(f"CAD command not registered: {cad}")
-        if not node.startswith("calisoga."):
-            raise SystemExit(f"Invalid Calisoga node namespace: {node}")
+        if not node.startswith("orbweaver."):
+            raise SystemExit(f"Invalid Orb Weaver node namespace: {node}")
     if not all(s in graph for s in ("execute_shared_tool", "GRAPH_SCHEMA_VERSION", "InputBinding")):
-        raise SystemExit("Calisoga does not delegate to the shared typed dispatcher.")
-    if 'name = "calisoga"' not in lock:
-        raise SystemExit("Calisoga workspace package missing from Cargo.lock.")
+        raise SystemExit("Orb Weaver does not delegate to the shared typed dispatcher.")
+    if 'name = "orb-weaver"' not in lock:
+        raise SystemExit("Orb Weaver workspace package missing from Cargo.lock.")
     if len(set(implementation)) != len(implementation):
-        raise SystemExit("Duplicated CAD/Calisoga binding.")
+        raise SystemExit("Duplicated CAD/Orb Weaver binding.")
 
     # Validate every registered kernel operation and its lower-level tool DAG,
     # not just the ten paired entrypoints.
@@ -100,7 +100,7 @@ def main() -> int:
 
     print(f"Native kernel dependency graph coherent: {len(entries)} operations.")
     print(f"Paired tool contracts coherent: {len(pairs)} kernel ops, "
-          f"{len(pairs)} CAD commands, {len(pairs)} Calisoga node IDs.")
+          f"{len(pairs)} CAD commands, {len(pairs)} Orb Weaver node IDs.")
     print("Static check only: Rust compilation, UI behavior and Grasshopper parity still pending.")
     return 0
 

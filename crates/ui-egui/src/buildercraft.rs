@@ -120,11 +120,11 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                     clear_picked_mesh_face(app);
                 }
                 let stale_pick = app.ui.mesh_face_object_id == Some(object.id) && !picked_face_is_current(app, object.id);
-                if ui.add_enabled(!object.mesh.faces.is_empty() && !stale_pick, egui::Button::new("Delete face")).clicked() {
-                    if let Some(now) = live_revision {
-                        let revision = if picked_face_is_current(app, object.id) { app.ui.mesh_face_revision.unwrap_or(now) } else { now };
-                        let _ = delete_mesh_face(app, object.id, revision, app.ui.mesh_face_index);
-                    }
+                if ui.add_enabled(!object.mesh.faces.is_empty() && !stale_pick, egui::Button::new("Delete face")).clicked()
+                    && let Some(now) = live_revision
+                {
+                    let revision = if picked_face_is_current(app, object.id) { app.ui.mesh_face_revision.unwrap_or(now) } else { now };
+                    let _ = delete_mesh_face(app, object.id, revision, app.ui.mesh_face_index);
                 }
             });
             if let Ok(report) = buildercraft_kernel::polygon_mesh_boundary_loops(&object.mesh) {
@@ -132,21 +132,21 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                     ui.label("Some boundary edges are ambiguous; repair these before hole filling.");
                 }
                 for (index, loop_data) in report.closed_loops.iter().enumerate().take(16) {
-                    if ui.button(format!("Try planar patch on loop {} ({} vertices)", index, loop_data.vertices.len())).clicked() {
-                        if let Ok(state) = app.session.state() {
-                            let revision = state.revision;
-                            let _ = app.run(
-                                "mesh3d.edit",
-                                json!({
-                                    "id":object.id,
-                                    "edit":{
-                                        "kind":"fill_planar_hole",
-                                        "selected_revision":revision,
-                                        "loop_index":index
-                                    }
-                                }),
-                            );
-                        }
+                    if ui.button(format!("Try planar patch on loop {} ({} vertices)", index, loop_data.vertices.len())).clicked()
+                        && let Ok(state) = app.session.state()
+                    {
+                        let revision = state.revision;
+                        let _ = app.run(
+                            "mesh3d.edit",
+                            json!({
+                                "id":object.id,
+                                "edit":{
+                                    "kind":"fill_planar_hole",
+                                    "selected_revision":revision,
+                                    "loop_index":index
+                                }
+                            }),
+                        );
                     }
                 }
             }
@@ -413,6 +413,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
 }
 
 /// Picking is a shared engine query; failed or over-budget queries preserve selection.
+#[cfg(test)]
 fn select_response(app: &mut CadApp, ui: &egui::Ui, rect: egui::Rect, response: &egui::Response, gizmo_drag: bool) {
     if response.clicked()
         && !gizmo_drag

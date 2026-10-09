@@ -191,7 +191,7 @@
       "requires": [
         "graph.execution"
       ],
-      "scope": "Grasshopper-style lists/paths and data matching"
+      "scope": "Strictly keyed paths, native ordered tree values, explicit item matching and tree-aware numerical broadcasting"
     },
     {
       "id": "graph.preview_bake",
@@ -259,8 +259,17 @@
       "reference_inventory_id": "087d1dfa64892951e255",
       "reference_name": "Distance",
       "relation": "exact_scalar_algorithm",
-      "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.point.midpoint",
@@ -270,8 +279,17 @@
       "reference_inventory_id": null,
       "reference_name": null,
       "relation": "native_subset",
-      "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.point.interpolate",
@@ -282,9 +300,17 @@
       "reference_name": null,
       "relation": "native_subset",
       "modifiers": [
-        "t"
+        "t",
+        "matching"
       ],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.vector.length",
@@ -294,8 +320,17 @@
       "reference_inventory_id": "7af0fef917a469f1574f",
       "reference_name": "Vector Length",
       "relation": "exact_scalar_algorithm",
-      "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.vector.normalize",
@@ -305,8 +340,17 @@
       "reference_inventory_id": "b1d1785eb889c46056a6",
       "reference_name": "Unit Vector",
       "relation": "native_subset",
-      "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.vector.dot",
@@ -316,8 +360,17 @@
       "reference_inventory_id": "c271e780896d940e82f8",
       "reference_name": "Dot Product",
       "relation": "exact_scalar_algorithm",
-      "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.vector.cross",
@@ -327,8 +380,17 @@
       "reference_inventory_id": "bc5c977b48de7442838c",
       "reference_name": "Cross Product",
       "relation": "exact_scalar_algorithm",
-      "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.polyline.length",
@@ -338,8 +400,17 @@
       "reference_inventory_id": null,
       "reference_name": null,
       "relation": "polyline_only",
-      "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.polyline.divide_count",
@@ -350,9 +421,17 @@
       "reference_name": "Divide Curve",
       "relation": "polyline_only",
       "modifiers": [
-        "count"
+        "count",
+        "matching"
       ],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.polyline.divide_distance",
@@ -363,9 +442,17 @@
       "reference_name": "Divide Distance",
       "relation": "polyline_only",
       "modifiers": [
-        "spacing"
+        "spacing",
+        "matching"
       ],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
     },
     {
       "kernel_operation": "kernel.tree.validate",
@@ -376,7 +463,8 @@
       "reference_name": null,
       "relation": "native_tree_primitive",
       "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
     },
     {
       "kernel_operation": "kernel.tree.flatten",
@@ -387,7 +475,8 @@
       "reference_name": "Flatten Tree",
       "relation": "structural_subset",
       "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
     },
     {
       "kernel_operation": "kernel.tree.graft",
@@ -398,7 +487,8 @@
       "reference_name": "Graft Tree",
       "relation": "structural_subset",
       "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
     },
     {
       "kernel_operation": "kernel.tree.simplify",
@@ -409,7 +499,8 @@
       "reference_name": "Simplify Tree",
       "relation": "structural_subset",
       "modifiers": [],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
     },
     {
       "kernel_operation": "kernel.tree.match",
@@ -422,7 +513,8 @@
       "modifiers": [
         "mode"
       ],
-      "graph_tree_parity": "not_verified"
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
     }
   ],
   "tool_layers": [
@@ -1042,5 +1134,5 @@
     }
   ],
   "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review.",
-  "next_dependency_layer": "Typed geometry reference handles and tree-aware broadcast of numerical operations. OrbWeaver graph scalar DAG now supports tree-structural nodes but does not yet implicitly map all CAD math over tree items."
+  "next_dependency_layer": "Immutable, versioned curve/surface/mesh geometry references followed by preview/bake; implicit GH tree path alignment remains separately scoped."
 }

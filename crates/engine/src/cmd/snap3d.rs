@@ -1,13 +1,13 @@
 //! Construction-plane and exact-geometry point input for headless CAD, UI and scripts.
 //! Queries are transient. Snap coordinates never change drawing history.
 use super::*;
+use cadcraft_doc::organization::{GeometryObject, Shape};
 use cadcraft_geom::{
     Vec3,
     camera::OrthoFrame,
     nurbs3d::{Curve, uniform_knots},
     snap3d::{ConstructionPlane, ScreenRay},
 };
-use cadcraft_doc::organization::{GeometryObject, Shape};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -60,10 +60,18 @@ struct Query {
     midpoints: bool,
 }
 
-fn default_radius() -> f64 { 8. }
-fn default_true() -> bool { true }
-fn v3(p: [f64; 3]) -> Vec3 { Vec3::new(p[0], p[1], p[2]) }
-fn array(p: Vec3) -> [f64; 3] { [p.x, p.y, p.z] }
+fn default_radius() -> f64 {
+    8.
+}
+fn default_true() -> bool {
+    true
+}
+fn v3(p: [f64; 3]) -> Vec3 {
+    Vec3::new(p[0], p[1], p[2])
+}
+fn array(p: Vec3) -> [f64; 3] {
+    [p.x, p.y, p.z]
+}
 
 impl Query {
     fn geometry(&self) -> Result<(ScreenRay, ConstructionPlane)> {
@@ -121,13 +129,9 @@ fn resolved(s: &Session, q: &Query) -> Result<SnapPoint> {
                 // Closer pixels, then camera-facing depth, then lower stable object ID.
                 if best.is_none_or(|(previous, old_distance, old_depth)| {
                     distance < old_distance
-                        || (distance == old_distance && (
-                            depth > old_depth || (depth == old_depth && id < previous.source_id.unwrap_or(u64::MAX))
-                        ))
+                        || (distance == old_distance && (depth > old_depth || (depth == old_depth && id < previous.source_id.unwrap_or(u64::MAX))))
                 }) {
-                    best = Some((SnapPoint {
-                        point, kind, source_id: Some(id), distance: Some(distance), depth: Some(depth),
-                    }, distance, depth));
+                    best = Some((SnapPoint { point, kind, source_id: Some(id), distance: Some(distance), depth: Some(depth) }, distance, depth));
                 }
             }
             Ok(())
@@ -224,12 +228,7 @@ fn line(s: &mut Session, p: &Value) -> Result<Value> {
     if (start.point - end.point).len() <= 1e-9 {
         return Err(fail("3D line requires distinct endpoints"));
     }
-    let curve = Curve {
-        degree: 1,
-        control: vec![start.point, end.point],
-        weights: vec![1., 1.],
-        knots: uniform_knots(2, 1),
-    };
+    let curve = Curve { degree: 1, control: vec![start.point, end.point], weights: vec![1., 1.], knots: uniform_knots(2, 1) };
     if !curve.valid() {
         return Err(fail("Invalid line geometry"));
     }
@@ -239,10 +238,7 @@ fn line(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let id = d.new_handle().0;
     let layer = d.header.str("CLAYER", "0");
-    d.geometry3d.push(GeometryObject {
-        id, name: name.to_owned(), layer, visible: true,
-        shape: Shape::Curve(curve.into()),
-    });
+    d.geometry3d.push(GeometryObject { id, name: name.to_owned(), layer, visible: true, shape: Shape::Curve(curve.into()) });
     Ok(json!({"id":id,"start":array(start.point),"end":array(end.point),
         "start_kind":start.kind,"end_kind":end.kind}))
 }
@@ -278,13 +274,20 @@ mod tests {
     #[test]
     fn exact_curve_snap_visibility_and_replayable_line() {
         let mut s = Session::new();
-        let id = s.execute("nurbs.curve3d", &json!({
-            "name":"Reference",
-            "curve":{"degree":1,
-                "control":[{"x":-2.,"y":0.,"z":0.},{"x":2.,"y":0.,"z":0.}],
-                "weights":[1.,1.],"knots":[0.,0.,1.,1.]
-            }
-        })).unwrap()["id"].as_u64().unwrap();
+        let id = s
+            .execute(
+                "nurbs.curve3d",
+                &json!({
+                    "name":"Reference",
+                    "curve":{"degree":1,
+                        "control":[{"x":-2.,"y":0.,"z":0.},{"x":2.,"y":0.,"z":0.}],
+                        "weights":[1.,1.],"knots":[0.,0.,1.,1.]
+                    }
+                }),
+            )
+            .unwrap()["id"]
+            .as_u64()
+            .unwrap();
         let revision = s.state().unwrap().revision;
         let result = s.execute("geometry3d.snap", &q(181., 201.)).unwrap();
         assert_eq!(result["source_id"], id);
@@ -293,9 +296,14 @@ mod tests {
         assert_eq!(s.state().unwrap().revision, revision);
         let midpoint = s.execute("geometry3d.snap", &q(201., 201.)).unwrap();
         assert_eq!(midpoint["kind"], "parameter_midpoint");
-        let line = s.execute("geometry3d.line", &json!({
-            "name":"Snapped segment","start":q(181., 201.),"end":q(220., 200.)
-        })).unwrap();
+        let line = s
+            .execute(
+                "geometry3d.line",
+                &json!({
+                    "name":"Snapped segment","start":q(181., 201.),"end":q(220., 200.)
+                }),
+            )
+            .unwrap();
         assert_eq!(line["start_kind"], "endpoint");
         assert_eq!(line["end_kind"], "endpoint");
         assert_eq!(s.doc().unwrap().geometry3d.len(), 2);
@@ -315,14 +323,20 @@ mod tests {
         bad_q["grid"] = json!(0.);
         assert!(s.execute("geometry3d.snap", &bad_q).is_err());
         bad_q = q(200., 200.);
-        bad_q["viewport"] = json!([0.,400.]);
+        bad_q["viewport"] = json!([0., 400.]);
         assert!(s.execute("geometry3d.snap", &bad_q).is_err());
         bad_q = q(200., 200.);
         bad_q["plane"] = json!({"origin":[0.,0.,0.],"x_axis":[1.,0.,0.],"y_axis":[1.,0.,0.]});
         assert!(s.execute("geometry3d.snap", &bad_q).is_err());
-        assert!(s.execute("geometry3d.line", &json!({
-            "name":"Zero","start":q(200.,200.),"end":q(200.,200.)
-        })).is_err());
+        assert!(
+            s.execute(
+                "geometry3d.line",
+                &json!({
+                    "name":"Zero","start":q(200.,200.),"end":q(200.,200.)
+                })
+            )
+            .is_err()
+        );
         assert!(s.doc().unwrap().geometry3d.is_empty());
     }
 }

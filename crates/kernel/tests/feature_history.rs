@@ -86,6 +86,25 @@ fn scopes_and_serialized_recipes_are_independent() {
 }
 
 #[test]
+fn block_scope_identity_is_case_insensitive_and_aggregate_history_is_bounded() {
+    let upper = FeatureTimeline::new(FeatureScope::BlockDefinition("Bracket".into())).unwrap();
+    let lower = FeatureTimeline::new(FeatureScope::BlockDefinition("bracket".into())).unwrap();
+    assert_eq!(validate_feature_timelines(&[upper, lower]),
+        Err(KernelError::Invalid("duplicate feature scope")));
+
+    let mut oversized = FeatureTimeline::new(FeatureScope::Document).unwrap();
+    // Each entry fits an individual value's budget, but together they must
+    // not exceed the combined resource budget of the document.
+    oversized.parameters.insert("largeA".into(), ToolValue::Polyline(vec![
+        Vec3::ZERO; 150_000
+    ]));
+    oversized.parameters.insert("largeB".into(), ToolValue::Polyline(vec![
+        Vec3::ZERO; 150_000
+    ]));
+    assert_eq!(validate_feature_timelines(&[oversized]), Err(KernelError::Budget));
+}
+
+#[test]
 fn rejects_forward_links_and_unimplemented_solids_without_partial_edit() {
     let mut t=FeatureTimeline::new(FeatureScope::Document).unwrap();
     assert!(t.apply(0,FeatureHistoryEdit::Append{step:mid(

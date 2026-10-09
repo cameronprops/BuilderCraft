@@ -44,7 +44,7 @@ pub fn controls(app: &mut CadApp, ui: &mut egui::Ui) {
                 app.ui.gizmo.drag = None;
             }
         }
-        ui.small("Select in browser. Drag colored handles; Esc cancels.");
+        ui.small("Click objects to select. Drag colored handles; Esc cancels.");
     });
 }
 pub fn preview(app: &CadApp, id: u64) -> Option<Mat4> {
@@ -187,7 +187,7 @@ pub fn interact(app: &mut CadApp, ui: &egui::Ui, rect: egui::Rect, response: &eg
         ui.ctx().request_repaint();
         return true;
     }
-    was_dragging
+    was_dragging || (hit.is_some() && response.clicked())
 }
 fn distance(p: egui::Pos2, a: egui::Pos2, b: egui::Pos2) -> f32 {
     let v = b - a;

@@ -27,6 +27,7 @@ mod scene;
 mod tessellation;
 mod transform;
 mod vector_ops;
+mod wireframe;
 pub use bounds::*;
 pub use bounds_ops::*;
 pub use geometry::*;
@@ -52,6 +53,7 @@ pub use scene::*;
 pub use tessellation::*;
 pub use transform::*;
 pub use vector_ops::*;
+pub use wireframe::*;
 
 use serde::{Deserialize, Serialize};
 

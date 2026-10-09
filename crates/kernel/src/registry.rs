@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.geometry.preview_wires",
+        label: "Visit Sampled Exact Preview Wires",
+        category: "geometry",
+        inputs: &["exact_shape", "remaining_work_units"],
+        outputs: &["wire_segments", "remaining_work_units"],
+        status: OperationStatus::Partial,
+    },
+    OperationDescriptor {
         id: "kernel.polygon.fill_hole",
         label: "Fill Planar Convex Polygon Hole",
         category: "mesh",

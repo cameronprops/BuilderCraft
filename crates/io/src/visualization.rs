@@ -4,7 +4,7 @@ use buildercraft_kernel::{Axes, Cancellation, Frame, GeometryBudget, GeometryDat
 use cadcraft_doc::Drawing;
 use cadcraft_geom::Vec3;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::json;
 use std::collections::BTreeMap;
 
 pub const MAX_PACKAGE_BYTES: usize = 32 * 1024 * 1024;
@@ -302,7 +302,7 @@ pub fn publish_cancellable(directory: &std::path::Path, mut snapshot: Snapshot, 
             return Err(bad("previous snapshot size"));
         }
         let bytes = fs::read(&current).map_err(|e| bad(e.to_string()))?;
-        let v: Value = serde_json::from_slice(&bytes).map_err(|e| bad(e.to_string()))?;
+        let v: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| bad(e.to_string()))?;
         if v["project_id"] != json!(snapshot.project_id) {
             return Err(bad("output directory belongs to a different project"));
         }

@@ -27,6 +27,8 @@ Use the returned model ID as `parent` when creating a component or body.
 | nurbs.curve3d | name, curve with degree, XYZ control objects, weights and knot vector |
 | nurbs.surface | name, surface with compatible curve rows, degree_v and knots_v |
 | geometry3d.list | returns exact 3D control geometry |
+| geometry3d.pick | pixel [x,y] in logical display pixels relative to viewport top-left; viewport [width,height], center [x,y,z], yaw/pitch radians, scale pixels/unit, optional radius 0–64 (default 6); returns nearest sampled wire ID or null, distance_pixels and camera-facing depth |
+| geometry3d.select | ids [unsigned object IDs], optional mode replace/toggle; transient selection, no geometry revision or undo step; rejects hidden/locked/missing objects atomically |
 | geometry3d.set | id, optional name and visibility |
 | geometry3d.controlpoint | id, optional row, index, point [x,y,z] |
 
@@ -85,3 +87,19 @@ Unsupported options are rejected. Copy, atomic undo/redo and persistence apply.
 Scale defaults to false; when true it uses only the first-edge length ratio.
 The third point defines plane orientation. Exact curves/control surfaces only.
 Invalid/near-collinear triples and unsupported options reject atomically.
+
+## Viewport picking scope
+
+CAD click and Shift-click use the same `geometry3d.pick` and `geometry3d.select`
+commands available to headless controllers. A plain empty click clears selection;
+Shift-click toggles a hit and preserves selection on a miss. Picking uses the
+same 96 curve segments and 13-by-24 surface isocurve wires as display, not exact
+curve intersections or filled surface interiors. Within a pixel tolerance, the
+nearest projected wire wins; coincident wires prefer camera-facing depth, then
+the lowest stable object ID. No occlusion, face/edge/vertex subobject selection,
+window selection, or snapping is claimed.
+
+Hidden objects/layers and locked layers are excluded. Queries admit at most 4096
+objects and 50 million conservative evaluation work units. Exceeding the scene
+budget returns an error without applying a partial selection. Rendering also
+uses this aggregate work limit and can stop before drawing the complete scene.

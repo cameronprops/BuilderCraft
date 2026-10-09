@@ -209,3 +209,19 @@ Rendered handle/ring inspection completed. The inherited `plan/` and sibling
 `craftrules` references and the documented `tools/verify-worldwright-kernel.sh`
 wrapper are absent in this checkout; the checked-in suite rules and `cargo xtask ci`
 were used directly.
+
+### Viewport object selection
+
+`geometry3d.pick` exposes toolkit-independent orthographic pixel/depth hit
+queries, reusing the kernel preview-wire visitor used by rendering. Click and
+Shift-click dispatch `geometry3d.select` for replace/toggle selection without
+changing document geometry, revision or undo history. Hidden objects/layers and
+locked layers are excluded. Gizmo handles consume clicks, and drag gestures do
+not click-select. Selected exact curve/surface wires highlight orange.
+
+Fixed preview sampling and wire-only selection are explicit limits: no exact
+curve hit certification, surface-interior occlusion, subobjects, windows or
+snapping. Object/evaluation budgets reject queries without a partial hit;
+rendering signals an incomplete preview if its budget is reached. Tests live in
+`geom/src/picking.rs`, `kernel/src/wireframe.rs`, `engine/src/cmd/picking3d.rs` and
+`ui-egui/src/buildercraft.rs`. See the API and alpha dependency register.

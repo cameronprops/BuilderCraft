@@ -4,7 +4,7 @@ Accepted direction: CAD for themed entertainment professionals, 2026-10-07. This
 
 ## Current baseline
 
-One CADCraft-derived executable with initial rational 3D curves/control surfaces, numerical control editing, named assemblies/components/bodies, native `.bcraft` v1, undoable commands and local command API. Inherited drafting exists; full Rhino equivalence is unverified. Separate Scan/Graph/Show apps, mesh repair/metrology and console exporters are not implemented. Native bounded GLB export and saved/unsaved local scene feeds now exist; the optional Unreal adapter is source-only and awaits host validation.
+One CADCraft-derived executable with initial rational 3D curves/control surfaces, numerical control editing, named assemblies/components/bodies, native `.bcraft` v1, undoable commands and local command API. Inherited drafting exists; full Rhino equivalence is unverified. Separate Scan/Graph/Show apps, integrated Scan workflows, metrology and console exporters are not implemented. Shared kernel mesh/polygon validation, topology, welding, cleanup and bounded hole-fill subsets already exist; these are not a complete user-facing Scan application. Inherited drafting constraints also exist and must be reused where suitable for mechanical sketch workflows. Native bounded GLB export and saved/unsaved local scene feeds now exist; the optional Unreal adapter is source-only and awaits host validation.
 
 ## Sequence and completion gates
 
@@ -41,11 +41,20 @@ Implemented: dependency-light `buildercraft-kernel`, immutable shared exact geom
 
 ## Next concrete tasks
 
-1. Tessellate exact curves/surfaces into bounded preview resources, preserving exact source and revision.
-2. Export a massing scene to GLB with the semantic manifest; validate units, identity and hierarchy in an engine import fixture.
-3. Add the shared typed graph evaluator and persistent parameters/data trees, then embed its component canvas inside CAD.
-4. Implement original native constraint goals and bounded iterative relaxation for Kangaroo-style form-finding; verify convergence, anchors, units and cancellation.
-5. Reuse reviewed StructureGraph recipes through these shared geometry/graph services.
+CAD-first alpha dependency order, reviewed against source on 2026-10-09:
+
+1. Close the viewport selection loop with the existing transactional gizmo.
+2. Add construction-plane point input and endpoint snapping; use it for interactive curve creation and transform reference input.
+3. Add shared exact surface construction (extrude/loft/revolve) through CAD/API and the upcoming node evaluator.
+4. Add the shared typed graph evaluator and persistent parameters/data trees, then embed the OrbWeaver component canvas inside CAD.
+5. Extend the inherited drafting constraint service into mechanical sketches and feature-history blocks through the same geometry operations; bounded relaxation/form-finding follows the graph contracts.
+
+Preview tessellation, GLB export and the local visualization feed are already
+implemented. Unreal host acceptance remains outstanding and does not block CAD
+interaction work. Scan/Show expansion remains deferred under the CAD-first
+priority. Robust trimming/topology/solids depend on curves, surfaces and
+intersections; additional standalone transform names do not close those gaps.
+See `CAD_ALPHA_DEPENDENCIES.json` for the machine-readable sequence.
 
 The native solver is required; a licensed-host adapter cannot substitute for it.
 
@@ -141,3 +150,13 @@ viewport changes discard the preview. The pivot is the selected control-hull
 center. Exact curves/control surfaces only; local frames, snapping, reference
 picking and mesh/Brep handles remain pending. Pointer-event, numerical, preview/cancellation and undo tests passed. The full
 workspace passed 483 tests and all six local quality checks on Rust 1.95.0.
+
+## Viewport selection increment
+
+Implemented: shared bounded preview-wire visitor, toolkit-independent
+pixel/depth hit math, non-mutating `geometry3d.pick` and transient
+`geometry3d.select`, used by click/Shift-click in the CAD viewport. Selected
+wires highlight orange. Selection respects object/layer visibility and locked
+layers; gizmo drags and camera drags do not select. Surface interiors, exact
+intersections, subobjects, windows and snapping remain pending. Numerical/API, pointer-event and rendered viewport checks passed. The final source passed 490 tests and all six `cargo xtask ci` checks on Rust
+1.95.0, including WebAssembly. Failed sampling is reported rather than skipped.

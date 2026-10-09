@@ -119,3 +119,30 @@ Evidence includes off-origin world XYZ coordinates, a known oblique-plane result
 rational curve/surface evaluation, invalid frame/factor/unsupported-field rejection,
 atomic failure preservation, copy/undo and `.bcraft` save/reopen in the shared
 transform tests. Next: ScalePositions (spacing without deforming each object).
+
+## ScalePositions increment
+
+`geometry3d.transform` now accepts `scale_positions` for native exact curves and
+control surfaces. Each object is translated from its world-axis bounding-box
+center; its control-point differences, knots, weights and degree are preserved.
+Modes: `{"kind":"one_d","axis":[1,0,0]}`,
+`{"kind":"two_d","normal":[0,0,1]}`, or `{"kind":"three_d"}`.
+Supply `origin`, finite `factor` from 0 to 1e9, and absolute bounds `tolerance`
+from 1e-9 to 1 model units. Existing copy/undo/batch semantics apply.
+
+Bounds use original homogeneous Bezier span extraction and adaptive convex-hull
+subdivision, including rational weights and multiple knot spans. Subdivision
+stops at the requested bounds tolerance plus a scale-dependent f64 rounding
+guard. Translation error can amplify with the scale factor. The batch shares
+a 200,000-work limit and each patch has depth limit 48; exceeding either rejects
+the operation rather than silently substituting a control-cage center. Kernel
+cancellation is cooperative; the current desktop command remains synchronous.
+
+The transform panel has Space 1D / 2D / 3D buttons, using existing origin,
+axis/normal, factor and copy controls; UI bounds tolerance is 1e-6 model units.
+Reference-point picking, active-CPlane inference, mesh/solid input, group-level
+centers, remembered Rhino options and associative history remain pending.
+Graph canvas integration is not implemented. Numerical API coverage is partial.
+
+Evidence: `crates/kernel/tests/spacing.rs` and
+`crates/engine/tests/transforms3d.rs`.

@@ -12311,12 +12311,21 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/scalepositions.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scalepositions.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "explicit origin and numeric factor",
+        "1D axis, 2D normal, 3D",
+        "copy",
+        "bounds tolerance",
+        "pending: interactive references/CPlane, other representations and history"
+      ],
+      "evidence": [
+        "crates/kernel/tests/spacing.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Original bounded rational span bounds and per-object translation. See MANUAL_REBUILD.md: ScalePositions increment."
     },
     {
       "name": "ScaleTextHeight",

@@ -7084,16 +7084,18 @@
       "path": "commands/scale.htm",
       "topic_family": "commands",
       "review_status": "partial",
-      "contract": "MANUAL_REBUILD.md: Second and third reviewed increments; Scale1D/Scale2D/ScaleNU/ScaleByPlane subsets. ScalePositions and remaining options pending.",
+      "contract": "MANUAL_REBUILD.md: directional, nonuniform and ScalePositions numeric subsets; interactive options remain pending.",
       "native_services": [
         "geometry3d.transform:scale1d",
         "geometry3d.transform:scale2d",
         "geometry3d.transform:scale_nu",
-        "geometry3d.transform:scale_by_plane"
+        "geometry3d.transform:scale_by_plane",
+        "geometry3d.transform:scale_positions"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",
-        "crates/engine/tests/transforms3d.rs"
+        "crates/engine/tests/transforms3d.rs",
+        "crates/kernel/tests/spacing.rs"
       ]
     },
     {
@@ -18770,16 +18772,18 @@
       "path": "commands/scale.htm",
       "topic_family": "commands",
       "review_status": "partial",
-      "contract": "MANUAL_REBUILD.md: Second and third reviewed increments; Scale1D/Scale2D/ScaleNU/ScaleByPlane subsets. ScalePositions and remaining options pending.",
+      "contract": "MANUAL_REBUILD.md: directional, nonuniform and ScalePositions numeric subsets; interactive options remain pending.",
       "native_services": [
         "geometry3d.transform:scale1d",
         "geometry3d.transform:scale2d",
         "geometry3d.transform:scale_nu",
-        "geometry3d.transform:scale_by_plane"
+        "geometry3d.transform:scale_by_plane",
+        "geometry3d.transform:scale_positions"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",
-        "crates/engine/tests/transforms3d.rs"
+        "crates/engine/tests/transforms3d.rs",
+        "crates/kernel/tests/spacing.rs"
       ]
     },
     {

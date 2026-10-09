@@ -1,4 +1,4 @@
-# Release pipeline: every push to `release` builds signed installers for every platform and
+# Release pipeline: manual dispatch builds signed installers for every platform and
 # creates or updates the draft GitHub Release "CADCraft v<version>". See docs/releasing.md.
 #
 # Only the `release` branch builds: pushes to it trigger the run, and a manual dispatch from any
@@ -10,8 +10,6 @@
 name: Release
 
 on:
-  push:
-    branches: [release]
   workflow_dispatch:
     inputs:
       version:

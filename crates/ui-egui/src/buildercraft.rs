@@ -158,6 +158,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             });
     }
     transform_panel(app, ui);
+    crate::feature_history::panel(app, ui);
     ui.separator();
 }
 fn show_node(app: &mut CadApp, ui: &mut egui::Ui, nodes: &[ModelNode], node: &ModelNode, depth: usize) {

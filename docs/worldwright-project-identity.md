@@ -48,6 +48,9 @@ workspace; it executes shared kernel operations with direct CAD commands.
 Orb Weaver now supports native data-tree structure operations and explicit
 matching for identical branch paths; Grasshopper-equivalent tree semantics,
 a graphical canvas and a standalone GUI executable remain in development.
+The data-tree foundations (validate, flatten, graft, simplify and list match)
+are shared by both CAD and Orb Weaver; implicit Grasshopper path matching,
+a graphical node canvas and .dftba graph persistence are still pending.
 The dependency-first tool hierarchy and mapping register live under
 `docs/dependencies/`. Native Worldwright files remain `.dftba`.
 

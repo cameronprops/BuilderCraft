@@ -21,19 +21,17 @@ pub fn tool_value_matches_port(expected: ToolType, value: &ToolValue) -> Result<
         shared_tool_value_cost(value)?;
         return Ok(());
     }
-    if supports_lifting {
-        if let ToolValue::Tree(tree) = value {
-            tree_validate(tree)?;
-            shared_tool_value_cost(value)?;
-            for branch in &tree.branches {
-                for item in &branch.items {
-                    if item.kind() != expected {
-                        return Err(KernelError::Invalid("tree leaf type does not match port"));
-                    }
+    if supports_lifting && let ToolValue::Tree(tree) = value {
+        tree_validate(tree)?;
+        shared_tool_value_cost(value)?;
+        for branch in &tree.branches {
+            for item in &branch.items {
+                if item.kind() != expected {
+                    return Err(KernelError::Invalid("tree leaf type does not match port"));
                 }
             }
-            return Ok(());
         }
+        return Ok(());
     }
     Err(KernelError::Invalid("tool port type mismatch"))
 }
@@ -65,11 +63,11 @@ pub(crate) fn execute_lifted(
 ) -> Result<ToolValue> {
     let mut tree_ports = Vec::<(&str, &DataTree<ToolValue>)>::new();
     for port in contract.inputs {
-        if let Some(ToolValue::Tree(tree)) = request.inputs.get(port.name) {
-            if port.kind != ToolType::Tree {
-                tree_validate(tree)?;
-                tree_ports.push((port.name, tree));
-            }
+        if let Some(ToolValue::Tree(tree)) = request.inputs.get(port.name)
+            && port.kind != ToolType::Tree
+        {
+            tree_validate(tree)?;
+            tree_ports.push((port.name, tree));
         }
     }
     let Some((_, first)) = tree_ports.first() else {
@@ -294,11 +292,7 @@ mod tests {
             operation: "kernel.point.interpolate".into(),
             inputs: BTreeMap::from([("a".into(), as_tree), ("b".into(), bs_tree), ("t".into(), ts_tree)]),
         };
-        let out = execute_shared_tool_with_matching(&req, TreeMatchPolicy::CrossReference).unwrap();
-        let ToolValue::Tree(out) = out else {
-            assert!(false, "must produce a data tree");
-            return;
-        };
+        let out = tree_value(execute_shared_tool_with_matching(&req, TreeMatchPolicy::CrossReference).unwrap());
         assert_eq!(out.branches[0].path.0, vec![2]);
         assert_eq!(
             out.branches[0].items,

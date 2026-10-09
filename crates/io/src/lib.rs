@@ -5,6 +5,7 @@
 mod dxf_ext;
 mod dxf_read;
 mod dxf_write;
+pub mod las_preview;
 pub mod pdf;
 mod project;
 pub mod svg;

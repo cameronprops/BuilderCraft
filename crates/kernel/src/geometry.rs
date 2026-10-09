@@ -1,4 +1,4 @@
-use crate::{KernelError, Result};
+use crate::{KernelError, PolygonFace, PolygonMesh, Result, polygon_mesh_validate};
 use cadcraft_geom::{Vec3, nurbs3d};
 use serde::{Deserialize, Serialize};
 use std::mem::size_of;
@@ -51,6 +51,7 @@ pub struct TriangleMesh {
 pub enum GeometryData {
     Exact(ExactShape),
     Mesh(TriangleMesh),
+    PolygonMesh(PolygonMesh),
     PointCloud(Vec<Vec3>),
     Polyline(Vec<Vec3>),
 }
@@ -60,6 +61,7 @@ impl GeometryData {
             Self::Exact(ExactShape::Curve(_)) => "nurbsCurve",
             Self::Exact(ExactShape::Surface(_)) => "nurbsSurface",
             Self::Mesh(_) => "triangleMesh",
+            Self::PolygonMesh(_) => "polygonMesh",
             Self::PointCloud(_) => "pointCloud",
             Self::Polyline(_) => "polyline",
         }
@@ -82,6 +84,11 @@ impl GeometryData {
             }
             Self::PointCloud(p) => valid_points(p),
             Self::Polyline(p) => p.len() >= 2 && valid_points(p),
+            Self::PolygonMesh(m) => {
+                m.vertices.len() <= max_samples
+                    && m.faces.len() <= max_samples
+                    && polygon_mesh_validate(m).is_ok()
+            }
             Self::Mesh(m) => {
                 valid_points(&m.vertices)
                     && !m.triangles.is_empty()
@@ -98,6 +105,9 @@ impl GeometryData {
         let bytes = match self {
             Self::Exact(s) => s.estimated_bytes()?,
             Self::PointCloud(p) | Self::Polyline(p) => vertices(p.capacity())?,
+            Self::PolygonMesh(m) => vertices(m.vertices.capacity())?
+                .checked_add(m.faces.capacity().checked_mul(size_of::<PolygonFace>()).ok_or(KernelError::Budget)?)
+                .ok_or(KernelError::Budget)?,
             Self::Mesh(m) => vertices(m.vertices.capacity())?
                 .checked_add(m.triangles.capacity().checked_mul(size_of::<[u32; 3]>()).ok_or(KernelError::Budget)?)
                 .ok_or(KernelError::Budget)?,

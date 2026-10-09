@@ -275,4 +275,31 @@ mod tests {
         assert!(read(&serde_json::to_vec(&encoded).unwrap()).is_err());
     }
 
+    #[test]
+    fn dftba_and_legacy_bcraft_share_the_same_native_payload() {
+        let mut source = Drawing::new_metric();
+        source.mesh3d.push(cadcraft_doc::organization::PolygonGeometryObject {
+            id: 1000,
+            name: "Worldwright quad".into(),
+            layer: "0".into(),
+            visible: true,
+            mesh: std::sync::Arc::new(buildercraft_kernel::PolygonMesh {
+                vertices: vec![
+                    cadcraft_geom::Vec3::new(0., 0., 0.),
+                    cadcraft_geom::Vec3::new(2., 0., 0.),
+                    cadcraft_geom::Vec3::new(2., 2., 0.),
+                    cadcraft_geom::Vec3::new(0., 2., 0.),
+                ],
+                faces: vec![buildercraft_kernel::PolygonFace::Quad([0, 1, 2, 3])],
+            }),
+        });
+        let new_bytes = crate::write(&source, "worldwright.dftba").unwrap();
+        let old_bytes = crate::write(&source, "legacy.bcraft").unwrap();
+        assert_eq!(new_bytes, old_bytes);
+        assert_eq!(crate::read(&new_bytes, "worldwright.dftba").unwrap().mesh3d, source.mesh3d);
+        assert_eq!(crate::read(&old_bytes, "legacy.bcraft").unwrap().mesh3d, source.mesh3d);
+        assert_eq!(crate::read(&old_bytes, "renamed.dftba").unwrap().mesh3d, source.mesh3d);
+        assert!(crate::write(&source, "unsafe.dxf").is_err());
+    }
+
 }

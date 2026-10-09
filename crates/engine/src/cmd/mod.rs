@@ -5,6 +5,7 @@ mod annotate;
 mod blocks;
 mod buildercraft;
 mod mesh3d;
+mod feature_history;
 mod worldwright_tools;
 pub mod constraints;
 mod draw;
@@ -152,6 +153,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         let mut v = Vec::new();
         v.extend(buildercraft::specs());
         v.extend(mesh3d::specs());
+        v.extend(feature_history::specs());
         v.extend(worldwright_tools::specs());
         v.extend(file::specs());
         v.extend(edit::specs());

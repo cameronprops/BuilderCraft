@@ -219,6 +219,46 @@ fn delete_mesh_face(app: &mut CadApp, object_id: u64, selected_revision: u64, fa
     Ok(result)
 }
 
+/// Select a native mesh face or fall back to the exact-NURBS wire picker.
+/// Selection is transient; a mesh-face edit remains bound to its source revision.
+fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle: bool) {
+    let offset = cadcraft_geom::Vec2::new(f64::from(pointer.x - rect.center().x), f64::from(rect.center().y - pointer.y));
+    let camera = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
+    let picked = app.session.doc().ok().and_then(|d| {
+        crate::mesh_picking::pick_visible_mesh_face(
+            d.mesh3d
+                .iter()
+                .filter(|o| o.visible && d.layer(&o.layer).is_none_or(|layer| layer.visible() && !layer.locked))
+                .map(|o| (o.id, o.mesh.as_ref())),
+            camera,
+            app.ui.center3d,
+            app.ui.scale3d,
+            offset,
+        )
+    });
+    if let Some(hit) = picked {
+        let handle = cadcraft_doc::Handle(hit.object_id);
+        let mut selection = if toggle { app.session.selection() } else { Vec::new() };
+        if toggle && selection.contains(&handle) {
+            selection.retain(|selected| *selected != handle);
+            app.session.set_selection(selection);
+            clear_picked_mesh_face(app);
+            return;
+        }
+        selection.push(handle);
+        app.session.set_selection(selection);
+        app.ui.mesh_face_object_id = Some(hit.object_id);
+        app.ui.mesh_face_index = hit.face_index;
+        if let Ok(state) = app.session.state() {
+            app.ui.mesh_face_document_uid = Some(state.uid);
+            app.ui.mesh_face_revision = Some(state.revision);
+        }
+    } else {
+        clear_picked_mesh_face(app);
+        pick_at(app, rect, pointer, toggle);
+    }
+}
+
 pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| {
         ui.label("Orthographic 3D").on_hover_text("Click to select; Shift-click to toggle; drag to orbit; Shift-drag to pan; scroll to zoom");
@@ -273,34 +313,12 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
         let d = ui.input(|i| i.smooth_scroll_delta.y);
         app.ui.scale3d = (app.ui.scale3d * (f64::from(d) * 0.002).exp()).clamp(1e-9, 1e9);
     }
-    // Short click picks the frontmost rendered polygon. Orbit/pan drags do not
-    // commit picks, and selection itself never modifies the document revision.
-    if response.clicked() && !gizmo_drag {
-        if let Some(pointer) = response.interact_pointer_pos().filter(|p| rect.contains(*p)) {
-            let offset = cadcraft_geom::Vec2::new(f64::from(pointer.x - rect.center().x), f64::from(rect.center().y - pointer.y));
-            let camera = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
-            let picked = app.session.doc().ok().and_then(|d| {
-                crate::mesh_picking::pick_visible_mesh_face(
-                    d.mesh3d.iter().filter(|o| o.visible && d.layer(&o.layer).is_none_or(|layer| layer.visible())).map(|o| (o.id, o.mesh.as_ref())),
-                    camera,
-                    app.ui.center3d,
-                    app.ui.scale3d,
-                    offset,
-                )
-            });
-            if let Some(hit) = picked {
-                app.ui.mesh_face_object_id = Some(hit.object_id);
-                app.ui.mesh_face_index = hit.face_index;
-                if let Ok(state) = app.session.state() {
-                    app.ui.mesh_face_document_uid = Some(state.uid);
-                    app.ui.mesh_face_revision = Some(state.revision);
-                }
-                app.session.set_selection(vec![cadcraft_doc::Handle(hit.object_id)]);
-            } else {
-                clear_picked_mesh_face(app);
-                pick_at(app, rect, pointer, ui.input(|i| i.modifiers.shift));
-            }
-        }
+    // Mesh and NURBS picking share click / Shift-click semantics.
+    if response.clicked()
+        && !gizmo_drag
+        && let Some(pointer) = response.interact_pointer_pos().filter(|p| rect.contains(*p))
+    {
+        select_3d_at(app, rect, pointer, ui.input(|i| i.modifiers.shift));
     }
     let yaw = app.ui.orbit_yaw;
     let pitch = app.ui.orbit_pitch;
@@ -731,6 +749,37 @@ mod spacing_ui_tests {
 #[cfg(test)]
 mod mesh_ui_tests {
     use super::*;
+
+    #[test]
+    fn mesh_shift_toggle_and_locked_layers_match_exact_selection() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let first = new_mesh_sample(&mut app).unwrap()["id"].as_u64().unwrap();
+        let second = new_mesh_sample(&mut app).unwrap()["id"].as_u64().unwrap();
+        let revision = app.session.state().unwrap().revision;
+        app.ui.center3d = cadcraft_geom::Vec3::ZERO;
+        app.ui.orbit_yaw = 0.;
+        app.ui.orbit_pitch = -std::f64::consts::FRAC_PI_2;
+        app.ui.scale3d = 10.;
+        let viewport = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400., 400.));
+        // Two coplanar native meshes overlap. Stable ID order chooses the first.
+        let point = egui::pos2(150., 250.);
+        select_3d_at(&mut app, viewport, point, true);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(second), cadcraft_doc::Handle(first)]);
+        assert_eq!(app.ui.mesh_face_object_id, Some(first));
+        select_3d_at(&mut app, viewport, point, true);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(second)]);
+        assert_eq!(app.ui.mesh_face_object_id, None);
+        select_3d_at(&mut app, viewport, point, false);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(first)]);
+        assert_eq!(app.session.state().unwrap().revision, revision, "selection must not edit geometry");
+
+        let layer_name = app.session.doc().unwrap().mesh3d[0].layer.clone();
+        app.session.doc_mut().unwrap().layer_mut(&layer_name).unwrap().locked = true;
+        app.session.set_selection(Vec::new());
+        select_3d_at(&mut app, viewport, point, false);
+        assert!(app.session.selection().is_empty(), "viewport must not select locked mesh layers");
+        assert!(app.ui.mesh_face_object_id.is_none());
+    }
 
     #[test]
     fn sample_mesh_can_be_created_previewed_repaired_and_undone() {

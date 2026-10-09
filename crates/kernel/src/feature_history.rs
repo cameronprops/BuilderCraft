@@ -180,11 +180,35 @@ pub fn validate_feature_timelines(histories: &[FeatureTimeline]) -> Result<()> {
         return Err(KernelError::Budget);
     }
     let mut scopes = BTreeSet::new();
+    let mut all_steps = 0usize;
+    let mut retained_values = 0usize;
     for history in histories {
         history.validate()?;
-        if !scopes.insert(history.scope.clone()) {
+        // Native block names are case-insensitive. Reject alias histories
+        // targeting the same definition under different capitalization.
+        let canonical_scope = match &history.scope {
+            FeatureScope::BlockDefinition(name) =>
+                FeatureScope::BlockDefinition(name.to_ascii_lowercase()),
+            other => other.clone(),
+        };
+        if !scopes.insert(canonical_scope) {
             return Err(KernelError::Invalid("duplicate feature scope"));
         }
+        all_steps = all_steps.checked_add(history.steps.len()).ok_or(KernelError::Budget)?;
+        if all_steps > 8192 { return Err(KernelError::Budget); }
+        for value in history.parameters.values() {
+            retained_values = retained_values
+                .checked_add(shared_tool_value_cost(value)?).ok_or(KernelError::Budget)?;
+        }
+        for step in &history.steps {
+            for source in step.inputs.values() {
+                if let FeatureInput::Constant { value } = source {
+                    retained_values = retained_values
+                        .checked_add(shared_tool_value_cost(value)?).ok_or(KernelError::Budget)?;
+                }
+            }
+        }
+        if retained_values > crate::MAX_TREE_ITEMS { return Err(KernelError::Budget); }
     }
     Ok(())
 }

@@ -166,7 +166,7 @@ The equivalent generic command:
 
 Both use the **same** typed dispatcher and return `output` as a tagged
 `ToolValue` (`number`, `count`, `point`, `vector`, or `polyline`).
-A OrbWeaver node has the component ID `orbweaver.point.distance`; node ports
+An OrbWeaver node has the component ID `orbweaver.point.distance`; node ports
 accept `{"source":"constant","value":{...}}` literals or
 `{"source":"output","node":<upstream node ID>}` links. The graph
 schema is version 1 and deterministic for supported scalar-valued nodes.
@@ -234,6 +234,9 @@ shared by both interfaces.
 
 Native trees preserve empty branches, require ordered unique paths of depth
 1–16, and enforce count/clone limits. Graph-level `.dftba` persistence,
-geometry handle ports, global tree broadcasting and graphical editing are
-still pending. See `crates/orbweaver/examples/paired_tree.rs`. Local compilation
+geometry handle ports, exact Grasshopper implicit path matching and graphical
+editing are still pending. Native tree-item broadcasting is available for the
+ten point/vector/polyline operations; use the top-level optional `matching`
+modifier (`shortest`, `longest`, `cross_reference`) on CAD commands, or the
+per-node `matching` field on OrbWeaver graph nodes. See `crates/orbweaver/examples/paired_tree.rs`. Local compilation
 and runtime tests have not yet been performed.

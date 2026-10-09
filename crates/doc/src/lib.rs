@@ -75,6 +75,8 @@ pub struct Drawing {
     pub organization: organization::Organization,
     pub production: buildercraft_kernel::ProductionModel,
     pub geometry3d: Vec<organization::GeometryObject>,
+    /// Native editable triangle/quad geometry, independent from exact NURBS.
+    pub mesh3d: Vec<organization::PolygonGeometryObject>,
 }
 
 impl Default for Drawing {
@@ -124,6 +126,7 @@ impl Drawing {
             organization: organization::Organization::default(),
             production: buildercraft_kernel::ProductionModel::default(),
             geometry3d: Vec::new(),
+            mesh3d: Vec::new(),
         }
     }
 

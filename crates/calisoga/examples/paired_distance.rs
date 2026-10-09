@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         outputs: vec![1],
     };
     let graph_result = evaluate(&graph)?;
-    let graph_value = graph_result.values.get(&1).ok_or("missing graph output")?;
+    let graph_value = graph_result.values.get(&1).ok_or_else(|| std::io::Error::other("missing graph output"))?;
     if graph_value != &cad_result {
         return Err("CAD and Calisoga results differ".into());
     }

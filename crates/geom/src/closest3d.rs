@@ -19,11 +19,7 @@ fn valid(p: Vec3) -> bool {
 fn edge_closest(query: Vec3, a: Vec3, b: Vec3) -> (Vec3, f64) {
     let edge = b - a;
     let length2 = edge.dot(edge);
-    let t = if length2 > 0.0 {
-        ((query - a).dot(edge) / length2).clamp(0.0, 1.0)
-    } else {
-        0.0
-    };
+    let t = if length2 > 0.0 { ((query - a).dot(edge) / length2).clamp(0.0, 1.0) } else { 0.0 };
     (a + edge * t, t)
 }
 
@@ -38,11 +34,7 @@ pub fn closest_point_triangle(query: Vec3, a: Vec3, b: Vec3, c: Vec3) -> Option<
     }
 
     // Consider all boundary segments first. Ties retain the earlier edge.
-    let edges = [
-        (a, b, 0usize, 1usize),
-        (b, c, 1usize, 2usize),
-        (c, a, 2usize, 0usize),
-    ];
+    let edges = [(a, b, 0usize, 1usize), (b, c, 1usize, 2usize), (c, a, 2usize, 0usize)];
     let mut best_point = a;
     let mut best_weights = [1.0, 0.0, 0.0];
     let mut best_distance2 = (query - a).dot(query - a);
@@ -95,12 +87,7 @@ pub fn closest_point_triangle(query: Vec3, a: Vec3, b: Vec3, c: Vec3) -> Option<
         }
     }
     let distance = best_distance2.sqrt();
-    (valid(best_point) && distance.is_finite()).then_some(TriangleClosest {
-        point: best_point,
-        barycentric: best_weights,
-        distance,
-        degenerate,
-    })
+    (valid(best_point) && distance.is_finite()).then_some(TriangleClosest { point: best_point, barycentric: best_weights, distance, degenerate })
 }
 
 #[cfg(test)]
@@ -108,11 +95,7 @@ mod tests {
     use super::*;
 
     fn triangle() -> (Vec3, Vec3, Vec3) {
-        (
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(2.0, 0.0, 0.0),
-            Vec3::new(0.0, 2.0, 0.0),
-        )
+        (Vec3::new(0.0, 0.0, 0.0), Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 2.0, 0.0))
     }
 
     #[test]
@@ -134,12 +117,7 @@ mod tests {
         assert_eq!(edge.point, Vec3::new(1.0, 0.0, 0.0));
         let vertex = closest_point_triangle(Vec3::new(-2.0, -2.0, 0.0), a, b, c).unwrap();
         assert_eq!(vertex.point, a);
-        let degenerate = closest_point_triangle(
-            Vec3::new(0.5, 1.0, 0.0),
-            a,
-            Vec3::new(1.0, 0.0, 0.0),
-            b,
-        ).unwrap();
+        let degenerate = closest_point_triangle(Vec3::new(0.5, 1.0, 0.0), a, Vec3::new(1.0, 0.0, 0.0), b).unwrap();
         assert!(degenerate.degenerate);
         assert_eq!(degenerate.point, Vec3::new(0.5, 0.0, 0.0));
         let repeated = closest_point_triangle(Vec3::new(4.0, 0.0, 0.0), a, a, a).unwrap();

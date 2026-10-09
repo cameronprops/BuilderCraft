@@ -2,10 +2,7 @@
 //! production evaluation engine. Feature gated until acceptance fixtures
 //! and performance comparisons support switching canonical evaluators.
 
-use crate::{
-    Vec3,
-    nurbs3d::Curve,
-};
+use crate::{Vec3, nurbs3d::Curve};
 use curvo::prelude::NurbsCurve3D;
 use nalgebra::Point4;
 

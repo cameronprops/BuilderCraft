@@ -514,3 +514,47 @@ mod spacing_ui_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod mesh_ui_tests {
+    use super::*;
+
+    #[test]
+    fn sample_mesh_can_be_created_previewed_repaired_and_undone() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let created = new_mesh_sample(&mut app).unwrap();
+        let id = created["id"].as_u64().unwrap();
+        assert!(app.session.selection().contains(&cadcraft_doc::Handle(id)));
+        let original = app.session.doc().unwrap().mesh3d[0].mesh.clone();
+        assert_eq!(original.faces.len(), 4);
+
+        // The application viewport can draw the model in headless egui.
+        let context = egui::Context::default();
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO, egui::vec2(640., 480.),
+            )),
+            ..Default::default()
+        };
+        let frame = context.run_ui(input, |ui| viewport3d(&mut app, ui));
+        assert!(!frame.shapes.is_empty());
+
+        let bounds = app.run("mesh3d.boundaries", json!({"id":id})).unwrap();
+        let loops = bounds["report"]["closed_loops"].as_array().unwrap();
+        let inner = loops.iter().position(|entry| {
+            entry["vertices"].as_array().is_some_and(|v| {
+                v.iter().all(|i| i.as_u64().is_some_and(|i| i>=4))
+            })
+        }).unwrap();
+        let revision = bounds["source_revision"].as_u64().unwrap();
+        app.run("mesh3d.edit",json!({"id":id,"edit":{
+            "kind":"fill_planar_hole",
+            "selected_revision":revision,
+            "loop_index":inner
+        }})).unwrap();
+        assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.faces.len(),6);
+        app.session.undo().unwrap();
+        let restored = &app.session.doc().unwrap().mesh3d[0].mesh;
+        assert!(std::sync::Arc::ptr_eq(restored,&original));
+    }
+}

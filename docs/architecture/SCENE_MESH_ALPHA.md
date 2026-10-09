@@ -133,10 +133,12 @@ and hit testing. Empty clicks clear the picked face; orbit/pan drag remains
 separate from clicking. Selected native face edges are highlighted without
 changing the underlying geometry.
 
-The pick stores the source document revision; stale picks cannot silently
-mutate a newer scene. The existing `mesh3d.edit` command handles Delete Face,
+The pick stores both the source document UUID-like session UID and its revision;
+stale picks cannot silently mutate a newer scene or an unrelated open document
+that happens to have the same geometry IDs and revision. The existing `mesh3d.edit` command handles Delete Face,
 undo, and later `.dftba` persistence. Eight pure picking tests plus headless
-viewport click/undo tests are authored, **not yet executed**. The picker
+viewport click, undo, and cross-document isolation tests are authored,
+**not yet executed**. The picker
 currently considers polygon meshes only: a NURBS surface in front will not
 occlude a mesh, and shaded depth-buffer picking is future work.
 

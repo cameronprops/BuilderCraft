@@ -150,3 +150,17 @@ The headless recipe evaluator, persistence and tests are source-authored but
 have **not** been compiled or executed in the present environment. Preserve
 the draft PR until a Rust 1.95/Cargo validation pass completes. Keep GitHub
 Actions manual-only.
+
+### Versioned geometry handles, initial shared layer
+
+The shared scene and CAD document now expose typed, revision-bound object
+geometry references. They verify project/object identity, expected revision
+and geometry representation. Resolving a scene reference reuses the existing
+immutable geometry lease. `ToolValue::GeometryReference` makes these
+handles representable as typed OrbWeaver/feature-history data.
+
+The current handle is **whole-object only**. There is no persistent edge or
+face identity, feature-face mapping after booleans, document-owned project UUID,
+automatic rebind on edit or geometry baking. Do not model a sketch support,
+fillet target or BRep face reference using an array index and claim it stays
+editable. Those depend on the separate topology-naming and provenance layers.

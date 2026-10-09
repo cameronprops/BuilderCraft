@@ -15106,12 +15106,19 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/shear.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/shear.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "Explicit world-space origin, shear direction, fixed-plane normal and signed angle",
+        "Copy and atomic undo/redo for native exact curves/control surfaces"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs",
+        "crates/ui-egui/src/buildercraft.rs"
+      ],
+      "notes": "Original affine shear. Directions must be perpendicular within 1e-9; angles strictly between -89 and 89 degrees. Reference picking, CPlane inference, Rigid, SubCrv, history and other representations remain pending."
     },
     {
       "name": "Shell",

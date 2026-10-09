@@ -146,3 +146,25 @@ Graph canvas integration is not implemented. Numerical API coverage is partial.
 
 Evidence: `crates/kernel/tests/spacing.rs` and
 `crates/engine/tests/transforms3d.rs`.
+
+## Shear increment
+
+`geometry3d.transform` accepts `shear` on native exact curves/control surfaces,
+with explicit world-space `origin`, `direction`, `normal` and `angle_degrees`.
+The fixed plane passes through origin with the given normal. A point moves by
+`direction * tan(angle) * dot(point - origin, normal)` after normalization.
+Directions must be perpendicular within 1e-9; accepted drift is orthogonalized.
+Angles are strictly between -89 and 89 degrees, including zero and negative
+angles. Invalid frames, nonfinite parameters and coordinate overflow reject
+before document mutation. Existing copy, budgets, cancellation and undo apply.
+
+The transform panel exposes a Shear button with independent direction and angle,
+using the existing origin and axis/normal controls. Rational weights, knots,
+degrees and parameterization remain intact. Source geometry stays authoritative.
+Reference picking, active CPlane, Rigid, SubCrv, remembered choices, history,
+meshes and solid representations remain pending. Numeric subset only.
+
+Windows and Mac official Shear pages reviewed; their option lists differ.
+Original numerical fixtures cover fixed-plane points, signed inverse, oblique
+frames, rational evaluation, surface edits, hostile inputs, copies, undo/redo,
+project round trips and actual headless button clicks.

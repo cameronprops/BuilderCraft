@@ -65,3 +65,13 @@ For 1D use `mode:{"kind":"one_d","axis":[1,0,0]}`; for 2D use
 accuracy request in model units, with a floating-point rounding allowance.
 The shared work budget rejects cases that do not converge. See
 [the full contract](commands/MANUAL_REBUILD.md#scalepositions-increment).
+
+### Exact shear
+
+```json
+{"command":"geometry3d.transform","params":{"ids":[42],"operation":{"kind":"shear","origin":[0,0,0],"direction":[1,0,0],"normal":[0,0,1],"angle_degrees":45},"copy":false}}
+```
+
+The normal defines the fixed plane; direction lies in that plane. Signed angle
+is strictly between -89 and 89 degrees. Exact curves/control surfaces only.
+Unsupported options are rejected. Copy, atomic undo/redo and persistence apply.

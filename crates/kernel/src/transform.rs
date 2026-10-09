@@ -14,6 +14,7 @@ pub enum Transform {
     ScaleNu { origin: [f64; 3], factors: [f64; 3] },
     ScaleByPlane { origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], factors: [f64; 2] },
     ScalePositions { origin: [f64; 3], factor: f64, mode: SpacingMode, tolerance: f64 },
+    Shear { origin: [f64; 3], direction: [f64; 3], normal: [f64; 3], angle_degrees: f64 },
     Mirror { origin: [f64; 3], normal: [f64; 3] },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -100,6 +101,28 @@ impl Transform {
                 for (i, row) in m.m.iter_mut().take(3).enumerate() {
                     for (j, value) in row.iter_mut().take(3).enumerate() {
                         *value += fx * x[i] * x[j] + fy * y[i] * y[j];
+                    }
+                }
+                point(origin)?
+            }
+            Self::Shear { origin, direction: shear_direction, normal, angle_degrees } => {
+                if !angle_degrees.is_finite() || angle_degrees.abs() >= 89. {
+                    return Err(KernelError::Invalid("shear angle must be between -89 and 89 degrees"));
+                }
+                let n = direction(normal)?;
+                let d = direction(shear_direction)?;
+                let dot = d.dot(n);
+                if dot.abs() > 1e-9 {
+                    return Err(KernelError::Invalid("shear direction must be perpendicular to plane normal"));
+                }
+                let d = d - n * dot;
+                let d = direction([d.x, d.y, d.z])?;
+                let d = [d.x, d.y, d.z];
+                let n = [n.x, n.y, n.z];
+                let amount = angle_degrees.to_radians().tan();
+                for (i, row) in m.m.iter_mut().take(3).enumerate() {
+                    for (j, value) in row.iter_mut().take(3).enumerate() {
+                        *value += amount * d[i] * n[j];
                     }
                 }
                 point(origin)?

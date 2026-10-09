@@ -65,6 +65,8 @@ pub struct UiState {
     pub transform_origin: [f64; 3],
     pub transform_axis: [f64; 3],
     pub transform_angle: f64,
+    pub shear_direction: [f64; 3],
+    pub shear_angle: f64,
     pub transform_factor: f64,
     pub transform_copy: bool,
 }
@@ -99,6 +101,8 @@ impl Default for UiState {
             transform_origin: [0.; 3],
             transform_axis: [0., 0., 1.],
             transform_angle: 90.,
+            shear_direction: [1., 0., 0.],
+            shear_angle: 45.,
             transform_factor: 1.,
             transform_copy: false,
         }

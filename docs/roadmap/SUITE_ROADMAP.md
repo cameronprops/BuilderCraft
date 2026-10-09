@@ -115,3 +115,11 @@ from rational span subdivision; objects retain their sizes and parameterization.
 Shared batch work limits, copy, undo/redo, failed-operation preservation and
 `.bcraft` round trips have regression coverage. See
 [command contract](../commands/MANUAL_REBUILD.md) for tolerance, scope and pending options.
+
+## Shear increment
+
+Added original bounded affine shear to the shared exact transform service and
+the numeric transform panel. Copy, undo/redo, rational parameterization and
+project persistence use the existing transaction path. Scope and pending options
+are in `docs/commands/MANUAL_REBUILD.md`. Hosted workflows are now manual-only;
+ordinary source pushes do not schedule GitHub Actions.

@@ -8743,10 +8743,15 @@
       "platform": "windows",
       "path": "commands/shear.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#shear-increment",
+      "native_services": [
+        "geometry3d.transform: shear"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8/help/en-us/commands/shell.htm",
@@ -20421,10 +20426,15 @@
       "platform": "mac",
       "path": "commands/shear.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#shear-increment",
+      "native_services": [
+        "geometry3d.transform: shear"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/shell.htm",

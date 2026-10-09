@@ -310,6 +310,11 @@ fn transform_panel(app: &mut CadApp, ui: &mut egui::Ui) {
         if ui.add_enabled(!ids.is_empty(), egui::Button::new("Mirror selected")).clicked() {
             operation = Some(json!({"kind":"mirror","origin":app.ui.transform_origin,"normal":app.ui.transform_axis}));
         }
+        fields(ui, "Shear direction (perpendicular to normal above)", &mut app.ui.shear_direction);
+        ui.add(egui::DragValue::new(&mut app.ui.shear_angle).prefix("Shear angle °: ").speed(1.));
+        if ui.add_enabled(!ids.is_empty(), egui::Button::new("Shear selected")).clicked() {
+            operation = Some(json!({"kind":"shear","origin":app.ui.transform_origin,"direction":app.ui.shear_direction,"normal":app.ui.transform_axis,"angle_degrees":app.ui.shear_angle}));
+        }
         if let Some(operation) = operation {
             let _ = app.run("geometry3d.transform", json!({"ids":ids,"operation":operation,"copy":app.ui.transform_copy}));
         }
@@ -329,20 +334,38 @@ mod spacing_ui_tests {
                 _ => None,
             }
         }
-        for label in ["Space 1D", "Space 2D", "Space 3D"] {
+        for label in ["Space 1D", "Space 2D", "Space 3D", "Shear selected"] {
             let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
             let result=app.run("nurbs.curve3d",json!({"name":"Spacing fixture","curve":{"degree":1,"control":[{"x":2.,"y":4.,"z":6.},{"x":4.,"y":6.,"z":8.}],"weights":[1.,1.],"knots":[0.,0.,1.,1.]}})).unwrap();
             let id = result["id"].as_u64().unwrap();
             app.session.set_selection(vec![cadcraft_doc::Handle(id)]);
             app.ui.transform_factor = 2.;
             app.ui.transform_origin = [0.; 3];
-            app.ui.transform_axis = [1., 0., 0.];
+            app.ui.transform_axis = if label == "Shear selected" { [0., 0., 1.] } else { [1., 0., 0.] };
             let ctx = egui::Context::default();
             let input =
                 egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(450., 1000.))), ..Default::default() };
             let mut frame = ctx.run_ui(input.clone(), |ui| transform_panel(&mut app, ui));
+            let capture = std::env::var_os("WORLDWRIGHT_UI_CAPTURE").is_some() && label == "Shear selected";
+            if capture {
+                for delta in frame.textures_delta.set.values().flatten() {
+                    let egui::ImageData::Color(texture) = &delta.image;
+                    let pixels = texture.pixels.iter().flat_map(|p| p.to_array()).collect::<Vec<_>>();
+                    image::RgbaImage::from_raw(texture.size[0] as u32, texture.size[1] as u32, pixels)
+                        .unwrap()
+                        .save("/tmp/worldwright-panel-atlas.png")
+                        .unwrap();
+                }
+            }
             frame.textures_delta.clear();
             let mut frame = ctx.run_ui(input.clone(), |ui| transform_panel(&mut app, ui));
+            if capture {
+                let meshes = ctx.tessellate(frame.shapes.clone(), 1.).into_iter().filter_map(|p| {
+                    let egui::epaint::Primitive::Mesh(m) = p.primitive else { return None };
+                    Some(json!({"clip":[p.clip_rect.min.x,p.clip_rect.min.y,p.clip_rect.max.x,p.clip_rect.max.y],"indices":m.indices,"vertices":m.vertices.iter().map(|v| json!([v.pos.x,v.pos.y,v.uv.x,v.uv.y,v.color.to_array()])).collect::<Vec<_>>()}))
+                }).collect::<Vec<_>>();
+                std::fs::write("/tmp/worldwright-panel-meshes.json", serde_json::to_vec(&meshes).unwrap()).unwrap();
+            }
             let pos = frame.shapes.iter().find_map(|s| text_center(&s.shape, label)).unwrap();
             frame.textures_delta.clear();
             for pressed in [true, false] {
@@ -358,9 +381,12 @@ mod spacing_ui_tests {
             let expected = match label {
                 "Space 1D" => [5., 4., 6.],
                 "Space 2D" => [2., 9., 13.],
+                "Shear selected" => [8., 4., 6.],
                 _ => [5., 9., 13.],
             };
-            assert_eq!([c.control[0].x, c.control[0].y, c.control[0].z], expected, "{label}");
+            for (actual, wanted) in [c.control[0].x, c.control[0].y, c.control[0].z].into_iter().zip(expected) {
+                assert!((actual - wanted).abs() < 1e-10, "{label}: {actual} != {wanted}");
+            }
         }
     }
 }

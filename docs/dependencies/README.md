@@ -11,6 +11,7 @@ of trademark clearance. See
 | File | Meaning |
 |---|---|
 | `tool-groups.json` | Reviewed **group-level** dependency DAG, build tiers, modifier-first operation pair plan and provisional classification rules |
+| `kernel-operation-deps.json` | Prerequisite graph for **all 41** registered kernel operations; 23 have an explicit source/dataflow dependency review, 18 await it |
 | `reference-index.json` | All 1,072 Rhino command refs, 817 Grasshopper refs, 110 Kangaroo refs and 2,357 Rhino manual topics given preliminary groups; 4,356 total source rows |
 | `../commands/rhino8.json` | Reference command behavior review and status; authoritative for command parity status |
 | `../commands/manual_inventory.json` | Manual topic review and acceptance evidence; authoritative for reviewed manuals |
@@ -20,7 +21,9 @@ of trademark clearance. See
 | `crates/engine/src/cmd/worldwright_tools.rs` | Worldwright CAD/API commands, calling the **same** kernel dispatcher |
 
 The dependency index is a **build-routing aid, not a verified full hierarchy of
-4,356 individual tool contracts**. It contains classification candidates and
+4,356 individual tool contracts**. By contrast, all 41 currently registered
+kernel operations have explicit DAG entries, with 18 marked source-review
+pending. The dependency graph is validated for cycles and tier ordering. It contains classification candidates and
 more than two thousand unclassified references. Every individual dependency
 must be verified against actual behavior and a test fixture before promotion
 to a reviewed contract. Unclassified items remain explicitly visible rather
@@ -30,6 +33,7 @@ Regenerate or verify the index after updating reference inventories:
 
 ```sh
 python3 tools/build_dependency_index.py --check
+python3 tools/check_paired_tools.py
 python3 tools/build_dependency_index.py --write
 ```
 
@@ -37,6 +41,7 @@ The check uses no network calls or paid GitHub Actions.
 
 ## Dependency ladder (topologically ordered)
 
+| Tier | What we build | Examples |
 |---|---|---|
 | 0 | Typed values, frames/units, IDs/revisions | Numbers, points, validators, units |
 | 1 | Scalar/vector math and typed Calisoga ports | Dot, cross, normalize, amplitude |

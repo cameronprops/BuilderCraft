@@ -45,6 +45,13 @@ silently discard 3D geometry or mesh objects.
 parametric graph engine, after orb-weaving spiders. The native graph
 engine is independently usable and intended to appear embedded in the CAD
 workspace; it executes shared kernel operations with direct CAD commands.
-UI/data-tree parity and a standalone executable remain in development.
+Orb Weaver now supports native data-tree structure operations and explicit
+matching for identical branch paths; Grasshopper-equivalent tree semantics,
+a graphical canvas and a standalone GUI executable remain in development.
 The dependency-first tool hierarchy and mapping register live under
 `docs/dependencies/`. Native Worldwright files remain `.dftba`.
+
+The package name is `orb-weaver`, Rust import name `orb_weaver`, and native
+component namespace `orbweaver.*`. Previous unreleased Calisoga names are
+replaced in source; no migration promise is made for external consumers of
+unreleased internal IDs. Existing Worldwright project files remain `.dftba`.

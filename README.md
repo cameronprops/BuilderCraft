@@ -17,6 +17,22 @@ Start with [suite architecture](docs/architecture/SUITE.md), [delivery roadmap](
 
 A standalone Rust CAD application based on CADCraft, adding a modeling workspace, named model organization, and initial 3D NURBS tools. No AI, account, Rhino license, or internet connection is required to use the application after installation.
 
+## Reproducible development environment
+
+To make the same Rust/Cargo setup available on any compatible development
+machine, open this repository in **VS Code → Dev Containers: Reopen in
+Container**. The checked-in `.devcontainer/` builds an image with Rust
+1.95, Cargo, formatting/lint tools and Linux GUI build dependencies.
+
+`rust-toolchain.toml` pins the version for local rustup installations too.
+Check a native setup with `bash tools/check-worldwright-rust.sh`, then run
+`bash tools/verify-worldwright-kernel.sh` for local tests. **No GitHub Actions
+charges are needed** for this process. GitHub Codespaces may charge separately.
+
+See [Development environments](docs/architecture/DEVELOPMENT_ENVIRONMENT.md).
+ChatGPT's temporary execution containers are not automatically provisioned
+by repository files and may lack Cargo.
+
 ## Run from source
 Requires Rust 1.90 or newer and the normal system dependencies for eframe/wgpu.
 

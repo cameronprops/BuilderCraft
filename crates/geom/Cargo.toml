@@ -8,5 +8,9 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+kurbo-eval = ["dep:kurbo"]
+
 [dependencies]
+kurbo = { version = "0.13.1", default-features = false, optional = true }
 serde = { workspace = true }

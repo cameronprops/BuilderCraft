@@ -372,16 +372,22 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 }
             }
         }
-        // Native polygon wireframe: no destructive triangulation or hidden quad split.
-        // The same face cap is applied by the picker: no invisible pickable faces.
+        // The face budget applies to the whole visible mesh scene, matching
+        // mesh_picking exactly. No hidden face should remain interactive.
+        let mut mesh_faces_remaining = crate::mesh_picking::MAX_VIEWPORT_FACES;
         for object in &d.mesh3d {
             if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible()) {
                 continue;
             }
+            let visible_faces = mesh_faces_remaining.min(object.mesh.faces.len());
+            mesh_faces_remaining -= visible_faces;
+            if visible_faces < object.mesh.faces.len() {
+                preview_limited = true;
+            }
             let picked = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
             let color = if picked { egui::Color32::from_rgb(255, 200, 75) } else { egui::Color32::from_rgb(110, 230, 180) };
             let selected_face_is_current = picked_face_is_current(app, object.id);
-            for (face_index, face) in object.mesh.faces.iter().take(crate::mesh_picking::MAX_VIEWPORT_FACES).enumerate() {
+            for (face_index, face) in object.mesh.faces.iter().take(visible_faces).enumerate() {
                 let highlighted = selected_face_is_current && app.ui.mesh_face_index as usize == face_index;
                 let color = if highlighted { egui::Color32::from_rgb(255, 245, 80) } else { color };
                 let stroke = egui::Stroke::new(if highlighted { 3.0 } else { 1.0 }, color);

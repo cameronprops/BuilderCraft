@@ -8,5 +8,10 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+curvo-eval = ["dep:curvo", "dep:nalgebra"]
+
 [dependencies]
+curvo = { version = "0.3.2", default-features = false, optional = true }
+nalgebra = { version = "0.35", optional = true }
 serde = { workspace = true }

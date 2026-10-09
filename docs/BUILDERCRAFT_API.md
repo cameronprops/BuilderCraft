@@ -260,3 +260,54 @@ Existing version-1 documents without the field still load. Unsupported
 operations such as a future `kernel.solid.extrude` are rejected, not
 silently recorded as functional features. See
 [feature-history examples and rules](architecture/FEATURE_HISTORY.md).
+
+## Revision-bound native 3D geometry handle API (source authored)
+
+A whole-object `GeometryReference` includes `project_id`, `object_id`,
+`source_revision` and a `kind` such as `nurbs_curve`,
+`nurbs_surface` or `polygon_mesh`. Both object identities serialize as
+128-bit hex strings. The geometry itself is not copied into the reference.
+
+Capture a 3D geometry reference, using the current document revision:
+
+```json
+{
+  "command":"worldwright.geometry.ref.capture",
+  "params":{
+    "project_id":"00000000000000000000000000000123",
+    "object_id":400,
+    "expected_revision":1
+  }
+}
+```
+
+The result's `reference` object may be validated later by
+`worldwright.geometry.ref.resolve`:
+
+```json
+{
+  "command":"worldwright.geometry.ref.resolve",
+  "params":{
+    "project_id":"00000000000000000000000000000123",
+    "expected_revision":1,
+    "reference":{
+      "project_id":"00000000000000000000000000000123",
+      "object_id":"00000000000000000000000000000191",
+      "source_revision":1,
+      "kind":"polygon_mesh"
+    }
+  }
+}
+```
+
+The object ID in the reference uses the existing document-handle-plus-one
+projection; native handle 400 corresponds to kernel ID 401, hexadecimal
+`00000000000000000000000000000191`.
+
+The command validates project identity, revision, object existence and exact
+representation kind; it returns metadata (`valid`, `kind`), not a duplicate
+mesh. The caller must reuse the **same project identity** and exact revision
+for a given source document. The current implementation does not persist
+a document-owned project UUID or perform per-object revision tracking.
+Any edit invalidates a previously captured reference. No edge/face
+subelement or automatic OrbWeaver rebinding support is claimed.

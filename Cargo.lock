@@ -692,6 +692,7 @@ dependencies = [
 name = "cadcraft-ui-egui"
 version = "0.1.0"
 dependencies = [
+ "buildercraft-kernel",
  "cadcraft-color",
  "cadcraft-doc",
  "cadcraft-engine",
@@ -720,6 +721,17 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "calisoga"
+version = "0.1.0"
+dependencies = [
+ "buildercraft-kernel",
+ "cadcraft-geom",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

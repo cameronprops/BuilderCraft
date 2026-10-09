@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 41,
-    "explicit_dependencies_mapped": 23,
+    "total": 46,
+    "explicit_dependencies_mapped": 28,
     "pending_source_review": 18,
-    "paired": 10
+    "paired": 15
   },
   "entries": [
     {
@@ -398,6 +398,54 @@
       "dependency_basis": "pending_source_review",
       "registry_category": "geometry",
       "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.tree.validate",
+      "group": "graph.list_tree",
+      "depends_on": [],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "graph",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.tree.flatten",
+      "group": "graph.list_tree",
+      "depends_on": [
+        "kernel.tree.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "graph",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.tree.graft",
+      "group": "graph.list_tree",
+      "depends_on": [
+        "kernel.tree.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "graph",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.tree.simplify",
+      "group": "graph.list_tree",
+      "depends_on": [
+        "kernel.tree.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "graph",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.tree.match",
+      "group": "graph.list_tree",
+      "depends_on": [
+        "kernel.tree.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "graph",
+      "paired_cad_graph": true
     }
   ]
 }

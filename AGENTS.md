@@ -11,9 +11,20 @@
 - Run `bash tools/verify-worldwright-kernel.sh` (or the Windows PowerShell
   equivalent) before claiming build success. **Do not label tests passed**
   unless they actually ran with Rust/Cargo and their results were observed.
-- **GitHub Actions are manual-only by user choice.** Do not add `push` or
-  `pull_request` triggers or trigger hosted runs without permission. Local
-  Dev Containers are preferred. Codespaces can charge separately.
+- **Automatic native CI is authorized for this public repository.** Run Rust
+  formatting, linting, unit/integration tests and native build checks on
+  ordinary `push`/`pull_request` events using **standard GitHub-hosted
+  runners** (e.g. `ubuntu-24.04`, `windows-latest`, `macos-latest`).
+  Standard runners are free on public repositories. When CI fails, inspect
+  the actual GitHub Actions run and logs, fix the code and re-run by pushing.
+  No claims of passing tests without observed successful job conclusions.
+- **Do not use chargeable GitHub larger/GPU runners or Codespaces** without
+  explicit approval. Avoid uploads/caches that exceed free artifact/storage
+  allowances. Keep test workflows least-privileged (`contents: read`),
+  concurrency-cancelled, and bounded with timeouts. Preserve a manual
+  dispatch option. Avoid auto-publishing releases or merging failed PRs.
+  This authorization applies to public BuilderCraft only; re-evaluate
+  costs and permissions if the repository becomes private.
 - ChatGPT conversation containers may be ephemeral and need not provide
   Docker/Rust. Repository setup is reproducible, not a guarantee that an
   unrelated chat runtime is provisioned.
@@ -33,7 +44,7 @@ before claiming parity. For every new pair update the Rust
 `SHARED_TOOLS` contracts and `docs/dependencies/tool-groups.json`,
 add CAD and OrbWeaver tests, run the local inventory/pair consistency scripts,
 and leave entries unvalidated until compilation/conformance tests pass.
-Do not run paid GitHub Actions automatically.
+Run free public-repository standard-runner Actions automatically; never initiate paid runners without explicit approval.
 
 OrbWeaver now has native `DataTree<T>` structure operations in the **shared
 kernel**: `kernel.tree.validate/flatten/graft/simplify/match`. CAD

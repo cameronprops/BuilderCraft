@@ -1,5 +1,5 @@
 //! Typed, host-independent operation contracts shared by Worldwright commands
-//! and Orb Weaver nodes. The algorithm lives in the existing kernel; this module
+//! and OrbWeaver nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
     KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
@@ -341,7 +341,7 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
         _ => Ok(1),
     }
 }
-/// Cost of nested typed values for both CAD/API and Orb Weaver graph limits.
+/// Cost of nested typed values for both CAD/API and OrbWeaver graph limits.
 /// Limits are abstract item units, not an RSS/byte guarantee.
 pub fn shared_tool_value_cost(value: &ToolValue) -> Result<usize> {
     value_cost(value, 0)

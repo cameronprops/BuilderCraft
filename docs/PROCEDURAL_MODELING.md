@@ -1,32 +1,43 @@
 # Orb Weaver — Worldwright's open-source parametric graph
 
-**Orb Weaver** is the embedded and independently usable parametric graph engine
-for Worldwright. Its name comes from orb-weaving spiders. The core is
-host-independent; a visual graph canvas embedded in the CAD workspace and a
-standalone Graph app are future presentation layers over the same evaluator.
+**Orb Weaver** is Worldwright's native Grasshopper-style parametric graph
+environment, named for orb-weaving spiders. The current headless Rust library
+lives in `crates/orb-weaver` (package `orb-weaver`, code import
+`orb_weaver`, node IDs `orbweaver.*`). Its graphic canvas inside Worldwright
+and its standalone GUI executable are future presentation layers.
 
-## Native source implemented (pending local compilation)
+## Shared native functionality (Rust build pending)
 
-- `crates/orb-weaver` — versioned, serializable directed graphs with typed
-  literal or linked ports, deterministic dependency-ordered evaluation, cycle
-  detection, bounded graphs and typed error propagation.
-- `crates/kernel/src/shared_tools.rs` — 10 typed contracts and a shared
-  dispatcher to the **same kernel operations** used by Worldwright CAD tools.
-- `crates/engine/src/cmd/worldwright_tools.rs` — direct CAD/API command IDs
-  for those 10 operations and generic typed execution/discovery.
-- Modifier ports `t`, `count` and `spacing` parametrize existing
-  algorithms instead of spawning duplicate geometry implementations.
-- `docs/dependencies/` — group-level dependency DAG, full reference
-  coverage index, classifications and the shared operation pair plan.
+- Versioned, serializable typed DAGs with literal and linked ports,
+  deterministic evaluation, cycle/type checks and bounded resource usage.
+- **15 paired native CAD/Orb Weaver operations** using one shared kernel
+  dispatcher: ten point/vector/polyline functions plus five data-tree tools.
+- Native data trees with ordered branch paths `{0;2;1}`, preserved empty
+  branches, explicit validation and 250,000-item / 4,096-branch bounds.
+- Shared tree **Validate, Flatten, Graft, Simplify, Match** operations.
+  Matching supports **shortest**, **longest** (repeat last value), and
+  **cross-reference** (Cartesian product) via an explicit modifier.
+- Orb Weaver nodes can link the output tree of one node to another. Data-tree
+  operations are identical through Worldwright CAD/API command IDs.
+- Local scripts compare 46 kernel-operation DAG entries, 15 paired contracts,
+  and 4,356 catalogued source references without invoking GitHub Actions.
 
-This **does not** implement Grasshopper tree matching, list access, graft,
-flatten, previews/bake, parameter UI, graph canvas, solver, persistent
-world-document graph links, or exact reference component parity. The 817
-Grasshopper and 110 Kangaroo reference entries retain their prior status
-until native test and reference-conformance gates pass.
+## Explicit current limitations
 
-Read [the dependency mapping](dependencies/README.md), the
-[component inventory](components/README.md) and
-[the delivery roadmap](roadmap/SUITE_ROADMAP.md). A native Orb Weaver graph
-must not require a licensed Rhino or Grasshopper host. The planned CAD
-canvas must call this same graph engine rather than duplicate it.
+- Strict **identical-branch-path** matching only. Implicit Grasshopper path
+  expansion, hierarchical alignment, graft/flatten metadata, and tree-item
+  broadcasting into every numeric CAD operation are not yet implemented.
+- Structural tree operations are initial native subsets; they do not establish
+  exact Grasshopper component/option parity.
+- No visual graph canvas, graph persistence inside `.dftba`, preview/bake,
+  geometry reference ports, expressions, Kangaroo-type solver or standalone
+  native GUI app.
+- These Rust modules and tests were authored but **not yet compiled or run**
+  against Cargo; do not mark catalog entries as tested or verified.
+
+See [dependency order and paired operations](dependencies/README.md),
+[component inventory](components/README.md),
+and [delivery roadmap](roadmap/SUITE_ROADMAP.md).
+`cargo run -p orb-weaver --example paired_tree` demonstrates a headless
+CAD/graph tree equivalence check when a local Rust environment is available.
+A Rhino/Grasshopper license is never required for Orb Weaver.

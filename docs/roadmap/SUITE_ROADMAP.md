@@ -201,3 +201,15 @@ It evaluates already-implemented shared kernel operations and saves recipes
 inside `.dftba`. An **initial 3D workspace timeline panel** now exposes enable, inspect, reorder, suppression, rollback and editing of basic local values. This is **not** a full visual feature-authoring or functioning sketch-to-solid mechanical modeler. Next: stable versioned geometry
 references, dimension expressions, constraint-driven sketch profiles and
 shared extrude/revolve/hole/fillet kernels, then previews and UI/bake.
+
+### Revision-bound geometry references, initial implementation
+
+The next feature-history prerequisite now has source for typed scene and CAD
+3D object references: project ID, object ID, scene/document revision and
+representation kind. Immutable Scene geometry leases are reused, and
+capture/resolve metadata commands are wired to the CAD API. The machine
+feature register now counts **nine** source-authored contracts and **51**
+planned feature/modeling capabilities (60 total). Reference correctness and
+serialization tests are authored but uncompiled. Stable subelement names,
+per-object revisions, project UUID persistence, and automatic graph/feature
+rebinding remain planned and must precede serious sketch/solid histories.

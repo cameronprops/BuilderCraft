@@ -2,7 +2,7 @@
 //! and Calisoga nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
-    KernelError, Result, operation_by_id, point_distance, point_midpoint,
+    KernelError, Result, point_distance, point_midpoint,
     point_interpolate, vector_length, vector_normalize, vector_dot,
     vector_cross, polyline_length, polyline_divide_count,
     polyline_divide_distance,
@@ -180,7 +180,7 @@ pub fn shared_tool(operation: &str) -> Option<&'static SharedToolContract> {
     })
 }
 
-fn point<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<Vec3> {
+fn point(inputs: &BTreeMap<String, ToolValue>, name: &str) -> Result<Vec3> {
     match inputs.get(name) {
         Some(ToolValue::Point(value)) => Ok(*value),
         _ => Err(KernelError::Invalid("point input")),
@@ -278,7 +278,7 @@ mod tests {
         let mut cad = std::collections::BTreeSet::new();
         let mut graph = std::collections::BTreeSet::new();
         for tool in SHARED_TOOLS {
-            assert!(operation_by_id(tool.operation).is_some());
+            assert!(crate::operation_by_id(tool.operation).is_some());
             assert!(operations.insert(tool.operation));
             assert!(cad.insert(tool.cad_command));
             assert!(graph.insert(tool.calisoga_node));

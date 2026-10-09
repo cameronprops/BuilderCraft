@@ -69,7 +69,7 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
         "ui.saveas" | "saveas" if no_path => {
             let name = app.session.state().map(|s| s.title.clone()).unwrap_or_else(|_| "Drawing.dxf".into());
             let name = if app.ui.buildercraft_workspace {
-                std::path::Path::new(&name).with_extension("bcraft").to_string_lossy().to_string()
+                std::path::Path::new(&name).with_extension("dftba").to_string_lossy().to_string()
             } else if name.contains('.') {
                 name
             } else {

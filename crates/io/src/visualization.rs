@@ -50,7 +50,7 @@ fn key(points: &[[f64; 3]], triangles: &[[u32; 3]], polyline: bool) -> String {
 }
 pub fn snapshot(drawing: &Drawing, project_id: Id, revision: u64, options: TessellationOptions, cancel: &Cancellation) -> Result<Snapshot> {
     cancel.check().map_err(|e| bad(e.to_string()))?;
-    if drawing.organization.nodes.len() + drawing.geometry3d.len() > 256 {
+    if drawing.organization.nodes.len().checked_add(drawing.geometry3d.len()).and_then(|n| n.checked_add(drawing.mesh3d.len())).is_none_or(|n| n > 256) {
         return Err(bad("visualization object limit (256)"));
     }
     let manifest = cadcraft_doc::kernel::manifest(drawing, project_id, revision, 16 * 1024 * 1024).map_err(|e| bad(e.to_string()))?;
@@ -107,6 +107,36 @@ pub fn snapshot(drawing: &Drawing, project_id: Id, revision: u64, options: Tesse
         // Source RH to target LH conversion reflects an axis: reverse winding.
         output.triangles = faces.iter().map(|f| [f[0], f[2], f[1]]).collect();
         output.geometry_key = key(&output.positions, &output.triangles, polyline);
+    }
+    // Native polygon meshes retain quad identity in the CAD document.
+    // Triangulation is strictly a derived visualization representation.
+    for object in &drawing.mesh3d {
+        cancel.check().map_err(|e| bad(e.to_string()))?;
+        let id = Id::new(u128::from(object.id) + 1).map_err(|e| bad(e.to_string()))?;
+        let output = objects.iter_mut().find(|o| o.id == id)
+            .ok_or_else(|| bad("missing polygon scene identity"))?;
+        output.visible &= drawing.layer(&object.layer).is_none_or(|l| l.visible());
+        if object.mesh.faces.is_empty() {
+            continue;
+        }
+        let triangulated = buildercraft_kernel::polygon_mesh_triangulate(&object.mesh)
+            .map_err(|e| bad(e.to_string()))?;
+        let mesh = triangulated.mesh;
+        total_points = total_points.checked_add(mesh.vertices.len()).ok_or_else(|| bad("point overflow"))?;
+        total_faces = total_faces.checked_add(mesh.triangles.len()).ok_or_else(|| bad("triangle overflow"))?;
+        if total_points > 50000 || total_faces > 100000 {
+            return Err(bad("aggregate visualization sample limit"));
+        }
+        for point in &mesh.vertices {
+            cancel.check().map_err(|e| bad(e.to_string()))?;
+            let p = manifest.frame.convert_point(target, *point).map_err(|e| bad(e.to_string()))?;
+            if [p.x, p.y, p.z].iter().any(|n| n.abs() > 1e7) {
+                return Err(bad("visualization needs a local origin for large coordinates"));
+            }
+            output.positions.push([p.x, p.y, p.z]);
+        }
+        output.triangles = mesh.triangles.iter().map(|f| [f[0], f[2], f[1]]).collect();
+        output.geometry_key = key(&output.positions, &output.triangles, false);
     }
     drawing.production.validate().map_err(|e| bad(e.to_string()))?;
     let mut diagnostics = if drawing.entity_count() > 0 { vec!["Inherited 2D drafting is excluded from this 3D feed".into()] } else { Vec::new() };

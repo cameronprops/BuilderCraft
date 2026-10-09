@@ -6,7 +6,7 @@ use serde_json::json;
 pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
     egui::Panel::top("buildercraft_workspace").exact_size(28.0).show(ui, |ui| {
         ui.horizontal(|ui| {
-            ui.strong("BuilderCraft");
+            ui.strong("Worldwright");
             if ui.selectable_value(&mut app.ui.view3d, true, "3D").clicked() {
                 app.ui.toolset_tab = "Modeling".into();
             }
@@ -88,6 +88,65 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             let _ = app.run("geometry3d.set", json!({"id":object.id,"visible":visible}));
         }
     }
+    let meshes = app.session.doc().map(|d| d.mesh3d.clone()).unwrap_or_default();
+    for object in meshes {
+        let selected = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
+        if ui.selectable_label(selected, format!("Polygon mesh: {}", object.name)).clicked() {
+            app.session.set_selection(vec![cadcraft_doc::Handle(object.id)]);
+        }
+        let mut name = object.name.clone();
+        if ui.text_edit_singleline(&mut name).lost_focus() && name != object.name {
+            let _ = app.run("mesh3d.set", json!({"id":object.id,"name":name}));
+        }
+        let mut visible = object.visible;
+        if ui.checkbox(&mut visible, "Visible").changed() {
+            let _ = app.run("mesh3d.set", json!({"id":object.id,"visible":visible}));
+        }
+        egui::CollapsingHeader::new("Polygon mesh repair")
+            .id_salt(("mesh", object.id))
+            .show(ui, |ui| {
+                ui.label(format!("{} vertices, {} native faces", object.mesh.vertices.len(), object.mesh.faces.len()));
+                ui.small("Numeric face editing; viewport face picking is still in development.");
+                ui.horizontal(|ui| {
+                    ui.label("Face:");
+                    ui.add(egui::DragValue::new(&mut app.ui.mesh_face_index)
+                        .range(0..=object.mesh.faces.len().saturating_sub(1) as u32));
+                    if ui.add_enabled(!object.mesh.faces.is_empty(), egui::Button::new("Delete face")).clicked() {
+                        if let Ok(state) = app.session.state() {
+                            let revision = state.revision;
+                            let _ = app.run("mesh3d.edit", json!({
+                                "id":object.id,
+                                "edit":{
+                                    "kind":"delete_faces",
+                                    "selected_revision":revision,
+                                    "selected_faces":[app.ui.mesh_face_index]
+                                }
+                            }));
+                        }
+                    }
+                });
+                if let Ok(report) = buildercraft_kernel::polygon_mesh_boundary_loops(&object.mesh) {
+                    if !report.unresolved_edges.is_empty() {
+                        ui.label("Some boundary edges are ambiguous; repair these before hole filling.");
+                    }
+                    for (index, loop_data) in report.closed_loops.iter().enumerate().take(16) {
+                        if ui.button(format!("Fill planar inner loop {} ({} vertices)", index, loop_data.vertices.len())).clicked() {
+                            if let Ok(state) = app.session.state() {
+                                let revision = state.revision;
+                                let _ = app.run("mesh3d.edit", json!({
+                                    "id":object.id,
+                                    "edit":{
+                                        "kind":"fill_planar_hole",
+                                        "selected_revision":revision,
+                                        "loop_index":index
+                                    }
+                                }));
+                            }
+                        }
+                    }
+                }
+            });
+    }
     transform_panel(app, ui);
     ui.separator();
 }
@@ -132,6 +191,9 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
         }
         if ui.button("New control surface").clicked() {
             let _ = new_surface(app);
+        }
+        if ui.button("New editable mesh").clicked() {
+            let _ = new_mesh_sample(app);
         }
     });
     ui.horizontal_wrapped(|ui| {
@@ -215,6 +277,27 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 }
             }
         }
+        // Native polygon wireframe: no destructive triangulation or hidden quad split.
+        // The cap prevents an accidental 100k-face scan from freezing the UI painter.
+        for object in &d.mesh3d {
+            if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible()) {
+                continue;
+            }
+            let picked = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
+            let color = if picked {
+                egui::Color32::from_rgb(255, 200, 75)
+            } else {
+                egui::Color32::from_rgb(110, 230, 180)
+            };
+            for face in object.mesh.faces.iter().take(15_000) {
+                let corners = face.indices();
+                for side in 0..corners.len() {
+                    let a = object.mesh.vertices[corners[side] as usize];
+                    let b = object.mesh.vertices[corners[(side + 1) % corners.len()] as usize];
+                    line(a, b, color);
+                }
+            }
+        }
     }
     crate::cmdline::keyboard(app, ui.ctx());
 }
@@ -230,6 +313,30 @@ pub fn new_surface(app: &mut CadApp) -> Result<serde_json::Value, String> {
         "nurbs.surface",
         json!({"name":"Control surface","surface":{"rows":[row(-10.,0.),row(0.,18.),row(10.,0.)],"degree_v":2,"knots_v":[0.,0.,0.,1.,1.,1.]}}),
     )
+}
+
+/// A small polygon ring that can be filled, undone and saved as .bcraft.
+pub fn new_mesh_sample(app: &mut CadApp) -> Result<serde_json::Value, String> {
+    app.ui.view3d = true;
+    let result = app.run("mesh3d.create", json!({
+        "name":"Editable mesh ring",
+        "mesh":{
+            "vertices":[
+                {"x":-8.,"y":-8.,"z":0.},{"x":8.,"y":-8.,"z":0.},
+                {"x":8.,"y":8.,"z":0.},{"x":-8.,"y":8.,"z":0.},
+                {"x":-3.,"y":-3.,"z":0.},{"x":3.,"y":-3.,"z":0.},
+                {"x":3.,"y":3.,"z":0.},{"x":-3.,"y":3.,"z":0.}
+            ],
+            "faces":[
+                {"quad":[0,1,5,4]},{"quad":[1,2,6,5]},
+                {"quad":[2,3,7,6]},{"quad":[3,0,4,7]}
+            ]
+        }
+    }))?;
+    if let Some(id) = result["id"].as_u64() {
+        app.session.set_selection(vec![cadcraft_doc::Handle(id)]);
+    }
+    Ok(result)
 }
 
 /// UI camera commands do not change drawing geometry or document undo history.
@@ -253,6 +360,9 @@ pub fn camera_command(app: &mut CadApp, id: &str) -> Result<serde_json::Value, S
             };
             rows.flat_map(|c| c.control.iter().copied())
         });
+        let points = points.chain(d.mesh3d.iter()
+            .filter(|o| o.visible && d.layer(&o.layer).is_none_or(|l| l.visible()))
+            .flat_map(|o| o.mesh.vertices.iter().copied()));
         let frame = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
         let (center, scale) = frame
             .fit(points, app.session.viewport_px.0, app.session.viewport_px.1)

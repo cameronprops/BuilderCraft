@@ -2,7 +2,7 @@
 //! and OrbWeaver nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
-    KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
+    GeometryReference, KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
     tree_flatten, tree_graft, tree_simplify, tree_match, tree_validate,
     MAX_TREE_ITEMS,
     point_distance, point_midpoint,
@@ -25,6 +25,7 @@ pub enum ToolType {
     Tree,
     MatchMode,
     Pair,
+    GeometryReference,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -39,6 +40,8 @@ pub enum ToolValue {
     Tree(DataTree<ToolValue>),
     MatchMode(TreeMatchPolicy),
     Pair(Box<(ToolValue, ToolValue)>),
+    /// Immutable project/object/revision handle. Resolution requires a scene.
+    GeometryReference(GeometryReference),
 }
 
 impl ToolValue {
@@ -52,6 +55,7 @@ impl ToolValue {
             Self::Tree(_) => ToolType::Tree,
             Self::MatchMode(_) => ToolType::MatchMode,
             Self::Pair(_) => ToolType::Pair,
+            Self::GeometryReference(_) => ToolType::GeometryReference,
         }
     }
 }

@@ -315,6 +315,18 @@ fn transform_panel(app: &mut CadApp, ui: &mut egui::Ui) {
         if ui.add_enabled(!ids.is_empty(), egui::Button::new("Shear selected")).clicked() {
             operation = Some(json!({"kind":"shear","origin":app.ui.transform_origin,"direction":app.ui.shear_direction,"normal":app.ui.transform_axis,"angle_degrees":app.ui.shear_angle}));
         }
+        egui::CollapsingHeader::new("Orient by three points").default_open(true).show(ui, |ui| {
+            for (i, value) in app.ui.orient_source.iter_mut().enumerate() {
+                fields(ui, &format!("Source point {}", i + 1), value);
+            }
+            for (i, value) in app.ui.orient_target.iter_mut().enumerate() {
+                fields(ui, &format!("Target point {}", i + 1), value);
+            }
+            ui.checkbox(&mut app.ui.orient_scale, "Scale using first two points");
+            if ui.add_enabled(!ids.is_empty(), egui::Button::new("Orient3Pt selected")).clicked() {
+                operation = Some(json!({"kind":"orient3pt","source":app.ui.orient_source,"target":app.ui.orient_target,"scale":app.ui.orient_scale}));
+            }
+        });
         if let Some(operation) = operation {
             let _ = app.run("geometry3d.transform", json!({"ids":ids,"operation":operation,"copy":app.ui.transform_copy}));
         }
@@ -334,7 +346,7 @@ mod spacing_ui_tests {
                 _ => None,
             }
         }
-        for label in ["Space 1D", "Space 2D", "Space 3D", "Shear selected"] {
+        for label in ["Space 1D", "Space 2D", "Space 3D", "Shear selected", "Orient3Pt selected"] {
             let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
             let result=app.run("nurbs.curve3d",json!({"name":"Spacing fixture","curve":{"degree":1,"control":[{"x":2.,"y":4.,"z":6.},{"x":4.,"y":6.,"z":8.}],"weights":[1.,1.],"knots":[0.,0.,1.,1.]}})).unwrap();
             let id = result["id"].as_u64().unwrap();
@@ -342,11 +354,12 @@ mod spacing_ui_tests {
             app.ui.transform_factor = 2.;
             app.ui.transform_origin = [0.; 3];
             app.ui.transform_axis = if label == "Shear selected" { [0., 0., 1.] } else { [1., 0., 0.] };
+            app.ui.orient_target = [[0., 0., 0.], [0., 1., 0.], [-1., 0., 0.]];
             let ctx = egui::Context::default();
             let input =
                 egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(450., 1000.))), ..Default::default() };
             let mut frame = ctx.run_ui(input.clone(), |ui| transform_panel(&mut app, ui));
-            let capture = std::env::var_os("WORLDWRIGHT_UI_CAPTURE").is_some() && label == "Shear selected";
+            let capture = std::env::var_os("WORLDWRIGHT_UI_CAPTURE").is_some() && label == "Orient3Pt selected";
             if capture {
                 for delta in frame.textures_delta.set.values().flatten() {
                     let egui::ImageData::Color(texture) = &delta.image;
@@ -382,6 +395,7 @@ mod spacing_ui_tests {
                 "Space 1D" => [5., 4., 6.],
                 "Space 2D" => [2., 9., 13.],
                 "Shear selected" => [8., 4., 6.],
+                "Orient3Pt selected" => [-4., 2., 6.],
                 _ => [5., 9., 13.],
             };
             for (actual, wanted) in [c.control[0].x, c.control[0].y, c.control[0].z].into_iter().zip(expected) {

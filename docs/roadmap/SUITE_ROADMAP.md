@@ -123,3 +123,11 @@ the numeric transform panel. Copy, undo/redo, rational parameterization and
 project persistence use the existing transaction path. Scope and pending options
 are in `docs/commands/MANUAL_REBUILD.md`. Hosted workflows are now manual-only;
 ordinary source pushes do not schedule GitHub Actions.
+
+## Orient3Pt increment
+
+Added original three-point frame orientation to the shared exact transform
+service and numeric UI, with optional first-edge uniform scaling. Existing copy,
+undo/redo, resource limits and project persistence apply. Exact rational curves
+and control surfaces only; reference picking and other representations remain
+pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.

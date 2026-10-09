@@ -75,3 +75,13 @@ The shared work budget rejects cases that do not converge. See
 The normal defines the fixed plane; direction lies in that plane. Signed angle
 is strictly between -89 and 89 degrees. Exact curves/control surfaces only.
 Unsupported options are rejected. Copy, atomic undo/redo and persistence apply.
+
+### Three-point orientation
+
+```json
+{"command":"geometry3d.transform","params":{"ids":[42],"operation":{"kind":"orient3pt","source":[[0,0,0],[1,0,0],[0,1,0]],"target":[[10,20,30],[10,22,30],[9,20,30]],"scale":true},"copy":false}}
+```
+
+Scale defaults to false; when true it uses only the first-edge length ratio.
+The third point defines plane orientation. Exact curves/control surfaces only.
+Invalid/near-collinear triples and unsupported options reject atomically.

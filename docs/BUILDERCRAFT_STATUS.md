@@ -70,3 +70,16 @@ Validation: 378 workspace tests and all six `cargo xtask ci` gates passed on
 Rust 1.95. Headless clicks and the rendered transform panel were verified.
 Local validation used dependency opt-level 0, one codegen unit and disabled
 incremental compilation; shipped build profiles remain unchanged.
+
+## Orient3Pt increment
+
+Added original three-point frame orientation to the shared exact transform
+service and numeric UI, with optional first-edge uniform scaling. Existing copy,
+undo/redo, resource limits and project persistence apply. Exact rational curves
+and control surfaces only; reference picking and other representations remain
+pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
+
+Validation: 381 workspace tests and all six local `cargo xtask ci` gates passed
+on Rust 1.95, including the final overflow regression. Headless clicks and the
+rendered numeric panel were inspected. Local validation uses opt-level 0, one
+codegen unit and disabled incremental compilation; shipped profiles are unchanged.

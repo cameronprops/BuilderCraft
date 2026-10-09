@@ -168,3 +168,27 @@ Windows and Mac official Shear pages reviewed; their option lists differ.
 Original numerical fixtures cover fixed-plane points, signed inverse, oblique
 frames, rational evaluation, surface edits, hostile inputs, copies, undo/redo,
 project round trips and actual headless button clicks.
+
+## Orient3Pt increment
+
+`geometry3d.transform` accepts `orient3pt` with three world-space `source` and
+three `target` points plus optional `scale` (boolean, default false). The first
+point is the origin, the first-to-second direction defines X, and the third
+point determines the right-handed plane orientation. Without Scale, dimensions
+are preserved. With Scale, uniform size follows the ratio of target/source
+first-edge lengths; the third point never introduces nonuniform scaling or
+shear. The full third source point need not land on the third target point.
+
+Both point triples must have first/third edges at least 1e-9 model units and
+angular sine at least 1e-9. All points must be finite within 1e12 units; scale
+ratios must be 1e-9 through 1e9. Degenerate frames, unsupported fields and output
+coordinate overflow reject before mutation. Existing batch, copy, cancellation,
+retained-byte limits, undo/redo and persistence apply. Weights, degrees and knots
+are preserved for exact rational curves and control surfaces.
+
+Numeric UI includes all six reference points, a Scale checkbox and Orient3Pt
+button. Viewport reference picking, remembered Copy and meshes/Breps/SubD remain
+pending. Windows and Mac reference pages were reviewed. Evidence covers known
+3D placements, handedness, inverse transforms, third-point scale independence,
+rational evaluation, surface transforms, hostile frames, copy, undo, persistence
+and actual headless button clicks.

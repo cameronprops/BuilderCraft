@@ -5507,10 +5507,15 @@
       "platform": "windows",
       "path": "commands/orient3pt.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#orient3pt-increment",
+      "native_services": [
+        "geometry3d.transform: orient3pt"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8/help/en-us/commands/orientcameratosrf.htm",
@@ -17270,10 +17275,15 @@
       "platform": "mac",
       "path": "commands/orient3pt.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#orient3pt-increment",
+      "native_services": [
+        "geometry3d.transform: orient3pt"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/orientcameratosrf.htm",

@@ -39,7 +39,7 @@ pub struct Node {
     /// Branch-wise item matching; additive default keeps version-1 graphs
     /// readable without rewriting existing serialized nodes.
     #[serde(default)]
-    pub match_policy: TreeMatchPolicy,
+    pub matching: TreeMatchPolicy,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -175,7 +175,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
             let value = execute_shared_tool_with_matching(&ToolRequest {
                 operation: contract.operation.into(),
                 inputs,
-            }, node.match_policy)?;
+            }, node.matching)?;
             retained_items = retained_items.checked_add(shared_tool_value_cost(&value)?)
                 .ok_or(GraphError::Budget)?;
             if retained_items > MAX_GRAPH_VALUE_ITEMS {
@@ -215,7 +215,7 @@ mod tests {
     fn dist(id: u64, a: Vec3, b: Vec3) -> Node {
         Node {
             id,
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.point.distance".into(),
             inputs: BTreeMap::from([
                 ("a".into(), constant(Point(a))),
@@ -243,7 +243,7 @@ mod tests {
     fn chained_vector_nodes_use_one_kernel_implementation() {
         let normalized = Node {
             id: 3,
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.normalize".into(),
             inputs: BTreeMap::from([
                 ("v".into(), constant(Vector(Vec3::new(3., 4., 0.)))),
@@ -251,7 +251,7 @@ mod tests {
         };
         let length = Node {
             id: 9,
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.length".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output { node: 3 }),
@@ -274,7 +274,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 4,
-                match_policy: TreeMatchPolicy::Shortest,
+                matching: TreeMatchPolicy::Shortest,
                 component: "orbweaver.polyline.divide_count".into(),
                 inputs: BTreeMap::from([
                     ("points".into(), constant(Polyline(vec![
@@ -298,7 +298,7 @@ mod tests {
     fn cycles_and_dangling_references_are_errors() {
         let n = |id, predecessor| Node {
             id,
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.normalize".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output {node:predecessor}),
@@ -313,7 +313,7 @@ mod tests {
     fn connection_type_checks_run_before_evaluation() {
         let n = Node {
             id: 2,
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.length".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output { node: 1 }),
@@ -336,7 +336,7 @@ mod tests {
                 dist(1, Vec3::ZERO, Vec3::new(1., 0., 0.)),
                 Node {
                     id: 2,
-                    match_policy: TreeMatchPolicy::Shortest,
+                    matching: TreeMatchPolicy::Shortest,
                     component: "orbweaver.polyline.divide_count".into(),
                     inputs: BTreeMap::from([
                         ("points".into(), constant(Polyline(vec![
@@ -367,7 +367,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 5,
-                match_policy: TreeMatchPolicy::Shortest,
+                matching: TreeMatchPolicy::Shortest,
                 component: "orbweaver.polyline.length".into(),
                 inputs: BTreeMap::from([
                     ("points".into(), constant(Polyline(samples))),
@@ -392,7 +392,7 @@ mod tests {
             nodes: vec![
                 Node {
                     id: 2,
-                    match_policy: TreeMatchPolicy::Shortest,
+                    matching: TreeMatchPolicy::Shortest,
                     component: "orbweaver.tree.flatten".into(),
                     inputs: BTreeMap::from([(
                         "tree".into(), InputBinding::Output {node: 1},
@@ -400,7 +400,7 @@ mod tests {
                 },
                 Node {
                     id: 1,
-                    match_policy: TreeMatchPolicy::Shortest,
+                    matching: TreeMatchPolicy::Shortest,
                     component: "orbweaver.tree.graft".into(),
                     inputs: BTreeMap::from([(
                         "tree".into(), constant(start),
@@ -431,7 +431,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 7,
-                match_policy: TreeMatchPolicy::Shortest,
+                matching: TreeMatchPolicy::Shortest,
                 component: "orbweaver.tree.match".into(),
                 inputs: BTreeMap::from([
                     ("a".into(), constant(tree(vec![Number(1.), Number(2.)]))),
@@ -458,7 +458,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 1,
-                match_policy: TreeMatchPolicy::Shortest,
+                matching: TreeMatchPolicy::Shortest,
                 component: "orbweaver.tree.flatten".into(),
                 inputs: BTreeMap::from([(
                     "tree".into(),
@@ -494,7 +494,7 @@ mod tests {
         let distance = Node {
             id: 1,
             component: "orbweaver.point.distance".into(),
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             inputs: BTreeMap::from([
                 ("a".into(), constant(source)),
                 ("b".into(), constant(Point(Vec3::ZERO))),
@@ -503,7 +503,7 @@ mod tests {
         let flatten = Node {
             id: 2,
             component: "orbweaver.tree.flatten".into(),
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             inputs: BTreeMap::from([(
                 "tree".into(), InputBinding::Output { node: 1 },
             )]),
@@ -535,7 +535,7 @@ mod tests {
         let node = Node {
             id: 11,
             component: "orbweaver.point.distance".into(),
-            match_policy: TreeMatchPolicy::CrossReference,
+            matching: TreeMatchPolicy::CrossReference,
             inputs: inputs.iter().map(|(name, value)| (
                 name.clone(), constant(value.clone()),
             )).collect(),
@@ -566,9 +566,9 @@ mod tests {
         };
         let mut encoded = serde_json::to_value(&graph).unwrap();
         let nodes = encoded["nodes"].as_array_mut().unwrap();
-        nodes[0].as_object_mut().unwrap().remove("match_policy");
+        nodes[0].as_object_mut().unwrap().remove("matching");
         let decoded: Graph = serde_json::from_value(encoded).unwrap();
-        assert_eq!(decoded.nodes[0].match_policy, TreeMatchPolicy::Shortest);
+        assert_eq!(decoded.nodes[0].matching, TreeMatchPolicy::Shortest);
         assert_eq!(evaluate(&graph), evaluate(&decoded));
     }
 

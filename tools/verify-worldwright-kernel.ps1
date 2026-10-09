@@ -18,7 +18,7 @@ try {
     & $python.Source @pythonArgs tools/build_dependency_index.py --check
     if ($LASTEXITCODE -ne 0) { throw "Dependency index check failed." }
 
-    Write-Host "Checking: shared CAD/Orb Weaver contract consistency"
+    Write-Host "Checking: shared CAD/OrbWeaver contract consistency"
     & $python.Source @pythonArgs tools/check_paired_tools.py
     if ($LASTEXITCODE -ne 0) { throw "Paired tool check failed." }
 
@@ -27,7 +27,7 @@ try {
         [pscustomobject]@{Name = "Mesh scene integration"; Args = @("test", "--locked", "-p", "buildercraft-kernel", "--test", "mesh_scene")}
         [pscustomobject]@{Name = "Shared kernel"; Args = @("test", "--locked", "-p", "buildercraft-kernel")}
         [pscustomobject]@{Name = "CAD document, I/O, engine and UI"; Args = @("test", "--locked", "-p", "cadcraft-doc", "-p", "cadcraft-io", "-p", "cadcraft-engine", "-p", "cadcraft-ui-egui")}
-        [pscustomobject]@{Name = "Orb Weaver shared graph"; Args = @("test", "--locked", "-p", "orb-weaver")}
+        [pscustomobject]@{Name = "OrbWeaver shared graph"; Args = @("test", "--locked", "-p", "orbweaver")}
         [pscustomobject]@{Name = "Kernel clippy"; Args = @("clippy", "--locked", "-p", "buildercraft-kernel", "--all-targets", "--", "-D", "warnings")}
     )
     foreach ($check in $checks) {

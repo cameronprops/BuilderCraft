@@ -1,6 +1,6 @@
-# Worldwright + Orb Weaver: dependency-first tool building
+# Worldwright + OrbWeaver: dependency-first tool building
 
-**Orb Weaver** is the planned, native and independently runnable Grasshopper-style
+**OrbWeaver** is the planned, native and independently runnable Grasshopper-style
 parametric graph environment in Worldwright. The name is taken from the familiar orb-weaving spiders. It is a working
 product name; trademark clearance has not been performed.
 
@@ -14,8 +14,8 @@ product name; trademark clearance has not been performed.
 | `../commands/rhino8.json` | Reference command behavior review and status; authoritative for command parity status |
 | `../commands/manual_inventory.json` | Manual topic review and acceptance evidence; authoritative for reviewed manuals |
 | `../components/grasshopper1-kangaroo2.json` | Graph reference components and parity contracts; authoritative for native component status |
-| `crates/kernel/src/shared_tools.rs` | **Executable** typed operation contracts and dispatcher for paired CAD and Orb Weaver nodes; new source of truth for the initial tool pairs |
-| `crates/orb-weaver/src/lib.rs` | Native graph execution with typed inputs and deterministic topological evaluation |
+| `crates/kernel/src/shared_tools.rs` | **Executable** typed operation contracts and dispatcher for paired CAD and OrbWeaver nodes; new source of truth for the initial tool pairs |
+| `crates/orbweaver/src/lib.rs` | Native graph execution with typed inputs and deterministic topological evaluation |
 | `crates/engine/src/cmd/worldwright_tools.rs` | Worldwright CAD/API commands, calling the **same** kernel dispatcher |
 
 The dependency index is a **build-routing aid, not a verified full hierarchy of
@@ -42,7 +42,7 @@ The check uses no network calls or paid GitHub Actions.
 | Tier | What we build | Examples |
 |---|---|---|
 | 0 | Typed values, frames/units, IDs/revisions | Numbers, points, validators, units |
-| 1 | Scalar/vector math and typed Orb Weaver ports | Dot, cross, normalize, amplitude |
+| 1 | Scalar/vector math and typed OrbWeaver ports | Dot, cross, normalize, amplitude |
 | 2 | Point geometry and graph DAG execution | Distance, midpoint, interpolation |
 | 3 | Polyline geometry, transforms, graph list/tree skeleton | Segment length, divide by count/distance |
 | 4 | Curves, triangle/quad mesh, selection | Curve evaluation and mesh construction |
@@ -54,7 +54,7 @@ The check uses no network calls or paid GitHub Actions.
 The tier labels are coarse execution ordering. The actual validated DAG is
 `tool-groups.json`, where each group lists its prerequisite IDs. Independent
 branches can proceed in parallel; lower-layer code must not import CAD or
-Orb Weaver UI code.
+OrbWeaver UI code.
 
 ## One kernel, two interfaces
 
@@ -62,7 +62,7 @@ A shared native operation has:
 
 1. One **kernel algorithm**, valid without a CAD file or paid Rhino host.
 2. One **typed port contract** (validated kinds, semantics and modifier ports).
-3. One **CAD command adapter** and one **Orb Weaver graph node adapter**, both
+3. One **CAD command adapter** and one **OrbWeaver graph node adapter**, both
    delegating to the kernel dispatcher.
 4. Optional **document wrappers** for object selection, drawing unit policies,
    undo/copy, history, preview/bake, and interactive options.
@@ -93,7 +93,7 @@ shared kernel services.
 
 ## First paired implementation, currently source-only
 
-| Shared operation | Worldwright CAD/API command | Orb Weaver component | Notes |
+| Shared operation | Worldwright CAD/API command | OrbWeaver component | Notes |
 |---|---|---|---|
 | Point distance | `worldwright.point.distance` | `orbweaver.point.distance` | GH *Distance* reference behavior not fully verified |
 | Point midpoint | `worldwright.point.midpoint` | `orbweaver.point.midpoint` | Native point primitive |
@@ -112,7 +112,7 @@ shared kernel services.
 | Match tree | `worldwright.tree.match` | `orbweaver.tree.match` | Modifier `mode`: shortest, longest, cross-reference; identical branch paths required |
 
 These are **15 native paired operation contracts**, not 15 verified
-Grasshopper-equivalent components. Orb Weaver now supports tagged tree values,
+Grasshopper-equivalent components. OrbWeaver now supports tagged tree values,
 structural tree nodes, explicit list matching and branch-preserving graph links.
 It does **not** support Grasshopper's implicit branch-path matching or automatic
 application of all numeric nodes across tree items. Graph work is pure/headless and can run without the
@@ -121,14 +121,14 @@ against Cargo/Rust; do not mark official catalog entries working yet.
 
 ## Subsequent implementation order
 
-1. Validate this layer with local Cargo: shared dispatcher, Orb Weaver graph,
+1. Validate this layer with local Cargo: shared dispatcher, OrbWeaver graph,
    engine commands, reference-index checks, and `.dftba` persistence tests.
 2. Add **tree-aware numerical broadcasting** with explicit per-node list matching;
    do not assume native Grasshopper path-alignment semantics.
 3. Support **geometry references** as immutable versioned handles (including
    exact curves, surfaces, meshes) and preview/bake transactions.
 4. Then pair curve evaluation, division, length and transforms with CAD
-   commands and Orb Weaver nodes using shared exact geometry.
+   commands and OrbWeaver nodes using shared exact geometry.
 5. Add surfaces, intersections, topology, meshing, solids and form-finding
    once their prerequisite algorithms and validation are established.
 6. Keep every new tool paired by default. Exceptions must document why the
@@ -150,9 +150,9 @@ matching pairs only **identical branch paths**; Longest extends by repeating
 the final item and CrossReference forms the explicit Cartesian product.
 
 All five tools are **paired** between Worldwright CAD's `worldwright.tree.*`
-command family and Orb Weaver's `orbweaver.tree.*` node family, calling one
+command family and OrbWeaver's `orbweaver.tree.*` node family, calling one
 kernel dispatcher. Typed `ToolValue::Tree` and `ToolValue::Pair` values can
-flow through linked Orb Weaver graph nodes. Resource budgets include nested
+flow through linked OrbWeaver graph nodes. Resource budgets include nested
 polyline/tree/pair values and preflight cross-reference cloning. The previous
 scalar evaluator is extended, not replaced or duplicated.
 

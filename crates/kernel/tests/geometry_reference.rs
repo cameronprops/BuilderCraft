@@ -44,8 +44,8 @@ fn any_scene_mutation_invalidates_previous_reference_conservatively() {
     let previous = scene.capture_geometry_reference(id(2)).unwrap();
     assert_eq!(scene.apply(1, vec![SceneCommand::Rename(id(2), "New name".into())],
         &Cancellation::default()), Ok(2));
-    assert_eq!(scene.resolve_geometry_reference(&previous),
-        Err(KernelError::Conflict{expected:1,actual:2}));
+    assert!(matches!(scene.resolve_geometry_reference(&previous),
+        Err(KernelError::Conflict{expected:1,actual:2})));
     let current = scene.capture_geometry_reference(id(2)).unwrap();
     assert_eq!(scene.resolve_geometry_reference(&current).unwrap().data().kind(),"polyline");
 }

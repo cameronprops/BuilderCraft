@@ -58,7 +58,7 @@ def validate_groups(plan: dict) -> None:
     for pair in plan["paired_operations"]:
         if pair["group"] not in groups:
             raise ValueError(f"unknown tool dependency group: {pair['group']}")
-    for key in ("kernel_operation", "cad_command", "calisoga_node"):
+    for key in ("kernel_operation", "cad_command", "orbweaver_node"):
         values = [p[key] for p in plan["paired_operations"]]
         if len(set(values)) != len(values):
             raise ValueError(f"duplicate paired operation identity: {key}")

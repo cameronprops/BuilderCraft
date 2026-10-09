@@ -116,3 +116,19 @@ not yet sketch-to-solid features, feature previews or a full timeline authoring 
 See [the architecture](docs/architecture/FEATURE_HISTORY.md) and
 [60-item planned feature hierarchy](docs/dependencies/feature-history.json).
 The new Rust code and tests are **not compiled/verified yet**.
+
+## Reproducible development environment
+
+To make the same Rust/Cargo setup available on any compatible development
+machine, open this repository in **VS Code → Dev Containers: Reopen in
+Container**. The checked-in `.devcontainer/` builds an image with Rust
+1.95, Cargo, formatting/lint tools and Linux GUI build dependencies.
+
+`rust-toolchain.toml` pins the version for local rustup installations too.
+Check a native setup with `bash tools/check-worldwright-rust.sh`, then run
+`bash tools/verify-worldwright-kernel.sh` for local tests. **No GitHub Actions
+charges are needed** for this process. GitHub Codespaces may charge separately.
+
+See [Development environments](docs/architecture/DEVELOPMENT_ENVIRONMENT.md).
+ChatGPT's temporary execution containers are not automatically provisioned
+by repository files and may lack Cargo.

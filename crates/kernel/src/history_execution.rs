@@ -59,7 +59,7 @@ impl FeatureTimeline {
     pub fn evaluate(&self) -> Result<FeatureEvaluation> {
         self.validate()?;
         let limit = self.rollback_after.and_then(|id| self.steps.iter().position(|s| s.id == id)).unwrap_or(self.steps.len().saturating_sub(1));
-        let mut outputs = BTreeMap::new();
+        let mut outputs: BTreeMap<u64, crate::ToolValue> = BTreeMap::new();
         let mut states = Vec::new();
         states.try_reserve_exact(self.steps.len()).map_err(|_| KernelError::Budget)?;
         let mut output_cost = 0usize;

@@ -1,5 +1,24 @@
 # BuilderCraft suite instructions
 
+## Worldwright toolchain and environment policy
+
+- The native product is **Worldwright**. Legacy `BuilderCraft` and
+  `CADCraft` names remain in repository/crate paths until migration.
+- `rust-toolchain.toml` pins **Rust 1.95.0**; use the checked-in
+  `.devcontainer/` setup on compatible developer systems, or install rustup
+  and the pinned toolchain locally. In a supported workspace run
+  `bash tools/check-worldwright-rust.sh` before validating Rust code.
+- Run `bash tools/verify-worldwright-kernel.sh` (or the Windows PowerShell
+  equivalent) before claiming build success. **Do not label tests passed**
+  unless they actually ran with Rust/Cargo and their results were observed.
+- **GitHub Actions are manual-only by user choice.** Do not add `push` or
+  `pull_request` triggers or trigger hosted runs without permission. Local
+  Dev Containers are preferred. Codespaces can charge separately.
+- ChatGPT conversation containers may be ephemeral and need not provide
+  Docker/Rust. Repository setup is reproducible, not a guarantee that an
+  unrelated chat runtime is provisioned.
+- See `docs/architecture/DEVELOPMENT_ENVIRONMENT.md`.
+
 ## Dependency-first native tool policy (Worldwright + OrbWeaver)
 
 The [dependency DAG and pair register](docs/dependencies/README.md) govern

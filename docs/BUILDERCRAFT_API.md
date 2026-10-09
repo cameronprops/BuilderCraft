@@ -260,3 +260,19 @@ Existing version-1 documents without the field still load. Unsupported
 operations such as a future `kernel.solid.extrude` are rejected, not
 silently recorded as functional features. See
 [feature-history examples and rules](architecture/FEATURE_HISTORY.md).
+
+## Viewport picking scope
+
+CAD click and Shift-click use the same `geometry3d.pick` and `geometry3d.select`
+commands available to headless controllers. A plain empty click clears selection;
+Shift-click toggles a hit and preserves selection on a miss. Picking uses the
+same 96 curve segments and 13-by-24 surface isocurve wires as display, not exact
+curve intersections or filled surface interiors. Within a pixel tolerance, the
+nearest projected wire wins; coincident wires prefer camera-facing depth, then
+the lowest stable object ID. No occlusion, face/edge/vertex subobject selection,
+window selection, or snapping is claimed.
+
+Hidden objects/layers and locked layers are excluded. Queries admit at most 4096
+objects and 50 million conservative evaluation work units. Exceeding the scene
+budget returns an error without applying a partial selection. Rendering also
+uses this aggregate work limit and can stop before drawing the complete scene.

@@ -41,11 +41,20 @@ Implemented: dependency-light `buildercraft-kernel`, immutable shared exact geom
 
 ## Next concrete tasks
 
-1. Tessellate exact curves/surfaces into bounded preview resources, preserving exact source and revision.
-2. Export a massing scene to GLB with the semantic manifest; validate units, identity and hierarchy in an engine import fixture.
-3. Add the shared typed graph evaluator and persistent parameters/data trees, then embed its component canvas inside CAD.
-4. Implement original native constraint goals and bounded iterative relaxation for Kangaroo-style form-finding; verify convergence, anchors, units and cancellation.
-5. Reuse reviewed StructureGraph recipes through these shared geometry/graph services.
+CAD-first alpha dependency order, reviewed against source on 2026-10-09:
+
+1. Close the viewport selection loop with the existing transactional gizmo.
+2. Add construction-plane point input and endpoint snapping; use it for interactive curve creation and transform reference input.
+3. Add shared exact surface construction (extrude/loft/revolve) through CAD/API and the upcoming node evaluator.
+4. Add the shared typed graph evaluator and persistent parameters/data trees, then embed the OrbWeaver component canvas inside CAD.
+5. Extend the inherited drafting constraint service into mechanical sketches and feature-history blocks through the same geometry operations; bounded relaxation/form-finding follows the graph contracts.
+
+Preview tessellation, GLB export and the local visualization feed are already
+implemented. Unreal host acceptance remains outstanding and does not block CAD
+interaction work. Scan/Show expansion remains deferred under the CAD-first
+priority. Robust trimming/topology/solids depend on curves, surfaces and
+intersections; additional standalone transform names do not close those gaps.
+See `CAD_ALPHA_DEPENDENCIES.json` for the machine-readable sequence.
 
 The native solver is required; a licensed-host adapter cannot substitute for it.
 

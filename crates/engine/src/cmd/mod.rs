@@ -3,8 +3,8 @@
 
 mod annotate;
 mod blocks;
-mod closest3d;
 mod buildercraft;
+mod closest3d;
 pub mod constraints;
 mod draw;
 mod draw2;

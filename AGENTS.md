@@ -92,3 +92,14 @@ People trust CADCraft with their drawings; a crash loses their work. **This outr
 `ROADMAP.md` (committed) tracks status, milestones, parity and estimates. Update it whenever a milestone task lands. `cargo xtask parity` recomputes the command-catalog parity in `docs/parity.md`.
 
 Original native host adapter code may use the host's required language (Unreal C++/UBT C#) under `bridges/`; these adapters are optional, separately validated and must not copy engine implementation code. Core suite services and applications remain Rust.
+
+## Optional feature-history modeling
+
+Read `docs/architecture/FEATURE_HISTORY.md` and
+`docs/dependencies/feature-history.json` before implementing mechanical tools.
+Timelines are optional per document, model node or block definition. Preserve
+direct modeling. Stable step IDs, local typed parameters, chronological
+references, reversible suppression/rollback and `.dftba` recipe persistence
+are source-authored, not yet compiled. The 52 planned sketch/solid/assembly
+features are NOT implemented. Reuse the shared Rust geometry operations for
+both CAD feature commands and OrbWeaver nodes. Never duplicate math engines.

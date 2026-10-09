@@ -57,11 +57,7 @@ pub fn sample_noise3d(config: NoiseConfig, point: Vec3) -> Result<f64> {
     generator.set_frequency(Some(config.frequency as f32));
     generator.set_noise_type(Some(algorithm));
     let value = f64::from(generator.get_noise_3d(point.x, point.y, point.z));
-    if value.is_finite() {
-        Ok(value)
-    } else {
-        Err(KernelError::Invalid("nonfinite procedural field output"))
-    }
+    if value.is_finite() { Ok(value) } else { Err(KernelError::Invalid("nonfinite procedural field output")) }
 }
 
 #[cfg(test)]
@@ -91,9 +87,12 @@ mod tests {
     fn every_supported_algorithm_is_finite_and_bounded() {
         let point = Vec3::new(5.3, 8.9, -1.2);
         for algorithm in [
-            NoiseAlgorithm::OpenSimplex2, NoiseAlgorithm::OpenSimplex2S,
-            NoiseAlgorithm::Cellular, NoiseAlgorithm::Perlin,
-            NoiseAlgorithm::Value, NoiseAlgorithm::ValueCubic,
+            NoiseAlgorithm::OpenSimplex2,
+            NoiseAlgorithm::OpenSimplex2S,
+            NoiseAlgorithm::Cellular,
+            NoiseAlgorithm::Perlin,
+            NoiseAlgorithm::Value,
+            NoiseAlgorithm::ValueCubic,
         ] {
             let value = sample_noise3d(NoiseConfig { algorithm, ..Default::default() }, point).unwrap();
             assert!(value.is_finite() && (-1.1..=1.1).contains(&value));

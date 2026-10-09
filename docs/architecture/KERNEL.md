@@ -40,3 +40,24 @@ Directional scaling extends this service with `Scale1d`, `Scale2d`, world-axis
 `ScaleNu` and explicit-frame `ScaleByPlane`. Plane frames reject nonperpendicular
 axes and clean only normalized dot drift within 1e-9. Numeric API coverage remains
 partial; native exact curves/control surfaces retain weights, knots and degrees.
+
+## Typed geometry references (source authored, Cargo validation pending)
+
+A `GeometryReference` records project identity, object identity, source
+revision and geometry representation (`nurbs_curve`, `nurbs_surface`,
+`triangle_mesh`, `polygon_mesh`, `point_cloud`, `polyline`). The shared
+`Scene` captures and resolves this metadata, returning an immutable
+`GeometryLease` that shares the original data instead of cloning geometry.
+Stale revisions, foreign projects, missing objects and changed
+representations fail explicitly. The current policy is **conservative**:
+any scene edit invalidates captured references until re-capture.
+
+The CAD document adapter maps native 3D object handles into existing kernel
+128-bit IDs using handle+1. The headless API provides
+`worldwright.geometry.ref.capture` and `worldwright.geometry.ref.resolve`
+which validate typed metadata, not editable or serialized geometry payloads.
+The API requires the caller to retain a stable project ID and exact drawing
+revision. A persistent document-owned project UUID, per-object revisions,
+edge/face topological naming and history-graph automatic rebinding are
+**not implemented**. This is a foundation for future sketches/solids, not a
+full reference-tracking feature.

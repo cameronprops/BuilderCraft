@@ -724,7 +724,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "calisoga"
+name = "orb-weaver"
 version = "0.1.0"
 dependencies = [
  "buildercraft-kernel",

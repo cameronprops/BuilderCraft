@@ -294,6 +294,112 @@
       "scope": "Part definitions and instances, mates, joints, motion and component-local parameters"
     },
     {
+      "id": "vfx.attributes",
+      "tier": 5,
+      "requires": [
+        "geometry.mesh",
+        "graph.list_tree"
+      ],
+      "scope": "Typed point/vertex/primitive/detail attributes, domains, stable IDs, masks and provenance"
+    },
+    {
+      "id": "vfx.time",
+      "tier": 5,
+      "requires": [
+        "graph.execution",
+        "foundation.units_frames"
+      ],
+      "scope": "Frame/subframe clock, evaluation time, deterministic seeds and time samples"
+    },
+    {
+      "id": "vfx.network",
+      "tier": 6,
+      "requires": [
+        "vfx.attributes",
+        "vfx.time",
+        "graph.execution"
+      ],
+      "scope": "Houdini-style operator network using shared geometry operations and typed attribute streams"
+    },
+    {
+      "id": "vfx.procedural",
+      "tier": 7,
+      "requires": [
+        "vfx.network",
+        "geometry.mesh_topology",
+        "geometry.transforms"
+      ],
+      "scope": "SOP-style modeling networks, deforms, remesh, scatter, curve sweep and geometry instances"
+    },
+    {
+      "id": "vfx.instancing",
+      "tier": 8,
+      "requires": [
+        "vfx.procedural",
+        "workflow.document"
+      ],
+      "scope": "Packed geometry, stable instance IDs, transforms, variation, visibility and LOD"
+    },
+    {
+      "id": "vfx.volumes",
+      "tier": 8,
+      "requires": [
+        "vfx.procedural",
+        "geometry.solid"
+      ],
+      "scope": "Sparse volumes, scalar/vector fields, level sets, voxel remesh and advect kernels"
+    },
+    {
+      "id": "vfx.simulation",
+      "tier": 9,
+      "requires": [
+        "vfx.volumes",
+        "vfx.time",
+        "graph.constraints"
+      ],
+      "scope": "Stateful timestep evaluation, rigid/soft bodies, particles, fluids, cloth and deterministic caches"
+    },
+    {
+      "id": "vfx.compositing",
+      "tier": 9,
+      "requires": [
+        "vfx.time",
+        "workflow.display",
+        "graph.execution"
+      ],
+      "scope": "Image sequences, channels, compositing operators, color management and render passes"
+    },
+    {
+      "id": "vfx.render",
+      "tier": 10,
+      "requires": [
+        "vfx.instancing",
+        "vfx.volumes",
+        "vfx.compositing"
+      ],
+      "scope": "Materials, camera/lights, render delegates, instancing and image outputs"
+    },
+    {
+      "id": "vfx.task_graph",
+      "tier": 10,
+      "requires": [
+        "vfx.network",
+        "vfx.time",
+        "workflow.exchange"
+      ],
+      "scope": "PDG/TOP-style batch tasks, dependency scheduling, caching, retry/cancel and artifacts"
+    },
+    {
+      "id": "vfx.interchange",
+      "tier": 11,
+      "requires": [
+        "vfx.render",
+        "vfx.task_graph",
+        "workflow.exchange"
+      ],
+      "scope": "USD/glTF/Alembic/VDB/EXR adapters where legally supported and roundtrip-tested"
+    },
+    {
       "id": "unclassified",
       "tier": null,
       "requires": [],
@@ -1184,5 +1290,15 @@
     }
   ],
   "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review.",
-  "next_dependency_layer": "Immutable, versioned curve/surface/mesh geometry references followed by preview/bake; implicit GH tree path alignment remains separately scoped."
+  "next_dependency_layer": "Immutable, versioned curve/surface/mesh geometry references followed by preview/bake; implicit GH tree path alignment remains separately scoped.",
+  "optional_apps": {
+    "devant": {
+      "name": "Devant",
+      "status": "working_name_provisional",
+      "purpose": "Standalone Houdini-style procedural modeling, attributes, VFX, compositing, simulations, scheduling and rendering.",
+      "kernel_policy": "Single shared Rust math/geometry/simulation kernels; distinct VFX operator schemas, time-dependent caches, state machine and authoring UI. Never duplicate OrbWeaver/CAD geometry operations.",
+      "roadmap_file": "docs/dependencies/devant-vfx.json",
+      "naming_note": "Named provisionally after stage magician and early film exhibitor David Devant (1868-1941); no brand/trademark clearance or complete historical/ethical vetting claimed."
+    }
+  }
 }

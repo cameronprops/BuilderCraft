@@ -313,26 +313,23 @@ mod tests {
         let plan = ResourceLimits::from_sample(MemorySample::default()).unwrap();
         let ledger = ResourceLedger::new(plan);
         let amount = plan.quota(ResourceClass::Transfer);
-        let gate = Arc::new(std::sync::Barrier::new(12));
+        let start = Arc::new(std::sync::Barrier::new(12));
+        let release = Arc::new(std::sync::Barrier::new(12));
         let mut threads = Vec::new();
         for _ in 0..12 {
             let ledger = ledger.clone();
-            let gate = gate.clone();
+            let start = start.clone();
+            let release = release.clone();
             threads.push(std::thread::spawn(move || {
-                gate.wait();
-                if let Ok(_lease) = ledger.reserve(ResourceClass::Transfer, amount) {
-                    std::thread::sleep(std::time::Duration::from_millis(30));
-                    true
-                } else {
-                    false
-                }
+                start.wait();
+                let lease = ledger.reserve(ResourceClass::Transfer, amount).ok();
+                // Every thread has tried before the winning lease is dropped.
+                release.wait();
+                lease.is_some()
             }));
         }
         let successful = threads.into_iter().filter(|t| t.join().unwrap()).count();
-        // All threads start together; no more than one can hold the quota.
-        // Some may succeed later after a lease drops, so this checks the
-        // invariant rather than assuming scheduling order.
-        assert!(successful >= 1);
+        assert_eq!(successful, 1);
         assert_eq!(ledger.used(ResourceClass::Transfer), 0);
     }
 }

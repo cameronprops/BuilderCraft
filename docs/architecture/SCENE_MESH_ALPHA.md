@@ -1,7 +1,8 @@
 # Worldwright mesh-scene vertical slice
 
-This increment connects native triangle/quad editing to the existing **headless**
-shared Scene, not yet to the graphical CAD document or viewport.
+This development branch connects native triangle/quad editing to the shared
+headless Scene **and** the CAD document, command API and early desktop viewport.
+The headless Scene and CAD document still have separate storage systems.
 
 ## Implemented in this increment
 
@@ -24,10 +25,11 @@ shared Scene, not yet to the graphical CAD document or viewport.
 
 ## Not yet implemented
 
-- CAD document `.bcraft` persistence of polygons, UI viewport drawing,
-  picking, selection feedback, toolbar commands, undo through the CAD
-  document (as opposed to shared scene snapshots), and export of editable
-  quads through any specific file adapter.
+- Vertex and edge picking, NURBS surface occlusion and full depth-buffer
+  picking, shaded mesh drawing, and robust large-scan viewport acceleration.
+  Polygon **face** click selection and highlighting now exist on this branch.
+- Editable quad export to independently validated OBJ/PLY or CAD interchange
+  adapters is still pending; `.dftba` retains native quads internally.
 - Advanced concave/nonplanar fills, self-intersection detection, large-scan
   streaming, preservation of material/UV/per-face attributes, and robust
   external OBJ/PLY/STL import.
@@ -50,16 +52,15 @@ API, and no Rust compiler was available in the authoring container.
 
 ## Next vertical slice, in order
 
-1. First run the complete kernel tests. Resolve any compile, format, lint
-   or geometric correctness failures locally.
-2. Add `PolygonMesh` as a versioned `.bcraft` document shape with an
-   explicit migration and round-trip test. Avoid breaking existing files.
-3. Expose one CAD API edit transaction for a mesh object, carrying document
-   identity, selection revision and provenance.
-4. Render the selected mesh and boundary edges in the existing viewport;
-   wire one selection mode and a Delete Faces action with undo and save/reopen.
-5. Extend to interactive boundary-loop selection, a hole-fill preview/commit,
-   mesh import and geometry diagnostics, then publish a packaged preview.
+1. Run full local Rust 1.95 validation and resolve any compilation, format,
+   lint, headless UI or geometry correctness failures.
+2. Validate clicking a mesh face, deleting it, undoing, and saving/reopening
+   `.dftba` in the actual desktop application (not just tests).
+3. Add viewport edge/vertex picking and interactive boundary-loop selection,
+   keeping source-document revision checks and geometric selection feedback.
+4. Add robust OBJ/PLY/STL import, face-attribute preservation, mesh diagnostics
+   and a hole-fill preview/commit flow.
+5. Test/export the first complete mesh-repair fixture and package a desktop alpha.
 
 Do not treat a headless kernel operation as a completed viewport command.
 
@@ -67,7 +68,8 @@ Do not treat a headless kernel operation as a completed viewport command.
 
 The same branch now adds native `Drawing.mesh3d` entries (copy-on-write
 `PolygonGeometryObject` retaining triangles/quads). The optional `mesh3d`
-array is persisted inside the existing version 1 `.bcraft` JSON envelope.
+array is persisted inside the existing version 1 `.dftba` JSON envelope
+(with `.bcraft` still accepted as a legacy filename extension).
 Old v1 projects without the key continue to deserialize. Invalid geometry,
 duplicate IDs and over-budget meshes are rejected at load time; source meshes
 are not silently dropped by DXF/DWG/PDF/PNG save or plot operations.
@@ -95,8 +97,10 @@ picks. No mesh edit is published until validation is complete.
 The modeling viewport now displays a bounded polygon wireframe. The Model
 Browser includes mesh objects, their visibility/name, numeric face deletion,
 and selectable planar hole-loop fill buttons. A built-in editable sample ring
-can be created for an immediate smoke test. This is an **initial numeric UI**:
-direct vertex/edge/face viewport picking is still pending. The user controls
+can be created for an immediate smoke test. The wireframe viewport now supports
+**face click selection**, nearest-depth selection among polygon meshes, revision-
+bound selection highlights and a Delete Picked Face button. Edge and vertex
+picking are still pending. The user controls
 name/visibility and can undo saved edits with the existing CAD undo command.
 
 ### New acceptance path
@@ -111,9 +115,31 @@ cargo run -p cadcraft -- --sample
 
 Then click **3D → New editable mesh**, select its entry in **Model Browser**,
 open **Polygon mesh repair**, fill its inner loop, undo the operation, save a
-`.bcraft` file, reopen it, and use **Fit** to frame its vertices. Repeat a
+`.dftba` file, reopen it, and use **Fit** to frame its vertices. Repeat a
 second save after face deletion. Confirm the GLB visualization exporter shows
 the same mesh and stable object ID.
 
 No local compiler or desktop runtime was available to execute these gates
 during this repository-editing session; keep the PR unmerged until they pass.
+
+### Viewport face-picking increment
+
+The 3D viewport uses `OrthoFrame` projection and tests native polygon triangles
+and quads in screen space. It computes barycentric depth at the clicked point
+and chooses the nearest polygon face; deterministic object/face IDs resolve
+coplanar ties. The quad remains a quad in the document. Visible layer and
+object flags are respected, and the same 15,000-face cap controls both drawing
+and hit testing. Empty clicks clear the picked face; orbit/pan drag remains
+separate from clicking. Selected native face edges are highlighted without
+changing the underlying geometry.
+
+The pick stores the source document revision; stale picks cannot silently
+mutate a newer scene. The existing `mesh3d.edit` command handles Delete Face,
+undo, and later `.dftba` persistence. Eight pure picking tests plus headless
+viewport click/undo tests are authored, **not yet executed**. The picker
+currently considers polygon meshes only: a NURBS surface in front will not
+occlude a mesh, and shaded depth-buffer picking is future work.
+
+Windows local validation: `powershell -ExecutionPolicy Bypass -File tools/verify-worldwright-kernel.ps1`.
+Linux/macOS: `bash tools/verify-worldwright-kernel.sh`. Neither invokes
+GitHub Actions; the PR remains draft until the tests pass.

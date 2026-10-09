@@ -16,6 +16,8 @@ struct Project {
     mesh3d: Vec<cadcraft_doc::organization::PolygonGeometryObject>,
     #[serde(default)]
     production: buildercraft_kernel::ProductionModel,
+    #[serde(default)]
+    feature_timelines: Vec<buildercraft_kernel::FeatureTimeline>,
 }
 /// Bounded validation before persistence or loading into a document.
 /// The project payload itself is capped separately to 128 MiB.
@@ -46,6 +48,7 @@ fn validate_polygons(objects: &[cadcraft_doc::organization::PolygonGeometryObjec
 
 pub fn write(d: &Drawing) -> Result<Vec<u8>> {
     d.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
+    d.validate_feature_histories().map_err(|e| IoError::Format(e.to_string()))?;
     validate_polygons(&d.mesh3d)?;
     let mut organization = d.organization.clone();
     for node in &mut organization.nodes {
@@ -58,6 +61,7 @@ pub fn write(d: &Drawing) -> Result<Vec<u8>> {
         geometry3d: d.geometry3d.clone(),
         mesh3d: d.mesh3d.clone(),
         production: d.production.clone(),
+        feature_timelines: d.feature_timelines.clone(),
     })
     .map_err(|e| IoError::Format(e.to_string()))
 }
@@ -130,10 +134,12 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
         d.bump_handseed(cadcraft_doc::Handle(object.id));
     }
     p.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
+    d.feature_timelines = p.feature_timelines;
+    d.organization = p.organization;
+    d.validate_feature_histories().map_err(|e| IoError::Format(e.to_string()))?;
     d.production = p.production;
     d.geometry3d = p.geometry3d;
     d.mesh3d = p.mesh3d;
-    d.organization = p.organization;
     Ok(d)
 }
 #[cfg(test)]
@@ -300,6 +306,60 @@ mod tests {
         assert_eq!(crate::read(&old_bytes, "legacy.bcraft").unwrap().mesh3d, source.mesh3d);
         assert_eq!(crate::read(&old_bytes, "renamed.dftba").unwrap().mesh3d, source.mesh3d);
         assert!(crate::write(&source, "unsafe.dxf").is_err());
+    }
+
+    #[test]
+    fn dftba_roundtrip_retains_document_and_block_local_histories() {
+        use buildercraft_kernel::{
+            FeatureHistoryEdit, FeatureScope, FeatureStep, FeatureInput,
+            FeatureTimeline, ToolValue, TreeMatchPolicy,
+        };
+        use std::collections::BTreeMap;
+        let mut d = Drawing::new_metric();
+        let mut block = cadcraft_doc::Block::new("Bracket");
+        block.description = "Parametric bracket definition".into();
+        d.blocks.insert("Bracket".into(), std::sync::Arc::new(block));
+        let mut local = FeatureTimeline::new(FeatureScope::BlockDefinition("Bracket".into())).unwrap();
+        local.apply(0, FeatureHistoryEdit::Append { step: FeatureStep {
+            id: 17,
+            name: "Parametric Midpoint".into(),
+            operation: "kernel.point.midpoint".into(),
+            inputs: BTreeMap::from([
+                ("a".into(), FeatureInput::Constant {
+                    value: ToolValue::Point(cadcraft_geom::Vec3::ZERO),
+                }),
+                ("b".into(), FeatureInput::Constant {
+                    value: ToolValue::Point(cadcraft_geom::Vec3::new(10., 0., 0.)),
+                }),
+            ]),
+            matching: TreeMatchPolicy::Shortest,
+            suppressed: false,
+        }}).unwrap();
+        d.feature_timelines.push(local);
+        d.feature_timelines.push(FeatureTimeline::new(FeatureScope::Document).unwrap());
+        let reopened = read(&write(&d).unwrap()).unwrap();
+        assert_eq!(reopened.feature_timelines, d.feature_timelines);
+        assert_eq!(reopened.feature_timelines[0].evaluate().unwrap().outputs.get(&17),
+            Some(&ToolValue::Point(cadcraft_geom::Vec3::new(5., 0., 0.))));
+    }
+
+    #[test]
+    fn missing_timeline_scope_is_invalid_and_old_dftba_defaults_to_no_histories() {
+        use buildercraft_kernel::{FeatureScope, FeatureTimeline};
+        let d = Drawing::new_metric();
+        let bytes = write(&d).unwrap();
+        let mut old: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        old.as_object_mut().unwrap().remove("feature_timelines");
+        assert!(read(&serde_json::to_vec(&old).unwrap()).is_ok_and(|d| d.feature_timelines.is_empty()));
+
+        let mut invalid = d.clone();
+        invalid.feature_timelines.push(FeatureTimeline::new(
+            FeatureScope::BlockDefinition("NotFound".into())
+        ).unwrap());
+        assert!(write(&invalid).is_err());
+
+        old["feature_timelines"] = serde_json::to_value(&invalid.feature_timelines).unwrap();
+        assert!(read(&serde_json::to_vec(&old).unwrap()).is_err());
     }
 
 }

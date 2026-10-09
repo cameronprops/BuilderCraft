@@ -174,6 +174,13 @@ def main() -> int:
         print(f"Wrote {len(expected['rows'])} provisional reference entries to {INDEX}")
         return 0
     actual = read(INDEX)
+    # A new, still-empty dependency group does not require rewriting the
+    # entire large reference index. Materialize omitted zero counts only for
+    # comparison; a subsequent --write may include the optional zero entries.
+    saved_counts = actual.get("preliminary_group_counts", {})
+    for group_id, count in expected["preliminary_group_counts"].items():
+        if group_id not in saved_counts and count == 0:
+            saved_counts[group_id] = 0
     if actual != expected:
         print("Dependency reference index differs from its inventories/rules. "
               "Run with --write and review the resulting diff.")

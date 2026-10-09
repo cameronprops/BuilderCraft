@@ -1,0 +1,850 @@
+{
+  "schema_version": 1,
+  "title": "Scoped parametric feature-history dependencies, optional in Worldwright workspaces",
+  "lifecycle": "Source-authored core only; not Rust-compiled or feature-complete",
+  "rules": [
+    "Direct modeling remains independent from feature histories.",
+    "Document, model-node, and block-definition histories are separate edit scopes.",
+    "Block instances share the definition history; instance-specific overrides require explicit records.",
+    "Features reference stable earlier feature IDs; moving ahead of prerequisites is invalid.",
+    "Parameter values are typed; units and dimensional expressions must be validated by shared engines.",
+    "Suppress and rollback are reversible; dependent features must become blocked, never use cached stale outputs.",
+    "Geometry identifiers require stable shape/subelement names, revision control, and remap diagnostics before solid features.",
+    "All operations use a single Rust math engine, exposed by CAD commands and OrbWeaver nodes.",
+    "Only source_authored_uncompiled entries exist as implemented code; planned entries are NOT working features.",
+    "Persistence of metadata is not equivalent to generating a solid or offering a visual timeline editor."
+  ],
+  "counts": {
+    "total": 60,
+    "source_authored_uncompiled": 8,
+    "planned": 52
+  },
+  "features": [
+    {
+      "id": "history.scope",
+      "tier": 0,
+      "requires": [],
+      "status": "source_authored_uncompiled",
+      "scope": "document_or_block_or_model_node",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.scope",
+      "orbweaver_node": null,
+      "notes": "Optional local history; no forced timeline on direct-modeling objects"
+    },
+    {
+      "id": "history.parameter",
+      "tier": 0,
+      "requires": [
+        "history.scope"
+      ],
+      "status": "source_authored_uncompiled",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.parameter",
+      "orbweaver_node": null,
+      "notes": "Typed parameter value; dimensional units/expressions are separate prerequisites"
+    },
+    {
+      "id": "history.step",
+      "tier": 1,
+      "requires": [
+        "history.scope",
+        "history.parameter"
+      ],
+      "status": "source_authored_uncompiled",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.step",
+      "orbweaver_node": null,
+      "notes": "Stable step ID and chronological dependency order"
+    },
+    {
+      "id": "history.recompute",
+      "tier": 1,
+      "requires": [
+        "history.step"
+      ],
+      "status": "source_authored_uncompiled",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.recompute",
+      "orbweaver_node": null,
+      "notes": "Runs only registered shared kernel operations; no geometry bake yet"
+    },
+    {
+      "id": "history.reorder",
+      "tier": 2,
+      "requires": [
+        "history.step"
+      ],
+      "status": "source_authored_uncompiled",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.reorder",
+      "orbweaver_node": null,
+      "notes": "Reject forward references on reorder"
+    },
+    {
+      "id": "history.suppress",
+      "tier": 2,
+      "requires": [
+        "history.step"
+      ],
+      "status": "source_authored_uncompiled",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.suppress",
+      "orbweaver_node": null,
+      "notes": "Non-destructive suppression; downstream reported blocked"
+    },
+    {
+      "id": "history.rollback",
+      "tier": 2,
+      "requires": [
+        "history.step"
+      ],
+      "status": "source_authored_uncompiled",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.rollback",
+      "orbweaver_node": null,
+      "notes": "Retain later steps without evaluating them"
+    },
+    {
+      "id": "history.persist_dftba",
+      "tier": 2,
+      "requires": [
+        "history.scope",
+        "history.step"
+      ],
+      "status": "source_authored_uncompiled",
+      "scope": "document",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.persist_dftba",
+      "orbweaver_node": null,
+      "notes": "Version 1 optional field; legacy projects load with empty histories"
+    },
+    {
+      "id": "dimension.units",
+      "tier": 0,
+      "requires": [
+        "history.parameter"
+      ],
+      "status": "planned",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.dimension.units",
+      "orbweaver_node": "orbweaver.dimension.units",
+      "notes": "Explicit length/angle units, dimensional consistency"
+    },
+    {
+      "id": "dimension.expression",
+      "tier": 1,
+      "requires": [
+        "dimension.units"
+      ],
+      "status": "planned",
+      "scope": "local",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.dimension.expression",
+      "orbweaver_node": "orbweaver.dimension.expression",
+      "notes": "Safe expression grammar, referenced parameters, cycle diagnostics"
+    },
+    {
+      "id": "geometry.reference_handle",
+      "tier": 1,
+      "requires": [
+        "history.scope"
+      ],
+      "status": "planned",
+      "scope": "document",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.geometry.reference_handle",
+      "orbweaver_node": "orbweaver.geometry.reference_handle",
+      "notes": "Stable object kind/UID/version, never raw face-array index"
+    },
+    {
+      "id": "geometry.topological_name",
+      "tier": 2,
+      "requires": [
+        "geometry.reference_handle"
+      ],
+      "status": "planned",
+      "scope": "document",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.geometry.topological_name",
+      "orbweaver_node": "orbweaver.geometry.topological_name",
+      "notes": "Persistent edge/face identities and remap diagnostics through edits"
+    },
+    {
+      "id": "sketch.plane",
+      "tier": 2,
+      "requires": [
+        "dimension.units",
+        "geometry.reference_handle"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.plane",
+      "orbweaver_node": "orbweaver.sketch.plane",
+      "notes": ""
+    },
+    {
+      "id": "sketch.point",
+      "tier": 3,
+      "requires": [
+        "sketch.plane"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.point",
+      "orbweaver_node": "orbweaver.sketch.point",
+      "notes": ""
+    },
+    {
+      "id": "sketch.line",
+      "tier": 3,
+      "requires": [
+        "sketch.point"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.line",
+      "orbweaver_node": "orbweaver.sketch.line",
+      "notes": ""
+    },
+    {
+      "id": "sketch.arc",
+      "tier": 3,
+      "requires": [
+        "sketch.point"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.arc",
+      "orbweaver_node": "orbweaver.sketch.arc",
+      "notes": ""
+    },
+    {
+      "id": "sketch.circle",
+      "tier": 3,
+      "requires": [
+        "sketch.point"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.circle",
+      "orbweaver_node": "orbweaver.sketch.circle",
+      "notes": ""
+    },
+    {
+      "id": "sketch.spline",
+      "tier": 4,
+      "requires": [
+        "sketch.point"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.spline",
+      "orbweaver_node": "orbweaver.sketch.spline",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.core",
+      "tier": 4,
+      "requires": [
+        "sketch.line",
+        "sketch.circle",
+        "dimension.units"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.core",
+      "orbweaver_node": "orbweaver.sketch.constraint.core",
+      "notes": "Shared solver to serve sketch UI and OrbWeaver goal nodes"
+    },
+    {
+      "id": "sketch.constraint.coincident",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.point"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.coincident",
+      "orbweaver_node": "orbweaver.sketch.constraint.coincident",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.horizontal",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.line"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.horizontal",
+      "orbweaver_node": "orbweaver.sketch.constraint.horizontal",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.vertical",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.line"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.vertical",
+      "orbweaver_node": "orbweaver.sketch.constraint.vertical",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.parallel",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.line"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.parallel",
+      "orbweaver_node": "orbweaver.sketch.constraint.parallel",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.perpendicular",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.line"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.perpendicular",
+      "orbweaver_node": "orbweaver.sketch.constraint.perpendicular",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.tangent",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.arc"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.tangent",
+      "orbweaver_node": "orbweaver.sketch.constraint.tangent",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.concentric",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.circle"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.concentric",
+      "orbweaver_node": "orbweaver.sketch.constraint.concentric",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.equal",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.line"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.equal",
+      "orbweaver_node": "orbweaver.sketch.constraint.equal",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.distance",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "dimension.units"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.distance",
+      "orbweaver_node": "orbweaver.sketch.constraint.distance",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.angle",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "dimension.units"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.angle",
+      "orbweaver_node": "orbweaver.sketch.constraint.angle",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.symmetry",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.line"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.symmetry",
+      "orbweaver_node": "orbweaver.sketch.constraint.symmetry",
+      "notes": ""
+    },
+    {
+      "id": "sketch.constraint.fix",
+      "tier": 5,
+      "requires": [
+        "sketch.constraint.core",
+        "sketch.point"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.constraint.fix",
+      "orbweaver_node": "orbweaver.sketch.constraint.fix",
+      "notes": ""
+    },
+    {
+      "id": "sketch.solver",
+      "tier": 6,
+      "requires": [
+        "sketch.constraint.core",
+        "dimension.expression"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.solver",
+      "orbweaver_node": "orbweaver.sketch.solver",
+      "notes": "DOF report, under/over constrained detection, bounded iteration"
+    },
+    {
+      "id": "sketch.profile",
+      "tier": 6,
+      "requires": [
+        "sketch.solver",
+        "sketch.spline"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.sketch.profile",
+      "orbweaver_node": "orbweaver.sketch.profile",
+      "notes": "Closed/winding-consistent region evaluation with tolerance"
+    },
+    {
+      "id": "solid.brep",
+      "tier": 7,
+      "requires": [
+        "sketch.profile",
+        "geometry.topological_name"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.solid.brep",
+      "orbweaver_node": "orbweaver.solid.brep",
+      "notes": "Exact shared topology solid base"
+    },
+    {
+      "id": "feature.extrude",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "sketch.profile"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.extrude",
+      "orbweaver_node": "orbweaver.feature.extrude",
+      "notes": ""
+    },
+    {
+      "id": "feature.revolve",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "sketch.profile"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.revolve",
+      "orbweaver_node": "orbweaver.feature.revolve",
+      "notes": ""
+    },
+    {
+      "id": "feature.sweep",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "sketch.profile"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.sweep",
+      "orbweaver_node": "orbweaver.feature.sweep",
+      "notes": ""
+    },
+    {
+      "id": "feature.loft",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "sketch.profile"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.loft",
+      "orbweaver_node": "orbweaver.feature.loft",
+      "notes": ""
+    },
+    {
+      "id": "feature.hole",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.hole",
+      "orbweaver_node": "orbweaver.feature.hole",
+      "notes": ""
+    },
+    {
+      "id": "feature.fillet",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.fillet",
+      "orbweaver_node": "orbweaver.feature.fillet",
+      "notes": ""
+    },
+    {
+      "id": "feature.chamfer",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.chamfer",
+      "orbweaver_node": "orbweaver.feature.chamfer",
+      "notes": ""
+    },
+    {
+      "id": "feature.shell",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.shell",
+      "orbweaver_node": "orbweaver.feature.shell",
+      "notes": ""
+    },
+    {
+      "id": "feature.draft",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.draft",
+      "orbweaver_node": "orbweaver.feature.draft",
+      "notes": ""
+    },
+    {
+      "id": "feature.rib",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "sketch.profile"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.rib",
+      "orbweaver_node": "orbweaver.feature.rib",
+      "notes": ""
+    },
+    {
+      "id": "feature.boolean_join",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.boolean_join",
+      "orbweaver_node": "orbweaver.feature.boolean_join",
+      "notes": ""
+    },
+    {
+      "id": "feature.boolean_cut",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.boolean_cut",
+      "orbweaver_node": "orbweaver.feature.boolean_cut",
+      "notes": ""
+    },
+    {
+      "id": "feature.boolean_intersect",
+      "tier": 8,
+      "requires": [
+        "solid.brep",
+        "solid.brep"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.boolean_intersect",
+      "orbweaver_node": "orbweaver.feature.boolean_intersect",
+      "notes": ""
+    },
+    {
+      "id": "feature.linear_pattern",
+      "tier": 9,
+      "requires": [
+        "geometry.topological_name",
+        "feature.extrude"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.linear_pattern",
+      "orbweaver_node": "orbweaver.feature.linear_pattern",
+      "notes": "Reuse shared transform/array algorithm with modifier and identity tracking"
+    },
+    {
+      "id": "feature.circular_pattern",
+      "tier": 9,
+      "requires": [
+        "geometry.topological_name",
+        "feature.extrude"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.circular_pattern",
+      "orbweaver_node": "orbweaver.feature.circular_pattern",
+      "notes": "Reuse shared transform/array algorithm with modifier and identity tracking"
+    },
+    {
+      "id": "feature.mirror",
+      "tier": 9,
+      "requires": [
+        "geometry.topological_name",
+        "feature.extrude"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.mirror",
+      "orbweaver_node": "orbweaver.feature.mirror",
+      "notes": "Reuse shared transform/array algorithm with modifier and identity tracking"
+    },
+    {
+      "id": "feature.feature_transform",
+      "tier": 9,
+      "requires": [
+        "geometry.topological_name",
+        "feature.extrude"
+      ],
+      "status": "planned",
+      "scope": "part",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.feature_transform",
+      "orbweaver_node": "orbweaver.feature.feature_transform",
+      "notes": "Reuse shared transform/array algorithm with modifier and identity tracking"
+    },
+    {
+      "id": "assembly.instance",
+      "tier": 9,
+      "requires": [
+        "history.scope",
+        "geometry.reference_handle",
+        "feature.extrude"
+      ],
+      "status": "planned",
+      "scope": "assembly",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.assembly.instance",
+      "orbweaver_node": "orbweaver.assembly.instance",
+      "notes": "Block/part definition shared by instances; no geometry duplication"
+    },
+    {
+      "id": "assembly.ground",
+      "tier": 10,
+      "requires": [
+        "assembly.instance",
+        "sketch.solver"
+      ],
+      "status": "planned",
+      "scope": "assembly",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.assembly.ground",
+      "orbweaver_node": "orbweaver.assembly.ground",
+      "notes": "Constraint/kinematics solver shared with OrbWeaver"
+    },
+    {
+      "id": "assembly.mate",
+      "tier": 10,
+      "requires": [
+        "assembly.instance",
+        "sketch.solver"
+      ],
+      "status": "planned",
+      "scope": "assembly",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.assembly.mate",
+      "orbweaver_node": "orbweaver.assembly.mate",
+      "notes": "Constraint/kinematics solver shared with OrbWeaver"
+    },
+    {
+      "id": "assembly.joint",
+      "tier": 10,
+      "requires": [
+        "assembly.instance",
+        "sketch.solver"
+      ],
+      "status": "planned",
+      "scope": "assembly",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.assembly.joint",
+      "orbweaver_node": "orbweaver.assembly.joint",
+      "notes": "Constraint/kinematics solver shared with OrbWeaver"
+    },
+    {
+      "id": "assembly.motion",
+      "tier": 10,
+      "requires": [
+        "assembly.instance",
+        "sketch.solver"
+      ],
+      "status": "planned",
+      "scope": "assembly",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.assembly.motion",
+      "orbweaver_node": "orbweaver.assembly.motion",
+      "notes": "Constraint/kinematics solver shared with OrbWeaver"
+    },
+    {
+      "id": "feature.sheet_metal",
+      "tier": 10,
+      "requires": [
+        "feature.extrude",
+        "feature.shell"
+      ],
+      "status": "planned",
+      "scope": "mechanical",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.sheet_metal",
+      "orbweaver_node": "orbweaver.feature.sheet_metal",
+      "notes": ""
+    },
+    {
+      "id": "feature.weldment",
+      "tier": 10,
+      "requires": [
+        "feature.sweep",
+        "assembly.instance"
+      ],
+      "status": "planned",
+      "scope": "mechanical",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.feature.weldment",
+      "orbweaver_node": "orbweaver.feature.weldment",
+      "notes": ""
+    },
+    {
+      "id": "history.preview",
+      "tier": 10,
+      "requires": [
+        "history.recompute",
+        "geometry.reference_handle",
+        "feature.extrude"
+      ],
+      "status": "planned",
+      "scope": "document",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.preview",
+      "orbweaver_node": null,
+      "notes": "Non-destructive preview, last valid state retained"
+    },
+    {
+      "id": "history.bake",
+      "tier": 11,
+      "requires": [
+        "history.preview",
+        "history.persist_dftba"
+      ],
+      "status": "planned",
+      "scope": "document",
+      "algorithm_owner": "shared_rust_kernel",
+      "cad_command": "worldwright.history.bake",
+      "orbweaver_node": null,
+      "notes": "Revision-checked atomic commit into authoritative geometry"
+    }
+  ]
+}

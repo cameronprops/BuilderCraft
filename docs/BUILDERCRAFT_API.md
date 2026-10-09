@@ -240,3 +240,23 @@ ten point/vector/polyline operations; use the top-level optional `matching`
 modifier (`shortest`, `longest`, `cross_reference`) on CAD commands, or the
 per-node `matching` field on OrbWeaver graph nodes. See `crates/orbweaver/examples/paired_tree.rs`. Local compilation
 and runtime tests have not yet been performed.
+
+## Optional scoped parametric feature histories
+
+The command engine now has source-authored `worldwright.history.create`,
+`worldwright.history.edit`, `worldwright.history.list`,
+`worldwright.history.inspect` and `worldwright.history.evaluate`.
+
+A scope can be `{"kind":"document"}`,
+`{"kind":"model_node","id":42}` or
+`{"kind":"block_definition","id":"Bracket"}`. History edits carry the
+scope, `expected_revision` and a tagged `change`:
+`append`, `set_parameter`, `set_input`, `set_suppressed`,
+`reorder` or `set_rollback`. The evaluator returns typed kernel values
+but does **not** bake geometry. Undo uses the normal CAD snapshot mechanism.
+
+The native `.dftba` envelope has an optional `feature_timelines` field.
+Existing version-1 documents without the field still load. Unsupported
+operations such as a future `kernel.solid.extrude` are rejected, not
+silently recorded as functional features. See
+[feature-history examples and rules](architecture/FEATURE_HISTORY.md).

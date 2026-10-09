@@ -31,6 +31,8 @@ mod vector_ops;
 mod data_tree;
 mod shared_tools;
 mod tool_broadcast;
+mod feature_history;
+mod history_execution;
 pub use bounds::*;
 pub use bounds_ops::*;
 pub use geometry::*;
@@ -60,6 +62,7 @@ pub use vector_ops::*;
 pub use data_tree::*;
 pub use shared_tools::*;
 pub use tool_broadcast::{tool_value_matches_port, tool_output_may_match_port};
+pub use feature_history::*;
 
 use serde::{Deserialize, Serialize};
 

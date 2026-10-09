@@ -185,3 +185,19 @@ CAD and graph entry points invoke one dispatcher. Grasshopper tree-path
 matching, graph UI and
 `.dftba` graph persistence are still future work; the new tests remain
 unexecuted until Rust/Cargo is available locally. No hosted CI is invoked.
+
+## History-driven mechanical modeling track
+
+The optional scoped feature-history foundation now has a machine-readable
+[60-item dependency catalog](../dependencies/feature-history.json):
+eight source-authored, **uncompiled** infrastructure contracts and 52 planned
+sketch, dimension, solid, assembly and fabrication operations. Histories can
+belong to a document, a component/body node or a reusable block definition,
+without imposing a timeline on direct CAD modeling.
+
+The initial code stores stable step IDs, typed local parameters, chronological
+dependencies, suppression, rollback, revision-checked edits and CAD undo.
+It evaluates already-implemented shared kernel operations and saves recipes
+inside `.dftba`. An **initial 3D workspace timeline panel** now exposes enable, inspect, reorder, suppression, rollback and editing of basic local values. This is **not** a full visual feature-authoring or functioning sketch-to-solid mechanical modeler. Next: stable versioned geometry
+references, dimension expressions, constraint-driven sketch profiles and
+shared extrude/revolve/hole/fillet kernels, then previews and UI/bake.

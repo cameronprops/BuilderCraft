@@ -191,3 +191,21 @@ Cartesian ordering, stale/incompatible linked types, preserved empty
 branches, invalid paths and resource limits. Tests are committed but **not
 compiled or executed yet**. The next reusable infrastructure layer is
 versioned geometry references, shared with CAD document identity and undo.
+
+## Scoped history-driven modeling dependencies
+
+The separate [history feature register](feature-history.json) contains **60**
+contracts and tool dependencies: eight source-authored, uncompiled history
+primitives and 52 planned capabilities. These cover typed dimensions, sketch
+constraints and solving, profiles, BRep solids, extrude/revolve, holes, fillets,
+patterns, and mechanical assemblies.
+
+They are not 60 new geometry engines. The kernel registry remains at 46
+operations, including 15 existing CAD/OrbWeaver paired contracts. Histories
+execute those operations through the same dispatcher.
+
+A feature history is optional and belongs to a document, a model node, or
+a reusable block definition. Direct-modeled objects remain independent.
+See [feature-history rules](../architecture/FEATURE_HISTORY.md). Native
+`.dftba` persists source-authored recipes; visual timelines, constrained
+sketches, solids and history bake are still planned and unverified.

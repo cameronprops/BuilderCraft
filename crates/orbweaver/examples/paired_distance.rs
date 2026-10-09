@@ -1,6 +1,6 @@
 //! Headless example: evaluate OrbWeaver and direct CAD/API dispatch against
 //! the same geometry kernel. Run: cargo run -p orbweaver --example paired_distance
-use buildercraft_kernel::{ToolRequest, ToolValue, execute_shared_tool};
+use buildercraft_kernel::{ToolRequest, ToolValue, TreeMatchPolicy, execute_shared_tool};
 use cadcraft_geom::Vec3;
 use orbweaver::{Graph, InputBinding, Node, evaluate};
 use std::collections::BTreeMap;
@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version: 1,
         nodes: vec![Node {
             id: 1,
+            match_policy: TreeMatchPolicy::Shortest,
             component: "orbweaver.point.distance".into(),
             inputs: inputs.into_iter().map(|(key, value)| (
                 key, InputBinding::Constant { value },

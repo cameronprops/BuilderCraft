@@ -644,6 +644,7 @@ dependencies = [
 name = "cadcraft-geom"
 version = "0.1.0"
 dependencies = [
+ "kurbo",
  "serde",
 ]
 

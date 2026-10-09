@@ -8,9 +8,7 @@ use kurbo::{CubicBez, ParamCurve, Point};
 /// Evaluate a cubic Bézier from four Worldwright control points.
 /// Domain and input checks match the bounded shared geometry conventions.
 pub fn evaluate_cubic_with_kurbo(control: [Vec2; 4], t: f64) -> Option<Vec2> {
-    if !t.is_finite() || !(0.0..=1.0).contains(&t)
-        || control.iter().any(|p| !p.is_finite() || p.x.abs() > 1e12 || p.y.abs() > 1e12)
-    {
+    if !t.is_finite() || !(0.0..=1.0).contains(&t) || control.iter().any(|p| !p.is_finite() || p.x.abs() > 1e12 || p.y.abs() > 1e12) {
         return None;
     }
     let [a, b, c, d] = control;
@@ -26,12 +24,7 @@ mod tests {
     use super::*;
 
     fn points() -> [Vec2; 4] {
-        [
-            Vec2::new(0.0, 0.0),
-            Vec2::new(1.0, 4.0),
-            Vec2::new(2.0, 4.0),
-            Vec2::new(4.0, -1.0),
-        ]
+        [Vec2::new(0.0, 0.0), Vec2::new(1.0, 4.0), Vec2::new(2.0, 4.0), Vec2::new(4.0, -1.0)]
     }
 
     #[test]
@@ -42,10 +35,7 @@ mod tests {
         for i in 1..20 {
             let t = f64::from(i) / 20.0;
             let u = 1.0 - t;
-            let reference = c[0] * (u * u * u)
-                + c[1] * (3.0 * u * u * t)
-                + c[2] * (3.0 * u * t * t)
-                + c[3] * (t * t * t);
+            let reference = c[0] * (u * u * u) + c[1] * (3.0 * u * u * t) + c[2] * (3.0 * u * t * t) + c[3] * (t * t * t);
             let got = evaluate_cubic_with_kurbo(c, t).unwrap();
             assert!((got - reference).len() < 1e-12, "Bézier disagreement at t={t}");
         }

@@ -100,3 +100,19 @@ numeric operations now broadcast over typed branches with explicit
 shortest/longest/cross-reference matching and an optional `matching` modifier. See
 [`docs/PROCEDURAL_MODELING.md`](docs/PROCEDURAL_MODELING.md). Rust tests are
 authored but are **not yet compiled or executed**.
+
+## Optional history-driven modeling
+
+Worldwright retains direct modeling while introducing an **opt-in, scoped
+parametric feature history** for mechanical/assembly workflows. A whole
+document, model node or reusable block definition can own its own ordered
+timeline, local parameters, dependency links, suppression, rollback and
+revision-checked edits. The source is implemented in the shared kernel and
+CAD document rather than in a second application-specific solver. Native
+`.dftba` persists the recipes and older files without histories still load.
+
+The initial code executes only **already-registered shared kernel operations**,
+not yet sketch-to-solid features, feature previews or a visual timeline.
+See [the architecture](docs/architecture/FEATURE_HISTORY.md) and
+[60-item planned feature hierarchy](docs/dependencies/feature-history.json).
+The new Rust code and tests are **not compiled/verified yet**.

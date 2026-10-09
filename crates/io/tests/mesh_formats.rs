@@ -1,18 +1,9 @@
-use cadcraft_geom::Vec3;
-use cadcraft_io::mesh_formats::{
-    MAX_MESH_INPUT_BYTES, NamedTriangleMesh, read_meshes, read_obj_meshes, read_stl_mesh, write_stl_mesh,
-};
 use buildercraft_kernel::TriangleMesh;
+use cadcraft_geom::Vec3;
+use cadcraft_io::mesh_formats::{MAX_MESH_INPUT_BYTES, NamedTriangleMesh, read_meshes, read_obj_meshes, read_stl_mesh, write_stl_mesh};
 
 fn triangle() -> TriangleMesh {
-    TriangleMesh {
-        vertices: vec![
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(0.0, 1.0, 0.0),
-        ],
-        triangles: vec![[0, 1, 2]],
-    }
+    TriangleMesh { vertices: vec![Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)], triangles: vec![[0, 1, 2]] }
 }
 
 #[test]

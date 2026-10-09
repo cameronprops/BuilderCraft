@@ -10,9 +10,7 @@ use std::cmp::Ordering;
 /// Invalid or out-of-range coordinates return None instead of entering
 /// an adaptive floating point routine with NaN/Inf.
 pub fn orientation2d(a: Vec2, b: Vec2, c: Vec2) -> Option<Ordering> {
-    let finite = [a, b, c]
-        .iter()
-        .all(|p| p.is_finite() && p.x.abs() <= 1e12 && p.y.abs() <= 1e12);
+    let finite = [a, b, c].iter().all(|p| p.is_finite() && p.x.abs() <= 1e12 && p.y.abs() <= 1e12);
     if !finite {
         return None;
     }
@@ -24,9 +22,7 @@ pub fn orientation2d(a: Vec2, b: Vec2, c: Vec2) -> Option<Ordering> {
 /// Swapping any two input vertices reverses the sign.
 /// No tolerance-based "coplanar" classification is imposed here.
 pub fn orientation3d(a: Vec3, b: Vec3, c: Vec3, d: Vec3) -> Option<Ordering> {
-    let finite = [a, b, c, d]
-        .iter()
-        .all(|p| p.is_finite() && [p.x, p.y, p.z].iter().all(|v| v.abs() <= 1e12));
+    let finite = [a, b, c, d].iter().all(|p| p.is_finite() && [p.x, p.y, p.z].iter().all(|v| v.abs() <= 1e12));
     if !finite {
         return None;
     }

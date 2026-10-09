@@ -5507,10 +5507,15 @@
       "platform": "windows",
       "path": "commands/orient3pt.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#orient3pt-increment",
+      "native_services": [
+        "geometry3d.transform: orient3pt"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8/help/en-us/commands/orientcameratosrf.htm",
@@ -7084,16 +7089,18 @@
       "path": "commands/scale.htm",
       "topic_family": "commands",
       "review_status": "partial",
-      "contract": "MANUAL_REBUILD.md: Second and third reviewed increments; Scale1D/Scale2D/ScaleNU/ScaleByPlane subsets. ScalePositions and remaining options pending.",
+      "contract": "MANUAL_REBUILD.md: directional, nonuniform and ScalePositions numeric subsets; interactive options remain pending.",
       "native_services": [
         "geometry3d.transform:scale1d",
         "geometry3d.transform:scale2d",
         "geometry3d.transform:scale_nu",
-        "geometry3d.transform:scale_by_plane"
+        "geometry3d.transform:scale_by_plane",
+        "geometry3d.transform:scale_positions"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",
-        "crates/engine/tests/transforms3d.rs"
+        "crates/engine/tests/transforms3d.rs",
+        "crates/kernel/tests/spacing.rs"
       ]
     },
     {
@@ -8741,10 +8748,15 @@
       "platform": "windows",
       "path": "commands/shear.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#shear-increment",
+      "native_services": [
+        "geometry3d.transform: shear"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8/help/en-us/commands/shell.htm",
@@ -17263,10 +17275,15 @@
       "platform": "mac",
       "path": "commands/orient3pt.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#orient3pt-increment",
+      "native_services": [
+        "geometry3d.transform: orient3pt"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/orientcameratosrf.htm",
@@ -18770,16 +18787,18 @@
       "path": "commands/scale.htm",
       "topic_family": "commands",
       "review_status": "partial",
-      "contract": "MANUAL_REBUILD.md: Second and third reviewed increments; Scale1D/Scale2D/ScaleNU/ScaleByPlane subsets. ScalePositions and remaining options pending.",
+      "contract": "MANUAL_REBUILD.md: directional, nonuniform and ScalePositions numeric subsets; interactive options remain pending.",
       "native_services": [
         "geometry3d.transform:scale1d",
         "geometry3d.transform:scale2d",
         "geometry3d.transform:scale_nu",
-        "geometry3d.transform:scale_by_plane"
+        "geometry3d.transform:scale_by_plane",
+        "geometry3d.transform:scale_positions"
       ],
       "acceptance_evidence": [
         "crates/kernel/tests/transforms.rs",
-        "crates/engine/tests/transforms3d.rs"
+        "crates/engine/tests/transforms3d.rs",
+        "crates/kernel/tests/spacing.rs"
       ]
     },
     {
@@ -20417,10 +20436,15 @@
       "platform": "mac",
       "path": "commands/shear.htm",
       "topic_family": "commands",
-      "review_status": "not_reviewed",
-      "contract": null,
-      "native_services": [],
-      "acceptance_evidence": []
+      "review_status": "reviewed_partial",
+      "contract": "docs/commands/MANUAL_REBUILD.md#shear-increment",
+      "native_services": [
+        "geometry3d.transform: shear"
+      ],
+      "acceptance_evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ]
     },
     {
       "url": "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/shell.htm",

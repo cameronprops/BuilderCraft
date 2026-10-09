@@ -109,3 +109,128 @@ fn nonuniform_invalid_options_and_plane_preserve_document_revision() {
         assert_eq!(s.state().unwrap().revision, revision);
     }
 }
+
+#[test]
+fn spacing_copy_undo_redo_and_atomic_failure() {
+    let mut s = Session::new();
+    let a = object(&mut s, 2.);
+    let b = object(&mut s, 10.);
+    let before = s.doc().unwrap().geometry3d.clone();
+    let op = json!({"kind":"scale_positions","origin":[0.,0.,0.],"factor":2.,"mode":{"kind":"three_d"},"tolerance":0.000001});
+    s.execute("geometry3d.transform", &json!({"ids":[a,b],"operation":op,"copy":true})).unwrap();
+    let after = s.doc().unwrap().geometry3d.clone();
+    let bytes = cadcraft_io::write(s.doc().unwrap(), "spacing.bcraft").unwrap();
+    let reopened = cadcraft_io::read(&bytes, "spacing.bcraft").unwrap();
+    assert_eq!(reopened.geometry3d, after);
+    assert_eq!(&after[..2], &before);
+    let cadcraft_doc::organization::Shape::Curve(c) = &after[2].shape else { panic!() };
+    assert_eq!(c.control[0].x, 4.5);
+    assert_eq!(c.control[1].x, 5.5);
+    s.undo().unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+    s.redo().unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, after);
+    let snapshot = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let bad = json!({"kind":"scale_positions","origin":[0.,0.,0.],"factor":2.,"mode":{"kind":"one_d","axis":[0.,0.,0.]},"tolerance":0.000001});
+    assert!(s.execute("geometry3d.transform", &json!({"ids":[a,b],"operation":bad})).is_err());
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(std::sync::Arc::ptr_eq(&snapshot, &s.state().unwrap().doc));
+}
+
+#[test]
+fn shear_copy_persistence_undo_redo_and_rejection_are_atomic() {
+    let mut s = Session::new();
+    let id = s
+        .execute(
+            "nurbs.curve3d",
+            &json!({"name":"Shear fixture","curve":{"degree":1,"control":[{"x":1.,"y":2.,"z":3.},{"x":2.,"y":4.,"z":5.}],"weights":[1.,1.],"knots":[0.,0.,1.,1.]}}),
+        )
+        .unwrap()["id"]
+        .as_u64()
+        .unwrap();
+    let before = s.doc().unwrap().geometry3d.clone();
+    let op = json!({"kind":"shear","origin":[1.,2.,3.],"direction":[1.,0.,0.],"normal":[0.,0.,1.],"angle_degrees":45.});
+    s.execute("geometry3d.transform", &json!({"ids":[id],"operation":op,"copy":true})).unwrap();
+    let after = s.doc().unwrap().geometry3d.clone();
+    assert_eq!(after[0], before[0]);
+    assert_ne!(after[1].id, id);
+    let cadcraft_doc::organization::Shape::Curve(c) = &after[1].shape else { panic!() };
+    assert!((c.control[1] - cadcraft_geom::Vec3::new(4., 4., 5.)).len() < 1e-12);
+    let bytes = cadcraft_io::write(s.doc().unwrap(), "sheared.bcraft").unwrap();
+    assert_eq!(cadcraft_io::read(&bytes, "sheared.bcraft").unwrap().geometry3d, after);
+    s.undo().unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+    s.redo().unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, after);
+    for bad in [
+        json!({"kind":"shear","origin":[0.,0.,0.],"direction":[0.,0.,1.],"normal":[0.,0.,1.],"angle_degrees":45.}),
+        json!({"kind":"shear","origin":[0.,0.,0.],"direction":[1.,0.,0.],"normal":[0.,0.,1.],"angle_degrees":90.}),
+        json!({"kind":"shear","origin":[0.,0.,0.],"direction":[1.,0.,0.],"normal":[0.,0.,1.],"angle_degrees":45.,"rigid":true}),
+    ] {
+        let snapshot = s.state().unwrap().doc.clone();
+        let revision = s.state().unwrap().revision;
+        assert!(s.execute("geometry3d.transform", &json!({"ids":[id],"operation":bad,"copy":true})).is_err());
+        assert_eq!(s.state().unwrap().revision, revision);
+        assert!(std::sync::Arc::ptr_eq(&snapshot, &s.state().unwrap().doc));
+    }
+}
+
+#[test]
+fn shear_overflow_in_later_object_preserves_entire_batch() {
+    let mut s = Session::new();
+    let a = object(&mut s, 0.);
+    let b = s
+        .execute(
+            "nurbs.curve3d",
+            &json!({"name":"Shear fixture","curve":{"degree":1,"control":[{"x":1e12,"y":0.,"z":1.},{"x":1e12,"y":0.,"z":2.}],"weights":[1.,1.],"knots":[0.,0.,1.,1.]}}),
+        )
+        .unwrap()["id"]
+        .as_u64()
+        .unwrap();
+    let snapshot = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    assert!(s.execute("geometry3d.transform", &json!({"ids":[a,b],"operation":{"kind":"shear","origin":[0.,0.,0.],"direction":[1.,0.,0.],"normal":[0.,0.,1.],"angle_degrees":45.},"copy":true})).is_err());
+    assert!(std::sync::Arc::ptr_eq(&snapshot, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+#[test]
+fn orient_three_points_copy_scale_persistence_and_undo() {
+    let mut s = Session::new();
+    let id = s.execute("nurbs.curve3d", &json!({"name":"Orientation fixture","curve":{"degree":1,"control":[{"x":1.,"y":2.,"z":3.},{"x":2.,"y":4.,"z":5.}],"weights":[1.,1.],"knots":[0.,0.,1.,1.]}})).unwrap()["id"].as_u64().unwrap();
+    let before = s.doc().unwrap().geometry3d.clone();
+    for scale in [false, true] {
+        let op =
+            json!({"kind":"orient3pt","source":[[1.,2.,3.],[3.,2.,3.],[2.,3.,3.]],"target":[[10.,20.,30.],[10.,24.,30.],[9.,21.,30.]],"scale":scale});
+        s.execute("geometry3d.transform", &json!({"ids":[id],"operation":op,"copy":true})).unwrap();
+        let after = s.doc().unwrap().geometry3d.clone();
+        assert_eq!(after[0], before[0]);
+        assert_ne!(after[1].id, id);
+        let cadcraft_doc::organization::Shape::Curve(c) = &after[1].shape else { panic!() };
+        let expected = if scale { cadcraft_geom::Vec3::new(6., 22., 34.) } else { cadcraft_geom::Vec3::new(8., 21., 32.) };
+        assert!((c.control[1] - expected).len() < 1e-12);
+        let bytes = cadcraft_io::write(s.doc().unwrap(), "oriented.bcraft").unwrap();
+        assert_eq!(cadcraft_io::read(&bytes, "oriented.bcraft").unwrap().geometry3d, after);
+        s.undo().unwrap();
+        assert_eq!(s.doc().unwrap().geometry3d, before);
+        s.redo().unwrap();
+        assert_eq!(s.doc().unwrap().geometry3d, after);
+        s.undo().unwrap();
+    }
+    let good = json!([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.]]);
+    for bad in [
+        json!({"kind":"orient3pt","source":[[0.,0.,0.],[1.,0.,0.],[2.,0.,0.]],"target":good}),
+        json!({"kind":"orient3pt","source":good,"target":good,"rigid":true}),
+        json!({"kind":"orient3pt","source":good,"target":good,"scale":"yes"}),
+        json!({"kind":"orient3pt","source":good,"target":[[1e12,0.,0.],[1e12,1.,0.],[1e12,0.,1.]]}),
+    ] {
+        let snapshot = s.state().unwrap().doc.clone();
+        let revision = s.state().unwrap().revision;
+        assert!(s.execute("geometry3d.transform", &json!({"ids":[id],"operation":bad,"copy":true})).is_err());
+        assert!(std::sync::Arc::ptr_eq(&snapshot, &s.state().unwrap().doc));
+        assert_eq!(s.state().unwrap().revision, revision);
+    }
+    s.execute("geometry3d.transform", &json!({"ids":[id],"operation":{"kind":"orient3pt","source":good,"target":good}})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+}

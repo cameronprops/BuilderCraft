@@ -8,7 +8,7 @@ use serde_json::json;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        CommandSpec::new("geometry3d.transform", "Transform Exact 3D Geometry", transform3d).params("{ids:[id,...],operation:{kind:move|rotate|scale|scale1d|scale2d|scale_nu|scale_by_plane|mirror,...},copy?:false}"),
+        CommandSpec::new("geometry3d.transform", "Transform Exact 3D Geometry", transform3d).params("{ids:[id,...],operation:{kind:move|rotate|scale|scale1d|scale2d|scale_nu|scale_by_plane|scale_positions|shear|orient3pt|mirror,...},copy?:false}"),
         CommandSpec::new("production.model", "Production Organization", |s,_|serde_json::to_value(&s.doc()?.production).map_err(|e|error(&e.to_string()))).noundo(),
         CommandSpec::new("production.set", "Set Production Organization", |s,p|{let model:buildercraft_kernel::ProductionModel=serde_json::from_value(p.clone()).map_err(|e|error(&e.to_string()))?;model.validate().map_err(|e|error(&e.to_string()))?;s.doc_mut()?.production=model;Ok(json!({"ok":true}))}).params("{records,bindings,links}"),
         CommandSpec::new("visualization.start", "Start Live Visualization", live_visualization).params("{project_id,directory}").noundo(),
@@ -406,9 +406,13 @@ fn transform3d(s: &mut Session, p: &Value) -> Result<Value> {
         }
     }
     let cancel = buildercraft_kernel::Cancellation::default();
+    let mut work = 200_000;
     let transformed = objects
         .iter()
-        .map(|o| buildercraft_kernel::transform_exact(&o.shape, &operation, &cancel, 16 * 1024 * 1024).map_err(|e| error(&e.to_string())))
+        .map(|o| {
+            buildercraft_kernel::transform_exact_with_work(&o.shape, &operation, &cancel, 16 * 1024 * 1024, &mut work)
+                .map_err(|e| error(&e.to_string()))
+        })
         .collect::<Result<Vec<_>>>()?;
     let mut objects = objects.into_iter().cloned().collect::<Vec<_>>();
     for (o, shape) in objects.iter_mut().zip(transformed) {

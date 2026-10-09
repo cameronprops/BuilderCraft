@@ -6,14 +6,67 @@ use std::sync::Arc;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Transform {
-    Move { delta: [f64; 3] },
-    Rotate { origin: [f64; 3], axis: [f64; 3], angle_degrees: f64 },
-    Scale { origin: [f64; 3], factor: f64 },
-    Scale1d { origin: [f64; 3], axis: [f64; 3], factor: f64 },
-    Scale2d { origin: [f64; 3], normal: [f64; 3], factor: f64 },
-    ScaleNu { origin: [f64; 3], factors: [f64; 3] },
-    ScaleByPlane { origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], factors: [f64; 2] },
-    Mirror { origin: [f64; 3], normal: [f64; 3] },
+    Move {
+        delta: [f64; 3],
+    },
+    Rotate {
+        origin: [f64; 3],
+        axis: [f64; 3],
+        angle_degrees: f64,
+    },
+    Scale {
+        origin: [f64; 3],
+        factor: f64,
+    },
+    Scale1d {
+        origin: [f64; 3],
+        axis: [f64; 3],
+        factor: f64,
+    },
+    Scale2d {
+        origin: [f64; 3],
+        normal: [f64; 3],
+        factor: f64,
+    },
+    ScaleNu {
+        origin: [f64; 3],
+        factors: [f64; 3],
+    },
+    ScaleByPlane {
+        origin: [f64; 3],
+        x_axis: [f64; 3],
+        y_axis: [f64; 3],
+        factors: [f64; 2],
+    },
+    ScalePositions {
+        origin: [f64; 3],
+        factor: f64,
+        mode: SpacingMode,
+        tolerance: f64,
+    },
+    Shear {
+        origin: [f64; 3],
+        direction: [f64; 3],
+        normal: [f64; 3],
+        angle_degrees: f64,
+    },
+    Orient3pt {
+        source: [[f64; 3]; 3],
+        target: [[f64; 3]; 3],
+        #[serde(default)]
+        scale: bool,
+    },
+    Mirror {
+        origin: [f64; 3],
+        normal: [f64; 3],
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SpacingMode {
+    OneD { axis: [f64; 3] },
+    TwoD { normal: [f64; 3] },
+    ThreeD,
 }
 fn point(p: [f64; 3]) -> Result<Vec3> {
     if p.iter().any(|v| !v.is_finite() || v.abs() > 1e12) {
@@ -35,10 +88,56 @@ fn directional_factor(factor: f64) -> Result<f64> {
     }
     Ok(factor)
 }
+/// The first edge fixes X; the third point fixes handed plane orientation, not scale.
+fn orient_frame(points: [[f64; 3]; 3]) -> Result<(Vec3, [Vec3; 3], f64)> {
+    let origin = point(points[0])?;
+    let edge = point(points[1])? - origin;
+    let third = point(points[2])? - origin;
+    let length = edge.x.hypot(edge.y).hypot(edge.z);
+    let third_length = third.x.hypot(third.y).hypot(third.z);
+    if length < 1e-9 || third_length < 1e-9 {
+        return Err(KernelError::Invalid("orientation reference edges must be at least 1e-9 model units"));
+    }
+    let x = edge * (1. / length);
+    let cross = x.cross(third * (1. / third_length));
+    let sine = cross.x.hypot(cross.y).hypot(cross.z);
+    if sine < 1e-9 {
+        return Err(KernelError::Invalid("orientation points are collinear or nearly collinear"));
+    }
+    let z = cross * (1. / sine);
+    Ok((origin, [x, z.cross(x), z], length))
+}
+fn orient_matrix(source: [[f64; 3]; 3], target: [[f64; 3]; 3], scale: bool) -> Result<Mat4> {
+    let (origin, from, from_length) = orient_frame(source)?;
+    let (destination, to, to_length) = orient_frame(target)?;
+    let factor = if scale { to_length / from_length } else { 1. };
+    if !factor.is_finite() || !(1e-9..=1e9).contains(&factor) {
+        return Err(KernelError::Invalid("orientation scale factor outside supported range"));
+    }
+    let components = |v: Vec3| [v.x, v.y, v.z];
+    let from = from.map(components);
+    let to = to.map(components);
+    let mut matrix = Mat4::IDENTITY;
+    for (i, row) in matrix.m.iter_mut().take(3).enumerate() {
+        for (j, value) in row.iter_mut().take(3).enumerate() {
+            *value = factor * (0..3).map(|k| to[k][i] * from[k][j]).sum::<f64>();
+        }
+    }
+    let shift = destination - matrix.apply(origin);
+    matrix.m[0][3] = shift.x;
+    matrix.m[1][3] = shift.y;
+    matrix.m[2][3] = shift.z;
+    if matrix.m.iter().flatten().any(|v| !v.is_finite()) {
+        return Err(KernelError::Invalid("orientation overflow"));
+    }
+    Ok(matrix)
+}
 impl Transform {
     pub fn matrix(&self) -> Result<Mat4> {
         let mut m = Mat4::IDENTITY;
         let origin = match *self {
+            Self::Orient3pt { source, target, scale } => return orient_matrix(source, target, scale),
+            Self::ScalePositions { .. } => return Err(KernelError::Invalid("ScalePositions requires per-object bounds")),
             Self::Move { delta } => {
                 let d = point(delta)?;
                 m.m[0][3] = d.x;
@@ -95,6 +194,28 @@ impl Transform {
                 }
                 point(origin)?
             }
+            Self::Shear { origin, direction: shear_direction, normal, angle_degrees } => {
+                if !angle_degrees.is_finite() || angle_degrees.abs() >= 89. {
+                    return Err(KernelError::Invalid("shear angle must be between -89 and 89 degrees"));
+                }
+                let n = direction(normal)?;
+                let d = direction(shear_direction)?;
+                let dot = d.dot(n);
+                if dot.abs() > 1e-9 {
+                    return Err(KernelError::Invalid("shear direction must be perpendicular to plane normal"));
+                }
+                let d = d - n * dot;
+                let d = direction([d.x, d.y, d.z])?;
+                let d = [d.x, d.y, d.z];
+                let n = [n.x, n.y, n.z];
+                let amount = angle_degrees.to_radians().tan();
+                for (i, row) in m.m.iter_mut().take(3).enumerate() {
+                    for (j, value) in row.iter_mut().take(3).enumerate() {
+                        *value += amount * d[i] * n[j];
+                    }
+                }
+                point(origin)?
+            }
             Self::Rotate { origin, axis, angle_degrees } => {
                 if !angle_degrees.is_finite() || angle_degrees.abs() > 1e9 {
                     return Err(KernelError::Invalid("rotation angle"));
@@ -142,6 +263,17 @@ pub fn exact_control_count(shape: &ExactShape) -> usize {
 }
 /// Preflight before copy-on-write; source and parameterization stay intact on failure.
 pub fn transform_exact(shape: &ExactShape, operation: &Transform, cancel: &Cancellation, max_bytes: usize) -> Result<ExactShape> {
+    let mut work = 200_000;
+    transform_exact_with_work(shape, operation, cancel, max_bytes, &mut work)
+}
+/// Batch callers share the subdivision work limit across all objects.
+pub fn transform_exact_with_work(
+    shape: &ExactShape,
+    operation: &Transform,
+    cancel: &Cancellation,
+    max_bytes: usize,
+    work: &mut usize,
+) -> Result<ExactShape> {
     cancel.check()?;
     if !shape.valid() {
         return Err(KernelError::Invalid("source exact shape"));
@@ -149,7 +281,24 @@ pub fn transform_exact(shape: &ExactShape, operation: &Transform, cancel: &Cance
     if shape.estimated_bytes()? > max_bytes || exact_control_count(shape) > 100_000 {
         return Err(KernelError::Budget);
     }
-    let matrix = operation.matrix()?;
+    let matrix = if let Transform::ScalePositions { origin, factor, mode, tolerance } = operation {
+        directional_factor(*factor)?;
+        point(*origin)?;
+        let scaling = match mode {
+            SpacingMode::OneD { axis } => Transform::Scale1d { origin: *origin, axis: *axis, factor: *factor },
+            SpacingMode::TwoD { normal } => Transform::Scale2d { origin: *origin, normal: *normal, factor: *factor },
+            SpacingMode::ThreeD => Transform::ScaleNu { origin: *origin, factors: [*factor; 3] },
+        }
+        .matrix()?;
+        if !tolerance.is_finite() || !(1e-9..=1.).contains(tolerance) {
+            return Err(KernelError::Invalid("bounds tolerance must be 1e-9 to 1 model units"));
+        }
+        let center = crate::exact_bounds_center(shape, *tolerance, cancel, work)?;
+        let d = scaling.apply(center) - center;
+        Transform::Move { delta: [d.x, d.y, d.z] }.matrix()?
+    } else {
+        operation.matrix()?
+    };
     let edit = |points: &mut [Vec3]| -> Result<()> {
         for p in points {
             cancel.check()?;

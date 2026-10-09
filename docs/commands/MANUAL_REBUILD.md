@@ -119,3 +119,76 @@ Evidence includes off-origin world XYZ coordinates, a known oblique-plane result
 rational curve/surface evaluation, invalid frame/factor/unsupported-field rejection,
 atomic failure preservation, copy/undo and `.bcraft` save/reopen in the shared
 transform tests. Next: ScalePositions (spacing without deforming each object).
+
+## ScalePositions increment
+
+`geometry3d.transform` now accepts `scale_positions` for native exact curves and
+control surfaces. Each object is translated from its world-axis bounding-box
+center; its control-point differences, knots, weights and degree are preserved.
+Modes: `{"kind":"one_d","axis":[1,0,0]}`,
+`{"kind":"two_d","normal":[0,0,1]}`, or `{"kind":"three_d"}`.
+Supply `origin`, finite `factor` from 0 to 1e9, and absolute bounds `tolerance`
+from 1e-9 to 1 model units. Existing copy/undo/batch semantics apply.
+
+Bounds use original homogeneous Bezier span extraction and adaptive convex-hull
+subdivision, including rational weights and multiple knot spans. Subdivision
+stops at the requested bounds tolerance plus a scale-dependent f64 rounding
+guard. Translation error can amplify with the scale factor. The batch shares
+a 200,000-work limit and each patch has depth limit 48; exceeding either rejects
+the operation rather than silently substituting a control-cage center. Kernel
+cancellation is cooperative; the current desktop command remains synchronous.
+
+The transform panel has Space 1D / 2D / 3D buttons, using existing origin,
+axis/normal, factor and copy controls; UI bounds tolerance is 1e-6 model units.
+Reference-point picking, active-CPlane inference, mesh/solid input, group-level
+centers, remembered Rhino options and associative history remain pending.
+Graph canvas integration is not implemented. Numerical API coverage is partial.
+
+Evidence: `crates/kernel/tests/spacing.rs` and
+`crates/engine/tests/transforms3d.rs`.
+
+## Shear increment
+
+`geometry3d.transform` accepts `shear` on native exact curves/control surfaces,
+with explicit world-space `origin`, `direction`, `normal` and `angle_degrees`.
+The fixed plane passes through origin with the given normal. A point moves by
+`direction * tan(angle) * dot(point - origin, normal)` after normalization.
+Directions must be perpendicular within 1e-9; accepted drift is orthogonalized.
+Angles are strictly between -89 and 89 degrees, including zero and negative
+angles. Invalid frames, nonfinite parameters and coordinate overflow reject
+before document mutation. Existing copy, budgets, cancellation and undo apply.
+
+The transform panel exposes a Shear button with independent direction and angle,
+using the existing origin and axis/normal controls. Rational weights, knots,
+degrees and parameterization remain intact. Source geometry stays authoritative.
+Reference picking, active CPlane, Rigid, SubCrv, remembered choices, history,
+meshes and solid representations remain pending. Numeric subset only.
+
+Windows and Mac official Shear pages reviewed; their option lists differ.
+Original numerical fixtures cover fixed-plane points, signed inverse, oblique
+frames, rational evaluation, surface edits, hostile inputs, copies, undo/redo,
+project round trips and actual headless button clicks.
+
+## Orient3Pt increment
+
+`geometry3d.transform` accepts `orient3pt` with three world-space `source` and
+three `target` points plus optional `scale` (boolean, default false). The first
+point is the origin, the first-to-second direction defines X, and the third
+point determines the right-handed plane orientation. Without Scale, dimensions
+are preserved. With Scale, uniform size follows the ratio of target/source
+first-edge lengths; the third point never introduces nonuniform scaling or
+shear. The full third source point need not land on the third target point.
+
+Both point triples must have first/third edges at least 1e-9 model units and
+angular sine at least 1e-9. All points must be finite within 1e12 units; scale
+ratios must be 1e-9 through 1e9. Degenerate frames, unsupported fields and output
+coordinate overflow reject before mutation. Existing batch, copy, cancellation,
+retained-byte limits, undo/redo and persistence apply. Weights, degrees and knots
+are preserved for exact rational curves and control surfaces.
+
+Numeric UI includes all six reference points, a Scale checkbox and Orient3Pt
+button. Viewport reference picking, remembered Copy and meshes/Breps/SubD remain
+pending. Windows and Mac reference pages were reviewed. Evidence covers known
+3D placements, handedness, inverse transforms, third-point scale independence,
+rational evaluation, surface transforms, hostile frames, copy, undo, persistence
+and actual headless button clicks.

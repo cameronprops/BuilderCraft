@@ -106,3 +106,28 @@ Added original native ScaleNU world-axis and ScaleByPlane explicit-frame API
 operations for exact curves/control surfaces. Parameterization, atomic batch
 behavior, copying, undo and persistence are preserved. Reference/CPlane/preset
 UI, Rigid/history and other representations remain pending. Next: ScalePositions.
+
+## ScalePositions increment
+
+Native exact curves/control surfaces now support 1D, 2D and 3D spacing through
+`geometry3d.transform`, with Space buttons in the transform panel. Bounds come
+from rational span subdivision; objects retain their sizes and parameterization.
+Shared batch work limits, copy, undo/redo, failed-operation preservation and
+`.bcraft` round trips have regression coverage. See
+[command contract](../commands/MANUAL_REBUILD.md) for tolerance, scope and pending options.
+
+## Shear increment
+
+Added original bounded affine shear to the shared exact transform service and
+the numeric transform panel. Copy, undo/redo, rational parameterization and
+project persistence use the existing transaction path. Scope and pending options
+are in `docs/commands/MANUAL_REBUILD.md`. Hosted workflows are now manual-only;
+ordinary source pushes do not schedule GitHub Actions.
+
+## Orient3Pt increment
+
+Added original three-point frame orientation to the shared exact transform
+service and numeric UI, with optional first-edge uniform scaling. Existing copy,
+undo/redo, resource limits and project persistence apply. Exact rational curves
+and control surfaces only; reference picking and other representations remain
+pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.

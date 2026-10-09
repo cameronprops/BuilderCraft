@@ -2,6 +2,7 @@
 //! not total process RSS; callers must budget input decoding and job workspace.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod bounds;
 mod bounds_ops;
 mod geometry;
 mod mesh_analysis;
@@ -26,6 +27,7 @@ mod scene;
 mod tessellation;
 mod transform;
 mod vector_ops;
+pub use bounds::*;
 pub use bounds_ops::*;
 pub use geometry::*;
 pub use mesh_analysis::*;

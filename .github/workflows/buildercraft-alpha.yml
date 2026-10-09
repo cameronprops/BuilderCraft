@@ -1,9 +1,7 @@
 name: BuilderCraft alpha builds
 on:
   workflow_dispatch:
-  push:
-    branches: ['main', 'buildercraft/**']
-  pull_request:
+
 jobs:
   validation:
     runs-on: ubuntu-latest

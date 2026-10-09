@@ -9378,12 +9378,20 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/orient3pt.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/orient3pt.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "Explicit three source and three target points",
+        "Optional uniform Scale based on first two points",
+        "Copy and atomic undo/redo for native exact curves/control surfaces"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs",
+        "crates/ui-egui/src/buildercraft.rs"
+      ],
+      "notes": "Original right-handed frame alignment. The third point sets plane orientation only. Reject edges shorter than 1e-9 model units and angular sine below 1e-9. Scale ratio must be 1e-9 to 1e9. Interactive picking, remembered Copy and other representations remain pending."
     },
     {
       "name": "OrientCameraToSrf",
@@ -12311,12 +12319,21 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/scalepositions.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/scalepositions.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "explicit origin and numeric factor",
+        "1D axis, 2D normal, 3D",
+        "copy",
+        "bounds tolerance",
+        "pending: interactive references/CPlane, other representations and history"
+      ],
+      "evidence": [
+        "crates/kernel/tests/spacing.rs",
+        "crates/engine/tests/transforms3d.rs"
+      ],
+      "notes": "Original bounded rational span bounds and per-object translation. See MANUAL_REBUILD.md: ScalePositions increment."
     },
     {
       "name": "ScaleTextHeight",
@@ -15097,12 +15114,19 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/shear.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/shear.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "Explicit world-space origin, shear direction, fixed-plane normal and signed angle",
+        "Copy and atomic undo/redo for native exact curves/control surfaces"
+      ],
+      "evidence": [
+        "crates/kernel/tests/transforms.rs",
+        "crates/engine/tests/transforms3d.rs",
+        "crates/ui-egui/src/buildercraft.rs"
+      ],
+      "notes": "Original affine shear. Directions must be perpendicular within 1e-9; angles strictly between -89 and 89 degrees. Reference picking, CPlane inference, Rigid, SubCrv, history and other representations remain pending."
     },
     {
       "name": "Shell",

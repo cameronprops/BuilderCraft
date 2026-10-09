@@ -285,7 +285,7 @@ fn transform_panel(app: &mut CadApp, ui: &mut egui::Ui) {
             operation = Some(json!({"kind":"move","delta":app.ui.transform_delta}));
         }
         fields(ui, "Origin / plane point", &mut app.ui.transform_origin);
-        fields(ui, "Rotation axis / mirror normal", &mut app.ui.transform_axis);
+        fields(ui, "Axis (1D/rotate) / normal (2D/mirror)", &mut app.ui.transform_axis);
         ui.add(egui::DragValue::new(&mut app.ui.transform_angle).prefix("Angle °: ").speed(1.));
         if ui.add_enabled(!ids.is_empty(), egui::Button::new("Rotate selected")).clicked() {
             operation =
@@ -295,12 +295,112 @@ fn transform_panel(app: &mut CadApp, ui: &mut egui::Ui) {
         if ui.add_enabled(!ids.is_empty(), egui::Button::new("Scale selected")).clicked() {
             operation = Some(json!({"kind":"scale","origin":app.ui.transform_origin,"factor":app.ui.transform_factor}));
         }
+        ui.label("Space objects without changing their size");
+        ui.horizontal_wrapped(|ui| {
+            for (label, mode) in [
+                ("Space 1D", json!({"kind":"one_d","axis":app.ui.transform_axis})),
+                ("Space 2D", json!({"kind":"two_d","normal":app.ui.transform_axis})),
+                ("Space 3D", json!({"kind":"three_d"})),
+            ] {
+                if ui.add_enabled(!ids.is_empty(), egui::Button::new(label)).clicked() {
+                    operation=Some(json!({"kind":"scale_positions","origin":app.ui.transform_origin,"factor":app.ui.transform_factor,"mode":mode,"tolerance":0.000001}));
+                }
+            }
+        });
         if ui.add_enabled(!ids.is_empty(), egui::Button::new("Mirror selected")).clicked() {
             operation = Some(json!({"kind":"mirror","origin":app.ui.transform_origin,"normal":app.ui.transform_axis}));
         }
+        fields(ui, "Shear direction (perpendicular to normal above)", &mut app.ui.shear_direction);
+        ui.add(egui::DragValue::new(&mut app.ui.shear_angle).prefix("Shear angle °: ").speed(1.));
+        if ui.add_enabled(!ids.is_empty(), egui::Button::new("Shear selected")).clicked() {
+            operation = Some(json!({"kind":"shear","origin":app.ui.transform_origin,"direction":app.ui.shear_direction,"normal":app.ui.transform_axis,"angle_degrees":app.ui.shear_angle}));
+        }
+        egui::CollapsingHeader::new("Orient by three points").default_open(true).show(ui, |ui| {
+            for (i, value) in app.ui.orient_source.iter_mut().enumerate() {
+                fields(ui, &format!("Source point {}", i + 1), value);
+            }
+            for (i, value) in app.ui.orient_target.iter_mut().enumerate() {
+                fields(ui, &format!("Target point {}", i + 1), value);
+            }
+            ui.checkbox(&mut app.ui.orient_scale, "Scale using first two points");
+            if ui.add_enabled(!ids.is_empty(), egui::Button::new("Orient3Pt selected")).clicked() {
+                operation = Some(json!({"kind":"orient3pt","source":app.ui.orient_source,"target":app.ui.orient_target,"scale":app.ui.orient_scale}));
+            }
+        });
         if let Some(operation) = operation {
             let _ = app.run("geometry3d.transform", json!({"ids":ids,"operation":operation,"copy":app.ui.transform_copy}));
         }
         ui.small("Exact curves/control surfaces only. World coordinates; numeric controls, no gumball yet.");
     });
+}
+
+#[cfg(test)]
+mod spacing_ui_tests {
+    use super::*;
+    #[test]
+    fn spacing_buttons_dispatch_real_geometry_commands() {
+        fn text_center(shape: &egui::epaint::Shape, label: &str) -> Option<egui::Pos2> {
+            match shape {
+                egui::epaint::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+                egui::epaint::Shape::Vec(shapes) => shapes.iter().find_map(|s| text_center(s, label)),
+                _ => None,
+            }
+        }
+        for label in ["Space 1D", "Space 2D", "Space 3D", "Shear selected", "Orient3Pt selected"] {
+            let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+            let result=app.run("nurbs.curve3d",json!({"name":"Spacing fixture","curve":{"degree":1,"control":[{"x":2.,"y":4.,"z":6.},{"x":4.,"y":6.,"z":8.}],"weights":[1.,1.],"knots":[0.,0.,1.,1.]}})).unwrap();
+            let id = result["id"].as_u64().unwrap();
+            app.session.set_selection(vec![cadcraft_doc::Handle(id)]);
+            app.ui.transform_factor = 2.;
+            app.ui.transform_origin = [0.; 3];
+            app.ui.transform_axis = if label == "Shear selected" { [0., 0., 1.] } else { [1., 0., 0.] };
+            app.ui.orient_target = [[0., 0., 0.], [0., 1., 0.], [-1., 0., 0.]];
+            let ctx = egui::Context::default();
+            let input =
+                egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(450., 1000.))), ..Default::default() };
+            let mut frame = ctx.run_ui(input.clone(), |ui| transform_panel(&mut app, ui));
+            let capture = std::env::var_os("WORLDWRIGHT_UI_CAPTURE").is_some() && label == "Orient3Pt selected";
+            if capture {
+                for delta in frame.textures_delta.set.values().flatten() {
+                    let egui::ImageData::Color(texture) = &delta.image;
+                    let pixels = texture.pixels.iter().flat_map(|p| p.to_array()).collect::<Vec<_>>();
+                    image::RgbaImage::from_raw(texture.size[0] as u32, texture.size[1] as u32, pixels)
+                        .unwrap()
+                        .save("/tmp/worldwright-panel-atlas.png")
+                        .unwrap();
+                }
+            }
+            frame.textures_delta.clear();
+            let mut frame = ctx.run_ui(input.clone(), |ui| transform_panel(&mut app, ui));
+            if capture {
+                let meshes = ctx.tessellate(frame.shapes.clone(), 1.).into_iter().filter_map(|p| {
+                    let egui::epaint::Primitive::Mesh(m) = p.primitive else { return None };
+                    Some(json!({"clip":[p.clip_rect.min.x,p.clip_rect.min.y,p.clip_rect.max.x,p.clip_rect.max.y],"indices":m.indices,"vertices":m.vertices.iter().map(|v| json!([v.pos.x,v.pos.y,v.uv.x,v.uv.y,v.color.to_array()])).collect::<Vec<_>>()}))
+                }).collect::<Vec<_>>();
+                std::fs::write("/tmp/worldwright-panel-meshes.json", serde_json::to_vec(&meshes).unwrap()).unwrap();
+            }
+            let pos = frame.shapes.iter().find_map(|s| text_center(&s.shape, label)).unwrap();
+            frame.textures_delta.clear();
+            for pressed in [true, false] {
+                let mut event = input.clone();
+                event.events = vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::default() },
+                ];
+                let mut frame = ctx.run_ui(event, |ui| transform_panel(&mut app, ui));
+                frame.textures_delta.clear();
+            }
+            let cadcraft_doc::organization::Shape::Curve(c) = &app.session.doc().unwrap().geometry3d[0].shape else { panic!() };
+            let expected = match label {
+                "Space 1D" => [5., 4., 6.],
+                "Space 2D" => [2., 9., 13.],
+                "Shear selected" => [8., 4., 6.],
+                "Orient3Pt selected" => [-4., 2., 6.],
+                _ => [5., 9., 13.],
+            };
+            for (actual, wanted) in [c.control[0].x, c.control[0].y, c.control[0].z].into_iter().zip(expected) {
+                assert!((actual - wanted).abs() < 1e-10, "{label}: {actual} != {wanted}");
+            }
+        }
+    }
 }

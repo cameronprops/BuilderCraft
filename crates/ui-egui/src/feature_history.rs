@@ -12,9 +12,17 @@ fn scope_label(scope: &FeatureScope) -> String {
     }
 }
 fn edit(app: &mut CadApp, history: &FeatureTimeline, change: Value) {
+    // Multiple widgets may commit edits in one egui frame. Recheck the
+    // current timeline revision after each command instead of reusing the
+    // cloned panel snapshot, or the second edit would spuriously conflict.
+    let expected_revision = app.session.doc().ok()
+        .and_then(|d| d.feature_timelines.iter()
+            .find(|h| h.scope == history.scope)
+            .map(|h| h.revision))
+        .unwrap_or(history.revision);
     let _ = app.run("worldwright.history.edit", json!({
         "scope": history.scope,
-        "expected_revision": history.revision,
+        "expected_revision": expected_revision,
         "change": change,
     }));
 }

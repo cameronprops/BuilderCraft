@@ -1,6 +1,6 @@
-# BuilderCraft: themed entertainment CAD suite
+# Worldwright: open-source design environment
 
-BuilderCraft combines independent CAD, Scan, Graph and Show apps around shared geometry, scene data, commands and versioned bridges. The current alpha is the CAD desktop; the other executable apps and their planned capabilities are not implemented yet.
+Worldwright combines independent CAD, Scan, Graph and Show apps around shared geometry, scene data, commands and versioned bridges. The current alpha is the CAD desktop; the other executable apps and their planned capabilities are not implemented yet.
 
 | App | Product direction |
 |---|---|
@@ -18,13 +18,13 @@ Start with [suite architecture](docs/architecture/SUITE.md), [delivery roadmap](
 A standalone Rust CAD application based on CADCraft, adding a modeling workspace, named model organization, and initial 3D NURBS tools. No AI, account, Rhino license, or internet connection is required to use the application after installation.
 
 ## Run from source
-Requires Rust 1.90 or newer and the normal system dependencies for eframe/wgpu.
+Requires Rust 1.95 or newer and the normal system dependencies for eframe/wgpu.
 
 ```sh
 cargo run -p cadcraft -- --sample
 ```
 
-The package name remains `cadcraft` to keep upstream integration simple; the desktop workspace is BuilderCraft. The `--sample` option opens an inherited drafting sample. Choose **3D** to create a 3D curve or control surface. Drag the viewport to orbit and scroll to zoom. Expand **Control points** in the Model Browser to edit XYZ coordinates. Save as `.dftba` to preserve 3D objects and named organization.
+The package name remains `cadcraft` to keep upstream integration simple; the desktop workspace is Worldwright. The `--sample` option opens an inherited drafting sample. Choose **3D** to create a 3D curve or control surface. Drag the viewport to orbit and scroll to zoom. Expand **Control points** in the Model Browser to edit XYZ coordinates. Save as `.dftba` to preserve 3D objects and named organization.
 
 Switch to **2D / Drafting** for existing CADCraft drafting. The workspace selector restores the CADCraft-style layout. This alpha's 3D view is orthographic with an orbit camera; perspective projection, four viewports and 3D snapping are next steps.
 
@@ -62,4 +62,16 @@ A local saved-project visualization feed and GLB export are available; see [Unre
 
 Current priority is the CAD workspace with native Rhino-like tools, a full embedded Grasshopper-style workspace and SolidWorks-style sketch/feature workflows. The component-by-component build register is [Grasshopper 1 and Kangaroo 2](docs/components/README.md), containing 817 and 110 public-index entries respectively. None is currently marked implemented; runtime/version reconciliation and full port/tree contracts remain pending.
 
-The 3D viewport now offers Top, Front, Right, Isometric and Fit through the View menu and viewport controls. Drag to orbit, Shift-drag to pan, scroll to zoom. Fit frames visible control hulls conservatively and is bounded to 100,000 controls. These remain orthographic wireframe previews; perspective, geometry picking and full parametric authoring are subsequent work.
+The 3D viewport offers Top, Front, Right, Isometric and Fit; drag to orbit,
+Shift-drag to pan, and scroll to zoom. Fit frames visible control hulls with
+a bounded traversal. Native polygon meshes can be clicked to select individual
+triangle or quad faces, highlighted in the wireframe, then edited using the
+existing undoable Delete Face command. The selection is tied to the document
+revision. This first picker only considers polygon meshes; edge/vertex picking,
+shaded occlusion, perspective and full parametric authoring remain future work.
+
+The new native filename is `.dftba`; existing `.bcraft` projects remain readable.
+For local source validation (no GitHub Actions), run
+`bash tools/verify-worldwright-kernel.sh` on Unix/macOS or
+`powershell -ExecutionPolicy Bypass -File tools/verify-worldwright-kernel.ps1`
+on Windows. The mesh UI changes are still undergoing local build validation.

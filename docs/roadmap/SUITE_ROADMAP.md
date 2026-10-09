@@ -133,10 +133,10 @@ and control surfaces only; reference picking and other representations remain
 pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
 
 
-## Calisoga and dependency-first paired tools (source authored, validation pending)
+## Orb Weaver and dependency-first paired tools (source authored, validation pending)
 
-Worldwright's native Grasshopper-style graph core is now called **Calisoga**
-(working name, after the California-associated spider genus). It will run
+Worldwright's native Grasshopper-style graph core is now called **Orb Weaver**
+(working name, after orb-weaving spiders). It will run
 inside CAD and headlessly/independently through the same underlying kernel.
 A separate visual canvas and executable remain later deliverables.
 
@@ -150,7 +150,7 @@ or conformance claim is inferred from these labels.**
 
 Ten CAD/Graph pairs now route point, vector and polyline functions through
 one typed kernel dispatcher (`crates/kernel/src/shared_tools.rs`). The newly
-authored `crates/calisoga` evaluator supports typed ports, literal/linked
+authored `crates/orb-weaver` evaluator supports typed ports, literal/linked
 values, versioned serializable graphs, dependency scheduling, cycle/type
 checks, graph limits and atomic error propagation. The CAD/API command
 adapter in `crates/engine/src/cmd/worldwright_tools.rs` uses those same
@@ -166,6 +166,6 @@ a local compilation/test and reference conformance fixture.
 
 The next dependency-respecting build steps are: type tree/list support,
 stable geometry reference ports, graph persistence in `.dftba`, preview/bake
-transactions, exact curve operations paired in CAD/Calisoga, then surface,
+transactions, exact curve operations paired in CAD/Orb Weaver, then surface,
 intersection/solid and physics forms. Each algorithm is implemented once,
-and CAD options / Calisoga settings are modifiers or thin adapters.
+and CAD options / Orb Weaver settings are modifiers or thin adapters.

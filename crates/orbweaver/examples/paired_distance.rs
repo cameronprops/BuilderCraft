@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version: 1,
         nodes: vec![Node {
             id: 1,
-            match_policy: TreeMatchPolicy::Shortest,
+            matching: TreeMatchPolicy::Shortest,
             component: "orbweaver.point.distance".into(),
             inputs: inputs.into_iter().map(|(key, value)| (
                 key, InputBinding::Constant { value },

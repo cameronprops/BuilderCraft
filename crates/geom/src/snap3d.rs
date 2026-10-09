@@ -100,10 +100,7 @@ impl ScreenRay {
         if !self.valid() {
             return None;
         }
-        let offset = Vec2::new(
-            (self.pixel.x - self.viewport.x * 0.5) / self.scale,
-            (self.viewport.y * 0.5 - self.pixel.y) / self.scale,
-        );
+        let offset = Vec2::new((self.pixel.x - self.viewport.x * 0.5) / self.scale, (self.viewport.y * 0.5 - self.pixel.y) / self.scale);
         let point = self.center + self.frame.right() * offset.x + self.frame.up() * offset.y;
         bounded(point).then_some(point)
     }
@@ -128,10 +125,7 @@ impl ScreenRay {
             return None;
         }
         let projected = self.frame.project(point, self.center);
-        let pixel = Vec2::new(
-            self.viewport.x * 0.5 + projected.x * self.scale,
-            self.viewport.y * 0.5 - projected.y * self.scale,
-        );
+        let pixel = Vec2::new(self.viewport.x * 0.5 + projected.x * self.scale, self.viewport.y * 0.5 - projected.y * self.scale);
         let distance = (pixel - self.pixel).len();
         let depth = (point - self.center).dot(self.frame.right().cross(self.frame.up()));
         (distance.is_finite() && depth.is_finite() && distance <= radius).then_some((distance, depth))
@@ -160,9 +154,7 @@ mod tests {
         assert!((point.y - 2.8).abs() < 1e-10);
         assert!(point.z.abs() < 1e-10);
         assert_eq!(plane.grid_point(point, 1.), Some(Vec3::new(2., 3., 0.)));
-        let rotated = ConstructionPlane::from_axes(
-            Vec3::new(10., 0., 1.), Vec3::new(0., 2., 0.), Vec3::new(-3., 0., 0.),
-        ).unwrap();
+        let rotated = ConstructionPlane::from_axes(Vec3::new(10., 0., 1.), Vec3::new(0., 2., 0.), Vec3::new(-3., 0., 0.)).unwrap();
         assert_eq!(rotated.normal(), Vec3::Z);
         assert_eq!(rotated.point(Vec2::new(2., 3.)), Some(Vec3::new(7., 2., 1.)));
         assert_eq!(rotated.coordinates(Vec3::new(7., 2., 1.)), Some(Vec2::new(2., 3.)));

@@ -6,7 +6,7 @@ Worldwright combines independent CAD, Scan, Graph and Show apps around shared ge
 |---|---|
 | CAD | Rhino-style 3D CAD, NURBS/Brep modeling, full command coverage, layers and body browser |
 | Scan | GOM/PolyWorks/DesignX-inspired mesh repair, best fit, inspection and scan reconstruction |
-| Graph | Houdini-style procedural modeling/VFX with Grasshopper data flow and engine pipelines |
+| Calisoga (Graph) | Native typed procedural graph for Grasshopper-style workflows, embedded in CAD and independently usable; Houdini-style/VFX extensions later |
 | Show | Lighting, AV and automation organization, paperwork, patch, pre-cueing and previs |
 
 Every app should operate independently, with optional file/live bridges to BuilderCraft or proprietary tools. Early immersive walkthroughs from massing models are a core requirement.
@@ -49,7 +49,7 @@ See docs/BUILDERCRAFT_API.md and docs/FORMAT_SUPPORT.md. The control endpoint is
 Branch: `buildercraft/alpha-foundation`. Upstream: https://github.com/storytold/cadcraft . User-owned repository: https://github.com/cameronprops/BuilderCraft . Source imported from local commit `8509232c17f4763137d8714946f48d9cc0511863`; `history/BuilderCraft.bundle` preserves the original Git history. Keep upstream updates separate from BuilderCraft feature branches.
 
 ## Procedural modeling
-The Houdini-like component with Grasshopper functionality is requested but not implemented. See [the shared procedural modeling scope](docs/PROCEDURAL_MODELING.md).
+The first headless **Calisoga** typed graph evaluator and ten paired CAD/Graph numeric operations are authored (compilation pending), with no graphical node canvas or Grasshopper data-tree parity yet. See [procedural modeling](docs/PROCEDURAL_MODELING.md) and the [dependency plan](docs/dependencies/README.md).
 
 ## License and attribution
 MIT OR Apache-2.0, retaining CADCraft's copyright notices and third-party attribution. BuilderCraft is an independent fork, not an ArtCraft product. Upstream trademark assets have been removed from the current source tree; upstream history remains intact.
@@ -75,3 +75,16 @@ For local source validation (no GitHub Actions), run
 `bash tools/verify-worldwright-kernel.sh` on Unix/macOS or
 `powershell -ExecutionPolicy Bypass -File tools/verify-worldwright-kernel.ps1`
 on Windows. The mesh UI changes are still undergoing local build validation.
+
+## Building native CAD and Calisoga nodes together
+
+The [dependency hierarchy](docs/dependencies/README.md) routes all 4,356
+catalogued references to provisional dependency groups, with 2,347 still
+unclassified pending manual review. The [shared typed dispatcher](crates/kernel/src/shared_tools.rs)
+owns the implementation for ten native point, vector and polyline tools; the
+CAD commands and the Calisoga graph engine call it rather than duplicate
+algorithms. These new files and authored tests await local Rust compilation.
+Run `python3 tools/build_dependency_index.py --check` to verify catalog
+coverage and `python3 tools/check_paired_tools.py` to catch drift between
+the reference plan, kernel, CAD commands and Calisoga node identities.
+

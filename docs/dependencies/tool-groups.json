@@ -1,0 +1,988 @@
+{
+  "schema_version": 1,
+  "scope": "Worldwright foundational dependency DAG; all catalogue assignments provisional until reviewed",
+  "classification_policy": "Tags and name-based classes guide ordering only. They do not claim verified command/component semantics, implementation or Grasshopper parity.",
+  "groups": [
+    {
+      "id": "foundation.values",
+      "tier": 0,
+      "requires": [],
+      "scope": "Typed scalar/text/boolean values, option schemas, validated inputs"
+    },
+    {
+      "id": "foundation.units_frames",
+      "tier": 0,
+      "requires": [
+        "foundation.values"
+      ],
+      "scope": "Units, handedness, coordinate frames, tolerances"
+    },
+    {
+      "id": "foundation.identities",
+      "tier": 0,
+      "requires": [
+        "foundation.values"
+      ],
+      "scope": "Stable IDs, revisions, object ownership"
+    },
+    {
+      "id": "math.scalar",
+      "tier": 1,
+      "requires": [
+        "foundation.values"
+      ],
+      "scope": "Numbers, domains, formulas and arithmetic"
+    },
+    {
+      "id": "math.vector",
+      "tier": 1,
+      "requires": [
+        "math.scalar",
+        "foundation.units_frames"
+      ],
+      "scope": "Vectors, dot/cross, normalization and angles"
+    },
+    {
+      "id": "geometry.point",
+      "tier": 2,
+      "requires": [
+        "math.vector",
+        "foundation.units_frames"
+      ],
+      "scope": "3D points, distances and interpolation"
+    },
+    {
+      "id": "geometry.polyline",
+      "tier": 3,
+      "requires": [
+        "geometry.point"
+      ],
+      "scope": "Segments, connected polylines, arc-length sampling"
+    },
+    {
+      "id": "geometry.transforms",
+      "tier": 3,
+      "requires": [
+        "math.vector",
+        "geometry.point",
+        "foundation.units_frames"
+      ],
+      "scope": "Exact affine transforms, matrices, frame policies"
+    },
+    {
+      "id": "geometry.curve",
+      "tier": 4,
+      "requires": [
+        "geometry.polyline",
+        "geometry.transforms"
+      ],
+      "scope": "Parametric curves, evaluations, knots and continuity"
+    },
+    {
+      "id": "geometry.mesh",
+      "tier": 4,
+      "requires": [
+        "geometry.point",
+        "math.vector"
+      ],
+      "scope": "Triangles/quads, vertex attributes and bounded mesh access"
+    },
+    {
+      "id": "geometry.surface",
+      "tier": 5,
+      "requires": [
+        "geometry.curve",
+        "geometry.transforms"
+      ],
+      "scope": "NURBS and other surface construction, normals"
+    },
+    {
+      "id": "geometry.mesh_topology",
+      "tier": 5,
+      "requires": [
+        "geometry.mesh"
+      ],
+      "scope": "Halfedges, manifold diagnostics, component selections, mesh repairs"
+    },
+    {
+      "id": "geometry.intersections",
+      "tier": 6,
+      "requires": [
+        "geometry.curve",
+        "geometry.surface",
+        "geometry.mesh_topology"
+      ],
+      "scope": "Intersection solvers, projection, tolerances, split events"
+    },
+    {
+      "id": "geometry.solid",
+      "tier": 7,
+      "requires": [
+        "geometry.intersections",
+        "geometry.mesh_topology"
+      ],
+      "scope": "BRep solids, booleans, offset, shell, fillet"
+    },
+    {
+      "id": "workflow.document",
+      "tier": 2,
+      "requires": [
+        "foundation.identities",
+        "foundation.units_frames"
+      ],
+      "scope": "Document persistence, editing revisions, copy/undo"
+    },
+    {
+      "id": "workflow.selection",
+      "tier": 4,
+      "requires": [
+        "workflow.document",
+        "geometry.point"
+      ],
+      "scope": "Picking, snaps, overlays and selections"
+    },
+    {
+      "id": "workflow.display",
+      "tier": 5,
+      "requires": [
+        "workflow.selection",
+        "geometry.mesh"
+      ],
+      "scope": "Viewport, tessellation, preview and materials"
+    },
+    {
+      "id": "workflow.exchange",
+      "tier": 6,
+      "requires": [
+        "workflow.document",
+        "geometry.mesh"
+      ],
+      "scope": "File adapters and host interchange"
+    },
+    {
+      "id": "workflow.model_edit",
+      "tier": 6,
+      "requires": [
+        "workflow.document",
+        "workflow.selection",
+        "geometry.mesh_topology"
+      ],
+      "scope": "Transaction-bound native object edits, revisioned picks and undo/bake wrappers"
+    },
+    {
+      "id": "graph.typed_ports",
+      "tier": 1,
+      "requires": [
+        "foundation.values"
+      ],
+      "scope": "Typed graph values, port contracts, no implicit coercion"
+    },
+    {
+      "id": "graph.execution",
+      "tier": 2,
+      "requires": [
+        "graph.typed_ports"
+      ],
+      "scope": "Deterministic DAG execution, cycles, bounds and error propagation"
+    },
+    {
+      "id": "graph.list_tree",
+      "tier": 3,
+      "requires": [
+        "graph.execution"
+      ],
+      "scope": "Grasshopper-style lists/paths and data matching"
+    },
+    {
+      "id": "graph.preview_bake",
+      "tier": 6,
+      "requires": [
+        "graph.list_tree",
+        "workflow.document",
+        "workflow.display"
+      ],
+      "scope": "Preview, bake, ownership and scene update"
+    },
+    {
+      "id": "graph.constraints",
+      "tier": 6,
+      "requires": [
+        "graph.list_tree",
+        "geometry.point",
+        "math.vector"
+      ],
+      "scope": "Goal solvers/physics, bounded iterative relaxation"
+    },
+    {
+      "id": "discipline.scan",
+      "tier": 7,
+      "requires": [
+        "geometry.mesh_topology",
+        "geometry.transforms",
+        "workflow.exchange"
+      ],
+      "scope": "Registration, metrology, QA and reconstruction"
+    },
+    {
+      "id": "discipline.scenic",
+      "tier": 8,
+      "requires": [
+        "geometry.solid",
+        "graph.preview_bake",
+        "discipline.scan"
+      ],
+      "scope": "Scenic rock/terrain, fabrication, connectors"
+    },
+    {
+      "id": "discipline.previs",
+      "tier": 8,
+      "requires": [
+        "workflow.display",
+        "graph.preview_bake",
+        "workflow.exchange"
+      ],
+      "scope": "Ride paths, lighting, show control, animation"
+    },
+    {
+      "id": "unclassified",
+      "tier": null,
+      "requires": [],
+      "scope": "Reference awaiting individual behavioral/dependency review"
+    }
+  ],
+  "paired_operations": [
+    {
+      "kernel_operation": "kernel.point.distance",
+      "group": "geometry.point",
+      "cad_command": "worldwright.point.distance",
+      "calisoga_node": "calisoga.point.distance",
+      "reference_inventory_id": "087d1dfa64892951e255",
+      "reference_name": "Distance",
+      "relation": "exact_scalar_algorithm",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.point.midpoint",
+      "group": "geometry.point",
+      "cad_command": "worldwright.point.midpoint",
+      "calisoga_node": "calisoga.point.midpoint",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "native_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.point.interpolate",
+      "group": "geometry.point",
+      "cad_command": "worldwright.point.interpolate",
+      "calisoga_node": "calisoga.point.interpolate",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "native_subset",
+      "modifiers": [
+        "t"
+      ],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.vector.length",
+      "group": "math.vector",
+      "cad_command": "worldwright.vector.length",
+      "calisoga_node": "calisoga.vector.length",
+      "reference_inventory_id": "7af0fef917a469f1574f",
+      "reference_name": "Vector Length",
+      "relation": "exact_scalar_algorithm",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.vector.normalize",
+      "group": "math.vector",
+      "cad_command": "worldwright.vector.normalize",
+      "calisoga_node": "calisoga.vector.normalize",
+      "reference_inventory_id": "b1d1785eb889c46056a6",
+      "reference_name": "Unit Vector",
+      "relation": "native_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.vector.dot",
+      "group": "math.vector",
+      "cad_command": "worldwright.vector.dot",
+      "calisoga_node": "calisoga.vector.dot",
+      "reference_inventory_id": "c271e780896d940e82f8",
+      "reference_name": "Dot Product",
+      "relation": "exact_scalar_algorithm",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.vector.cross",
+      "group": "math.vector",
+      "cad_command": "worldwright.vector.cross",
+      "calisoga_node": "calisoga.vector.cross",
+      "reference_inventory_id": "bc5c977b48de7442838c",
+      "reference_name": "Cross Product",
+      "relation": "exact_scalar_algorithm",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.polyline.length",
+      "group": "geometry.polyline",
+      "cad_command": "worldwright.polyline.length",
+      "calisoga_node": "calisoga.polyline.length",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.polyline.divide_count",
+      "group": "geometry.polyline",
+      "cad_command": "worldwright.polyline.divide_count",
+      "calisoga_node": "calisoga.polyline.divide_count",
+      "reference_inventory_id": "1146af29af1dcbc5dfd4",
+      "reference_name": "Divide Curve",
+      "relation": "polyline_only",
+      "modifiers": [
+        "count"
+      ],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.polyline.divide_distance",
+      "group": "geometry.polyline",
+      "cad_command": "worldwright.polyline.divide_distance",
+      "calisoga_node": "calisoga.polyline.divide_distance",
+      "reference_inventory_id": "81666bcb77a3688c4218",
+      "reference_name": "Divide Distance",
+      "relation": "polyline_only",
+      "modifiers": [
+        "spacing"
+      ],
+      "graph_tree_parity": "not_verified"
+    }
+  ],
+  "tool_layers": [
+    "kernel algorithm (single owner)",
+    "typed operation + modifier contract",
+    "CAD/API adapter or Calisoga node",
+    "selection, previews, undo and persistence wrappers"
+  ],
+  "classification_rules": [
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Vector",
+      "group": "geometry.point",
+      "category": "Point",
+      "priority": 1
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Curve",
+      "group": "geometry.polyline",
+      "name": "Line",
+      "priority": 1
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Curve",
+      "group": "geometry.polyline",
+      "name": "PolyLine",
+      "priority": 1
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Distance",
+      "group": "geometry.point"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Point",
+      "group": "geometry.point"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Line",
+      "group": "geometry.polyline"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Polyline",
+      "group": "geometry.polyline"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Mesh",
+      "group": "geometry.mesh"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Move",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Rotate",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Scale",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Mirror",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Offset",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Extrude",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Boolean",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Loft",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Sweep1",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Sweep2",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Project",
+      "group": "geometry.intersections"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Import",
+      "group": "workflow.exchange"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Export",
+      "group": "workflow.exchange"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Save",
+      "group": "workflow.document"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "exact",
+      "value": "Open",
+      "group": "workflow.document"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Mesh",
+      "group": "geometry.mesh"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "SubD",
+      "group": "geometry.mesh_topology"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Boolean",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Fillet",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Shell",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Offset",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Extrude",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Pipe",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Brep",
+      "group": "geometry.solid"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Intersect",
+      "group": "geometry.intersections"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Split",
+      "group": "geometry.intersections"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Trim",
+      "group": "geometry.intersections"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Project",
+      "group": "geometry.intersections"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Surface",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Srf",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Loft",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Sweep",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Curve",
+      "group": "geometry.curve"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Circle",
+      "group": "geometry.curve"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Arc",
+      "group": "geometry.curve"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Polyline",
+      "group": "geometry.polyline"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Line",
+      "group": "geometry.polyline"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Point",
+      "group": "geometry.point"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Distance",
+      "group": "geometry.point"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Vector",
+      "group": "math.vector"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Move",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Rotate",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Scale",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Mirror",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Orient",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Shear",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Align",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Select",
+      "group": "workflow.selection"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Sel",
+      "group": "workflow.selection"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Snap",
+      "group": "workflow.selection"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Zoom",
+      "group": "workflow.display"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "View",
+      "group": "workflow.display"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Render",
+      "group": "workflow.display"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Display",
+      "group": "workflow.display"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Shade",
+      "group": "workflow.display"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Import",
+      "group": "workflow.exchange"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Export",
+      "group": "workflow.exchange"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Read",
+      "group": "workflow.exchange"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Write",
+      "group": "workflow.exchange"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Save",
+      "group": "workflow.document"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Open",
+      "group": "workflow.document"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Undo",
+      "group": "workflow.document"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Redo",
+      "group": "workflow.document"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Text",
+      "group": "workflow.display"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Dim",
+      "group": "workflow.display"
+    },
+    {
+      "source": "rhino_command",
+      "field": "name",
+      "match": "prefix",
+      "value": "Leader",
+      "group": "workflow.display"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Maths",
+      "group": "math.scalar"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Curve",
+      "group": "geometry.curve"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Mesh",
+      "group": "geometry.mesh"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Surface",
+      "group": "geometry.surface"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Intersect",
+      "group": "geometry.intersections"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Transform",
+      "group": "geometry.transforms"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Sets",
+      "group": "graph.list_tree"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Params",
+      "group": "graph.typed_ports"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Display",
+      "group": "workflow.display"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Rhino",
+      "group": "workflow.document"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Grasshopper Vector",
+      "group": "math.vector"
+    },
+    {
+      "source": "component",
+      "field": "library",
+      "match": "exact",
+      "value": "Kangaroo 2",
+      "group": "graph.constraints"
+    }
+  ],
+  "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review."
+}

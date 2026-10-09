@@ -38,3 +38,13 @@ changes until separate migration tests exist.
 
 Both extensions are project containers; generic DXF/DWG/SVG/PDF export cannot
 silently discard 3D geometry or mesh objects.
+
+## Calisoga graph identity
+
+**Calisoga** is the working name for Worldwright's open-source Grasshopper-style
+parametric graph engine, from the *Calisoga* spider genus. The native graph
+engine is independently usable and intended to appear embedded in the CAD
+workspace; it executes shared kernel operations with direct CAD commands.
+UI/data-tree parity and a standalone executable remain in development.
+The dependency-first tool hierarchy and mapping register live under
+`docs/dependencies/`. Native Worldwright files remain `.dftba`.

@@ -131,3 +131,41 @@ service and numeric UI, with optional first-edge uniform scaling. Existing copy,
 undo/redo, resource limits and project persistence apply. Exact rational curves
 and control surfaces only; reference picking and other representations remain
 pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
+
+
+## Calisoga and dependency-first paired tools (source authored, validation pending)
+
+Worldwright's native Grasshopper-style graph core is now called **Calisoga**
+(working name, after the California-associated spider genus). It will run
+inside CAD and headlessly/independently through the same underlying kernel.
+A separate visual canvas and executable remain later deliverables.
+
+The group-level prerequisite DAG is `../dependencies/tool-groups.json` and
+the preliminary reference mapping is
+`../dependencies/reference-index.json`. All 1,072 Rhino commands, 817
+Grasshopper entries, 110 Kangaroo entries and 2,357 manual topics are accounted
+for, but initial classification is heuristic and 2,347 references remain
+unclassified. **No per-command or per-component verified dependency hierarchy
+or conformance claim is inferred from these labels.**
+
+Ten CAD/Graph pairs now route point, vector and polyline functions through
+one typed kernel dispatcher (`crates/kernel/src/shared_tools.rs`). The newly
+authored `crates/calisoga` evaluator supports typed ports, literal/linked
+values, versioned serializable graphs, dependency scheduling, cycle/type
+checks, graph limits and atomic error propagation. The CAD/API command
+adapter in `crates/engine/src/cmd/worldwright_tools.rs` uses those same
+validated implementations. Vector length is an additional base primitive,
+reused by normalize. The interpolation fraction, division count and division
+spacing are named modifier ports.
+
+These code paths and tests are **not compiled or run yet**; the current
+environment lacks Cargo. Native graph data-tree behavior, component canvas,
+preview/bake, solver, expressions, and reference GH port matching are not
+implemented. Do not promote any public catalog entry to working parity without
+a local compilation/test and reference conformance fixture.
+
+The next dependency-respecting build steps are: type tree/list support,
+stable geometry reference ports, graph persistence in `.dftba`, preview/bake
+transactions, exact curve operations paired in CAD/Calisoga, then surface,
+intersection/solid and physics forms. Each algorithm is implemented once,
+and CAD options / Calisoga settings are modifiers or thin adapters.

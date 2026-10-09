@@ -12,6 +12,7 @@ try {
         [pscustomobject]@{Name = "Mesh scene integration"; Args = @("test", "--locked", "-p", "buildercraft-kernel", "--test", "mesh_scene")}
         [pscustomobject]@{Name = "Shared kernel"; Args = @("test", "--locked", "-p", "buildercraft-kernel")}
         [pscustomobject]@{Name = "CAD document, I/O, engine and UI"; Args = @("test", "--locked", "-p", "cadcraft-doc", "-p", "cadcraft-io", "-p", "cadcraft-engine", "-p", "cadcraft-ui-egui")}
+        [pscustomobject]@{Name = "Calisoga shared graph"; Args = @("test", "--locked", "-p", "calisoga")}
         [pscustomobject]@{Name = "Kernel clippy"; Args = @("clippy", "--locked", "-p", "buildercraft-kernel", "--all-targets", "--", "-D", "warnings")}
     )
     foreach ($check in $checks) {

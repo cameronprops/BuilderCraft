@@ -166,8 +166,8 @@ path matching, preview/bake, solver, expressions and exact reference GH port
 matching are not implemented. Do not promote any public catalog entry to working parity without
 a local compilation/test and reference conformance fixture.
 
-The next dependency-respecting build steps are: tree-aware numeric broadcasting,
-stable geometry reference ports, graph persistence in `.dftba`, preview/bake
+The next dependency-respecting build steps are: versioned geometry reference
+ports and their typed graph bindings, graph persistence in `.dftba`, preview/bake
 transactions, exact curve operations paired in CAD/OrbWeaver, then surface,
 intersection/solid and physics forms. Each algorithm is implemented once,
 and CAD options / OrbWeaver settings are modifiers or thin adapters.

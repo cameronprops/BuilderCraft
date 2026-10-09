@@ -1,14 +1,14 @@
 //! Worldwright CAD/API commands for shared kernel operations.
 //! These are numeric, headless commands: no geometry algorithm is duplicated.
 use super::*;
-use buildercraft_kernel::{ToolRequest, ToolValue, SHARED_TOOLS, execute_shared_tool};
+use buildercraft_kernel::{ToolRequest, ToolValue, TreeMatchPolicy, SHARED_TOOLS, execute_shared_tool_with_matching};
 use serde_json::json;
 use std::collections::BTreeMap;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("worldwright.tool.run", "Run Shared Native Tool", run)
-            .params("{operation,inputs:{port:{kind,value},...}}")
+            .params("{operation,inputs:{port:{kind,value},...},matching?:shortest|longest|cross_reference}")
             .enabled(always).noundo(),
         CommandSpec::new("worldwright.tool.list", "List Paired CAD/OrbWeaver Tools", list)
             .enabled(always).noundo(),
@@ -53,10 +53,17 @@ fn invoke(operation: &str, p: &Value) -> Result<Value> {
     let inputs: BTreeMap<String, ToolValue> = serde_json::from_value(
         p.get("inputs").cloned().ok_or_else(|| invalid("inputs required"))?,
     ).map_err(|e| invalid(&e.to_string()))?;
-    let output = execute_shared_tool(&ToolRequest {
+    // Matching is an optional per-command modifier, not a duplicate operator.
+    // Omitted matching preserves the native 'shortest' list policy.
+    let matching: TreeMatchPolicy = match p.get("matching") {
+        Some(value) => serde_json::from_value(value.clone())
+            .map_err(|e| invalid(&format!("matching: {e}")))?,
+        None => TreeMatchPolicy::Shortest,
+    };
+    let output = execute_shared_tool_with_matching(&ToolRequest {
         operation: operation.into(),
         inputs,
-    }).map_err(|e| invalid(&e.to_string()))?;
+    }, matching).map_err(|e| invalid(&e.to_string()))?;
     Ok(json!({"operation":operation,"output":output}))
 }
 fn run(_: &mut Session, p: &Value) -> Result<Value> {
@@ -152,6 +159,56 @@ mod tests {
         }}));
         assert!(result.is_err());
     }
+    #[test]
+    fn worldwright_command_broadcasts_tree_inputs_without_other_algorithms() {
+        let mut session = Session::new();
+        let tree = json!({"kind":"tree","value":{"branches":[
+            {"path":[0,2],"items":[
+                {"kind":"point","value":{"x":3.0,"y":0.0,"z":0.0}},
+                {"kind":"point","value":{"x":4.0,"y":0.0,"z":0.0}}
+            ]}
+        ]}});
+        let inputs = json!({
+            "a":tree,
+            "b":{"kind":"point","value":{"x":0.0,"y":0.0,"z":0.0}}
+        });
+        let direct = session.execute("worldwright.point.distance", &json!({
+            "inputs":inputs
+        })).unwrap();
+        let generic = session.execute("worldwright.tool.run", &json!({
+            "operation":"orbweaver.point.distance", "inputs":inputs
+        })).unwrap();
+        assert_eq!(direct["output"], generic["output"]);
+        assert_eq!(direct["output"]["kind"], "tree");
+        assert_eq!(direct["output"]["value"]["branches"][0]["path"], json!([0,2]));
+        assert_eq!(direct["output"]["value"]["branches"][0]["items"][0]["value"], 3.0);
+        assert_eq!(direct["output"]["value"]["branches"][0]["items"][1]["value"], 4.0);
+    }
+
+    #[test]
+    fn command_list_matching_is_an_explicit_modifier() {
+        let mut session = Session::new();
+        let a = json!({"kind":"tree","value":{"branches":[{"path":[0],"items":[
+            {"kind":"point","value":{"x":1.0,"y":0.0,"z":0.0}},
+            {"kind":"point","value":{"x":4.0,"y":0.0,"z":0.0}}
+        ]}]}});
+        let b = json!({"kind":"tree","value":{"branches":[{"path":[0],"items":[
+            {"kind":"point","value":{"x":11.0,"y":0.0,"z":0.0}},
+            {"kind":"point","value":{"x":22.0,"y":0.0,"z":0.0}},
+            {"kind":"point","value":{"x":33.0,"y":0.0,"z":0.0}}
+        ]}]}});
+        let inputs = json!({"a":a,"b":b});
+        let shortest = session.execute("worldwright.point.distance", &json!({"inputs":inputs})).unwrap();
+        let longest = session.execute("worldwright.point.distance", &json!({
+            "inputs":inputs,"matching":"longest"
+        })).unwrap();
+        assert_eq!(shortest["output"]["value"]["branches"][0]["items"].as_array().map(Vec::len), Some(2));
+        assert_eq!(longest["output"]["value"]["branches"][0]["items"].as_array().map(Vec::len), Some(3));
+        assert!(session.execute("worldwright.point.distance", &json!({
+            "inputs":inputs,"matching":"not_a_mode"
+        })).is_err());
+    }
+
     #[test]
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();

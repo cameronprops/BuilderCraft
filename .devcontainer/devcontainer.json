@@ -1,0 +1,24 @@
+{
+  "name": "Worldwright — Rust 1.95 / Cargo",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "workspaceFolder": "/workspaces/worldwright",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/worldwright,type=bind,consistency=cached",
+  "postCreateCommand": "bash tools/check-worldwright-rust.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.allTargets": true
+      }
+    }
+  },
+  "remoteEnv": {
+    "CARGO_TARGET_DIR": "${containerWorkspaceFolder}/target"
+  }
+}

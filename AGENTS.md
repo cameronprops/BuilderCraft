@@ -1,5 +1,25 @@
 # BuilderCraft suite instructions
 
+## Worldwright toolchain and environment policy
+
+- The native product is **Worldwright**. Legacy `BuilderCraft` and
+  `CADCraft` names remain in repository/crate paths until migration.
+- `rust-toolchain.toml` pins **Rust 1.95.0**; use the checked-in
+  `.devcontainer/` setup on compatible developer systems, or install rustup
+  and the pinned toolchain locally. In a supported workspace run
+  `bash tools/check-worldwright-rust.sh` before validating Rust code.
+- Run `bash tools/verify-worldwright-kernel.sh` (or the Windows PowerShell
+  equivalent) before claiming build success. **Do not label tests passed**
+  unless they actually ran with Rust/Cargo and their results were observed.
+- **GitHub Actions are manual-only by user choice.** Do not add `push` or
+  `pull_request` triggers or trigger hosted runs without permission. Local
+  Dev Containers are preferred. Codespaces can charge separately.
+- ChatGPT conversation containers may be ephemeral and need not provide
+  Docker/Rust. Repository setup is reproducible, not a guarantee that an
+  unrelated chat runtime is provisioned.
+- See `docs/architecture/DEVELOPMENT_ENVIRONMENT.md`.
+
+
 Native BuilderCraft must be entirely free and open source. Use original implementations or dependencies whose relevant source and redistribution licenses have been verified. Rhino/Grasshopper/Kangaroo are public-behavior references only: never copy proprietary implementation code or require a paid host for native capabilities. Optional third-party adapters must not replace native functionality or become a required runtime dependency.
 
 BuilderCraft's accepted scope is CAD for themed entertainment professionals, implemented as independently runnable CAD, Scan, Graph and Show apps with shared core services and optional bridges. Read `docs/architecture/SUITE.md`, `docs/roadmap/SUITE_ROADMAP.md`, `docs/architecture/MEMORY_AND_JOBS.md` and `docs/commands/README.md` first. These BuilderCraft product priorities supersede inherited CADCraft parity percentages, app naming and AutoCAD-only command/UI priorities below; inherited engineering/attribution/never-crash rules still apply.

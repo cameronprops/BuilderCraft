@@ -34,7 +34,7 @@ configuration and per-instance feature override semantics are later features
 that require explicit versioned ownership and geometry-reference rules.
 
 A drawing can contain any number of direct-modeling objects plus optional
-scoped histories. Five? No: history use is entirely opt-in. The initial
+scoped histories. History-driven modeling is entirely opt-in. The initial
 implementation limits projects to 256 history scopes and at most 512 steps
 per scope, with aggregate limits on step/value counts. Block names are
 case-insensitive, including during history-scope deduplication.

@@ -95,7 +95,7 @@ Invalid/near-collinear triples and unsupported options reject atomically.
 ## Worldwright editable polygon mesh API
 
 New native polygons are retained as triangle or quad faces. The document stores
-them inside the existing versioned `.bcraft` project (optional `mesh3d` field).
+them inside the existing versioned `.dftba` project (legacy `.bcraft` supported) (optional `mesh3d` field).
 Triangle conversion for preview and GLB export does not overwrite native quads.
 
 Example creation:
@@ -115,10 +115,11 @@ The `123` ID and `4` revision above are illustrative: use the response
 from create, and the current revision from list or boundary analysis. Other
 edit kinds are `add_triangle_from_edge` (edge_vertices, point_vertex) and
 `fill_planar_hole` (loop_index). Invalid or stale edits do not modify the
-document or consume an undo step. The initial UI uses numeric face indices and
-listed boundary loops; viewport component picking is not complete.
+document or consume an undo step. The initial UI offers numeric face indices,
+click-to-select polygon faces with revision-aware highlighting, and listed
+boundary loops. Viewport edge and vertex picking are still pending.
 
 Native meshes are not silently exported to unsupported 2D file formats. Use
-`.bcraft` for editable persistence; GLB is a derived visualization, not an
+`.dftba` for editable persistence (legacy `.bcraft` reads still work); GLB is a derived visualization, not an
 editable quad-mesh interchange format. All new integration tests require local
 Rust execution before the implementation can be claimed verified.

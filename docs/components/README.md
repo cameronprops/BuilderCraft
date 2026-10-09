@@ -16,8 +16,8 @@ Known omissions and the required basic typed-parameter review queue are recorded
 
 ## Paired native engine development
 
-The **Calisoga** graph engine is now authored in
-`crates/calisoga`, and the first ten typed, shared CAD/Graph operation
+The **Orb Weaver** graph engine is now authored in
+`crates/orb-weaver`, and the first ten typed, shared CAD/Graph operation
 pairs are in `crates/kernel/src/shared_tools.rs` and
 `docs/dependencies/tool-groups.json`. Seven of the ten have selected
 Grasshopper 1 public-index analogs, but the port lists, matching behavior

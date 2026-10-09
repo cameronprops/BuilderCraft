@@ -54,3 +54,11 @@ operations; `cargo run -p orbweaver --example paired_broadcast` demonstrates
 multi-branch, longest-list numeric broadcasting in CAD and graph. Both examples
 require a locally available Rust toolchain.
 A Rhino/Grasshopper license is never required for OrbWeaver.
+
+## OrbWeaver and scoped mechanical histories
+
+OrbWeaver graph nodes and Worldwright feature timelines invoke the same
+shared Rust kernel operation dispatcher. The timeline owns parameters and
+ordered feature state; OrbWeaver owns data-flow evaluation. Live graph bindings,
+geometry-handle references and automatic document bake are future steps.
+See [feature-history architecture](architecture/FEATURE_HISTORY.md).

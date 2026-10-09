@@ -244,6 +244,56 @@
       "scope": "Ride paths, lighting, show control, animation"
     },
     {
+      "id": "workflow.feature_history",
+      "tier": 5,
+      "requires": [
+        "workflow.document",
+        "graph.execution",
+        "graph.list_tree"
+      ],
+      "scope": "Optional document/block/component timeline, revisions, parameters, dependencies, suppression, rollback and atomic edits"
+    },
+    {
+      "id": "workflow.feature_timeline_ui",
+      "tier": 6,
+      "requires": [
+        "workflow.feature_history",
+        "workflow.display",
+        "workflow.selection"
+      ],
+      "scope": "History browser, edit/drag reorder and rollback controls in selected modeling workspaces"
+    },
+    {
+      "id": "mechanical.sketch",
+      "tier": 7,
+      "requires": [
+        "workflow.feature_history",
+        "geometry.curve",
+        "graph.constraints"
+      ],
+      "scope": "Dimensional sketch planes, constrained profiles, diagnostics and stable geometry references"
+    },
+    {
+      "id": "mechanical.features",
+      "tier": 8,
+      "requires": [
+        "mechanical.sketch",
+        "geometry.solid",
+        "workflow.feature_history"
+      ],
+      "scope": "Shared sketch-based extrude/revolve/sweep/loft/hole, fillets, chamfers, shells, patterns and mirrors"
+    },
+    {
+      "id": "mechanical.assembly",
+      "tier": 9,
+      "requires": [
+        "mechanical.features",
+        "workflow.feature_history",
+        "graph.constraints"
+      ],
+      "scope": "Part definitions and instances, mates, joints, motion and component-local parameters"
+    },
+    {
       "id": "unclassified",
       "tier": null,
       "requires": [],

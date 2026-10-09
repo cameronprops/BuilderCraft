@@ -16,8 +16,8 @@
   ],
   "counts": {
     "total": 60,
-    "source_authored_uncompiled": 8,
-    "planned": 52
+    "source_authored_uncompiled": 9,
+    "planned": 51
   },
   "features": [
     {
@@ -156,12 +156,12 @@
       "requires": [
         "history.scope"
       ],
-      "status": "planned",
+      "status": "source_authored_uncompiled",
       "scope": "document",
       "algorithm_owner": "shared_rust_kernel",
       "cad_command": "worldwright.geometry.reference_handle",
       "orbweaver_node": "orbweaver.geometry.reference_handle",
-      "notes": "Stable object kind/UID/version, never raw face-array index"
+      "notes": "Typed project/object/representation/revision handle with shared Scene and CAD metadata capture/validation; source authored, uncompiled. No persistent subelement identity or automatic project UUID binding."
     },
     {
       "id": "geometry.topological_name",

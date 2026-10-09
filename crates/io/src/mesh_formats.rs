@@ -113,7 +113,7 @@ pub fn write_stl_mesh(mesh: &TriangleMesh) -> Result<Vec<u8>> {
 pub fn read_obj_meshes(bytes: &[u8]) -> Result<MeshImport> {
     guard_input(bytes)?;
     let mut reader = BufReader::new(Cursor::new(bytes));
-    let options = tobj::LoadOptions { triangulate: true, single_index: true, ignore_points: true, ignore_lines: true, ..Default::default() };
+    let options = tobj::LoadOptions { triangulate: true, single_index: true, ignore_points: true, ignore_lines: true };
     let (models, _) = tobj::load_obj_buf(&mut reader, &options, |_| Ok((Vec::new(), Default::default()))).map_err(|e| bad(format!("OBJ: {e}")))?;
     if models.is_empty() || models.len() > 256 {
         return Err(bad("OBJ object count invalid or exceeds 256"));

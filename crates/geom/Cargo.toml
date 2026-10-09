@@ -12,5 +12,5 @@ workspace = true
 kurbo-eval = ["dep:kurbo"]
 
 [dependencies]
-kurbo = { version = "0.13.1", default-features = false, optional = true }
+kurbo = { version = "0.13.1", default-features = false, features = ["std"], optional = true }
 serde = { workspace = true }

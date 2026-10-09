@@ -33,6 +33,7 @@ mod shared_tools;
 mod tool_broadcast;
 mod feature_history;
 mod history_execution;
+mod geometry_reference;
 pub use bounds::*;
 pub use bounds_ops::*;
 pub use geometry::*;
@@ -63,6 +64,7 @@ pub use data_tree::*;
 pub use shared_tools::*;
 pub use tool_broadcast::{tool_value_matches_port, tool_output_may_match_port};
 pub use feature_history::*;
+pub use geometry_reference::*;
 
 use serde::{Deserialize, Serialize};
 

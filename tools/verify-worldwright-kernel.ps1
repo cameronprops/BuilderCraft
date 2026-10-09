@@ -12,7 +12,7 @@ try {
     if (-not $python) { $python = Get-Command py -ErrorAction SilentlyContinue }
     if (-not $python) { throw "Python 3 is required for Worldwright dependency checks." }
     $pythonArgs = @()
-    if ($python.Name -like "py*") { $pythonArgs = @("-3") }
+    if ($python.Name -in @("py", "py.exe")) { $pythonArgs = @("-3") }
 
     Write-Host "Checking: dependency graph/catalog consistency"
     & $python.Source @pythonArgs tools/build_dependency_index.py --check

@@ -123,7 +123,7 @@ against Cargo/Rust; do not mark official catalog entries working yet.
 
 1. Validate this layer with local Cargo: shared dispatcher, OrbWeaver graph,
    engine commands, reference-index checks, and `.dftba` persistence tests.
-2. Expand **tree-aware numeric broadcasting** beyond the initial ten paired
+2. Extend **typed geometry references and document-scoped handles** beyond the current paired
    primitives when each new geometry operation is validated; never presume
    Grasshopper's implicit path alignment.
 3. Support **geometry references** as immutable versioned handles (including

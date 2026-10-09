@@ -10,7 +10,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("worldwright.tool.run", "Run Shared Native Tool", run)
             .params("{operation,inputs:{port:{kind,value},...}}")
             .enabled(always).noundo(),
-        CommandSpec::new("worldwright.tool.list", "List Paired CAD/Calisoga Tools", list)
+        CommandSpec::new("worldwright.tool.list", "List Paired CAD/Orb Weaver Tools", list)
             .enabled(always).noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")
@@ -116,6 +116,6 @@ mod tests {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list",&json!({})).unwrap();
         assert_eq!(result["paired_tools"].as_array().map(Vec::len),Some(10));
-        assert_eq!(result["paired_tools"][0]["calisoga_node"],"calisoga.point.distance");
+        assert_eq!(result["paired_tools"][0]["orbweaver_node"],"orbweaver.point.distance");
     }
 }

@@ -133,10 +133,10 @@ and control surfaces only; reference picking and other representations remain
 pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
 
 
-## Calisoga and dependency-first paired tools (source authored, validation pending)
+## Orb Weaver and dependency-first paired tools (source authored, validation pending)
 
-Worldwright's native Grasshopper-style graph core is now called **Calisoga**
-(working name, after the California-associated spider genus). It will run
+Worldwright's native Grasshopper-style graph core is now called **Orb Weaver**
+(working name, after orb-weaving spiders). It will run
 inside CAD and headlessly/independently through the same underlying kernel.
 A separate visual canvas and executable remain later deliverables.
 
@@ -148,9 +148,9 @@ for, but initial classification is heuristic and 2,347 references remain
 unclassified. **No per-command or per-component verified dependency hierarchy
 or conformance claim is inferred from these labels.**
 
-Ten CAD/Graph pairs now route point, vector and polyline functions through
+Fifteen CAD/Graph pairs now route point, vector, polyline and native data-tree functions through
 one typed kernel dispatcher (`crates/kernel/src/shared_tools.rs`). The newly
-authored `crates/calisoga` evaluator supports typed ports, literal/linked
+authored `crates/orb-weaver` evaluator supports typed ports, literal/linked
 values, versioned serializable graphs, dependency scheduling, cycle/type
 checks, graph limits and atomic error propagation. The CAD/API command
 adapter in `crates/engine/src/cmd/worldwright_tools.rs` uses those same
@@ -159,13 +159,29 @@ reused by normalize. The interpolation fraction, division count and division
 spacing are named modifier ports.
 
 These code paths and tests are **not compiled or run yet**; the current
-environment lacks Cargo. Native graph data-tree behavior, component canvas,
-preview/bake, solver, expressions, and reference GH port matching are not
-implemented. Do not promote any public catalog entry to working parity without
+environment lacks Cargo. Native graph data-tree structure operations are authored
+with strict branch paths, explicit matching policies, flatten, graft and simplify.
+A component canvas, automatic numeric tree broadcasting, Grasshopper implicit
+path matching, preview/bake, solver, expressions and exact reference GH port
+matching are not implemented. Do not promote any public catalog entry to working parity without
 a local compilation/test and reference conformance fixture.
 
-The next dependency-respecting build steps are: type tree/list support,
+The next dependency-respecting build steps are: tree-aware numeric broadcasting,
 stable geometry reference ports, graph persistence in `.dftba`, preview/bake
-transactions, exact curve operations paired in CAD/Calisoga, then surface,
+transactions, exact curve operations paired in CAD/Orb Weaver, then surface,
 intersection/solid and physics forms. Each algorithm is implemented once,
-and CAD options / Calisoga settings are modifiers or thin adapters.
+and CAD options / Orb Weaver settings are modifiers or thin adapters.
+
+### Orb Weaver native data-tree operation increment
+
+The Rust graph crate is now `crates/orb-weaver` (package `orb-weaver`,
+public nodes `orbweaver.*`). The dependency map now contains **46** registered
+kernel operations, of which **15** have shared CAD/Orb Weaver typed ports.
+The five new `kernel.tree.*` paired operations validate canonical branch paths,
+flatten, graft, simplify and match with explicit Shortest, Longest and
+CrossReference modifiers. The existing Orb Weaver DAG can link tagged tree
+values through these nodes. A headless `paired_tree` example checks that
+CAD and graph entry points invoke one dispatcher. Grasshopper tree-path
+matching, broadcasting numeric operations across tree items, graph UI and
+`.dftba` graph persistence are still future work; the new tests remain
+unexecuted until Rust/Cargo is available locally. No hosted CI is invoked.

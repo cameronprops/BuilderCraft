@@ -1,27 +1,25 @@
-# Worldwright + Calisoga: dependency-first tool building
+# Worldwright + Orb Weaver: dependency-first tool building
 
-**Calisoga** is the planned, native and independently runnable Grasshopper-style
-parametric graph environment in Worldwright. The name references the North
-American spider genus *Calisoga*; it is a working product name, not a claim
-of trademark clearance. See
-[World Spider Catalog](https://wsc.nmbe.ch/genus/2003/Calisoga).
+**Orb Weaver** is the planned, native and independently runnable Grasshopper-style
+parametric graph environment in Worldwright. The name is taken from the familiar orb-weaving spiders. It is a working
+product name; trademark clearance has not been performed.
 
 ## Source registers
 
 | File | Meaning |
 |---|---|
 | `tool-groups.json` | Reviewed **group-level** dependency DAG, build tiers, modifier-first operation pair plan and provisional classification rules |
-| `kernel-operation-deps.json` | Prerequisite graph for **all 41** registered kernel operations; 23 have an explicit source/dataflow dependency review, 18 await it |
+| `kernel-operation-deps.json` | Prerequisite graph for **all 46** registered kernel operations; 28 have an explicit source/dataflow dependency review, 18 await it |
 | `reference-index.json` | All 1,072 Rhino command refs, 817 Grasshopper refs, 110 Kangaroo refs and 2,357 Rhino manual topics given preliminary groups; 4,356 total source rows |
 | `../commands/rhino8.json` | Reference command behavior review and status; authoritative for command parity status |
 | `../commands/manual_inventory.json` | Manual topic review and acceptance evidence; authoritative for reviewed manuals |
 | `../components/grasshopper1-kangaroo2.json` | Graph reference components and parity contracts; authoritative for native component status |
-| `crates/kernel/src/shared_tools.rs` | **Executable** typed operation contracts and dispatcher for paired CAD and Calisoga nodes; new source of truth for the initial tool pairs |
-| `crates/calisoga/src/lib.rs` | Native graph execution with typed inputs and deterministic topological evaluation |
+| `crates/kernel/src/shared_tools.rs` | **Executable** typed operation contracts and dispatcher for paired CAD and Orb Weaver nodes; new source of truth for the initial tool pairs |
+| `crates/orb-weaver/src/lib.rs` | Native graph execution with typed inputs and deterministic topological evaluation |
 | `crates/engine/src/cmd/worldwright_tools.rs` | Worldwright CAD/API commands, calling the **same** kernel dispatcher |
 
 The dependency index is a **build-routing aid, not a verified full hierarchy of
-4,356 individual tool contracts**. By contrast, all 41 currently registered
+4,356 individual tool contracts**. By contrast, all 46 currently registered
 kernel operations have explicit DAG entries, with 18 marked source-review
 pending. The dependency graph is validated for cycles and tier ordering. It contains classification candidates and
 more than two thousand unclassified references. Every individual dependency
@@ -44,7 +42,7 @@ The check uses no network calls or paid GitHub Actions.
 | Tier | What we build | Examples |
 |---|---|---|
 | 0 | Typed values, frames/units, IDs/revisions | Numbers, points, validators, units |
-| 1 | Scalar/vector math and typed Calisoga ports | Dot, cross, normalize, amplitude |
+| 1 | Scalar/vector math and typed Orb Weaver ports | Dot, cross, normalize, amplitude |
 | 2 | Point geometry and graph DAG execution | Distance, midpoint, interpolation |
 | 3 | Polyline geometry, transforms, graph list/tree skeleton | Segment length, divide by count/distance |
 | 4 | Curves, triangle/quad mesh, selection | Curve evaluation and mesh construction |
@@ -56,7 +54,7 @@ The check uses no network calls or paid GitHub Actions.
 The tier labels are coarse execution ordering. The actual validated DAG is
 `tool-groups.json`, where each group lists its prerequisite IDs. Independent
 branches can proceed in parallel; lower-layer code must not import CAD or
-Calisoga UI code.
+Orb Weaver UI code.
 
 ## One kernel, two interfaces
 
@@ -64,7 +62,7 @@ A shared native operation has:
 
 1. One **kernel algorithm**, valid without a CAD file or paid Rhino host.
 2. One **typed port contract** (validated kinds, semantics and modifier ports).
-3. One **CAD command adapter** and one **Calisoga graph node adapter**, both
+3. One **CAD command adapter** and one **Orb Weaver graph node adapter**, both
    delegating to the kernel dispatcher.
 4. Optional **document wrappers** for object selection, drawing unit policies,
    undo/copy, history, preview/bake, and interactive options.
@@ -95,35 +93,42 @@ shared kernel services.
 
 ## First paired implementation, currently source-only
 
-| Shared operation | Worldwright CAD/API command | Calisoga component | Notes |
+| Shared operation | Worldwright CAD/API command | Orb Weaver component | Notes |
 |---|---|---|---|
-| Point distance | `worldwright.point.distance` | `calisoga.point.distance` | GH *Distance* reference behavior not fully verified |
-| Point midpoint | `worldwright.point.midpoint` | `calisoga.point.midpoint` | Native point primitive |
-| Point interpolation | `worldwright.point.interpolate` | `calisoga.point.interpolate` | Modifier `t` |
-| Vector length | `worldwright.vector.length` | `calisoga.vector.length` | GH *Vector Length* candidate |
-| Vector normalize | `worldwright.vector.normalize` | `calisoga.vector.normalize` | GH *Unit Vector* candidate |
-| Vector dot | `worldwright.vector.dot` | `calisoga.vector.dot` | GH *Dot Product* candidate |
-| Vector cross | `worldwright.vector.cross` | `calisoga.vector.cross` | GH *Cross Product* candidate |
-| Polyline length | `worldwright.polyline.length` | `calisoga.polyline.length` | Polyline-only native behavior |
-| Divide by count | `worldwright.polyline.divide_count` | `calisoga.polyline.divide_count` | Modifier `count`, polyline subset of GH *Divide Curve* |
-| Divide by distance | `worldwright.polyline.divide_distance` | `calisoga.polyline.divide_distance` | Modifier `spacing`, polyline subset of GH *Divide Distance* |
+| Point distance | `worldwright.point.distance` | `orbweaver.point.distance` | GH *Distance* reference behavior not fully verified |
+| Point midpoint | `worldwright.point.midpoint` | `orbweaver.point.midpoint` | Native point primitive |
+| Point interpolation | `worldwright.point.interpolate` | `orbweaver.point.interpolate` | Modifier `t` |
+| Vector length | `worldwright.vector.length` | `orbweaver.vector.length` | GH *Vector Length* candidate |
+| Vector normalize | `worldwright.vector.normalize` | `orbweaver.vector.normalize` | GH *Unit Vector* candidate |
+| Vector dot | `worldwright.vector.dot` | `orbweaver.vector.dot` | GH *Dot Product* candidate |
+| Vector cross | `worldwright.vector.cross` | `orbweaver.vector.cross` | GH *Cross Product* candidate |
+| Polyline length | `worldwright.polyline.length` | `orbweaver.polyline.length` | Polyline-only native behavior |
+| Divide by count | `worldwright.polyline.divide_count` | `orbweaver.polyline.divide_count` | Modifier `count`, polyline subset of GH *Divide Curve* |
+| Divide by distance | `worldwright.polyline.divide_distance` | `orbweaver.polyline.divide_distance` | Modifier `spacing`, polyline subset of GH *Divide Distance* |
+| Validate tree | `worldwright.tree.validate` | `orbweaver.tree.validate` | Base dependency; checks paths and item limits |
+| Flatten tree | `worldwright.tree.flatten` | `orbweaver.tree.flatten` | Single path `{0}`, ordered items |
+| Graft tree | `worldwright.tree.graft` | `orbweaver.tree.graft` | Item-indexed child paths; empty branches preserved |
+| Simplify tree | `worldwright.tree.simplify` | `orbweaver.tree.simplify` | Removes only common leading path prefix |
+| Match tree | `worldwright.tree.match` | `orbweaver.tree.match` | Modifier `mode`: shortest, longest, cross-reference; identical branch paths required |
 
-This is **not** ten verified Grasshopper feature-parity ports. Initial
-Calisoga graph values are individual typed values, no implicit conversion or
-list/data-tree matching. Graph work is pure/headless and can run without the
+These are **15 native paired operation contracts**, not 15 verified
+Grasshopper-equivalent components. Orb Weaver now supports tagged tree values,
+structural tree nodes, explicit list matching and branch-preserving graph links.
+It does **not** support Grasshopper's implicit branch-path matching or automatic
+application of all numeric nodes across tree items. Graph work is pure/headless and can run without the
 CAD application. The new code has unit tests authored but not yet executed
 against Cargo/Rust; do not mark official catalog entries working yet.
 
 ## Subsequent implementation order
 
-1. Validate this layer with local Cargo: shared dispatcher, Calisoga graph,
+1. Validate this layer with local Cargo: shared dispatcher, Orb Weaver graph,
    engine commands, reference-index checks, and `.dftba` persistence tests.
-2. Introduce typed **data trees** with branch paths, graft/flatten, list
-   matching, and graph evaluation that handles a branch of items.
+2. Add **tree-aware numerical broadcasting** with explicit per-node list matching;
+   do not assume native Grasshopper path-alignment semantics.
 3. Support **geometry references** as immutable versioned handles (including
    exact curves, surfaces, meshes) and preview/bake transactions.
 4. Then pair curve evaluation, division, length and transforms with CAD
-   commands and Calisoga nodes using shared exact geometry.
+   commands and Orb Weaver nodes using shared exact geometry.
 5. Add surfaces, intersections, topology, meshing, solids and form-finding
    once their prerequisite algorithms and validation are established.
 6. Keep every new tool paired by default. Exceptions must document why the
@@ -132,3 +137,31 @@ against Cargo/Rust; do not mark official catalog entries working yet.
 
 No compiler build or full-reference conformance is implied until local
 validation is actually recorded.
+
+## Tree foundation increment (source authored, uncompiled)
+
+The common kernel now owns `DataTree<T>`, `TreePath`, and operations in
+`crates/kernel/src/data_tree.rs`. A validated tree has 0–4,096 canonical,
+unique, lexicographically sorted branch paths, maximum path depth 16, and
+up to 250,000 top-level items. Empty branches are meaningful; absent trees
+are distinct. Grafting each item creates a child path; an empty branch creates
+one empty child. Simplification keeps at least one path coordinate. List
+matching pairs only **identical branch paths**; Longest extends by repeating
+the final item and CrossReference forms the explicit Cartesian product.
+
+All five tools are **paired** between Worldwright CAD's `worldwright.tree.*`
+command family and Orb Weaver's `orbweaver.tree.*` node family, calling one
+kernel dispatcher. Typed `ToolValue::Tree` and `ToolValue::Pair` values can
+flow through linked Orb Weaver graph nodes. Resource budgets include nested
+polyline/tree/pair values and preflight cross-reference cloning. The previous
+scalar evaluator is extended, not replaced or duplicated.
+
+The known GH public-index candidates for Flatten Tree, Graft Tree and Simplify
+Tree are mapped provisionally. This is not Grasshopper path-matching parity,
+and these references retain `not_implemented` status until a runtime build,
+fixtures and option review establish verified coverage. Native `.dftba`
+graph persistence and the graphical component canvas are not yet wired.
+
+Run `python3 tools/build_dependency_index.py --check` and
+`python3 tools/check_paired_tools.py` for static consistency; run the
+local Rust test/lint scripts in a Rust-capable environment before merging.

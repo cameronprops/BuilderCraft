@@ -1,8 +1,11 @@
 //! Typed, host-independent operation contracts shared by Worldwright commands
-//! and Calisoga nodes. The algorithm lives in the existing kernel; this module
+//! and Orb Weaver nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
-    KernelError, Result, point_distance, point_midpoint,
+    KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
+    tree_flatten, tree_graft, tree_simplify, tree_match, tree_validate,
+    MAX_TREE_ITEMS,
+    point_distance, point_midpoint,
     point_interpolate, vector_length, vector_normalize, vector_dot,
     vector_cross, polyline_length, polyline_divide_count,
     polyline_divide_distance,
@@ -19,6 +22,9 @@ pub enum ToolType {
     Point,
     Vector,
     Polyline,
+    Tree,
+    MatchMode,
+    Pair,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -29,6 +35,10 @@ pub enum ToolValue {
     Point(Vec3),
     Vector(Vec3),
     Polyline(Vec<Vec3>),
+    /// Native ordered branches, compatible with direct Worldwright commands.
+    Tree(DataTree<ToolValue>),
+    MatchMode(TreeMatchPolicy),
+    Pair(Box<(ToolValue, ToolValue)>),
 }
 
 impl ToolValue {
@@ -39,6 +49,9 @@ impl ToolValue {
             Self::Point(_) => ToolType::Point,
             Self::Vector(_) => ToolType::Vector,
             Self::Polyline(_) => ToolType::Polyline,
+            Self::Tree(_) => ToolType::Tree,
+            Self::MatchMode(_) => ToolType::MatchMode,
+            Self::Pair(_) => ToolType::Pair,
         }
     }
 }
@@ -56,7 +69,7 @@ pub struct ToolPort {
 pub struct SharedToolContract {
     pub operation: &'static str,
     pub cad_command: &'static str,
-    pub calisoga_node: &'static str,
+    pub orbweaver_node: &'static str,
     pub dependency_group: &'static str,
     /// Lower-level kernel operations required by this service/algorithm.
     pub prerequisites: &'static [&'static str],
@@ -87,6 +100,14 @@ const POLYLINE_COUNT: &[ToolPort] = &[
     ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "count", kind: ToolType::Count, modifier: true },
 ];
+const ONE_TREE: &[ToolPort] = &[
+    ToolPort { name: "tree", kind: ToolType::Tree, modifier: false },
+];
+const TREE_MATCH: &[ToolPort] = &[
+    ToolPort { name: "a", kind: ToolType::Tree, modifier: false },
+    ToolPort { name: "b", kind: ToolType::Tree, modifier: false },
+    ToolPort { name: "mode", kind: ToolType::MatchMode, modifier: true },
+];
 const POLYLINE_DISTANCE: &[ToolPort] = &[
     ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "spacing", kind: ToolType::Number, modifier: true },
@@ -98,7 +119,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.point.distance",
         cad_command: "worldwright.point.distance",
-        calisoga_node: "calisoga.point.distance",
+        orbweaver_node: "orbweaver.point.distance",
         dependency_group: "geometry.point",
         prerequisites: &[],
         inputs: A_B_POINTS, output: ToolType::Number,
@@ -106,7 +127,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.point.midpoint",
         cad_command: "worldwright.point.midpoint",
-        calisoga_node: "calisoga.point.midpoint",
+        orbweaver_node: "orbweaver.point.midpoint",
         dependency_group: "geometry.point",
         prerequisites: &[],
         inputs: A_B_POINTS, output: ToolType::Point,
@@ -114,7 +135,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.point.interpolate",
         cad_command: "worldwright.point.interpolate",
-        calisoga_node: "calisoga.point.interpolate",
+        orbweaver_node: "orbweaver.point.interpolate",
         dependency_group: "geometry.point",
         prerequisites: &[],
         inputs: POINT_INTERPOLATE, output: ToolType::Point,
@@ -122,7 +143,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.length",
         cad_command: "worldwright.vector.length",
-        calisoga_node: "calisoga.vector.length",
+        orbweaver_node: "orbweaver.vector.length",
         dependency_group: "math.vector",
         prerequisites: &[],
         inputs: ONE_VECTOR, output: ToolType::Number,
@@ -130,7 +151,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.normalize",
         cad_command: "worldwright.vector.normalize",
-        calisoga_node: "calisoga.vector.normalize",
+        orbweaver_node: "orbweaver.vector.normalize",
         dependency_group: "math.vector",
         prerequisites: &["kernel.vector.length"],
         inputs: ONE_VECTOR, output: ToolType::Vector,
@@ -138,7 +159,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.dot",
         cad_command: "worldwright.vector.dot",
-        calisoga_node: "calisoga.vector.dot",
+        orbweaver_node: "orbweaver.vector.dot",
         dependency_group: "math.vector",
         prerequisites: &[],
         inputs: A_B_VECTORS, output: ToolType::Number,
@@ -146,7 +167,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.cross",
         cad_command: "worldwright.vector.cross",
-        calisoga_node: "calisoga.vector.cross",
+        orbweaver_node: "orbweaver.vector.cross",
         dependency_group: "math.vector",
         prerequisites: &[],
         inputs: A_B_VECTORS, output: ToolType::Vector,
@@ -154,7 +175,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.polyline.length",
         cad_command: "worldwright.polyline.length",
-        calisoga_node: "calisoga.polyline.length",
+        orbweaver_node: "orbweaver.polyline.length",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.point.distance"],
         inputs: POLYLINE_LENGTH, output: ToolType::Number,
@@ -162,7 +183,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.polyline.divide_count",
         cad_command: "worldwright.polyline.divide_count",
-        calisoga_node: "calisoga.polyline.divide_count",
+        orbweaver_node: "orbweaver.polyline.divide_count",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_COUNT, output: ToolType::Polyline,
@@ -170,10 +191,50 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.polyline.divide_distance",
         cad_command: "worldwright.polyline.divide_distance",
-        calisoga_node: "calisoga.polyline.divide_distance",
+        orbweaver_node: "orbweaver.polyline.divide_distance",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_DISTANCE, output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.validate",
+        cad_command: "worldwright.tree.validate",
+        orbweaver_node: "orbweaver.tree.validate",
+        dependency_group: "graph.list_tree",
+        prerequisites: &[],
+        inputs: ONE_TREE, output: ToolType::Count,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.flatten",
+        cad_command: "worldwright.tree.flatten",
+        orbweaver_node: "orbweaver.tree.flatten",
+        dependency_group: "graph.list_tree",
+        prerequisites: &["kernel.tree.validate"],
+        inputs: ONE_TREE, output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.graft",
+        cad_command: "worldwright.tree.graft",
+        orbweaver_node: "orbweaver.tree.graft",
+        dependency_group: "graph.list_tree",
+        prerequisites: &["kernel.tree.validate"],
+        inputs: ONE_TREE, output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.simplify",
+        cad_command: "worldwright.tree.simplify",
+        orbweaver_node: "orbweaver.tree.simplify",
+        dependency_group: "graph.list_tree",
+        prerequisites: &["kernel.tree.validate"],
+        inputs: ONE_TREE, output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.tree.match",
+        cad_command: "worldwright.tree.match",
+        orbweaver_node: "orbweaver.tree.match",
+        dependency_group: "graph.list_tree",
+        prerequisites: &["kernel.tree.validate"],
+        inputs: TREE_MATCH, output: ToolType::Tree,
     },
 ];
 
@@ -188,7 +249,7 @@ pub fn shared_tool(operation: &str) -> Option<&'static SharedToolContract> {
     SHARED_TOOLS.iter().find(|tool| {
         tool.operation == operation
             || tool.cad_command == operation
-            || tool.calisoga_node == operation
+            || tool.orbweaver_node == operation
     })
 }
 
@@ -223,6 +284,124 @@ fn polyline<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&
     }
 }
 
+fn tree<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a DataTree<ToolValue>> {
+    match inputs.get(name) {
+        Some(ToolValue::Tree(value)) => Ok(value),
+        _ => Err(KernelError::Invalid("tree input")),
+    }
+}
+fn match_mode(inputs: &BTreeMap<String, ToolValue>, name: &str) -> Result<TreeMatchPolicy> {
+    match inputs.get(name) {
+        Some(ToolValue::MatchMode(mode)) => Ok(*mode),
+        _ => Err(KernelError::Invalid("tree matching modifier")),
+    }
+}
+/// Count primitive storage units so a tree of heavy polylines cannot bypass
+/// the normal item budget. Depth is capped to avoid arbitrarily nested trees.
+fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
+    if depth > 8 {
+        return Err(KernelError::Budget);
+    }
+    match value {
+        ToolValue::Number(value) if !value.is_finite() => {
+            Err(KernelError::Invalid("nonfinite numeric value"))
+        }
+        ToolValue::Point(v) | ToolValue::Vector(v)
+            if !v.is_finite() || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12) => {
+            Err(KernelError::Invalid("nonfinite or oversized geometric value"))
+        }
+        ToolValue::Polyline(points) => {
+            if points.len() > MAX_TREE_ITEMS || points.iter().any(|v| !v.is_finite()
+                || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12)) {
+                Err(KernelError::Budget)
+            } else {
+                Ok(points.len().max(1))
+            }
+        }
+        ToolValue::Pair(pair) => {
+            let total = value_cost(&pair.0, depth + 1)?
+                .checked_add(value_cost(&pair.1, depth + 1)?)
+                .ok_or(KernelError::Budget)?;
+            if total > MAX_TREE_ITEMS { Err(KernelError::Budget) } else { Ok(total) }
+        }
+        ToolValue::Tree(tree) => {
+            tree_validate(tree)?;
+            let mut total = tree.branches.len();
+            for branch in &tree.branches {
+                for item in &branch.items {
+                    total = total.checked_add(value_cost(item, depth + 1)?)
+                        .ok_or(KernelError::Budget)?;
+                    if total > MAX_TREE_ITEMS {
+                        return Err(KernelError::Budget);
+                    }
+                }
+            }
+            Ok(total)
+        }
+        _ => Ok(1),
+    }
+}
+/// Cost of nested typed values for both CAD/API and Orb Weaver graph limits.
+/// Limits are abstract item units, not an RSS/byte guarantee.
+pub fn shared_tool_value_cost(value: &ToolValue) -> Result<usize> {
+    value_cost(value, 0)
+}
+
+fn match_tree_values(
+    a: &DataTree<ToolValue>, b: &DataTree<ToolValue>, mode: TreeMatchPolicy,
+) -> Result<DataTree<ToolValue>> {
+    // Preflight cloned value units BEFORE allocating the Cartesian or
+    // longest-list result, not merely checking the number of output pairs.
+    tree_validate(a)?;
+    tree_validate(b)?;
+    if a.branches.len() != b.branches.len() {
+        return Err(KernelError::Invalid("tree branch path mismatch"));
+    }
+    let mut budget = a.branches.len();
+    for (left, right) in a.branches.iter().zip(&b.branches) {
+        if left.path != right.path {
+            return Err(KernelError::Invalid("tree branch path mismatch"));
+        }
+        let n = match mode {
+            TreeMatchPolicy::Shortest => left.items.len().min(right.items.len()),
+            TreeMatchPolicy::Longest => left.items.len().max(right.items.len()),
+            TreeMatchPolicy::CrossReference => left.items.len()
+                .checked_mul(right.items.len()).ok_or(KernelError::Budget)?,
+        };
+        if matches!(mode, TreeMatchPolicy::Longest)
+            && left.items.is_empty() != right.items.is_empty() {
+            return Err(KernelError::Invalid("cannot repeat missing tree item"));
+        }
+        if n > MAX_TREE_ITEMS { return Err(KernelError::Budget); }
+        for index in 0..n {
+            let (ai, bi) = match mode {
+                TreeMatchPolicy::CrossReference => {
+                    (index / right.items.len(), index % right.items.len())
+                }
+                TreeMatchPolicy::Shortest => (index, index),
+                TreeMatchPolicy::Longest => {
+                    (index.min(left.items.len() - 1), index.min(right.items.len() - 1))
+                }
+            };
+            budget = budget.checked_add(2)
+                .and_then(|x| x.checked_add(value_cost(&left.items[ai], 1).ok()?))
+                .and_then(|x| x.checked_add(value_cost(&right.items[bi], 1).ok()?))
+                .ok_or(KernelError::Budget)?;
+            if budget > MAX_TREE_ITEMS { return Err(KernelError::Budget); }
+        }
+    }
+    let paired = tree_match(a, b, mode)?;
+    let result = DataTree { branches: paired.branches.into_iter().map(|branch| {
+        TreeBranch {
+            path: branch.path,
+            items: branch.items.into_iter().map(|(a, b)| {
+                ToolValue::Pair(Box::new((a, b)))
+            }).collect(),
+        }
+    }).collect() };
+    Ok(result)
+}
+
 /// Execute a pure shared operation. Missing, extra, incorrectly typed or
 /// nonfinite inputs fail before host document mutation. The native geometry
 /// functions apply their original bounds and degeneracy checks.
@@ -238,6 +417,7 @@ pub fn execute_shared_tool(request: &ToolRequest) -> Result<ToolValue> {
         if value.kind() != port.kind {
             return Err(KernelError::Invalid("tool port type mismatch"));
         }
+        value_cost(value, 0)?;
     }
     match contract.operation {
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(
@@ -271,6 +451,24 @@ pub fn execute_shared_tool(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.polyline.divide_distance" => Ok(ToolValue::Polyline(polyline_divide_distance(
             polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?,
         )?)),
+        "kernel.tree.validate" => Ok(ToolValue::Count(
+            u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?)
+                .map_err(|_| KernelError::Budget)?,
+        )),
+        "kernel.tree.flatten" => Ok(ToolValue::Tree(tree_flatten(
+            tree(&request.inputs, "tree")?,
+        )?)),
+        "kernel.tree.graft" => Ok(ToolValue::Tree(tree_graft(
+            tree(&request.inputs, "tree")?,
+        )?)),
+        "kernel.tree.simplify" => Ok(ToolValue::Tree(tree_simplify(
+            tree(&request.inputs, "tree")?,
+        )?)),
+        "kernel.tree.match" => Ok(ToolValue::Tree(match_tree_values(
+            tree(&request.inputs, "a")?,
+            tree(&request.inputs, "b")?,
+            match_mode(&request.inputs, "mode")?,
+        )?)),
         _ => Err(KernelError::Invalid("shared operation implementation missing")),
     }
 }
@@ -297,14 +495,14 @@ mod tests {
                 assert!(crate::operation_by_id(prerequisite).is_some());
             }
             assert!(cad.insert(tool.cad_command));
-            assert!(graph.insert(tool.calisoga_node));
+            assert!(graph.insert(tool.orbweaver_node));
             assert!(!tool.inputs.is_empty());
             let mut names = std::collections::BTreeSet::new();
             for port in tool.inputs {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 10);
+        assert_eq!(SHARED_TOOLS.len(), 15);
     }
     #[test]
     fn distance_is_shared_across_both_entry_points() {
@@ -313,7 +511,7 @@ mod tests {
             operation: operation.into(), inputs: inputs.clone(),
         });
         assert_eq!(run("kernel.point.distance"), Ok(ToolValue::Number(5.)));
-        assert_eq!(run("calisoga.point.distance"), run("worldwright.point.distance"));
+        assert_eq!(run("orbweaver.point.distance"), run("worldwright.point.distance"));
     }
     #[test]
     fn interpolation_modifier_changes_one_algorithm() {
@@ -327,6 +525,49 @@ mod tests {
         assert_eq!(run(inputs.clone()), Ok(ToolValue::Point(Vec3::new(4., 0., 0.))));
         inputs.insert("t".into(), ToolValue::Number(2.));
         assert!(run(inputs).is_err());
+    }
+    #[test]
+    fn tree_operations_remain_paired_and_roundtrip_tagged_values() {
+        let tree = DataTree { branches: vec![TreeBranch {
+            path: crate::TreePath(vec![0, 2]),
+            items: vec![ToolValue::Point(Vec3::new(2., 0., 0.)),
+                        ToolValue::Point(Vec3::new(4., 0., 0.))],
+        }] };
+        let original = ToolValue::Tree(tree.clone());
+        let decoded: ToolValue = serde_json::from_str(
+            &serde_json::to_string(&original).unwrap(),
+        ).unwrap();
+        assert_eq!(decoded, original);
+        assert_eq!(SHARED_TOOLS.len(), 15);
+        let cmd = |op: &str| execute_shared_tool(&ToolRequest {
+            operation: op.into(),
+            inputs: BTreeMap::from([("tree".into(), original.clone())]),
+        });
+        let graft = cmd("worldwright.tree.graft").unwrap();
+        assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());
+        let ToolValue::Tree(grafted_tree) = graft else { panic!("expected tree") };
+        assert_eq!(grafted_tree.branches.len(), 2);
+    }
+    #[test]
+    fn tree_matching_modifier_keeps_branch_paths_and_pairs() {
+        let make = |items| ToolValue::Tree(DataTree { branches: vec![TreeBranch {
+            path: crate::TreePath(vec![7]),
+            items,
+        }] });
+        let matched = execute_shared_tool(&ToolRequest {
+            operation: "orbweaver.tree.match".into(),
+            inputs: BTreeMap::from([
+                ("a".into(), make(vec![ToolValue::Count(1)])),
+                ("b".into(), make(vec![ToolValue::Count(3), ToolValue::Count(4)])),
+                ("mode".into(), ToolValue::MatchMode(TreeMatchPolicy::Longest)),
+            ]),
+        }).unwrap();
+        let ToolValue::Tree(result) = matched else { panic!("tree needed") };
+        assert_eq!(result.branches[0].path.0, vec![7]);
+        assert_eq!(result.branches[0].items, vec![
+            ToolValue::Pair(Box::new((ToolValue::Count(1),ToolValue::Count(3)))),
+            ToolValue::Pair(Box::new((ToolValue::Count(1),ToolValue::Count(4)))),
+        ]);
     }
     #[test]
     fn strict_ports_prevent_hidden_coercion() {
@@ -347,7 +588,7 @@ mod tests {
     #[test]
     fn divide_modifier_and_alias_roundtrip() {
         let request = ToolRequest {
-            operation: "calisoga.polyline.divide_count".into(),
+            operation: "orbweaver.polyline.divide_count".into(),
             inputs: BTreeMap::from([
                 ("points".into(), ToolValue::Polyline(vec![
                     Vec3::ZERO, Vec3::new(10., 0., 0.),

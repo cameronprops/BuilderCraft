@@ -10,7 +10,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("worldwright.tool.run", "Run Shared Native Tool", run)
             .params("{operation,inputs:{port:{kind,value},...}}")
             .enabled(always).noundo(),
-        CommandSpec::new("worldwright.tool.list", "List Paired CAD/Calisoga Tools", list)
+        CommandSpec::new("worldwright.tool.list", "List Paired CAD/Orb Weaver Tools", list)
             .enabled(always).noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")
@@ -32,6 +32,16 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("worldwright.polyline.divide_count", "Divide Polyline by Count", polyline_divide_count)
             .enabled(always).noundo(),
         CommandSpec::new("worldwright.polyline.divide_distance", "Divide Polyline by Spacing", polyline_divide_distance)
+            .enabled(always).noundo(),
+        CommandSpec::new("worldwright.tree.validate", "Validate Data Tree", tree_validate)
+            .enabled(always).noundo(),
+        CommandSpec::new("worldwright.tree.flatten", "Flatten Data Tree", tree_flatten)
+            .enabled(always).noundo(),
+        CommandSpec::new("worldwright.tree.graft", "Graft Data Tree", tree_graft)
+            .enabled(always).noundo(),
+        CommandSpec::new("worldwright.tree.simplify", "Simplify Data Tree", tree_simplify)
+            .enabled(always).noundo(),
+        CommandSpec::new("worldwright.tree.match", "Match Two Data Trees", tree_match)
             .enabled(always).noundo(),
     ]
 }
@@ -74,6 +84,11 @@ paired_command!(vector_cross, "kernel.vector.cross");
 paired_command!(polyline_length, "kernel.polyline.length");
 paired_command!(polyline_divide_count, "kernel.polyline.divide_count");
 paired_command!(polyline_divide_distance, "kernel.polyline.divide_distance");
+paired_command!(tree_validate, "kernel.tree.validate");
+paired_command!(tree_flatten, "kernel.tree.flatten");
+paired_command!(tree_graft, "kernel.tree.graft");
+paired_command!(tree_simplify, "kernel.tree.simplify");
+paired_command!(tree_match, "kernel.tree.match");
 
 #[cfg(test)]
 mod tests {
@@ -112,10 +127,36 @@ mod tests {
         })).is_err());
     }
     #[test]
+    fn graft_command_routes_to_the_same_native_kernel_as_orb_weaver() {
+        let mut session = Session::new();
+        let tree = json!({"kind":"tree","value":{"branches":[
+            {"path":[0],"items":[{"kind":"number","value":3.0},{"kind":"number","value":7.0}]}
+        ]}});
+        let inputs = json!({"tree": tree});
+        let direct = session.execute("worldwright.tree.graft", &json!({"inputs":inputs})).unwrap();
+        let generic = session.execute("worldwright.tool.run", &json!({
+            "operation":"orbweaver.tree.graft","inputs":inputs
+        })).unwrap();
+        assert_eq!(direct["output"], generic["output"]);
+        assert_eq!(direct["output"]["value"]["branches"].as_array().map(Vec::len), Some(2));
+    }
+    #[test]
+    fn matching_modifier_rejects_invalid_branch_sets_atomically() {
+        let mut session = Session::new();
+        let result = session.execute("worldwright.tree.match", &json!({"inputs":{
+            "a":{"kind":"tree","value":{"branches":[{"path":[0],"items":[
+                {"kind":"number","value":1.0}]}]}},
+            "b":{"kind":"tree","value":{"branches":[{"path":[1],"items":[
+                {"kind":"number","value":2.0}]}]}},
+            "mode":{"kind":"match_mode","value":"longest"}
+        }}));
+        assert!(result.is_err());
+    }
+    #[test]
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list",&json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len),Some(10));
-        assert_eq!(result["paired_tools"][0]["calisoga_node"],"calisoga.point.distance");
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len),Some(15));
+        assert_eq!(result["paired_tools"][0]["orbweaver_node"],"orbweaver.point.distance");
     }
 }

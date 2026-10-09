@@ -39,12 +39,22 @@ changes until separate migration tests exist.
 Both extensions are project containers; generic DXF/DWG/SVG/PDF export cannot
 silently discard 3D geometry or mesh objects.
 
-## Calisoga graph identity
+## Orb Weaver graph identity
 
-**Calisoga** is the working name for Worldwright's open-source Grasshopper-style
-parametric graph engine, from the *Calisoga* spider genus. The native graph
+**Orb Weaver** is the working name for Worldwright's open-source Grasshopper-style
+parametric graph engine, after orb-weaving spiders. The native graph
 engine is independently usable and intended to appear embedded in the CAD
 workspace; it executes shared kernel operations with direct CAD commands.
-UI/data-tree parity and a standalone executable remain in development.
+Orb Weaver now supports native data-tree structure operations and explicit
+matching for identical branch paths; Grasshopper-equivalent tree semantics,
+a graphical canvas and a standalone GUI executable remain in development.
+The data-tree foundations (validate, flatten, graft, simplify and list match)
+are shared by both CAD and Orb Weaver; implicit Grasshopper path matching,
+a graphical node canvas and .dftba graph persistence are still pending.
 The dependency-first tool hierarchy and mapping register live under
 `docs/dependencies/`. Native Worldwright files remain `.dftba`.
+
+The package name is `orb-weaver`, Rust import name `orb_weaver`, and native
+component namespace `orbweaver.*`. Previous unreleased Calisoga names are
+replaced in source; no migration promise is made for external consumers of
+unreleased internal IDs. Existing Worldwright project files remain `.dftba`.

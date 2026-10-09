@@ -16,14 +16,20 @@ Known omissions and the required basic typed-parameter review queue are recorded
 
 ## Paired native engine development
 
-The **Calisoga** graph engine is now authored in
-`crates/calisoga`, and the first ten typed, shared CAD/Graph operation
+The **Orb Weaver** graph engine is now authored in
+`crates/orb-weaver`, and the first fifteen typed, shared CAD/Graph operation
 pairs are in `crates/kernel/src/shared_tools.rs` and
-`docs/dependencies/tool-groups.json`. Seven of the ten have selected
-Grasshopper 1 public-index analogs, but the port lists, matching behavior
+`docs/dependencies/tool-groups.json`. Several have selected
+Grasshopper 1 public-index analogs, including Flatten/Graft/Simplify Tree, but the port lists, matching behavior
 and exact GH reference parity remain unverified. The original 817/110
 catalog rows are **not** automatically marked working by these wrappers.
 A new `docs/dependencies/reference-index.json` indexes all source rows
 by provisional dependency groups. Build/update with
 `python3 tools/build_dependency_index.py --write`.
 
+
+The initial tree functionality has **strict branch-path matching**, plus
+flatten, graft, simplify, and an explicit shortest/longest/cross-reference
+matching modifier. The public Grasshopper component entries are not promoted
+to working status until actual compiled behavior, ports, defaults, and list/tree
+semantics are compared with versioned reference fixtures.

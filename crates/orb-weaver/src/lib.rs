@@ -1,13 +1,14 @@
-//! Calisoga is Worldwright's headless, deterministic, typed parametric graph.
+//! Orb Weaver is Worldwright's headless, deterministic, typed parametric graph.
 //! Nodes execute the SAME validated algorithms as direct Worldwright CAD/API
-//! commands. Graph lists, data trees, bake/preview and visual canvas follow
-//! in later dependency layers; this first evaluator is deliberately scalar.
+//! commands. Typed trees, branch-structure modifiers and explicit list matching
+//! now execute through the same DAG and kernel dispatcher. Automatic numeric
+//! broadcasting over trees, bake/preview and the visual canvas come later.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
 use buildercraft_kernel::{
     KernelError, SharedToolContract, ToolRequest, ToolValue,
-    execute_shared_tool, shared_tool, SHARED_TOOLS,
+    execute_shared_tool, shared_tool, shared_tool_value_cost, SHARED_TOOLS,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -29,7 +30,7 @@ pub enum InputBinding {
 #[serde(deny_unknown_fields)]
 pub struct Node {
     pub id: u64,
-    /// Native Calisoga node ID, e.g. "calisoga.point.distance".
+    /// Native Orb Weaver node ID, e.g. "orbweaver.point.distance".
     pub component: String,
     pub inputs: BTreeMap<String, InputBinding>,
 }
@@ -52,13 +53,13 @@ pub struct GraphResult {
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum GraphError {
-    #[error("unsupported Calisoga graph schema version")]
+    #[error("unsupported Orb Weaver graph schema version")]
     Version,
-    #[error("Calisoga graph resource budget exceeded")]
+    #[error("Orb Weaver graph resource budget exceeded")]
     Budget,
     #[error("invalid or duplicated graph node identity: {0}")]
     NodeId(u64),
-    #[error("unsupported native Calisoga component: {0}")]
+    #[error("unsupported native Orb Weaver component: {0}")]
     Component(String),
     #[error("missing linked node: {0}")]
     MissingNode(u64),
@@ -66,7 +67,7 @@ pub enum GraphError {
     Port(u64),
     #[error("typed connection or constant mismatch on node {node}, port {port}")]
     Type { node: u64, port: String },
-    #[error("Calisoga graph contains a cycle")]
+    #[error("Orb Weaver graph contains a cycle")]
     Cycle,
     #[error("shared geometry kernel rejected graph operation: {0}")]
     Kernel(#[from] KernelError),
@@ -78,9 +79,9 @@ pub fn native_components() -> &'static [SharedToolContract] {
     SHARED_TOOLS
 }
 
-/// The initial graph evaluator intentionally has no list/tree matching or
-/// implicit conversions. All node outputs are single typed values, and graph
-/// evaluation is atomic: a failed node returns no partial result to callers.
+/// This evaluator handles tagged scalars AND explicit structural tree values;
+/// it does NOT implicitly align branches or broadcast numeric operations over
+/// tree items. Graph evaluation is atomic: failures return no partial result.
 /// Strict node and edge ceilings bound the quadratic deterministic scheduler.
 pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
     if graph.version != GRAPH_SCHEMA_VERSION {
@@ -106,7 +107,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
             let binding = node.inputs.get(port.name).ok_or(GraphError::Port(node.id))?;
             match binding {
                 InputBinding::Constant { value } => {
-                    retained_items = retained_items.checked_add(value_items(value))
+                    retained_items = retained_items.checked_add(shared_tool_value_cost(value)?)
                         .ok_or(GraphError::Budget)?;
                     if retained_items > MAX_GRAPH_VALUE_ITEMS {
                         return Err(GraphError::Budget);
@@ -168,7 +169,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 operation: contract.operation.into(),
                 inputs,
             })?;
-            retained_items = retained_items.checked_add(value_items(&value))
+            retained_items = retained_items.checked_add(shared_tool_value_cost(&value)?)
                 .ok_or(GraphError::Budget)?;
             if retained_items > MAX_GRAPH_VALUE_ITEMS {
                 return Err(GraphError::Budget);
@@ -187,16 +188,9 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
     Ok(GraphResult { values, evaluated_node_count })
 }
 
-fn value_items(value: &ToolValue) -> usize {
-    match value {
-        ToolValue::Polyline(points) => points.len(),
-        _ => 1,
-    }
-}
-
 fn require_component(id: &str) -> Result<&'static SharedToolContract> {
     let spec = shared_tool(id).ok_or_else(|| GraphError::Component(id.into()))?;
-    if spec.calisoga_node != id {
+    if spec.orbweaver_node != id {
         return Err(GraphError::Component(id.into()));
     }
     Ok(spec)
@@ -214,7 +208,7 @@ mod tests {
     fn dist(id: u64, a: Vec3, b: Vec3) -> Node {
         Node {
             id,
-            component: "calisoga.point.distance".into(),
+            component: "orbweaver.point.distance".into(),
             inputs: BTreeMap::from([
                 ("a".into(), constant(Point(a))),
                 ("b".into(), constant(Point(b))),
@@ -241,14 +235,14 @@ mod tests {
     fn chained_vector_nodes_use_one_kernel_implementation() {
         let normalized = Node {
             id: 3,
-            component: "calisoga.vector.normalize".into(),
+            component: "orbweaver.vector.normalize".into(),
             inputs: BTreeMap::from([
                 ("v".into(), constant(Vector(Vec3::new(3., 4., 0.)))),
             ]),
         };
         let length = Node {
             id: 9,
-            component: "calisoga.vector.length".into(),
+            component: "orbweaver.vector.length".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output { node: 3 }),
             ]),
@@ -270,7 +264,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 4,
-                component: "calisoga.polyline.divide_count".into(),
+                component: "orbweaver.polyline.divide_count".into(),
                 inputs: BTreeMap::from([
                     ("points".into(), constant(Polyline(vec![
                         Vec3::ZERO, Vec3::new(8., 0., 0.),
@@ -293,7 +287,7 @@ mod tests {
     fn cycles_and_dangling_references_are_errors() {
         let n = |id, predecessor| Node {
             id,
-            component: "calisoga.vector.normalize".into(),
+            component: "orbweaver.vector.normalize".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output {node:predecessor}),
             ]),
@@ -307,7 +301,7 @@ mod tests {
     fn connection_type_checks_run_before_evaluation() {
         let n = Node {
             id: 2,
-            component: "calisoga.vector.length".into(),
+            component: "orbweaver.vector.length".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output { node: 1 }),
             ]),
@@ -329,7 +323,7 @@ mod tests {
                 dist(1, Vec3::ZERO, Vec3::new(1., 0., 0.)),
                 Node {
                     id: 2,
-                    component: "calisoga.polyline.divide_count".into(),
+                    component: "orbweaver.polyline.divide_count".into(),
                     inputs: BTreeMap::from([
                         ("points".into(), constant(Polyline(vec![
                             Vec3::ZERO, Vec3::new(3., 0., 0.),
@@ -359,7 +353,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 5,
-                component: "calisoga.polyline.length".into(),
+                component: "orbweaver.polyline.length".into(),
                 inputs: BTreeMap::from([
                     ("points".into(), constant(Polyline(samples))),
                 ]),
@@ -369,6 +363,100 @@ mod tests {
         assert_eq!(evaluate(&graph), Err(GraphError::Budget));
     }
 
+    #[test]
+    fn native_tree_nodes_graft_then_flatten_without_losing_values() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let start = ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0, 4]),
+                items: vec![Number(1.), Number(2.), Number(3.)],
+            }],
+        });
+        let graph = Graph {
+            version: 1,
+            nodes: vec![
+                Node {
+                    id: 2,
+                    component: "orbweaver.tree.flatten".into(),
+                    inputs: BTreeMap::from([(
+                        "tree".into(), InputBinding::Output {node: 1},
+                    )]),
+                },
+                Node {
+                    id: 1,
+                    component: "orbweaver.tree.graft".into(),
+                    inputs: BTreeMap::from([(
+                        "tree".into(), constant(start),
+                    )]),
+                },
+            ],
+            outputs: vec![2],
+        };
+        let result = evaluate(&graph).unwrap();
+        assert_eq!(result.evaluated_node_count, 2);
+        assert_eq!(result.values.get(&2), Some(&ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0]),
+                items: vec![Number(1.), Number(2.), Number(3.)],
+            }],
+        })));
+    }
+    #[test]
+    fn native_tree_matching_respects_mode_modifier_and_budget() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreeMatchPolicy, TreePath};
+        let tree = |values: Vec<ToolValue>| ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0]),
+                items: values,
+            }],
+        });
+        let graph = Graph {
+            version: 1,
+            nodes: vec![Node {
+                id: 7,
+                component: "orbweaver.tree.match".into(),
+                inputs: BTreeMap::from([
+                    ("a".into(), constant(tree(vec![Number(1.), Number(2.)]))),
+                    ("b".into(), constant(tree(vec![Number(8.)]))),
+                    ("mode".into(), constant(ToolValue::MatchMode(TreeMatchPolicy::Longest))),
+                ]),
+            }],
+            outputs: vec![7],
+        };
+        let result = evaluate(&graph).unwrap();
+        let Some(ToolValue::Tree(tree)) = result.values.get(&7) else {
+            assert!(false, "matching must return a tree");
+            return;
+        };
+        assert_eq!(tree.branches[0].items, vec![
+            ToolValue::Pair(Box::new((Number(1.),Number(8.)))),
+            ToolValue::Pair(Box::new((Number(2.),Number(8.)))),
+        ]);
+    }
+    #[test]
+    fn tree_input_types_are_validated_before_graph_execution() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let graph = Graph {
+            version: 1,
+            nodes: vec![Node {
+                id: 1,
+                component: "orbweaver.tree.flatten".into(),
+                inputs: BTreeMap::from([(
+                    "tree".into(),
+                    constant(ToolValue::Tree(DataTree {
+                        branches: vec![TreeBranch {
+                            path: TreePath(vec![0]),
+                            items: vec![ToolValue::Polyline(vec![
+                                Vec3::ZERO; MAX_GRAPH_VALUE_ITEMS + 1
+                            ])],
+                        }],
+                    })),
+                )]),
+            }],
+            outputs: vec![1],
+        };
+        assert_eq!(evaluate(&graph), Err(GraphError::Kernel(KernelError::Budget)));
+    }
     #[test]
     fn roundtrip_and_node_order_are_deterministic() {
         let graph = Graph { version:1, nodes:vec![

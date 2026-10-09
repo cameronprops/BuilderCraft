@@ -125,9 +125,9 @@ editable quad-mesh interchange format. All new integration tests require local
 Rust execution before the implementation can be claimed verified.
 
 
-## Paired native CAD/Calisoga tool API (source authored)
+## Paired native CAD/Orb Weaver tool API (source authored)
 
-The new numeric CAD/API commands and Calisoga nodes both delegate to
+The new numeric CAD/API commands and Orb Weaver nodes both delegate to
 `buildercraft_kernel::execute_shared_tool`. No per-interface geometry
 algorithm is duplicated. No active drawing or undo transaction is needed to
 calculate a pure point/vector/polyline result.
@@ -166,7 +166,7 @@ The equivalent generic command:
 
 Both use the **same** typed dispatcher and return `output` as a tagged
 `ToolValue` (`number`, `count`, `point`, `vector`, or `polyline`).
-A Calisoga node has the component ID `calisoga.point.distance`; node ports
+A Orb Weaver node has the component ID `orbweaver.point.distance`; node ports
 accept `{"source":"constant","value":{...}}` literals or
 `{"source":"output","node":<upstream node ID>}` links. The graph
 schema is version 1 and deterministic for supported scalar-valued nodes.
@@ -178,7 +178,62 @@ list/tree matching, reference Grasshopper option equivalence, and graph
 document bake/persistence are future milestones. Inputs reject unknown ports,
 wrong kinds, nonfinite values, and invalid domain/spacing policies.
 
-See `docs/dependencies/` for the group-level hierarchy and all 41 native
-kernel operation DAG nodes; `crates/calisoga/examples/paired_distance.rs`
+See `docs/dependencies/` for the group-level hierarchy and all 46 native
+kernel operation DAG nodes; `crates/orb-weaver/examples/paired_distance.rs`
 for an executable headless equivalence demo. Run the local validation scripts
 before marking any new code tested.
+
+
+## Orb Weaver tree operations (source authored; Rust validation pending)
+
+The same native data-tree services can be called as pure Worldwright CAD/API
+commands or wired as Orb Weaver graph nodes. These five new paired commands
+extend the prior ten numeric operations:
+
+| Worldwright command | Orb Weaver node | Inputs | Output |
+|---|---|---|---|
+| `worldwright.tree.validate` | `orbweaver.tree.validate` | tree | Top-level item count |
+| `worldwright.tree.flatten` | `orbweaver.tree.flatten` | tree | One ordered branch |
+| `worldwright.tree.graft` | `orbweaver.tree.graft` | tree | Item-indexed child branches |
+| `worldwright.tree.simplify` | `orbweaver.tree.simplify` | tree | Simplified branch paths |
+| `worldwright.tree.match` | `orbweaver.tree.match` | a, b, mode | Tree of pairs |
+
+Typed tree values are tagged `{"kind":"tree","value":{"branches":[...]}}`.
+Branches contain path arrays and tagged items. Matching needs identical
+branch paths, and a typed `match_mode` modifier of `shortest`, `longest`,
+or `cross_reference`. Longest repeats the last item; CrossReference produces
+a Cartesian product. These are explicitly defined native rules, **not a
+claim of exact implicit Grasshopper tree-matching behavior**.
+
+Example direct CAD/API flatten request:
+
+```json
+{
+  "command": "worldwright.tree.flatten",
+  "params": {
+    "inputs": {
+      "tree": {
+        "kind": "tree",
+        "value": {
+          "branches": [
+            {"path": [0, 1], "items": [{"kind": "number", "value": 2}]},
+            {"path": [0, 2], "items": [{"kind": "number", "value": 4}]}
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
+The equivalent Orb Weaver graph uses node ID `orbweaver.tree.flatten`
+with a `Constant` binding carrying the same tagged tree, or an `Output`
+binding connecting it to another tree node. Results use `ToolValue::Tree`.
+Generated paired values use `ToolValue::Pair`, and output/error checks are
+shared by both interfaces.
+
+Native trees preserve empty branches, require ordered unique paths of depth
+1–16, and enforce count/clone limits. Graph-level `.dftba` persistence,
+geometry handle ports, global tree broadcasting and graphical editing are
+still pending. See `crates/orb-weaver/examples/paired_tree.rs`. Local compilation
+and runtime tests have not yet been performed.

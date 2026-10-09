@@ -1,20 +1,31 @@
 # BuilderCraft suite instructions
 
-## Dependency-first native tool policy (Worldwright + Calisoga)
+## Dependency-first native tool policy (Worldwright + Orb Weaver)
 
 The [dependency DAG and pair register](docs/dependencies/README.md) govern
-the sequence for **both** native CAD commands and Calisoga nodes. Prefer
+the sequence for **both** native CAD commands and Orb Weaver nodes. Prefer
 lower-tier primitives, then add modifiers and document/graph adapters as
 thin wrappers. One geometry algorithm must serve both interfaces; never
-reimplement the same operation in the Calisoga node evaluator.
+reimplement the same operation in the Orb Weaver node evaluator.
 All 1,072 Rhino commands, 817 Grasshopper components, 110 Kangaroo components
 and 2,357 manual topics have preliminary category coverage, **not** verified
 per-item dependencies. Review unresolved entries and exact port/tree behavior
 before claiming parity. For every new pair update the Rust
 `SHARED_TOOLS` contracts and `docs/dependencies/tool-groups.json`,
-add CAD and Calisoga tests, run the local inventory/pair consistency scripts,
+add CAD and Orb Weaver tests, run the local inventory/pair consistency scripts,
 and leave entries unvalidated until compilation/conformance tests pass.
 Do not run paid GitHub Actions automatically.
+
+Orb Weaver now has native `DataTree<T>` structure operations in the **shared
+kernel**: `kernel.tree.validate/flatten/graft/simplify/match`. CAD
+`worldwright.tree.*` commands and `orbweaver.tree.*` nodes must call that
+same kernel contract. Tree branches use lexicographically ordered unique paths;
+matching is explicit and strict by identical path, not automatic Grasshopper
+path matching. Keep modifier policies named and typed (shortest, longest,
+cross-reference), and preserve empty branches. The next dependency is
+**tree-aware numeric node broadcasting**, then immutable geometry handles,
+not another copy of tree algorithms in the graph crate. Rust code remains
+pending compiled validation.
 
 
 Native BuilderCraft must be entirely free and open source. Use original implementations or dependencies whose relevant source and redistribution licenses have been verified. Rhino/Grasshopper/Kangaroo are public-behavior references only: never copy proprietary implementation code or require a paid host for native capabilities. Optional third-party adapters must not replace native functionality or become a required runtime dependency.

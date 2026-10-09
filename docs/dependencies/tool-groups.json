@@ -255,7 +255,7 @@
       "kernel_operation": "kernel.point.distance",
       "group": "geometry.point",
       "cad_command": "worldwright.point.distance",
-      "calisoga_node": "calisoga.point.distance",
+      "orbweaver_node": "orbweaver.point.distance",
       "reference_inventory_id": "087d1dfa64892951e255",
       "reference_name": "Distance",
       "relation": "exact_scalar_algorithm",
@@ -266,7 +266,7 @@
       "kernel_operation": "kernel.point.midpoint",
       "group": "geometry.point",
       "cad_command": "worldwright.point.midpoint",
-      "calisoga_node": "calisoga.point.midpoint",
+      "orbweaver_node": "orbweaver.point.midpoint",
       "reference_inventory_id": null,
       "reference_name": null,
       "relation": "native_subset",
@@ -277,7 +277,7 @@
       "kernel_operation": "kernel.point.interpolate",
       "group": "geometry.point",
       "cad_command": "worldwright.point.interpolate",
-      "calisoga_node": "calisoga.point.interpolate",
+      "orbweaver_node": "orbweaver.point.interpolate",
       "reference_inventory_id": null,
       "reference_name": null,
       "relation": "native_subset",
@@ -290,7 +290,7 @@
       "kernel_operation": "kernel.vector.length",
       "group": "math.vector",
       "cad_command": "worldwright.vector.length",
-      "calisoga_node": "calisoga.vector.length",
+      "orbweaver_node": "orbweaver.vector.length",
       "reference_inventory_id": "7af0fef917a469f1574f",
       "reference_name": "Vector Length",
       "relation": "exact_scalar_algorithm",
@@ -301,7 +301,7 @@
       "kernel_operation": "kernel.vector.normalize",
       "group": "math.vector",
       "cad_command": "worldwright.vector.normalize",
-      "calisoga_node": "calisoga.vector.normalize",
+      "orbweaver_node": "orbweaver.vector.normalize",
       "reference_inventory_id": "b1d1785eb889c46056a6",
       "reference_name": "Unit Vector",
       "relation": "native_subset",
@@ -312,7 +312,7 @@
       "kernel_operation": "kernel.vector.dot",
       "group": "math.vector",
       "cad_command": "worldwright.vector.dot",
-      "calisoga_node": "calisoga.vector.dot",
+      "orbweaver_node": "orbweaver.vector.dot",
       "reference_inventory_id": "c271e780896d940e82f8",
       "reference_name": "Dot Product",
       "relation": "exact_scalar_algorithm",
@@ -323,7 +323,7 @@
       "kernel_operation": "kernel.vector.cross",
       "group": "math.vector",
       "cad_command": "worldwright.vector.cross",
-      "calisoga_node": "calisoga.vector.cross",
+      "orbweaver_node": "orbweaver.vector.cross",
       "reference_inventory_id": "bc5c977b48de7442838c",
       "reference_name": "Cross Product",
       "relation": "exact_scalar_algorithm",
@@ -334,7 +334,7 @@
       "kernel_operation": "kernel.polyline.length",
       "group": "geometry.polyline",
       "cad_command": "worldwright.polyline.length",
-      "calisoga_node": "calisoga.polyline.length",
+      "orbweaver_node": "orbweaver.polyline.length",
       "reference_inventory_id": null,
       "reference_name": null,
       "relation": "polyline_only",
@@ -345,7 +345,7 @@
       "kernel_operation": "kernel.polyline.divide_count",
       "group": "geometry.polyline",
       "cad_command": "worldwright.polyline.divide_count",
-      "calisoga_node": "calisoga.polyline.divide_count",
+      "orbweaver_node": "orbweaver.polyline.divide_count",
       "reference_inventory_id": "1146af29af1dcbc5dfd4",
       "reference_name": "Divide Curve",
       "relation": "polyline_only",
@@ -358,7 +358,7 @@
       "kernel_operation": "kernel.polyline.divide_distance",
       "group": "geometry.polyline",
       "cad_command": "worldwright.polyline.divide_distance",
-      "calisoga_node": "calisoga.polyline.divide_distance",
+      "orbweaver_node": "orbweaver.polyline.divide_distance",
       "reference_inventory_id": "81666bcb77a3688c4218",
       "reference_name": "Divide Distance",
       "relation": "polyline_only",
@@ -366,12 +366,69 @@
         "spacing"
       ],
       "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.validate",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.validate",
+      "orbweaver_node": "orbweaver.tree.validate",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "native_tree_primitive",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.flatten",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.flatten",
+      "orbweaver_node": "orbweaver.tree.flatten",
+      "reference_inventory_id": "d03d067f85f162db0d0f",
+      "reference_name": "Flatten Tree",
+      "relation": "structural_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.graft",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.graft",
+      "orbweaver_node": "orbweaver.tree.graft",
+      "reference_inventory_id": "55802be9cae2b5ff2efe",
+      "reference_name": "Graft Tree",
+      "relation": "structural_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.simplify",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.simplify",
+      "orbweaver_node": "orbweaver.tree.simplify",
+      "reference_inventory_id": "b403e90696f22d088557",
+      "reference_name": "Simplify Tree",
+      "relation": "structural_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.match",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.match",
+      "orbweaver_node": "orbweaver.tree.match",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "strict_branch_matching_subset",
+      "modifiers": [
+        "mode"
+      ],
+      "graph_tree_parity": "not_verified"
     }
   ],
   "tool_layers": [
     "kernel algorithm (single owner)",
     "typed operation + modifier contract",
-    "CAD/API adapter or Calisoga node",
+    "CAD/API adapter or Orb Weaver node",
     "selection, previews, undo and persistence wrappers"
   ],
   "classification_rules": [
@@ -984,5 +1041,6 @@
       "group": "graph.constraints"
     }
   ],
-  "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review."
+  "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review.",
+  "next_dependency_layer": "Typed geometry reference handles and tree-aware broadcast of numerical operations. Orb Weaver graph scalar DAG now supports tree-structural nodes but does not yet implicitly map all CAD math over tree items."
 }

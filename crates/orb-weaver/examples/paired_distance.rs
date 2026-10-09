@@ -1,8 +1,8 @@
-//! Headless example: evaluate Calisoga and direct CAD/API dispatch against
-//! the same geometry kernel. Run: cargo run -p calisoga --example paired_distance
+//! Headless example: evaluate Orb Weaver and direct CAD/API dispatch against
+//! the same geometry kernel. Run: cargo run -p orbweaver --example paired_distance
 use buildercraft_kernel::{ToolRequest, ToolValue, execute_shared_tool};
 use cadcraft_geom::Vec3;
-use calisoga::{Graph, InputBinding, Node, evaluate};
+use orb_weaver::{Graph, InputBinding, Node, evaluate};
 use std::collections::BTreeMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         version: 1,
         nodes: vec![Node {
             id: 1,
-            component: "calisoga.point.distance".into(),
+            component: "orbweaver.point.distance".into(),
             inputs: inputs.into_iter().map(|(key, value)| (
                 key, InputBinding::Constant { value },
             )).collect(),
@@ -30,9 +30,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph_result = evaluate(&graph)?;
     let graph_value = graph_result.values.get(&1).ok_or_else(|| std::io::Error::other("missing graph output"))?;
     if graph_value != &cad_result {
-        return Err("CAD and Calisoga results differ".into());
+        return Err("CAD and Orb Weaver results differ".into());
     }
-    println!("Worldwright CAD + Calisoga: {graph_value:?}");
+    println!("Worldwright CAD + Orb Weaver: {graph_value:?}");
     println!("1 shared kernel algorithm; zero duplicate implementations.");
     Ok(())
 }

@@ -1,6 +1,6 @@
 [package]
-name = "calisoga"
-description = "Calisoga: Worldwright's native, host-independent parametric graph foundation"
+name = "orb-weaver"
+description = "Orb Weaver: Worldwright's native, host-independent parametric graph foundation"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

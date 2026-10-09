@@ -95,7 +95,8 @@ the reference plan, kernel, CAD commands and OrbWeaver node identities.
 same kernel functions as Worldwright CAD/API. Five new paired operations add
 validation, flatten, graft, simplify and list matching with a typed matching
 mode modifier. Native branches are strictly ordered, preserve empty branches,
-and require exact matching paths; implicit Grasshopper tree alignment and
-numeric broadcasting across lists are future work. See
+and require exact matching paths; implicit Grasshopper tree alignment is future work. The first ten shared
+numeric operations now broadcast over typed branches with explicit
+shortest/longest/cross-reference matching and an optional `matching` modifier. See
 [`docs/PROCEDURAL_MODELING.md`](docs/PROCEDURAL_MODELING.md). Rust tests are
 authored but are **not yet compiled or executed**.

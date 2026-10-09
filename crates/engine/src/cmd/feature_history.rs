@@ -130,6 +130,54 @@ mod tests {
         assert_eq!(session.doc().unwrap().feature_timelines[0].steps.len(),0);
     }
     #[test]
+    fn block_history_is_case_insensitive_and_blocks_definition_replacement() {
+        use std::sync::Arc;
+        use cadcraft_doc::{Block, EntityKind, Point};
+        use cadcraft_geom::{Vec2, Vec3};
+        let mut session = Session::new();
+        session.doc_mut().unwrap().blocks.insert(
+            "Bracket".into(), Arc::new(Block::new("Bracket")),
+        );
+        session.execute("worldwright.history.create", &json!({
+            "scope":{"kind":"block_definition","id":"BRACKET"}
+        })).unwrap();
+        let created = &session.doc().unwrap().feature_timelines[0];
+        assert_eq!(created.scope, FeatureScope::BlockDefinition("Bracket".into()));
+        // The command accepts different casing but resolves one local scope.
+        assert!(session.execute("worldwright.history.create", &json!({
+            "scope":{"kind":"block_definition","id":"bracket"}
+        })).is_err());
+        let h = session.add_entity(EntityKind::Point(Point {
+            p: Vec3::ZERO, angle: 0.,
+        })).unwrap();
+        let before = session.doc().unwrap().clone();
+        assert!(super::blocks::make_block(
+            &mut session, "Bracket", Vec2::ZERO, &[h], "retain", ""
+        ).is_err());
+        assert_eq!(session.doc().unwrap(), &before);
+    }
+
+    #[test]
+    fn failed_mutation_does_not_push_undo_or_advance_document_revision() {
+        let mut session = Session::new();
+        let scope = json!({"kind":"document"});
+        session.execute("worldwright.history.create", &json!({"scope":scope})).unwrap();
+        let before_doc = session.doc().unwrap().clone();
+        let before_revision = session.state().unwrap().revision;
+        let before_undo = session.state().unwrap().undo.len();
+        assert!(session.execute("worldwright.history.edit", &json!({
+            "scope":scope,"expected_revision":0,
+            "change":{"edit":"append","step":{
+                "id":9,"name":"Unsupported solid",
+                "operation":"kernel.solid.extrude","inputs":{}
+            }}
+        })).is_err());
+        assert_eq!(session.doc().unwrap(), &before_doc);
+        assert_eq!(session.state().unwrap().revision, before_revision);
+        assert_eq!(session.state().unwrap().undo.len(), before_undo);
+    }
+
+    #[test]
     fn cannot_create_history_for_an_unknown_block() {
         let mut session = Session::new();
         assert!(session.execute("worldwright.history.create",&json!({

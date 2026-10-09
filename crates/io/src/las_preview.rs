@@ -68,7 +68,8 @@ pub fn read_las_preview(bytes: &[u8]) -> Result<LasPointPreview> {
     }
 
     let mut diagnostics = vec![
-        "Preview retains XYZ only; classification, intensity, color, GPS time, return numbers and other LAS attributes are not transferred".to_string(),
+        "Preview retains XYZ only; classification, intensity, color, GPS time, return numbers and other LAS attributes are not transferred"
+            .to_string(),
         "Source coordinate reference system and linear units have not been interpreted or converted".to_string(),
     ];
     if has_crs_metadata {

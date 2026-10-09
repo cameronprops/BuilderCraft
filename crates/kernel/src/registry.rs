@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.scene.edit_polygon",
+        label: "Edit Retained Polygon Mesh in Scene Transaction",
+        category: "mesh",
+        inputs: &["scene", "expected_revision", "object_id", "polygon_edit"],
+        outputs: &["scene_revision", "updated_geometry"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.polygon.fill_hole",
         label: "Fill Planar Convex Polygon Hole",
         category: "mesh",

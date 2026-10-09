@@ -59,3 +59,71 @@ pub fn manifest(drawing: &Drawing, project_id: Id, revision: u64, geometry_budge
     manifest.revision = revision;
     Ok(manifest)
 }
+
+
+fn kind_for_object(drawing: &Drawing, object_id: u64) -> Result<GeometryKind> {
+    let exact = drawing.geometry3d.iter().filter(|o| o.id == object_id).collect::<Vec<_>>();
+    let polygon = drawing.mesh3d.iter().filter(|o| o.id == object_id).collect::<Vec<_>>();
+    if exact.len() + polygon.len() != 1 {
+        return Err(KernelError::Object);
+    }
+    if let Some(object) = exact.first() {
+        return Ok(match &object.shape {
+            ExactShape::Curve(_) => GeometryKind::NurbsCurve,
+            ExactShape::Surface(_) => GeometryKind::NurbsSurface,
+        });
+    }
+    Ok(GeometryKind::PolygonMesh)
+}
+
+/// Capture a 3D CAD object reference without cloning its geometry. The same
+/// caller-supplied project identity must be used on future requests. A
+/// history-bound document project identity is a later native-file migration.
+pub fn capture_geometry_reference(
+    drawing: &Drawing, project_id: Id, document_revision: u64, object_id: u64,
+) -> Result<GeometryReference> {
+    let kind = kind_for_object(drawing, object_id)?;
+    let logical_id = Id::new(u128::from(object_id) + 1)?;
+    Ok(GeometryReference {
+        project_id, object_id: logical_id,
+        source_revision: document_revision, kind,
+    })
+}
+
+/// Verify a persistent metadata handle against the current CAD document.
+/// The result is a kind, not an independent mutable geometry copy. Rejects
+/// document-wide stale revisions, unknown or representation-changed objects.
+pub fn validate_geometry_reference(
+    drawing: &Drawing, reference: &GeometryReference,
+    project_id: Id, document_revision: u64,
+) -> Result<GeometryKind> {
+    if project_id != reference.project_id {
+        return Err(KernelError::Invalid("foreign geometry project"));
+    }
+    if document_revision != reference.source_revision {
+        return Err(KernelError::Conflict {
+            expected: reference.source_revision, actual: document_revision,
+        });
+    }
+    // The scene's stable identity projection is legacy CAD handle + 1.
+    // Do not expose Id's internal integer or assume JSON u64 roundtrips.
+    let mut found = None;
+    for o in &drawing.geometry3d {
+        if Id::new(u128::from(o.id) + 1)? == reference.object_id {
+            if found.is_some() { return Err(KernelError::Object); }
+            found = Some(o.id);
+        }
+    }
+    for o in &drawing.mesh3d {
+        if Id::new(u128::from(o.id) + 1)? == reference.object_id {
+            if found.is_some() { return Err(KernelError::Object); }
+            found = Some(o.id);
+        }
+    }
+    let id = found.ok_or(KernelError::Object)?;
+    let actual = kind_for_object(drawing, id)?;
+    if actual != reference.kind {
+        return Err(KernelError::Invalid("geometry representation changed"));
+    }
+    Ok(actual)
+}

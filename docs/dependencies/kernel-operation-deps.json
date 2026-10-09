@@ -1,0 +1,403 @@
+{
+  "schema_version": 1,
+  "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
+  "counts": {
+    "total": 41,
+    "explicit_dependencies_mapped": 23,
+    "pending_source_review": 18,
+    "paired": 10
+  },
+  "entries": [
+    {
+      "id": "kernel.vector.length",
+      "group": "math.vector",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "vector",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.scene.edit_polygon",
+      "group": "workflow.document",
+      "depends_on": [
+        "kernel.polygon.delete_faces",
+        "kernel.polygon.add_triangle_from_edge",
+        "kernel.polygon.fill_hole"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.fill_hole",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.boundary_loops",
+        "kernel.polygon.topology",
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.boundary_loops",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.topology"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.add_triangle_from_edge",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.topology",
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.delete_faces",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.topology",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.validate",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.from_triangles",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.triangulate",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.add_quad",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.validate_selection",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.add_triangle_from_selection",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.mesh.validate_selection",
+        "kernel.mesh.add_triangle"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.add_triangle",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.mesh.face_analysis",
+        "kernel.mesh.duplicate_faces",
+        "kernel.mesh.edge_report"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.repair",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.mesh.validation_report",
+        "kernel.mesh.weld",
+        "kernel.mesh.duplicate_faces",
+        "kernel.mesh.remove_unused_vertices"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.duplicate_faces",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.remove_unused_vertices",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.validation_report",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.mesh.edge_report",
+        "kernel.mesh.duplicate_faces",
+        "kernel.mesh.degenerate_faces"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.weld",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.mesh.mesh_vertex_weld_map"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.vertex_weld_map",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.mesh_vertex_weld_map",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.mesh.vertex_weld_map"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.edge_report",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.face_analysis",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.mesh.degenerate_faces",
+      "group": "geometry.mesh_topology",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.bounds.from_points",
+      "group": "geometry.point",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "bounds",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.bounds.dimensions",
+      "group": "geometry.point",
+      "depends_on": [
+        "kernel.bounds.from_points"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "bounds",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.bounds.center",
+      "group": "geometry.point",
+      "depends_on": [
+        "kernel.bounds.from_points"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "bounds",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polyline.segment_lengths",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.point.distance"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polyline.length",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.point.distance"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.divide_count",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length",
+        "kernel.point.distance",
+        "kernel.point.interpolate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.divide_distance",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length",
+        "kernel.point.distance",
+        "kernel.point.interpolate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.vector.normalize",
+      "group": "math.vector",
+      "depends_on": [
+        "kernel.vector.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "vector",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.vector.dot",
+      "group": "math.vector",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "vector",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.vector.cross",
+      "group": "math.vector",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "vector",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.vector.angle",
+      "group": "math.vector",
+      "depends_on": [
+        "kernel.vector.normalize"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "vector",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.point.distance",
+      "group": "geometry.point",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "point",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.point.midpoint",
+      "group": "geometry.point",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "point",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.point.interpolate",
+      "group": "geometry.point",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "point",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.frame.convert_point",
+      "group": "foundation.units_frames",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "units",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.geometry.transform_exact",
+      "group": "geometry.transforms",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "transform",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.geometry.tessellate",
+      "group": "workflow.display",
+      "depends_on": [],
+      "dependency_basis": "pending_source_review",
+      "registry_category": "geometry",
+      "paired_cad_graph": false
+    }
+  ]
+}

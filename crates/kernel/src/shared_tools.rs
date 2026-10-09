@@ -1,5 +1,5 @@
 //! Typed, host-independent operation contracts shared by Worldwright commands
-//! and Calisoga nodes. The algorithm lives in the existing kernel; this module
+//! and Orb Weaver nodes. The algorithm lives in the existing kernel; this module
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
     KernelError, Result, point_distance, point_midpoint,
@@ -56,7 +56,7 @@ pub struct ToolPort {
 pub struct SharedToolContract {
     pub operation: &'static str,
     pub cad_command: &'static str,
-    pub calisoga_node: &'static str,
+    pub orbweaver_node: &'static str,
     pub dependency_group: &'static str,
     /// Lower-level kernel operations required by this service/algorithm.
     pub prerequisites: &'static [&'static str],
@@ -98,7 +98,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.point.distance",
         cad_command: "worldwright.point.distance",
-        calisoga_node: "calisoga.point.distance",
+        orbweaver_node: "orbweaver.point.distance",
         dependency_group: "geometry.point",
         prerequisites: &[],
         inputs: A_B_POINTS, output: ToolType::Number,
@@ -106,7 +106,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.point.midpoint",
         cad_command: "worldwright.point.midpoint",
-        calisoga_node: "calisoga.point.midpoint",
+        orbweaver_node: "orbweaver.point.midpoint",
         dependency_group: "geometry.point",
         prerequisites: &[],
         inputs: A_B_POINTS, output: ToolType::Point,
@@ -114,7 +114,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.point.interpolate",
         cad_command: "worldwright.point.interpolate",
-        calisoga_node: "calisoga.point.interpolate",
+        orbweaver_node: "orbweaver.point.interpolate",
         dependency_group: "geometry.point",
         prerequisites: &[],
         inputs: POINT_INTERPOLATE, output: ToolType::Point,
@@ -122,7 +122,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.length",
         cad_command: "worldwright.vector.length",
-        calisoga_node: "calisoga.vector.length",
+        orbweaver_node: "orbweaver.vector.length",
         dependency_group: "math.vector",
         prerequisites: &[],
         inputs: ONE_VECTOR, output: ToolType::Number,
@@ -130,7 +130,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.normalize",
         cad_command: "worldwright.vector.normalize",
-        calisoga_node: "calisoga.vector.normalize",
+        orbweaver_node: "orbweaver.vector.normalize",
         dependency_group: "math.vector",
         prerequisites: &["kernel.vector.length"],
         inputs: ONE_VECTOR, output: ToolType::Vector,
@@ -138,7 +138,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.dot",
         cad_command: "worldwright.vector.dot",
-        calisoga_node: "calisoga.vector.dot",
+        orbweaver_node: "orbweaver.vector.dot",
         dependency_group: "math.vector",
         prerequisites: &[],
         inputs: A_B_VECTORS, output: ToolType::Number,
@@ -146,7 +146,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.vector.cross",
         cad_command: "worldwright.vector.cross",
-        calisoga_node: "calisoga.vector.cross",
+        orbweaver_node: "orbweaver.vector.cross",
         dependency_group: "math.vector",
         prerequisites: &[],
         inputs: A_B_VECTORS, output: ToolType::Vector,
@@ -154,7 +154,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.polyline.length",
         cad_command: "worldwright.polyline.length",
-        calisoga_node: "calisoga.polyline.length",
+        orbweaver_node: "orbweaver.polyline.length",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.point.distance"],
         inputs: POLYLINE_LENGTH, output: ToolType::Number,
@@ -162,7 +162,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.polyline.divide_count",
         cad_command: "worldwright.polyline.divide_count",
-        calisoga_node: "calisoga.polyline.divide_count",
+        orbweaver_node: "orbweaver.polyline.divide_count",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_COUNT, output: ToolType::Polyline,
@@ -170,7 +170,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
     SharedToolContract {
         operation: "kernel.polyline.divide_distance",
         cad_command: "worldwright.polyline.divide_distance",
-        calisoga_node: "calisoga.polyline.divide_distance",
+        orbweaver_node: "orbweaver.polyline.divide_distance",
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_DISTANCE, output: ToolType::Polyline,
@@ -188,7 +188,7 @@ pub fn shared_tool(operation: &str) -> Option<&'static SharedToolContract> {
     SHARED_TOOLS.iter().find(|tool| {
         tool.operation == operation
             || tool.cad_command == operation
-            || tool.calisoga_node == operation
+            || tool.orbweaver_node == operation
     })
 }
 
@@ -297,7 +297,7 @@ mod tests {
                 assert!(crate::operation_by_id(prerequisite).is_some());
             }
             assert!(cad.insert(tool.cad_command));
-            assert!(graph.insert(tool.calisoga_node));
+            assert!(graph.insert(tool.orbweaver_node));
             assert!(!tool.inputs.is_empty());
             let mut names = std::collections::BTreeSet::new();
             for port in tool.inputs {
@@ -313,7 +313,7 @@ mod tests {
             operation: operation.into(), inputs: inputs.clone(),
         });
         assert_eq!(run("kernel.point.distance"), Ok(ToolValue::Number(5.)));
-        assert_eq!(run("calisoga.point.distance"), run("worldwright.point.distance"));
+        assert_eq!(run("orbweaver.point.distance"), run("worldwright.point.distance"));
     }
     #[test]
     fn interpolation_modifier_changes_one_algorithm() {
@@ -347,7 +347,7 @@ mod tests {
     #[test]
     fn divide_modifier_and_alias_roundtrip() {
         let request = ToolRequest {
-            operation: "calisoga.polyline.divide_count".into(),
+            operation: "orbweaver.polyline.divide_count".into(),
             inputs: BTreeMap::from([
                 ("points".into(), ToolValue::Polyline(vec![
                     Vec3::ZERO, Vec3::new(10., 0., 0.),

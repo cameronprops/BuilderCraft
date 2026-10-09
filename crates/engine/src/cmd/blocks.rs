@@ -244,6 +244,16 @@ fn run_purge(s: &mut Session, _p: &Value) -> Result<Value> {
     let all: Vec<Arc<Entity>> = d.model.iter().cloned().chain(d.layouts.iter().flat_map(|l| l.entities.iter().cloned())).collect();
     let mut frontier: Vec<String> =
         all.iter().filter_map(|e| if let EntityKind::Insert(i) = &e.kind { Some(i.block.clone()) } else { None }).collect();
+    // A parametric timeline owns its reusable block definition even when
+    // there are currently no INSERT instances. Purge must not destroy
+    // editable source geometry and orphan a saved .dftba history.
+    frontier.extend(d.feature_timelines.iter().filter_map(|history| {
+        if let buildercraft_kernel::FeatureScope::BlockDefinition(name) = &history.scope {
+            Some(name.clone())
+        } else {
+            None
+        }
+    }));
     for e in &all {
         if let EntityKind::Dimension(dm) = &e.kind
             && let Some(b) = &dm.block

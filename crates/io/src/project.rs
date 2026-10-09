@@ -201,4 +201,78 @@ mod tests {
         assert!(crate::write(&d, "output.pdf").is_err());
         assert!(crate::plot(&d, &cadcraft_doc::Space::Model, &serde_json::json!({})).is_err());
     }
+
+    #[test]
+    fn polygon_quads_roundtrip_in_v1_and_legacy_file_opens() {
+        use std::sync::Arc;
+        let mut d = Drawing::new_metric();
+        d.mesh3d.push(cadcraft_doc::organization::PolygonGeometryObject {
+            id: 1000,
+            name: "Rockwork fascia".into(),
+            layer: "0".into(),
+            visible: true,
+            mesh: Arc::new(buildercraft_kernel::PolygonMesh {
+                vertices: vec![
+                    cadcraft_geom::Vec3::new(0., 0., 0.),
+                    cadcraft_geom::Vec3::new(1., 0., 0.),
+                    cadcraft_geom::Vec3::new(1., 1., 0.),
+                    cadcraft_geom::Vec3::new(0., 1., 0.),
+                ],
+                faces: vec![buildercraft_kernel::PolygonFace::Quad([0, 1, 2, 3])],
+            }),
+        });
+        d.organization.nodes.push(cadcraft_doc::organization::ModelNode {
+            id: 999,
+            name: "Scenery".into(),
+            kind: NodeKind::Body,
+            parent: None,
+            entities: vec![cadcraft_doc::Handle(1000)],
+        });
+        let bytes = write(&d).unwrap();
+        let reopened = read(&bytes).unwrap();
+        assert_eq!(reopened.mesh3d, d.mesh3d);
+        assert_eq!(reopened.organization, d.organization);
+        assert!(reopened.handseed > 1000);
+        assert!(crate::write(&d,"out.dxf").is_err());
+        assert!(crate::write(&d,"out.pdf").is_err());
+        assert!(crate::plot(&d,&cadcraft_doc::Space::Model,&serde_json::json!({})).is_err());
+
+        // Before mesh support, v1 projects had no mesh3d key. They must still load.
+        let mut legacy: serde_json::Value = serde_json::from_slice(&write(&Drawing::default()).unwrap()).unwrap();
+        legacy.as_object_mut().unwrap().remove("mesh3d");
+        let legacy_file = serde_json::to_vec(&legacy).unwrap();
+        assert!(read(&legacy_file).is_ok_and(|d| d.mesh3d.is_empty()));
+    }
+
+    #[test]
+    fn corrupt_polygon_or_duplicate_identity_rejected_on_read_and_write() {
+        use std::sync::Arc;
+        let mut d = Drawing::default();
+        d.mesh3d.push(cadcraft_doc::organization::PolygonGeometryObject {
+            id: 1000,
+            name: "Fascia".into(),
+            layer: "0".into(),
+            visible: true,
+            mesh: Arc::new(buildercraft_kernel::PolygonMesh {
+                vertices: vec![
+                    cadcraft_geom::Vec3::ZERO,
+                    cadcraft_geom::Vec3::new(1.,0.,0.),
+                    cadcraft_geom::Vec3::new(0.,1.,0.),
+                ],
+                faces: vec![buildercraft_kernel::PolygonFace::Triangle([0,1,2])],
+            }),
+        });
+        let original = write(&d).unwrap();
+        let mut encoded: serde_json::Value = serde_json::from_slice(&original).unwrap();
+        encoded["mesh3d"][0]["mesh"]["faces"][0]["triangle"][2] = serde_json::json!(99);
+        assert!(read(&serde_json::to_vec(&encoded).unwrap()).is_err());
+        Arc::make_mut(&mut d.mesh3d[0].mesh).faces[0] =
+            buildercraft_kernel::PolygonFace::Triangle([0,1,99]);
+        assert!(write(&d).is_err());
+        let mut encoded: serde_json::Value = serde_json::from_slice(&original).unwrap();
+        let twin = encoded["mesh3d"][0].clone();
+        encoded["mesh3d"].as_array_mut().unwrap().push(twin);
+        assert!(read(&serde_json::to_vec(&encoded).unwrap()).is_err());
+    }
+
 }

@@ -130,7 +130,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                         ui.label("Some boundary edges are ambiguous; repair these before hole filling.");
                     }
                     for (index, loop_data) in report.closed_loops.iter().enumerate().take(16) {
-                        if ui.button(format!("Fill planar inner loop {} ({} vertices)", index, loop_data.vertices.len())).clicked() {
+                        if ui.button(format!("Try planar patch on loop {} ({} vertices)", index, loop_data.vertices.len())).clicked() {
                             if let Ok(state) = app.session.state() {
                                 let revision = state.revision;
                                 let _ = app.run("mesh3d.edit", json!({

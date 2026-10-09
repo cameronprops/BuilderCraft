@@ -1,0 +1,34 @@
+name: Kurbo evaluation lock bootstrap
+on:
+  push:
+    branches:
+      - evaluation/kurbo-2d-bezier
+    paths:
+      - .github/workflows/kurbo-bootstrap.yml
+permissions:
+  contents: write
+jobs:
+  lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: evaluation/kurbo-2d-bezier
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt
+      - name: Resolve and format
+        run: |
+          cargo update --workspace
+          cargo fmt --all
+      - name: Persist lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock crates/geom/src/kurbo_evaluation.rs crates/geom/src/lib.rs
+          if ! git diff --cached --quiet; then
+            git commit -m "build: pin Kurbo comparison dependencies and format Rust 1.95"
+            git push origin HEAD:evaluation/kurbo-2d-bezier
+          fi

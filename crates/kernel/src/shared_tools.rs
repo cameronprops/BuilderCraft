@@ -341,6 +341,12 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
         _ => Ok(1),
     }
 }
+/// Cost of nested typed values for both CAD/API and Orb Weaver graph limits.
+/// Limits are abstract item units, not an RSS/byte guarantee.
+pub fn shared_tool_value_cost(value: &ToolValue) -> Result<usize> {
+    value_cost(value, 0)
+}
+
 fn match_tree_values(
     a: &DataTree<ToolValue>, b: &DataTree<ToolValue>, mode: TreeMatchPolicy,
 ) -> Result<DataTree<ToolValue>> {
@@ -519,6 +525,49 @@ mod tests {
         assert_eq!(run(inputs.clone()), Ok(ToolValue::Point(Vec3::new(4., 0., 0.))));
         inputs.insert("t".into(), ToolValue::Number(2.));
         assert!(run(inputs).is_err());
+    }
+    #[test]
+    fn tree_operations_remain_paired_and_roundtrip_tagged_values() {
+        let tree = DataTree { branches: vec![TreeBranch {
+            path: crate::TreePath(vec![0, 2]),
+            items: vec![ToolValue::Point(Vec3::new(2., 0., 0.)),
+                        ToolValue::Point(Vec3::new(4., 0., 0.))],
+        }] };
+        let original = ToolValue::Tree(tree.clone());
+        let decoded: ToolValue = serde_json::from_str(
+            &serde_json::to_string(&original).unwrap(),
+        ).unwrap();
+        assert_eq!(decoded, original);
+        assert_eq!(SHARED_TOOLS.len(), 15);
+        let cmd = |op: &str| execute_shared_tool(&ToolRequest {
+            operation: op.into(),
+            inputs: BTreeMap::from([("tree".into(), original.clone())]),
+        });
+        let graft = cmd("worldwright.tree.graft").unwrap();
+        assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());
+        let ToolValue::Tree(grafted_tree) = graft else { panic!("expected tree") };
+        assert_eq!(grafted_tree.branches.len(), 2);
+    }
+    #[test]
+    fn tree_matching_modifier_keeps_branch_paths_and_pairs() {
+        let make = |items| ToolValue::Tree(DataTree { branches: vec![TreeBranch {
+            path: crate::TreePath(vec![7]),
+            items,
+        }] });
+        let matched = execute_shared_tool(&ToolRequest {
+            operation: "orbweaver.tree.match".into(),
+            inputs: BTreeMap::from([
+                ("a".into(), make(vec![ToolValue::Count(1)])),
+                ("b".into(), make(vec![ToolValue::Count(3), ToolValue::Count(4)])),
+                ("mode".into(), ToolValue::MatchMode(TreeMatchPolicy::Longest)),
+            ]),
+        }).unwrap();
+        let ToolValue::Tree(result) = matched else { panic!("tree needed") };
+        assert_eq!(result.branches[0].path.0, vec![7]);
+        assert_eq!(result.branches[0].items, vec![
+            ToolValue::Pair(Box::new((ToolValue::Count(1),ToolValue::Count(3)))),
+            ToolValue::Pair(Box::new((ToolValue::Count(1),ToolValue::Count(4)))),
+        ]);
     }
     #[test]
     fn strict_ports_prevent_hidden_coercion() {

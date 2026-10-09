@@ -29,21 +29,16 @@ pub struct DataTree<T> {
     pub branches: Vec<TreeBranch<T>>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TreeMatchPolicy {
     /// Pair only indices that exist in BOTH lists.
+    #[default]
     Shortest,
     /// Repeat the final element of the shorter list.
     Longest,
     /// Cartesian product in left-major, right-minor order.
     CrossReference,
-}
-
-impl Default for TreeMatchPolicy {
-    fn default() -> Self {
-        Self::Shortest
-    }
 }
 
 pub fn tree_validate<T>(tree: &DataTree<T>) -> Result<usize> {

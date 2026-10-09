@@ -10,7 +10,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("worldwright.tool.run", "Run Shared Native Tool", run)
             .params("{operation,inputs:{port:{kind,value},...}}")
             .enabled(always).noundo(),
-        CommandSpec::new("worldwright.tool.list", "List Paired CAD/Orb Weaver Tools", list)
+        CommandSpec::new("worldwright.tool.list", "List Paired CAD/OrbWeaver Tools", list)
             .enabled(always).noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")
@@ -127,7 +127,7 @@ mod tests {
         })).is_err());
     }
     #[test]
-    fn graft_command_routes_to_the_same_native_kernel_as_orb_weaver() {
+    fn graft_command_routes_to_the_same_native_kernel_as_orbweaver() {
         let mut session = Session::new();
         let tree = json!({"kind":"tree","value":{"branches":[
             {"path":[0],"items":[{"kind":"number","value":3.0},{"kind":"number","value":7.0}]}

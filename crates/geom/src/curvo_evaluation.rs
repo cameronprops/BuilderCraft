@@ -2,8 +2,8 @@
 //! production evaluation engine. Feature gated until acceptance fixtures
 //! and performance comparisons support switching canonical evaluators.
 
-use crate::{Vec3, nurbs3d::Curve};
-use curvo::curve::NurbsCurve3D;
+use crate::{Vec3, nurbs3d::{self, Curve}};
+use curvo::prelude::NurbsCurve3D;
 use nalgebra::Point4;
 
 /// Evaluate a Worldwright rational curve using Curvo's f64 NURBS.

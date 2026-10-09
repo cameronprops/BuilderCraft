@@ -35,22 +35,13 @@ fn radius(max_distance: Option<f64>) -> Result<f64> {
 
 /// Linear, bounded scan over triangle indices. Does not claim a spatial
 /// acceleration structure or a signed surface deviation.
-pub fn mesh_closest_point(
-    mesh: &TriangleMesh,
-    query: Vec3,
-    max_distance: Option<f64>,
-    cancellation: &Cancellation,
-) -> Result<Option<MeshClosest>> {
+pub fn mesh_closest_point(mesh: &TriangleMesh, query: Vec3, max_distance: Option<f64>, cancellation: &Cancellation) -> Result<Option<MeshClosest>> {
     cancellation.check()?;
     let maximum = radius(max_distance)?;
     if !bounded(query) {
         return Err(KernelError::Invalid("closest-point query"));
     }
-    if mesh.vertices.is_empty()
-        || mesh.triangles.is_empty()
-        || mesh.vertices.len() > MAX_SAMPLES
-        || mesh.triangles.len() > MAX_SAMPLES
-    {
+    if mesh.vertices.is_empty() || mesh.triangles.is_empty() || mesh.vertices.len() > MAX_SAMPLES || mesh.triangles.len() > MAX_SAMPLES {
         return Err(KernelError::Budget);
     }
     if mesh.vertices.iter().any(|&p| !bounded(p)) {
@@ -84,12 +75,7 @@ pub fn mesh_closest_point(
 
 /// Linear, bounded point-cloud nearest sample; no interpolated surface or
 /// scan-to-CAD registration is implied. Equal distances select first index.
-pub fn cloud_closest_point(
-    points: &[Vec3],
-    query: Vec3,
-    max_distance: Option<f64>,
-    cancellation: &Cancellation,
-) -> Result<Option<CloudClosest>> {
+pub fn cloud_closest_point(points: &[Vec3], query: Vec3, max_distance: Option<f64>, cancellation: &Cancellation) -> Result<Option<CloudClosest>> {
     cancellation.check()?;
     let maximum = radius(max_distance)?;
     if points.is_empty() || points.len() > MAX_SAMPLES {
@@ -121,12 +107,7 @@ mod tests {
 
     fn mesh() -> TriangleMesh {
         TriangleMesh {
-            vertices: vec![
-                Vec3::new(0.0, 0.0, 0.0),
-                Vec3::new(2.0, 0.0, 0.0),
-                Vec3::new(0.0, 2.0, 0.0),
-                Vec3::new(0.0, 0.0, 4.0),
-            ],
+            vertices: vec![Vec3::new(0.0, 0.0, 0.0), Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 2.0, 0.0), Vec3::new(0.0, 0.0, 4.0)],
             triangles: vec![[0, 1, 2], [0, 1, 3]],
         }
     }
@@ -142,10 +123,7 @@ mod tests {
         assert_eq!(result.barycentric, [0.5, 0.25, 0.25]);
         assert!(mesh_closest_point(&source, query, Some(0.9), &Cancellation::default()).unwrap().is_none());
         let tie = TriangleMesh { triangles: vec![[0, 1, 2], [0, 1, 2]], ..source };
-        assert_eq!(
-            mesh_closest_point(&tie, query, None, &Cancellation::default()).unwrap().map(|p| p.triangle_index),
-            Some(0)
-        );
+        assert_eq!(mesh_closest_point(&tie, query, None, &Cancellation::default()).unwrap().map(|p| p.triangle_index), Some(0));
     }
 
     #[test]

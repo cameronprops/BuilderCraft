@@ -98,6 +98,11 @@ def main() -> int:
         if declared != indexed[operation]["depends_on"]:
             raise SystemExit(f"Tool prerequisites differ from kernel DAG: {operation}")
 
+    # Specialized Scan/CAD/OrbWeaver reuse must not introduce duplicate math engines.
+    from check_metrology_reuse import validate_metrology
+    proposed, adapters = validate_metrology(ROOT, registered)
+    print(f"Metrology reuse dependencies coherent: {proposed} planned shared kernels; {adapters} planned app adapters.")
+
     print(f"Native kernel dependency graph coherent: {len(entries)} operations.")
     print(f"Paired tool contracts coherent: {len(pairs)} kernel ops, "
           f"{len(pairs)} CAD commands, {len(pairs)} OrbWeaver node IDs.")

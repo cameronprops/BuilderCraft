@@ -799,8 +799,10 @@ mod mesh_ui_tests {
         // The application viewport can draw the model in headless egui.
         let context = egui::Context::default();
         let input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(640., 480.))), ..Default::default() };
-        let frame = context.run_ui(input, |ui| viewport3d(&mut app, ui));
+        let mut frame = context.run_ui(input, |ui| viewport3d(&mut app, ui));
         assert!(!frame.shapes.is_empty());
+        // Headless egui tests do not have a renderer consuming texture deltas.
+        frame.textures_delta.clear();
 
         let bounds = app.run("mesh3d.boundaries", json!({"id":id})).unwrap();
         let loops = bounds["report"]["closed_loops"].as_array().unwrap();
@@ -871,8 +873,9 @@ mod mesh_ui_tests {
 
         let ctx = egui::Context::default();
         let base = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800., 650.))), ..Default::default() };
-        let initial = ctx.run_ui(base.clone(), |ui| viewport3d(&mut app, ui));
+        let mut initial = ctx.run_ui(base.clone(), |ui| viewport3d(&mut app, ui));
         assert!(!initial.shapes.is_empty());
+        initial.textures_delta.clear();
 
         // The sample mesh's bottom strip covers y=-8..-3 in the top view.
         // Two toolbar rows leave the mesh strip around screen y=490.
@@ -883,7 +886,8 @@ mod mesh_ui_tests {
                 egui::Event::PointerMoved(pos),
                 egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: egui::Modifiers::default() },
             ];
-            let _ = ctx.run_ui(frame, |ui| viewport3d(&mut app, ui));
+            let mut output = ctx.run_ui(frame, |ui| viewport3d(&mut app, ui));
+            output.textures_delta.clear();
         }
         assert_eq!(app.ui.mesh_face_object_id, Some(id));
         assert_eq!(app.ui.mesh_face_index, 0);

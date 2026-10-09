@@ -1,13 +1,13 @@
-# Calisoga — Worldwright's open-source parametric graph
+# Orb Weaver — Worldwright's open-source parametric graph
 
-**Calisoga** is the embedded and independently usable parametric graph engine
-for Worldwright. Its name comes from a Californian spider genus. The core is
+**Orb Weaver** is the embedded and independently usable parametric graph engine
+for Worldwright. Its name comes from orb-weaving spiders. The core is
 host-independent; a visual graph canvas embedded in the CAD workspace and a
 standalone Graph app are future presentation layers over the same evaluator.
 
 ## Native source implemented (pending local compilation)
 
-- `crates/calisoga` — versioned, serializable directed graphs with typed
+- `crates/orb-weaver` — versioned, serializable directed graphs with typed
   literal or linked ports, deterministic dependency-ordered evaluation, cycle
   detection, bounded graphs and typed error propagation.
 - `crates/kernel/src/shared_tools.rs` — 10 typed contracts and a shared
@@ -27,6 +27,6 @@ until native test and reference-conformance gates pass.
 
 Read [the dependency mapping](dependencies/README.md), the
 [component inventory](components/README.md) and
-[the delivery roadmap](roadmap/SUITE_ROADMAP.md). A native Calisoga graph
+[the delivery roadmap](roadmap/SUITE_ROADMAP.md). A native Orb Weaver graph
 must not require a licensed Rhino or Grasshopper host. The planned CAD
 canvas must call this same graph engine rather than duplicate it.

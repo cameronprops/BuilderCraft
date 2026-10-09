@@ -25,6 +25,46 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.tree.validate",
+        label: "Validate Data Tree",
+        category: "graph",
+        inputs: &["tree"],
+        outputs: &["item_count"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.tree.flatten",
+        label: "Flatten Data Tree",
+        category: "graph",
+        inputs: &["tree"],
+        outputs: &["tree"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.tree.graft",
+        label: "Graft Data Tree",
+        category: "graph",
+        inputs: &["tree"],
+        outputs: &["tree"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.tree.simplify",
+        label: "Simplify Data Tree",
+        category: "graph",
+        inputs: &["tree"],
+        outputs: &["tree"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
+        id: "kernel.tree.match",
+        label: "Match Two Data Trees",
+        category: "graph",
+        inputs: &["tree_a", "tree_b", "mode"],
+        outputs: &["paired_tree"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.vector.length",
         label: "Vector Length",
         category: "vector",

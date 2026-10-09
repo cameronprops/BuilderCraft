@@ -24,7 +24,7 @@ Requires Rust 1.90 or newer and the normal system dependencies for eframe/wgpu.
 cargo run -p cadcraft -- --sample
 ```
 
-The package name remains `cadcraft` to keep upstream integration simple; the desktop workspace is BuilderCraft. The `--sample` option opens an inherited drafting sample. Choose **3D** to create a 3D curve or control surface. Drag the viewport to orbit and scroll to zoom. Expand **Control points** in the Model Browser to edit XYZ coordinates. Save as `.bcraft` to preserve 3D objects and named organization.
+The package name remains `cadcraft` to keep upstream integration simple; the desktop workspace is BuilderCraft. The `--sample` option opens an inherited drafting sample. Choose **3D** to create a 3D curve or control surface. Drag the viewport to orbit and scroll to zoom. Expand **Control points** in the Model Browser to edit XYZ coordinates. Save as `.dftba` to preserve 3D objects and named organization.
 
 Switch to **2D / Drafting** for existing CADCraft drafting. The workspace selector restores the CADCraft-style layout. This alpha's 3D view is orthographic with an orbit camera; perspective projection, four viewports and 3D snapping are next steps.
 
@@ -33,7 +33,7 @@ Switch to **2D / Drafting** for existing CADCraft drafting. The workspace select
 - Surface wireframe display, orbit and zoom; numerical control-point editing.
 - Undoable curve/surface creation, editing, naming and visibility.
 - Named assemblies, components and bodies independent of layers; body creation from selected objects; descendant selection and visibility.
-- Versioned native `.bcraft` project envelope preserving supported drafting data, model organization and exact 3D control data.
+- Versioned native `.dftba` project envelope preserving supported drafting data, model organization and exact 3D control data.
 - Shared command API via the inherited CLI, loopback JSON control channel and MCP.
 
 Bodies in this alpha are named owners of geometry, not a claim of watertight solid topology. Trimming, booleans, solid modeling, mesh processing and scan metrology are not implemented yet. Original CADCraft drafting tools are inherited and must be evaluated against the files you use; this is not full AutoCAD or Rhino parity.

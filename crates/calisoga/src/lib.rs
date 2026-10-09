@@ -6,7 +6,7 @@
 #![forbid(unsafe_code)]
 
 use buildercraft_kernel::{
-    KernelError, SharedToolContract, ToolRequest, ToolValue, ToolType,
+    KernelError, SharedToolContract, ToolRequest, ToolValue,
     execute_shared_tool, shared_tool, SHARED_TOOLS,
 };
 use serde::{Deserialize, Serialize};

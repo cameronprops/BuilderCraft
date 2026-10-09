@@ -22,8 +22,9 @@ kernel**: `kernel.tree.validate/flatten/graft/simplify/match`. CAD
 same kernel contract. Tree branches use lexicographically ordered unique paths;
 matching is explicit and strict by identical path, not automatic Grasshopper
 path matching. Keep modifier policies named and typed (shortest, longest,
-cross-reference), and preserve empty branches. The next dependency is
-**tree-aware numeric node broadcasting**, then immutable geometry handles,
+cross-reference), and preserve empty branches. The next dependency is **immutable geometry handles** and document-scoped
+reference resolution. Tree-aware numeric broadcasting is now authored and
+must remain a thin shared-kernel adapter, not a second CAD/graph algorithm.
 not another copy of tree algorithms in the graph crate. Rust code remains
 pending compiled validation.
 

@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod dxf_ext;
+pub mod las_preview;
 mod dxf_read;
 mod dxf_write;
 pub mod pdf;

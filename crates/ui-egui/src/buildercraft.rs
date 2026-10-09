@@ -222,10 +222,7 @@ fn delete_mesh_face(app: &mut CadApp, object_id: u64, selected_revision: u64, fa
 /// Select a native mesh face or fall back to the exact-NURBS wire picker.
 /// Selection is transient; a mesh-face edit remains bound to its source revision.
 fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle: bool) {
-    let offset = cadcraft_geom::Vec2::new(
-        f64::from(pointer.x - rect.center().x),
-        f64::from(rect.center().y - pointer.y),
-    );
+    let offset = cadcraft_geom::Vec2::new(f64::from(pointer.x - rect.center().x), f64::from(rect.center().y - pointer.y));
     let camera = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
     let picked = app.session.doc().ok().and_then(|d| {
         crate::mesh_picking::pick_visible_mesh_face(

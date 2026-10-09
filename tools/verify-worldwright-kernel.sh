@@ -26,8 +26,8 @@ cargo test --locked -p buildercraft-kernel
 echo "[6/8] CAD document, file I/O, engine and UI integration tests"
 cargo test --locked -p cadcraft-doc -p cadcraft-io -p cadcraft-engine -p cadcraft-ui-egui
 
-echo "[7/8] Calisoga shared-tool and DAG evaluator tests"
-cargo test --locked -p calisoga
+echo "[7/8] Orb Weaver shared-tool and DAG evaluator tests"
+cargo test --locked -p orb-weaver
 
 echo "[8/8] Kernel Clippy warning gate"
 cargo clippy --locked -p buildercraft-kernel --all-targets -- -D warnings

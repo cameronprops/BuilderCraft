@@ -18,7 +18,7 @@
     },
     {
       "id": "kernel.scene.edit_polygon",
-      "group": "workflow.document",
+      "group": "workflow.model_edit",
       "depends_on": [
         "kernel.polygon.delete_faces",
         "kernel.polygon.add_triangle_from_edge",

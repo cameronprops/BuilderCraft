@@ -17,6 +17,7 @@ mod layout;
 mod modify;
 mod modify2;
 mod picking3d;
+mod snap3d;
 mod props;
 mod qselect;
 mod settings;
@@ -151,6 +152,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         let mut v = Vec::new();
         v.extend(buildercraft::specs());
         v.extend(picking3d::specs());
+        v.extend(snap3d::specs());
         v.extend(file::specs());
         v.extend(edit::specs());
         v.extend(qselect::specs());

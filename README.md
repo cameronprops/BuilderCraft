@@ -112,7 +112,7 @@ CAD document rather than in a second application-specific solver. Native
 `.dftba` persists the recipes and older files without histories still load.
 
 The initial code executes only **already-registered shared kernel operations**,
-not yet sketch-to-solid features, feature previews or a visual timeline.
+not yet sketch-to-solid features, feature previews or a full timeline authoring editor. An initial 3D workspace history panel can inspect, reorder, suppress, roll back and edit simple parameters.
 See [the architecture](docs/architecture/FEATURE_HISTORY.md) and
 [60-item planned feature hierarchy](docs/dependencies/feature-history.json).
 The new Rust code and tests are **not compiled/verified yet**.

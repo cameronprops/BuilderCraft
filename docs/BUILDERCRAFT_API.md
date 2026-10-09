@@ -125,9 +125,9 @@ editable quad-mesh interchange format. All new integration tests require local
 Rust execution before the implementation can be claimed verified.
 
 
-## Paired native CAD/Calisoga tool API (source authored)
+## Paired native CAD/Orb Weaver tool API (source authored)
 
-The new numeric CAD/API commands and Calisoga nodes both delegate to
+The new numeric CAD/API commands and Orb Weaver nodes both delegate to
 `buildercraft_kernel::execute_shared_tool`. No per-interface geometry
 algorithm is duplicated. No active drawing or undo transaction is needed to
 calculate a pure point/vector/polyline result.
@@ -166,7 +166,7 @@ The equivalent generic command:
 
 Both use the **same** typed dispatcher and return `output` as a tagged
 `ToolValue` (`number`, `count`, `point`, `vector`, or `polyline`).
-A Calisoga node has the component ID `calisoga.point.distance`; node ports
+A Orb Weaver node has the component ID `orbweaver.point.distance`; node ports
 accept `{"source":"constant","value":{...}}` literals or
 `{"source":"output","node":<upstream node ID>}` links. The graph
 schema is version 1 and deterministic for supported scalar-valued nodes.
@@ -179,6 +179,6 @@ document bake/persistence are future milestones. Inputs reject unknown ports,
 wrong kinds, nonfinite values, and invalid domain/spacing policies.
 
 See `docs/dependencies/` for the group-level hierarchy and all 41 native
-kernel operation DAG nodes; `crates/calisoga/examples/paired_distance.rs`
+kernel operation DAG nodes; `crates/orb-weaver/examples/paired_distance.rs`
 for an executable headless equivalence demo. Run the local validation scripts
 before marking any new code tested.

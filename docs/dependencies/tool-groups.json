@@ -428,7 +428,7 @@
   "tool_layers": [
     "kernel algorithm (single owner)",
     "typed operation + modifier contract",
-    "CAD/API adapter or Orb Weaver node",
+    "CAD/API adapter or OrbWeaver node",
     "selection, previews, undo and persistence wrappers"
   ],
   "classification_rules": [
@@ -1042,5 +1042,5 @@
     }
   ],
   "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review.",
-  "next_dependency_layer": "Typed geometry reference handles and tree-aware broadcast of numerical operations. Orb Weaver graph scalar DAG now supports tree-structural nodes but does not yet implicitly map all CAD math over tree items."
+  "next_dependency_layer": "Typed geometry reference handles and tree-aware broadcast of numerical operations. OrbWeaver graph scalar DAG now supports tree-structural nodes but does not yet implicitly map all CAD math over tree items."
 }

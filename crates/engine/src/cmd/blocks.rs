@@ -53,6 +53,16 @@ pub(crate) fn make_block(s: &mut Session, name: &str, base: Vec2, hs: &[Handle],
         return Err(bad("block", "invalid block name"));
     }
     let d = s.doc()?;
+    // A block with an attached feature timeline is an editable definition,
+    // not a disposable geometry group. Replacing its body out from under
+    // the timeline would create a recipe silently targeting unrelated parts.
+    if d.feature_timelines.iter().any(|h| matches!(
+        &h.scope,
+        buildercraft_kernel::FeatureScope::BlockDefinition(existing)
+            if existing.eq_ignore_ascii_case(name)
+    )) {
+        return Err(bad("block", "cannot overwrite a parametric block definition; edit its history"));
+    }
     let ents: Vec<Entity> = hs.iter().filter_map(|h| d.entity(*h).map(|e| (**e).clone())).collect();
     if ents.is_empty() {
         return Err(bad("block", "no objects selected"));

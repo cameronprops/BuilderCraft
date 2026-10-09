@@ -51,6 +51,54 @@ def main() -> int:
     if len(set(implementation)) != len(implementation):
         raise SystemExit("Duplicated CAD/Calisoga binding.")
 
+    # Validate every registered kernel operation and its lower-level tool DAG,
+    # not just the ten paired entrypoints.
+    index = json.loads((ROOT / "docs/dependencies/kernel-operation-deps.json").read_text())
+    entries = index["entries"]
+    indexed = {entry["id"]: entry for entry in entries}
+    registered = set(re.findall(r'^\s*id:\s*"(kernel\.[^"]+)"',
+                                registry, re.MULTILINE))
+    if len(indexed) != len(entries) or set(indexed) != registered:
+        raise SystemExit("Kernel operation DAG differs from registered source operations.")
+    group_defs = {entry["id"]: entry for entry in plan["groups"]}
+    stages = {}
+
+    def inspect(operation: str) -> None:
+        if stages.get(operation) == 1:
+            raise SystemExit(f"Cyclic native tool prerequisite: {operation}")
+        if stages.get(operation) == 2:
+            return
+        stages[operation] = 1
+        current = indexed[operation]
+        current_group = group_defs.get(current["group"])
+        if current_group is None:
+            raise SystemExit(f"Unknown dependency group: {current['group']}")
+        for lower in current["depends_on"]:
+            if lower not in indexed:
+                raise SystemExit(f"Unknown native operation prerequisite: {lower}")
+            lower_group = group_defs[indexed[lower]["group"]]
+            if lower_group["tier"] is not None and current_group["tier"] is not None:
+                if lower_group["tier"] > current_group["tier"]:
+                    raise SystemExit(f"Prerequisite tier order is reversed: {lower} -> {operation}")
+            inspect(lower)
+        stages[operation] = 2
+
+    for name in indexed:
+        inspect(name)
+
+    native_deps = re.findall(
+        r'SharedToolContract\s*\{\s*operation:\s*"(kernel\.[^"]+)"'
+        r'[\s\S]*?prerequisites:\s*&\[([^\]]*)\]',
+        rust,
+    )
+    if len(native_deps) != len(pairs):
+        raise SystemExit("Shared kernel tool dependency metadata is incomplete.")
+    for operation, items in native_deps:
+        declared = re.findall(r'"(kernel\.[^"]+)"', items)
+        if declared != indexed[operation]["depends_on"]:
+            raise SystemExit(f"Tool prerequisites differ from kernel DAG: {operation}")
+
+    print(f"Native kernel dependency graph coherent: {len(entries)} operations.")
     print(f"Paired tool contracts coherent: {len(pairs)} kernel ops, "
           f"{len(pairs)} CAD commands, {len(pairs)} Calisoga node IDs.")
     print("Static check only: Rust compilation, UI behavior and Grasshopper parity still pending.")

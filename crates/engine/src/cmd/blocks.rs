@@ -552,3 +552,26 @@ impl Interactive for AttdefM {
         Ok(Step::Continue)
     }
 }
+
+#[cfg(test)]
+mod parametric_history_tests {
+    use super::*;
+    use buildercraft_kernel::{FeatureScope, FeatureTimeline};
+
+    #[test]
+    fn purge_preserves_block_definitions_with_a_local_feature_history() {
+        let mut session = Session::new();
+        {
+            let d = session.doc_mut().unwrap();
+            d.blocks.insert("Panel".into(), Arc::new(Block::new("Panel")));
+            d.blocks.insert("Unused".into(), Arc::new(Block::new("Unused")));
+            d.feature_timelines.push(
+                FeatureTimeline::new(FeatureScope::BlockDefinition("Panel".into())).unwrap()
+            );
+        }
+        session.execute("purge", &json!({})).unwrap();
+        assert!(session.doc().unwrap().block("Panel").is_some());
+        assert!(session.doc().unwrap().block("Unused").is_none());
+        assert!(session.doc().unwrap().validate_feature_histories().is_ok());
+    }
+}

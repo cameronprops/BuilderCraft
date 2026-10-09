@@ -31,7 +31,9 @@ fn hit_triangle(
     scale: f64,
     cursor: Vec2,
 ) -> Option<f64> {
-    let [a, b, c] = triangle.map(|index| *mesh.vertices.get(index as usize)?);
+    let a = *mesh.vertices.get(triangle[0] as usize)?;
+    let b = *mesh.vertices.get(triangle[1] as usize)?;
+    let c = *mesh.vertices.get(triangle[2] as usize)?;
     let projected = [a, b, c].map(|point| camera.project(point, center) * scale);
     if projected.iter().any(|p| !p.is_finite()) {
         return None;

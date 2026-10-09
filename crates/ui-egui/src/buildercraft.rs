@@ -645,4 +645,86 @@ mod mesh_ui_tests {
         let restored = &app.session.doc().unwrap().mesh3d[0].mesh;
         assert!(std::sync::Arc::ptr_eq(restored,&original));
     }
+    #[test]
+    fn picked_face_deletion_is_undoable_and_rejects_stale_revision() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let id = new_mesh_sample(&mut app).unwrap()["id"].as_u64().unwrap();
+        let original = app.session.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = app.session.state().unwrap().revision;
+        let face = crate::mesh_picking::pick_visible_mesh_face(
+            [(id, original.as_ref())],
+            cadcraft_geom::camera::OrthoFrame {
+                yaw: 0.,
+                pitch: -std::f64::consts::FRAC_PI_2,
+            },
+            cadcraft_geom::Vec3::ZERO,
+            10.,
+            cadcraft_geom::Vec2::new(0., -50.),
+        ).unwrap();
+        assert_eq!(face.face_index, 0);
+
+        app.ui.mesh_face_object_id = Some(id);
+        app.ui.mesh_face_revision = Some(revision);
+        app.ui.mesh_face_index = face.face_index;
+        delete_mesh_face(&mut app, id, revision, face.face_index).unwrap();
+        assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.faces.len(), 3);
+        assert_eq!(app.ui.mesh_face_object_id, None);
+        assert_eq!(app.ui.mesh_face_revision, None);
+
+        let after = app.session.state().unwrap().revision;
+        assert!(delete_mesh_face(&mut app, id, revision, 0).is_err());
+        assert_eq!(app.session.state().unwrap().revision, after);
+        assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.faces.len(), 3);
+
+        app.session.undo().unwrap();
+        assert!(std::sync::Arc::ptr_eq(
+            &app.session.doc().unwrap().mesh3d[0].mesh, &original
+        ));
+    }
+
+    #[test]
+    fn viewport_pointer_click_picks_face_without_editing_document() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let id = new_mesh_sample(&mut app).unwrap()["id"].as_u64().unwrap();
+        app.ui.orbit_yaw = 0.;
+        app.ui.orbit_pitch = -std::f64::consts::FRAC_PI_2;
+        app.ui.scale3d = 25.;
+        app.ui.center3d = cadcraft_geom::Vec3::ZERO;
+        app.session.set_selection(Vec::new());
+        let revision = app.session.state().unwrap().revision;
+
+        let ctx = egui::Context::default();
+        let base = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO, egui::vec2(800., 650.),
+            )),
+            ..Default::default()
+        };
+        let initial = ctx.run_ui(base.clone(), |ui| viewport3d(&mut app, ui));
+        assert!(!initial.shapes.is_empty());
+
+        // The sample mesh's bottom strip covers y=-8..-3 in the top view.
+        // Two toolbar rows leave the mesh strip around screen y=490.
+        let pos = egui::pos2(400., 490.);
+        for pressed in [true, false] {
+            let mut frame = base.clone();
+            frame.events = vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::default(),
+                },
+            ];
+            let _ = ctx.run_ui(frame, |ui| viewport3d(&mut app, ui));
+        }
+        assert_eq!(app.ui.mesh_face_object_id, Some(id));
+        assert_eq!(app.ui.mesh_face_index, 0);
+        assert_eq!(app.ui.mesh_face_revision, Some(revision));
+        assert!(app.session.selection().contains(&cadcraft_doc::Handle(id)));
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.faces.len(), 4);
+    }
+
 }

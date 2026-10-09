@@ -56,6 +56,8 @@ pub struct UiState {
     pub history_lines: usize,
     pub buildercraft_workspace: bool,
     pub model_name: String,
+    /// Index of the polygon face selected for numeric mesh edit commands.
+    pub mesh_face_index: u32,
     pub view3d: bool,
     pub orbit_yaw: f64,
     pub orbit_pitch: f64,
@@ -95,6 +97,7 @@ impl Default for UiState {
             history_lines: 3,
             buildercraft_workspace: true,
             model_name: "Body".into(),
+            mesh_face_index: 0,
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,
             orbit_pitch: -(1.0_f64 / 3.0_f64.sqrt()).asin(),

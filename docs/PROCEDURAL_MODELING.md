@@ -19,14 +19,25 @@ and its standalone GUI executable are future presentation layers.
   **cross-reference** (Cartesian product) via an explicit modifier.
 - OrbWeaver nodes can link the output tree of one node to another. Data-tree
   operations are identical through Worldwright CAD/API command IDs.
+- **Tree-aware numerical broadcasting:** all ten shared point/vector/polyline
+  operations accept exact leaf-typed trees on ordinary input ports. Scalars
+  broadcast across branches; multiple trees must have identical branch paths.
+  `matching` is an explicit per-CAD-command/per-graph-node modifier with
+  `shortest` (default), `longest` (repeat final item), and
+  `cross_reference` (Cartesian) behavior. Branches are not reordered, merged
+  or silently expanded; an empty branch stays empty.
+- `orbweaver` is the one-word Rust package, source directory and Rust import
+  name. Public graph nodes retain the existing `orbweaver.*` namespace.
 - Local scripts compare 46 kernel-operation DAG entries, 15 paired contracts,
   and 4,356 catalogued source references without invoking GitHub Actions.
 
 ## Explicit current limitations
 
 - Strict **identical-branch-path** matching only. Implicit Grasshopper path
-  expansion, hierarchical alignment, graft/flatten metadata, and tree-item
-  broadcasting into every numeric CAD operation are not yet implemented.
+  expansion, hierarchical alignment, graft/flatten metadata, per-branch
+  remapping and full native Grasshopper list-access parity are not yet implemented.
+  The first ten numeric operations now support tree-aware broadcasting by
+  explicit native matching policies.
 - Structural tree operations are initial native subsets; they do not establish
   exact Grasshopper component/option parity.
 - No visual graph canvas, graph persistence inside `.dftba`, preview/bake,
@@ -38,6 +49,8 @@ and its standalone GUI executable are future presentation layers.
 See [dependency order and paired operations](dependencies/README.md),
 [component inventory](components/README.md),
 and [delivery roadmap](roadmap/SUITE_ROADMAP.md).
-`cargo run -p orbweaver --example paired_tree` demonstrates a headless
-CAD/graph tree equivalence check when a local Rust environment is available.
+`cargo run -p orbweaver --example paired_tree` demonstrates shared structural
+operations; `cargo run -p orbweaver --example paired_broadcast` demonstrates
+multi-branch, longest-list numeric broadcasting in CAD and graph. Both examples
+require a locally available Rust toolchain.
 A Rhino/Grasshopper license is never required for OrbWeaver.

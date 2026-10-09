@@ -323,6 +323,84 @@ mod tests {
         assert!(execute_shared_tool(&req).is_err());
     }
     #[test]
+    fn three_lifted_ports_use_rightmost_fastest_cartesian_order() {
+        let as_tree = ToolValue::Tree(DataTree { branches: vec![TreeBranch {
+            path: TreePath(vec![2]),
+            items: vec![
+                ToolValue::Point(Vec3::new(0., 0., 0.)),
+                ToolValue::Point(Vec3::new(10., 0., 0.)),
+            ],
+        }] });
+        let bs_tree = ToolValue::Tree(DataTree { branches: vec![TreeBranch {
+            path: TreePath(vec![2]),
+            items: vec![
+                ToolValue::Point(Vec3::new(100., 0., 0.)),
+                ToolValue::Point(Vec3::new(200., 0., 0.)),
+            ],
+        }] });
+        let ts_tree = ToolValue::Tree(DataTree { branches: vec![TreeBranch {
+            path: TreePath(vec![2]),
+            items: vec![ToolValue::Number(0.), ToolValue::Number(1.)],
+        }] });
+        let req = ToolRequest {
+            operation: "kernel.point.interpolate".into(),
+            inputs: BTreeMap::from([
+                ("a".into(), as_tree),
+                ("b".into(), bs_tree),
+                ("t".into(), ts_tree),
+            ]),
+        };
+        let out = execute_shared_tool_with_matching(&req, TreeMatchPolicy::CrossReference).unwrap();
+        let ToolValue::Tree(out) = out else {
+            assert!(false, "must produce a data tree");
+            return;
+        };
+        assert_eq!(out.branches[0].path.0, vec![2]);
+        assert_eq!(out.branches[0].items, vec![
+            ToolValue::Point(Vec3::new(0., 0., 0.)),
+            ToolValue::Point(Vec3::new(100., 0., 0.)),
+            ToolValue::Point(Vec3::new(0., 0., 0.)),
+            ToolValue::Point(Vec3::new(200., 0., 0.)),
+            ToolValue::Point(Vec3::new(10., 0., 0.)),
+            ToolValue::Point(Vec3::new(100., 0., 0.)),
+            ToolValue::Point(Vec3::new(10., 0., 0.)),
+            ToolValue::Point(Vec3::new(200., 0., 0.)),
+        ]);
+    }
+
+    #[test]
+    fn strict_paths_do_not_depend_on_matching_modifier() {
+        let a = points(&[0, 1], &[1.]);
+        let b = points(&[0, 2], &[2.]);
+        let req = input("worldwright.point.distance", a, b);
+        for policy in [
+            TreeMatchPolicy::Shortest,
+            TreeMatchPolicy::Longest,
+            TreeMatchPolicy::CrossReference,
+        ] {
+            assert_eq!(
+                execute_shared_tool_with_matching(&req, policy),
+                Err(KernelError::Invalid("tree branch path mismatch")),
+            );
+        }
+    }
+
+    #[test]
+    fn longest_does_not_repeat_from_empty_branch() {
+        let empty = ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch { path: TreePath(vec![0]), items: Vec::new() }],
+        });
+        let present = points(&[0], &[2., 3.]);
+        let req = input("kernel.point.distance", empty, present);
+        assert_eq!(
+            execute_shared_tool_with_matching(&req, TreeMatchPolicy::Longest),
+            Err(KernelError::Invalid("cannot repeat missing tree item")),
+        );
+        let short = execute_shared_tool_with_matching(&req, TreeMatchPolicy::Shortest);
+        assert!(matches!(short, Ok(ToolValue::Tree(_))));
+    }
+
+    #[test]
     fn preflights_cartesian_growth_beyond_tree_budget() {
         let request = input(
             "kernel.point.distance",

@@ -16,8 +16,8 @@ Known omissions and the required basic typed-parameter review queue are recorded
 
 ## Paired native engine development
 
-The **Orb Weaver** graph engine is now authored in
-`crates/orb-weaver`, and the first fifteen typed, shared CAD/Graph operation
+The **OrbWeaver** graph engine is now authored in
+`crates/orbweaver`, and the first fifteen typed, shared CAD/Graph operation
 pairs are in `crates/kernel/src/shared_tools.rs` and
 `docs/dependencies/tool-groups.json`. Several have selected
 Grasshopper 1 public-index analogs, including Flatten/Graft/Simplify Tree, but the port lists, matching behavior

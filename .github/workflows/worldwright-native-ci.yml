@@ -1,0 +1,63 @@
+name: Worldwright native Rust validation
+
+# Standard GitHub-hosted runners are free for this public repository.
+# No paid larger runners, Codespaces, uploads or storage-hungry build caches.
+on:
+  push:
+    branches:
+      - main
+      - feature/worldwright-mesh-scene
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A branch push and its PR update may trigger overlapping runs.
+concurrency:
+  group: worldwright-native-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux complete validation (Rust 1.95)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libegl1-mesa-dev
+      - name: Verify installed toolchain
+        run: bash tools/check-worldwright-rust.sh
+      - name: Run Worldwright kernel, document, CAD and OrbWeaver gates
+        run: bash tools/verify-worldwright-kernel.sh
+      - name: Test full Rust workspace
+        run: cargo test --locked --workspace
+      - name: Build native CAD and CLI
+        run: cargo build --locked -p cadcraft -p cadcraft-cli
+      - name: Lint all Rust targets
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+  native-platforms:
+    name: ${{ matrix.os }} native compile and tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - name: Compile and run workspace tests
+        run: cargo test --locked --workspace
+      - name: Compile native CAD and CLI
+        run: cargo build --locked -p cadcraft -p cadcraft-cli

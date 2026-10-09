@@ -127,18 +127,22 @@ during this repository-editing session; keep the PR unmerged until they pass.
 The 3D viewport uses `OrthoFrame` projection and tests native polygon triangles
 and quads in screen space. It computes barycentric depth at the clicked point
 and chooses the nearest polygon face; deterministic object/face IDs resolve
-coplanar ties. The quad remains a quad in the document. Visible layer and
-object flags are respected, and the same 15,000-face cap controls both drawing
-and hit testing. Empty clicks clear the picked face; orbit/pan drag remains
-separate from clicking. Selected native face edges are highlighted without
-changing the underlying geometry.
+coplanar ties. The quad remains a quad in the document. Visible object
+and layer flags are respected; locked layers remain visible but cannot be
+selected by viewport clicks. The 15,000-face limit applies **across the
+visible mesh scene**, not separately to each mesh. Drawing and picking walk
+the same bounded prefix, and the viewport warns when faces are omitted.
+Click replaces selection; Shift-click toggles a mesh object without editing
+geometry or revision. Empty clicks clear the picked face; orbit/pan drag
+remains separate from clicking. Selected native face edges are highlighted
+without changing the underlying geometry.
 
 The pick stores both the source document UUID-like session UID and its revision;
 stale picks cannot silently mutate a newer scene or an unrelated open document
 that happens to have the same geometry IDs and revision. The existing `mesh3d.edit` command handles Delete Face,
 undo, and later `.dftba` persistence. Eight pure picking tests plus headless
-viewport click, undo, and cross-document isolation tests are authored,
-**not yet executed**. The picker
+viewport click, undo, cross-document isolation, locked-layer and Shift-toggle
+tests are authored, **not yet executed**. The picker
 currently considers polygon meshes only: a NURBS surface in front will not
 occlude a mesh, and shaded depth-buffer picking is future work.
 

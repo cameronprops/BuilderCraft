@@ -8,19 +8,22 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 127
 fi
 
-echo "[1/5] Rust format check"
+echo "[1/6] Rust format check"
 cargo fmt --all -- --check
 
-echo "[2/5] Worldwright mesh-scene integration tests"
+echo "[2/6] Worldwright mesh-scene integration tests"
 cargo test --locked -p buildercraft-kernel --test mesh_scene
 
-echo "[3/5] Complete shared kernel test suite"
+echo "[3/6] Complete shared kernel test suite"
 cargo test --locked -p buildercraft-kernel
 
-echo "[4/5] CAD document, file I/O, engine and UI integration tests"
+echo "[4/6] CAD document, file I/O, engine and UI integration tests"
 cargo test --locked -p cadcraft-doc -p cadcraft-io -p cadcraft-engine -p cadcraft-ui-egui
 
-echo "[5/5] Kernel Clippy warning gate"
+echo "[5/6] Calisoga shared-tool and DAG evaluator tests"
+cargo test --locked -p calisoga
+
+echo "[6/6] Kernel Clippy warning gate"
 cargo clippy --locked -p buildercraft-kernel --all-targets -- -D warnings
 
 echo "Worldwright local kernel validation passed."

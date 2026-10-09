@@ -198,7 +198,6 @@ without imposing a timeline on direct CAD modeling.
 The initial code stores stable step IDs, typed local parameters, chronological
 dependencies, suppression, rollback, revision-checked edits and CAD undo.
 It evaluates already-implemented shared kernel operations and saves recipes
-inside `.dftba`. **This is not yet a visual timeline or functioning
-sketch-to-solid mechanical feature modeler.** Next: stable versioned geometry
+inside `.dftba`. An **initial 3D workspace timeline panel** now exposes enable, inspect, reorder, suppression, rollback and editing of basic local values. This is **not** a full visual feature-authoring or functioning sketch-to-solid mechanical modeler. Next: stable versioned geometry
 references, dimension expressions, constraint-driven sketch profiles and
 shared extrude/revolve/hole/fillet kernels, then previews and UI/bake.

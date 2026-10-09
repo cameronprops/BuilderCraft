@@ -28,6 +28,7 @@ mod scene;
 mod tessellation;
 mod transform;
 mod vector_ops;
+mod data_tree;
 mod shared_tools;
 pub use bounds::*;
 pub use bounds_ops::*;
@@ -55,6 +56,7 @@ pub use scene::*;
 pub use tessellation::*;
 pub use transform::*;
 pub use vector_ops::*;
+pub use data_tree::*;
 pub use shared_tools::*;
 
 use serde::{Deserialize, Serialize};

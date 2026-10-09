@@ -44,7 +44,7 @@ pub fn read(bytes: &[u8], name: &str) -> Result<Drawing> {
 
 /// Write a drawing in the format chosen by the name's extension.
 pub fn write(d: &Drawing, name: &str) -> Result<Vec<u8>> {
-    if !d.geometry3d.is_empty() && ext(name) != "bcraft" {
+    if (!d.geometry3d.is_empty() || !d.mesh3d.is_empty()) && ext(name) != "bcraft" {
         return Err(IoError::Format("3D geometry export is not implemented for this format; save a .bcraft project to preserve the model".into()));
     }
     match ext(name).as_str() {

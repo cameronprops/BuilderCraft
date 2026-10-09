@@ -161,7 +161,7 @@ spacing are named modifier ports.
 These code paths and tests are **not compiled or run yet**; the current
 environment lacks Cargo. Native graph data-tree structure operations are authored
 with strict branch paths, explicit matching policies, flatten, graft and simplify.
-A component canvas, automatic numeric tree broadcasting, Grasshopper implicit
+A component canvas, exact Grasshopper implicit
 path matching, preview/bake, solver, expressions and exact reference GH port
 matching are not implemented. Do not promote any public catalog entry to working parity without
 a local compilation/test and reference conformance fixture.
@@ -182,6 +182,6 @@ flatten, graft, simplify and match with explicit Shortest, Longest and
 CrossReference modifiers. The existing OrbWeaver DAG can link tagged tree
 values through these nodes. A headless `paired_tree` example checks that
 CAD and graph entry points invoke one dispatcher. Grasshopper tree-path
-matching, broadcasting numeric operations across tree items, graph UI and
+matching, graph UI and
 `.dftba` graph persistence are still future work; the new tests remain
 unexecuted until Rust/Cargo is available locally. No hosted CI is invoked.

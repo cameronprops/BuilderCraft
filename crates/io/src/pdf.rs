@@ -63,7 +63,7 @@ impl PdfOptions {
 
 /// Plot with JSON options (the engine's `plot` hook).
 pub fn plot(d: &Drawing, space: &Space, opts: &Value) -> Result<Vec<u8>> {
-    if !d.geometry3d.is_empty() {
+    if (!d.geometry3d.is_empty() || !d.mesh3d.is_empty()) {
         return Err(IoError::Format("3D plotting is not implemented; save a .bcraft project to preserve the model".into()));
     }
     pdf(d, space, &PdfOptions::from_json(opts))
@@ -122,7 +122,7 @@ impl Map {
 
 /// Write a one-page vector PDF of a space.
 pub fn pdf(d: &Drawing, space: &Space, o: &PdfOptions) -> Result<Vec<u8>> {
-    if !d.geometry3d.is_empty() {
+    if (!d.geometry3d.is_empty() || !d.mesh3d.is_empty()) {
         return Err(IoError::Format("3D plotting is not implemented; save a .bcraft project to preserve the model".into()));
     }
     let page = page_for(d, space, o)?;

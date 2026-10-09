@@ -9,6 +9,7 @@
 
 mod bounds;
 pub mod camera;
+pub mod closest3d;
 mod curve;
 mod intersect;
 mod mat;

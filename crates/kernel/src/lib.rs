@@ -4,6 +4,7 @@
 
 mod bounds;
 mod bounds_ops;
+mod closest3d;
 mod geometry;
 mod mesh_analysis;
 mod mesh_cleanup;
@@ -30,6 +31,7 @@ mod vector_ops;
 mod wireframe;
 pub use bounds::*;
 pub use bounds_ops::*;
+pub use closest3d::*;
 pub use geometry::*;
 pub use mesh_analysis::*;
 pub use mesh_cleanup::*;

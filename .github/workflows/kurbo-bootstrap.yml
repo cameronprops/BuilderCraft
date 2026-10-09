@@ -30,5 +30,7 @@ jobs:
           git add Cargo.lock crates/geom/src/kurbo_evaluation.rs crates/geom/src/lib.rs
           if ! git diff --cached --quiet; then
             git commit -m "build: pin Kurbo comparison dependencies and format Rust 1.95"
+            git fetch origin evaluation/kurbo-2d-bezier
+            git rebase origin/evaluation/kurbo-2d-bezier
             git push origin HEAD:evaluation/kurbo-2d-bezier
           fi

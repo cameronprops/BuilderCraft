@@ -24,3 +24,17 @@ on the development branch. Repository administrators should disable Actions
 at repository settings if *all* workflows (including alpha and release) must
 be prevented from running automatically. Build/test locally with Rust when
 available; do not claim unexecuted tests passed.
+
+## Native Worldwright project file
+
+**.dftba** is the preferred Worldwright project extension. This is a
+file-name/format routing change, not a change to the version-1 JSON payload
+schema. Existing `.bcraft` projects remain readable and writable as legacy
+aliases. Save As in the Worldwright workspace proposes `.dftba`, and desktop
+open filters accept both extensions. Opening an old `.bcraft` file and using
+Save retains its existing path; use Save As to migrate its filename to
+`.dftba`. Do not claim backwards compatibility with future file schema
+changes until separate migration tests exist.
+
+Both extensions are project containers; generic DXF/DWG/SVG/PDF export cannot
+silently discard 3D geometry or mesh objects.

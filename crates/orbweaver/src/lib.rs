@@ -8,11 +8,13 @@
 #![forbid(unsafe_code)]
 
 use buildercraft_kernel::{
-    KernelError, SHARED_TOOLS, SharedToolContract, ToolRequest, ToolValue, TreeMatchPolicy, execute_shared_tool, execute_shared_tool_with_matching,
+    KernelError, SHARED_TOOLS, SharedToolContract, ToolRequest, ToolValue, TreeMatchPolicy, execute_shared_tool_with_matching,
     shared_tool, shared_tool_value_cost, tool_output_may_match_port, tool_value_matches_port,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+#[cfg(test)]
+use buildercraft_kernel::execute_shared_tool;
 
 pub const GRAPH_SCHEMA_VERSION: u32 = 1;
 pub const MAX_GRAPH_NODES: usize = 512;
@@ -140,7 +142,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
         }
     }
 
-    let mut values = BTreeMap::new();
+    let mut values: BTreeMap<u64, ToolValue> = BTreeMap::new();
     // All graph inputs are complete and typed; evaluate only nodes whose
     // predecessors have completed. Node iteration order is stable by ID.
     while values.len() < nodes.len() {
@@ -476,7 +478,7 @@ mod tests {
                 branches: vec![TreeBranch { path: TreePath(vec![0]), items: xs.into_iter().map(|x| Point(Vec3::new(x, 0., 0.))).collect() }],
             })
         };
-        let inputs = BTreeMap::from([("a".into(), make(vec![1., 2.])), ("b".into(), make(vec![4., 8., 16.]))]);
+        let inputs: BTreeMap<String, ToolValue> = BTreeMap::from([("a".into(), make(vec![1., 2.])), ("b".into(), make(vec![4., 8., 16.]))]);
         let node = Node {
             id: 11,
             component: "orbweaver.point.distance".into(),

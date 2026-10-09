@@ -37,7 +37,7 @@ pub fn polygon_mesh_boundary_loops(mesh: &PolygonMesh) -> Result<PolygonBoundary
     let topo = polygon_mesh_topology(mesh)?;
     let mut neighbors: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
     for &edge_id in &topo.boundary_edges {
-        let [a,b] = topo.edges[edge_id as usize].vertices;
+        let [a, b] = topo.edges[edge_id as usize].vertices;
         neighbors.entry(a).or_default().push(edge_id);
         neighbors.entry(b).or_default().push(edge_id);
     }
@@ -52,32 +52,34 @@ pub fn polygon_mesh_boundary_loops(mesh: &PolygonMesh) -> Result<PolygonBoundary
         let mut stack = vec![seed];
         pending.remove(&seed);
         while let Some(edge_id) = stack.pop() {
-            if !component.insert(edge_id) { continue; }
-            let [a,b] = topo.edges[edge_id as usize].vertices;
-            for vertex in [a,b] {
+            if !component.insert(edge_id) {
+                continue;
+            }
+            let [a, b] = topo.edges[edge_id as usize].vertices;
+            for vertex in [a, b] {
                 if let Some(incident) = neighbors.get(&vertex) {
                     for &id in incident {
-                        if pending.remove(&id) { stack.push(id); }
+                        if pending.remove(&id) {
+                            stack.push(id);
+                        }
                     }
                 }
             }
         }
         let mut in_degree: BTreeMap<u32, usize> = BTreeMap::new();
         let mut out_degree: BTreeMap<u32, usize> = BTreeMap::new();
-        let mut successor: BTreeMap<u32, (u32,u32,u32)> = BTreeMap::new();
+        let mut successor: BTreeMap<u32, (u32, u32, u32)> = BTreeMap::new();
         for &edge_id in &component {
             let edge = &topo.edges[edge_id as usize];
             let halfedge_id = edge.halfedges[0];
             let h = &topo.halfedges[halfedge_id as usize];
             *in_degree.entry(h.to).or_default() += 1;
             *out_degree.entry(h.from).or_default() += 1;
-            successor.insert(h.from, (h.to,halfedge_id,edge_id));
+            successor.insert(h.from, (h.to, halfedge_id, edge_id));
         }
         let mut valid = true;
-        for vertex in neighbors.keys().filter(|v|
-            neighbors.get(v).is_some_and(|incident| incident.iter().any(|id| component.contains(id)))) {
-            if in_degree.get(vertex).copied().unwrap_or(0) != 1
-                || out_degree.get(vertex).copied().unwrap_or(0) != 1 {
+        for vertex in neighbors.keys().filter(|v| neighbors.get(v).is_some_and(|incident| incident.iter().any(|id| component.contains(id)))) {
+            if in_degree.get(vertex).copied().unwrap_or(0) != 1 || out_degree.get(vertex).copied().unwrap_or(0) != 1 {
                 valid = false;
                 ambiguous_vertices.insert(*vertex);
             }
@@ -95,8 +97,7 @@ pub fn polygon_mesh_boundary_loops(mesh: &PolygonMesh) -> Result<PolygonBoundary
         let mut edges = Vec::new();
         for _ in 0..component.len() {
             vertices.push(vertex);
-            let &(next,halfedge_id,edge_id) = successor.get(&vertex)
-                .ok_or(KernelError::Invalid("missing boundary successor"))?;
+            let &(next, halfedge_id, edge_id) = successor.get(&vertex).ok_or(KernelError::Invalid("missing boundary successor"))?;
             halfedges.push(halfedge_id);
             edges.push(edge_id);
             vertex = next;
@@ -104,11 +105,12 @@ pub fn polygon_mesh_boundary_loops(mesh: &PolygonMesh) -> Result<PolygonBoundary
         if vertex != start || edges.len() != component.len() {
             return Err(KernelError::Invalid("boundary traversal inconsistency"));
         }
-        closed_loops.push(PolygonBoundaryLoop {vertices,halfedges,edges});
+        closed_loops.push(PolygonBoundaryLoop { vertices, halfedges, edges });
     }
     unresolved_edges.sort_unstable();
     Ok(PolygonBoundaryReport {
-        closed_loops, unresolved_edges,
+        closed_loops,
+        unresolved_edges,
         ambiguous_vertices: ambiguous_vertices.into_iter().collect(),
         non_manifold_edges: topo.non_manifold_edges,
         inconsistent_winding_edges: topo.inconsistent_winding_edges,
@@ -123,71 +125,65 @@ mod tests {
 
     fn vertices() -> Vec<Vec3> {
         vec![
-            Vec3::new(0.,0.,0.), Vec3::new(3.,0.,0.),
-            Vec3::new(3.,3.,0.), Vec3::new(0.,3.,0.),
-            Vec3::new(1.,1.,0.), Vec3::new(2.,1.,0.),
-            Vec3::new(2.,2.,0.), Vec3::new(1.,2.,0.),
-            Vec3::new(5.,0.,0.), Vec3::new(6.,0.,0.),
-            Vec3::new(5.,1.,0.),
+            Vec3::new(0., 0., 0.),
+            Vec3::new(3., 0., 0.),
+            Vec3::new(3., 3., 0.),
+            Vec3::new(0., 3., 0.),
+            Vec3::new(1., 1., 0.),
+            Vec3::new(2., 1., 0.),
+            Vec3::new(2., 2., 0.),
+            Vec3::new(1., 2., 0.),
+            Vec3::new(5., 0., 0.),
+            Vec3::new(6., 0., 0.),
+            Vec3::new(5., 1., 0.),
         ]
     }
     #[test]
     fn single_quad_is_one_closed_outer_boundary() {
-        let mesh=PolygonMesh {vertices:vertices(),faces:vec![PolygonFace::Quad([0,1,2,3])]};
-        let r=polygon_mesh_boundary_loops(&mesh);
-        assert!(r.is_ok_and(|r| r.closed_loops.len()==1
-            && r.closed_loops[0].vertices.len()==4
+        let mesh = PolygonMesh { vertices: vertices(), faces: vec![PolygonFace::Quad([0, 1, 2, 3])] };
+        let r = polygon_mesh_boundary_loops(&mesh);
+        assert!(r.is_ok_and(|r| r.closed_loops.len() == 1
+            && r.closed_loops[0].vertices.len() == 4
             && r.unresolved_edges.is_empty()
             && r.ambiguous_vertices.is_empty()));
     }
     #[test]
     fn annulus_returns_outer_and_inner_loops() {
-        let mesh=PolygonMesh {vertices:vertices(),faces:vec![
-            PolygonFace::Quad([0,1,5,4]),
-            PolygonFace::Quad([1,2,6,5]),
-            PolygonFace::Quad([2,3,7,6]),
-            PolygonFace::Quad([3,0,4,7]),
-        ]};
-        let r=polygon_mesh_boundary_loops(&mesh);
-        assert!(r.is_ok_and(|r| r.closed_loops.len()==2
-            && r.closed_loops.iter().all(|l| l.vertices.len()==4)
-            && r.unresolved_edges.is_empty()));
+        let mesh = PolygonMesh {
+            vertices: vertices(),
+            faces: vec![
+                PolygonFace::Quad([0, 1, 5, 4]),
+                PolygonFace::Quad([1, 2, 6, 5]),
+                PolygonFace::Quad([2, 3, 7, 6]),
+                PolygonFace::Quad([3, 0, 4, 7]),
+            ],
+        };
+        let r = polygon_mesh_boundary_loops(&mesh);
+        assert!(r.is_ok_and(|r| r.closed_loops.len() == 2 && r.closed_loops.iter().all(|l| l.vertices.len() == 4) && r.unresolved_edges.is_empty()));
     }
     #[test]
     fn disconnected_components_are_separate_loops() {
-        let mesh=PolygonMesh {vertices:vertices(),faces:vec![
-            PolygonFace::Triangle([0,1,3]),
-            PolygonFace::Triangle([8,9,10]),
-        ]};
-        let r=polygon_mesh_boundary_loops(&mesh);
-        assert!(r.is_ok_and(|r| r.closed_loops.len()==2));
+        let mesh = PolygonMesh { vertices: vertices(), faces: vec![PolygonFace::Triangle([0, 1, 3]), PolygonFace::Triangle([8, 9, 10])] };
+        let r = polygon_mesh_boundary_loops(&mesh);
+        assert!(r.is_ok_and(|r| r.closed_loops.len() == 2));
     }
     #[test]
     fn vertex_branch_is_not_misreported_as_two_holes() {
-        let mesh=PolygonMesh {vertices:vertices(),faces:vec![
-            PolygonFace::Triangle([0,1,2]),
-            PolygonFace::Triangle([0,3,4]),
-        ]};
-        let r=polygon_mesh_boundary_loops(&mesh);
-        assert!(r.is_ok_and(|r| r.closed_loops.is_empty()
-            && r.unresolved_edges.len()==6
-            && r.ambiguous_vertices.contains(&0)));
+        let mesh = PolygonMesh { vertices: vertices(), faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])] };
+        let r = polygon_mesh_boundary_loops(&mesh);
+        assert!(r.is_ok_and(|r| r.closed_loops.is_empty() && r.unresolved_edges.len() == 6 && r.ambiguous_vertices.contains(&0)));
     }
     #[test]
     fn reports_invalid_shared_edge_orientation() {
-        let mesh=PolygonMesh {vertices:vertices(),faces:vec![
-            PolygonFace::Triangle([0,1,2]),
-            PolygonFace::Triangle([1,2,3]),
-        ]};
-        let r=polygon_mesh_boundary_loops(&mesh);
-        assert!(r.is_ok_and(|r| r.inconsistent_winding_edges.len()==1));
+        let mesh = PolygonMesh { vertices: vertices(), faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([1, 2, 3])] };
+        let r = polygon_mesh_boundary_loops(&mesh);
+        assert!(r.is_ok_and(|r| r.inconsistent_winding_edges.len() == 1));
     }
     #[test]
     fn empty_mesh_and_bad_face_handling() {
-        let m=PolygonMesh {vertices:vec![],faces:vec![]};
-        assert!(polygon_mesh_boundary_loops(&m).is_ok_and(|r|
-            r.closed_loops.is_empty() && r.unresolved_edges.is_empty()));
-        let m=PolygonMesh {vertices:vertices(),faces:vec![PolygonFace::Triangle([0,1,99])]};
+        let m = PolygonMesh { vertices: vec![], faces: vec![] };
+        assert!(polygon_mesh_boundary_loops(&m).is_ok_and(|r| r.closed_loops.is_empty() && r.unresolved_edges.is_empty()));
+        let m = PolygonMesh { vertices: vertices(), faces: vec![PolygonFace::Triangle([0, 1, 99])] };
         assert!(polygon_mesh_boundary_loops(&m).is_err());
     }
 }

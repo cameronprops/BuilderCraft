@@ -131,3 +131,13 @@ service and numeric UI, with optional first-edge uniform scaling. Existing copy,
 undo/redo, resource limits and project persistence apply. Exact rational curves
 and control surfaces only; reference picking and other representations remain
 pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
+
+## Viewport gizmo increment
+
+World-axis move handles, rotation rings and uniform scale handles use the shared
+exact transform matrices for display previews and `geometry3d.transform` for a
+single release transaction. Escape and stale document, selection, camera or
+viewport changes discard the preview. The pivot is the selected control-hull
+center. Exact curves/control surfaces only; local frames, snapping, reference
+picking and mesh/Brep handles remain pending. Pointer-event, numerical, preview/cancellation and undo tests passed. The full
+workspace passed 483 tests and all six local quality checks on Rust 1.95.0.

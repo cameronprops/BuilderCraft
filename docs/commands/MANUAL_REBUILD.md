@@ -192,3 +192,20 @@ pending. Windows and Mac reference pages were reviewed. Evidence covers known
 3D placements, handedness, inverse transforms, third-point scale independence,
 rational evaluation, surface transforms, hostile frames, copy, undo, persistence
 and actual headless button clicks.
+
+### Viewport transform gizmo
+
+Initial world-axis UI: move along projected axes, rotate in projected axis planes,
+and uniformly scale about the selected control-hull center. Hidden/locked
+selections are rejected. Preview transforms rendered samples only and never
+modifies authoritative geometry. Release dispatches `geometry3d.transform`,
+including its copy and undo semantics. Escape or a changed selection, document
+identity/revision, camera or viewport cancels. Edge-on move handles are hidden;
+edge-on rotation is unavailable. This is a limited native gadget, not complete
+Rhino Gumball parity. Numerical and pointer-event tests cover all three modes,
+preview preservation, single-release undo, and Escape/camera/revision cancellation.
+Full workspace: 483 tests and all six `cargo xtask ci` gates passed on Rust 1.95.0.
+Rendered handle/ring inspection completed. The inherited `plan/` and sibling
+`craftrules` references and the documented `tools/verify-worldwright-kernel.sh`
+wrapper are absent in this checkout; the checked-in suite rules and `cargo xtask ci`
+were used directly.

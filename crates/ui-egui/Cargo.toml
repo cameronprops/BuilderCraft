@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+buildercraft-kernel = { workspace = true }
 cadcraft-geom = { workspace = true }
 cadcraft-color = { workspace = true }
 cadcraft-doc = { workspace = true }

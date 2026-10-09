@@ -15,6 +15,7 @@ pub mod chrome;
 pub mod cmdline;
 pub mod control;
 pub mod dialogs;
+mod gizmo;
 pub mod gpu;
 pub mod icons;
 pub mod layers;
@@ -72,6 +73,8 @@ pub struct UiState {
     pub orient_scale: bool,
     pub transform_factor: f64,
     pub transform_copy: bool,
+    #[serde(skip)]
+    pub gizmo: gizmo::Gizmo,
 }
 
 impl Default for UiState {
@@ -111,6 +114,7 @@ impl Default for UiState {
             orient_scale: false,
             transform_factor: 1.,
             transform_copy: false,
+            gizmo: Default::default(),
         }
     }
 }

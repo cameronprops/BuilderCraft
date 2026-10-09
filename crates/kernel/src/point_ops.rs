@@ -4,11 +4,7 @@ use crate::{KernelError, Result};
 use cadcraft_geom::Vec3;
 
 fn checked_point(p: Vec3) -> Result<Vec3> {
-    if p.is_finite() && [p.x, p.y, p.z].iter().all(|v| v.abs() <= 1e12) {
-        Ok(p)
-    } else {
-        Err(KernelError::Invalid("point coordinate"))
-    }
+    if p.is_finite() && [p.x, p.y, p.z].iter().all(|v| v.abs() <= 1e12) { Ok(p) } else { Err(KernelError::Invalid("point coordinate")) }
 }
 
 /// Euclidean distance in the document's current linear unit.
@@ -23,11 +19,7 @@ pub fn point_distance(a: Vec3, b: Vec3) -> Result<f64> {
 pub fn point_midpoint(a: Vec3, b: Vec3) -> Result<Vec3> {
     let a = checked_point(a)?;
     let b = checked_point(b)?;
-    checked_point(Vec3::new(
-        a.x * 0.5 + b.x * 0.5,
-        a.y * 0.5 + b.y * 0.5,
-        a.z * 0.5 + b.z * 0.5,
-    ))
+    checked_point(Vec3::new(a.x * 0.5 + b.x * 0.5, a.y * 0.5 + b.y * 0.5, a.z * 0.5 + b.z * 0.5))
 }
 
 /// Interpolate from a (t=0) to b (t=1), without extrapolation.
@@ -37,13 +29,13 @@ pub fn point_interpolate(a: Vec3, b: Vec3, t: f64) -> Result<Vec3> {
     if !t.is_finite() || !(0.0..=1.0).contains(&t) {
         return Err(KernelError::Invalid("interpolation parameter"));
     }
-    if t == 0.0 { return Ok(a); }
-    if t == 1.0 { return Ok(b); }
-    checked_point(Vec3::new(
-        a.x * (1.0 - t) + b.x * t,
-        a.y * (1.0 - t) + b.y * t,
-        a.z * (1.0 - t) + b.z * t,
-    ))
+    if t == 0.0 {
+        return Ok(a);
+    }
+    if t == 1.0 {
+        return Ok(b);
+    }
+    checked_point(Vec3::new(a.x * (1.0 - t) + b.x * t, a.y * (1.0 - t) + b.y * t, a.z * (1.0 - t) + b.z * t))
 }
 
 #[cfg(test)]

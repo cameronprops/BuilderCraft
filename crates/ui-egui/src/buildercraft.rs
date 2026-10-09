@@ -147,10 +147,12 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         }
     });
+    crate::gizmo::controls(app, ui);
     let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::drag());
     let rect = rect.intersect(ui.clip_rect());
     app.session.viewport_px = (f64::from(rect.width()), f64::from(rect.height()));
-    if response.dragged() {
+    let gizmo_drag = crate::gizmo::interact(app, ui, rect, &response);
+    if response.dragged() && !gizmo_drag {
         let d = ui.input(|i| i.pointer.delta());
         if ui.input(|i| i.modifiers.shift) {
             let frame = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
@@ -162,7 +164,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             app.ui.orbit_pitch = (app.ui.orbit_pitch + f64::from(d.y) * 0.01).clamp(-std::f64::consts::FRAC_PI_2, std::f64::consts::FRAC_PI_2);
         }
     }
-    if response.hovered() {
+    if response.hovered() && !gizmo_drag {
         let d = ui.input(|i| i.smooth_scroll_delta.y);
         app.ui.scale3d = (app.ui.scale3d * (f64::from(d) * 0.002).exp()).clamp(1e-9, 1e9);
     }
@@ -190,6 +192,11 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible()) {
                 continue;
             }
+            let matrix = crate::gizmo::preview(app, object.id).unwrap_or(cadcraft_geom::Mat4::IDENTITY);
+            let project = |p| project(matrix.apply(p));
+            let line = |a, b, color| {
+                painter.line_segment([project(a), project(b)], egui::Stroke::new(1., color));
+            };
             match &object.shape {
                 cadcraft_doc::organization::Shape::Curve(c) => {
                     for i in 0..96 {
@@ -330,7 +337,7 @@ fn transform_panel(app: &mut CadApp, ui: &mut egui::Ui) {
         if let Some(operation) = operation {
             let _ = app.run("geometry3d.transform", json!({"ids":ids,"operation":operation,"copy":app.ui.transform_copy}));
         }
-        ui.small("Exact curves/control surfaces only. World coordinates; numeric controls, no gumball yet.");
+        ui.small("Exact curves/control surfaces only. World coordinates; viewport move/rotate/uniform-scale gizmo.");
     });
 }
 

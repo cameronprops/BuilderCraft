@@ -1,14 +1,10 @@
 //! Checked vector operations. Arithmetic is delegated to cadcraft-geom::Vec3.
 //! All angles are in radians; input vectors are in drawing coordinates.
 use crate::{KernelError, Result};
-use cadcraft_geom::{Vec3, EPS};
+use cadcraft_geom::{EPS, Vec3};
 
 fn checked_vector(v: Vec3) -> Result<Vec3> {
-    if v.is_finite() && [v.x, v.y, v.z].iter().all(|n| n.abs() <= 1e12) {
-        Ok(v)
-    } else {
-        Err(KernelError::Invalid("vector coordinate"))
-    }
+    if v.is_finite() && [v.x, v.y, v.z].iter().all(|n| n.abs() <= 1e12) { Ok(v) } else { Err(KernelError::Invalid("vector coordinate")) }
 }
 
 /// Unit vector. Rejects zero and near-zero inputs instead of returning zero.

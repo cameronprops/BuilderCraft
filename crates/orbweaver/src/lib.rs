@@ -1,14 +1,17 @@
 //! OrbWeaver is Worldwright's headless, deterministic, typed parametric graph.
 //! Nodes execute the SAME validated algorithms as direct Worldwright CAD/API
 //! commands. Typed trees, branch-structure modifiers and explicit list matching
-//! now execute through the same DAG and kernel dispatcher. Automatic numeric
-//! broadcasting over trees, bake/preview and the visual canvas come later.
+//! now execute through the same DAG and kernel dispatcher. Native math
+//! broadcasts over typed tree branches; implicit Grasshopper path alignment,
+//! bake/preview and the visual canvas come later.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
 use buildercraft_kernel::{
-    KernelError, SharedToolContract, ToolRequest, ToolValue,
-    execute_shared_tool, shared_tool, shared_tool_value_cost, SHARED_TOOLS,
+    KernelError, SharedToolContract, ToolRequest, ToolValue, TreeMatchPolicy,
+    execute_shared_tool, execute_shared_tool_with_matching, shared_tool,
+    shared_tool_value_cost, tool_value_matches_port,
+    tool_output_may_match_port, SHARED_TOOLS,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -33,6 +36,10 @@ pub struct Node {
     /// Native OrbWeaver node ID, e.g. "orbweaver.point.distance".
     pub component: String,
     pub inputs: BTreeMap<String, InputBinding>,
+    /// Branch-wise item matching; additive default keeps version-1 graphs
+    /// readable without rewriting existing serialized nodes.
+    #[serde(default)]
+    pub match_policy: TreeMatchPolicy,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -79,9 +86,9 @@ pub fn native_components() -> &'static [SharedToolContract] {
     SHARED_TOOLS
 }
 
-/// This evaluator handles tagged scalars AND explicit structural tree values;
-/// it does NOT implicitly align branches or broadcast numeric operations over
-/// tree items. Graph evaluation is atomic: failures return no partial result.
+/// This evaluator handles tagged scalars and native tree values, including
+/// per-node Shortest/Longest/CrossReference broadcasting. It never implicitly
+/// aligns different branch paths. Failures return no partial result.
 /// Strict node and edge ceilings bound the quadratic deterministic scheduler.
 pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
     if graph.version != GRAPH_SCHEMA_VERSION {
@@ -112,7 +119,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                     if retained_items > MAX_GRAPH_VALUE_ITEMS {
                         return Err(GraphError::Budget);
                     }
-                    if value.kind() != port.kind {
+                    if tool_value_matches_port(port.kind, value).is_err() {
                         return Err(GraphError::Type {
                             node: node.id,
                             port: port.name.into(),
@@ -124,7 +131,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                     if edge_count > MAX_GRAPH_CONNECTIONS { return Err(GraphError::Budget); }
                     let source = nodes.get(predecessor).ok_or(GraphError::MissingNode(*predecessor))?;
                     let source_contract = require_component(&source.component)?;
-                    if source_contract.output != port.kind {
+                    if !tool_output_may_match_port(port.kind, source_contract.output) {
                         return Err(GraphError::Type {
                             node: node.id,
                             port: port.name.into(),
@@ -165,10 +172,10 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 inputs.insert(port.name.into(), value);
             }
             if !ready { continue; }
-            let value = execute_shared_tool(&ToolRequest {
+            let value = execute_shared_tool_with_matching(&ToolRequest {
                 operation: contract.operation.into(),
                 inputs,
-            })?;
+            }, node.match_policy)?;
             retained_items = retained_items.checked_add(shared_tool_value_cost(&value)?)
                 .ok_or(GraphError::Budget)?;
             if retained_items > MAX_GRAPH_VALUE_ITEMS {
@@ -208,6 +215,7 @@ mod tests {
     fn dist(id: u64, a: Vec3, b: Vec3) -> Node {
         Node {
             id,
+            match_policy: TreeMatchPolicy::Shortest,
             component: "orbweaver.point.distance".into(),
             inputs: BTreeMap::from([
                 ("a".into(), constant(Point(a))),
@@ -235,6 +243,7 @@ mod tests {
     fn chained_vector_nodes_use_one_kernel_implementation() {
         let normalized = Node {
             id: 3,
+            match_policy: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.normalize".into(),
             inputs: BTreeMap::from([
                 ("v".into(), constant(Vector(Vec3::new(3., 4., 0.)))),
@@ -242,6 +251,7 @@ mod tests {
         };
         let length = Node {
             id: 9,
+            match_policy: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.length".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output { node: 3 }),
@@ -264,6 +274,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 4,
+                match_policy: TreeMatchPolicy::Shortest,
                 component: "orbweaver.polyline.divide_count".into(),
                 inputs: BTreeMap::from([
                     ("points".into(), constant(Polyline(vec![
@@ -287,6 +298,7 @@ mod tests {
     fn cycles_and_dangling_references_are_errors() {
         let n = |id, predecessor| Node {
             id,
+            match_policy: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.normalize".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output {node:predecessor}),
@@ -301,6 +313,7 @@ mod tests {
     fn connection_type_checks_run_before_evaluation() {
         let n = Node {
             id: 2,
+            match_policy: TreeMatchPolicy::Shortest,
             component: "orbweaver.vector.length".into(),
             inputs: BTreeMap::from([
                 ("v".into(), InputBinding::Output { node: 1 }),
@@ -323,6 +336,7 @@ mod tests {
                 dist(1, Vec3::ZERO, Vec3::new(1., 0., 0.)),
                 Node {
                     id: 2,
+                    match_policy: TreeMatchPolicy::Shortest,
                     component: "orbweaver.polyline.divide_count".into(),
                     inputs: BTreeMap::from([
                         ("points".into(), constant(Polyline(vec![
@@ -353,6 +367,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 5,
+                match_policy: TreeMatchPolicy::Shortest,
                 component: "orbweaver.polyline.length".into(),
                 inputs: BTreeMap::from([
                     ("points".into(), constant(Polyline(samples))),
@@ -377,6 +392,7 @@ mod tests {
             nodes: vec![
                 Node {
                     id: 2,
+                    match_policy: TreeMatchPolicy::Shortest,
                     component: "orbweaver.tree.flatten".into(),
                     inputs: BTreeMap::from([(
                         "tree".into(), InputBinding::Output {node: 1},
@@ -384,6 +400,7 @@ mod tests {
                 },
                 Node {
                     id: 1,
+                    match_policy: TreeMatchPolicy::Shortest,
                     component: "orbweaver.tree.graft".into(),
                     inputs: BTreeMap::from([(
                         "tree".into(), constant(start),
@@ -414,6 +431,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 7,
+                match_policy: TreeMatchPolicy::Shortest,
                 component: "orbweaver.tree.match".into(),
                 inputs: BTreeMap::from([
                     ("a".into(), constant(tree(vec![Number(1.), Number(2.)]))),
@@ -440,6 +458,7 @@ mod tests {
             version: 1,
             nodes: vec![Node {
                 id: 1,
+                match_policy: TreeMatchPolicy::Shortest,
                 component: "orbweaver.tree.flatten".into(),
                 inputs: BTreeMap::from([(
                     "tree".into(),

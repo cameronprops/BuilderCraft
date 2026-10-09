@@ -59,6 +59,9 @@ impl Scene {
     pub fn revision(&self) -> u64 {
         self.revision
     }
+    pub fn project_id(&self) -> Id {
+        self.project_id
+    }
     pub fn object(&self, id: Id) -> Option<&SceneObject> {
         self.objects.get(&id).map(Arc::as_ref)
     }

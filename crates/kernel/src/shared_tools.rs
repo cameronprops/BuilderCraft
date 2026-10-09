@@ -197,11 +197,19 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         inputs: POLYLINE_DISTANCE, output: ToolType::Polyline,
     },
     SharedToolContract {
+        operation: "kernel.tree.validate",
+        cad_command: "worldwright.tree.validate",
+        orbweaver_node: "orbweaver.tree.validate",
+        dependency_group: "graph.list_tree",
+        prerequisites: &[],
+        inputs: ONE_TREE, output: ToolType::Count,
+    },
+    SharedToolContract {
         operation: "kernel.tree.flatten",
         cad_command: "worldwright.tree.flatten",
         orbweaver_node: "orbweaver.tree.flatten",
         dependency_group: "graph.list_tree",
-        prerequisites: &[],
+        prerequisites: &["kernel.tree.validate"],
         inputs: ONE_TREE, output: ToolType::Tree,
     },
     SharedToolContract {
@@ -209,7 +217,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.tree.graft",
         orbweaver_node: "orbweaver.tree.graft",
         dependency_group: "graph.list_tree",
-        prerequisites: &[],
+        prerequisites: &["kernel.tree.validate"],
         inputs: ONE_TREE, output: ToolType::Tree,
     },
     SharedToolContract {
@@ -217,7 +225,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.tree.simplify",
         orbweaver_node: "orbweaver.tree.simplify",
         dependency_group: "graph.list_tree",
-        prerequisites: &[],
+        prerequisites: &["kernel.tree.validate"],
         inputs: ONE_TREE, output: ToolType::Tree,
     },
     SharedToolContract {
@@ -225,7 +233,7 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         cad_command: "worldwright.tree.match",
         orbweaver_node: "orbweaver.tree.match",
         dependency_group: "graph.list_tree",
-        prerequisites: &[],
+        prerequisites: &["kernel.tree.validate"],
         inputs: TREE_MATCH, output: ToolType::Tree,
     },
 ];
@@ -437,6 +445,10 @@ pub fn execute_shared_tool(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.polyline.divide_distance" => Ok(ToolValue::Polyline(polyline_divide_distance(
             polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?,
         )?)),
+        "kernel.tree.validate" => Ok(ToolValue::Count(
+            u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?)
+                .map_err(|_| KernelError::Budget)?,
+        )),
         "kernel.tree.flatten" => Ok(ToolValue::Tree(tree_flatten(
             tree(&request.inputs, "tree")?,
         )?)),
@@ -484,7 +496,7 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 10);
+        assert_eq!(SHARED_TOOLS.len(), 15);
     }
     #[test]
     fn distance_is_shared_across_both_entry_points() {

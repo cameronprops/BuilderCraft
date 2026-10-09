@@ -1,7 +1,7 @@
 //! Optional, scoped feature-history browser in the Worldwright 3D model view.
 //! All changes go through undoable engine commands, never direct UI mutation.
 use crate::CadApp;
-use buildercraft_kernel::{FeatureScope, FeatureTimeline};
+use buildercraft_kernel::{FeatureScope, FeatureTimeline, ToolValue};
 use serde_json::{json, Value};
 
 fn scope_label(scope: &FeatureScope) -> String {
@@ -83,6 +83,41 @@ pub fn panel(app: &mut CadApp, ui: &mut egui::Ui) {
                             edit(app, history, json!({
                                 "edit":"set_rollback", "after": null
                             }));
+                        }
+                    });
+                    ui.collapsing("Local parameters", |ui| {
+                        if history.parameters.is_empty() {
+                            ui.small("No parameters yet. Define one with the history.edit API.");
+                        }
+                        for (name, source) in &history.parameters {
+                            let mut updated = source.clone();
+                            let mut changed = false;
+                            ui.horizontal(|ui| {
+                                ui.monospace(name);
+                                match &mut updated {
+                                    ToolValue::Number(value) => {
+                                        changed = ui.add(egui::DragValue::new(value).speed(0.1)).changed();
+                                    }
+                                    ToolValue::Count(value) => {
+                                        changed = ui.add(egui::DragValue::new(value)).changed();
+                                    }
+                                    ToolValue::Point(value) | ToolValue::Vector(value) => {
+                                        for component in [&mut value.x, &mut value.y, &mut value.z] {
+                                            changed |= ui.add(egui::DragValue::new(component).speed(0.1)).changed();
+                                        }
+                                    }
+                                    _ => {
+                                        ui.small("Structured value. Edit through history API.");
+                                    }
+                                }
+                            });
+                            if changed {
+                                edit(app, history, json!({
+                                    "edit":"set_parameter",
+                                    "name":name,
+                                    "value":updated
+                                }));
+                            }
                         }
                     });
                     if history.steps.is_empty() {

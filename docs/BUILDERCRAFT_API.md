@@ -29,6 +29,12 @@ Use the returned model ID as `parent` when creating a component or body.
 | geometry3d.list | returns exact 3D control geometry |
 | geometry3d.set | id, optional name and visibility |
 | geometry3d.controlpoint | id, optional row, index, point [x,y,z] |
+| mesh3d.create | name, mesh with vertices and native triangle/quad faces |
+| mesh3d.list | current document revision and native mesh objects |
+| mesh3d.boundaries | id; revision-stamped closed loops and ambiguous edges |
+| mesh3d.preview | id; non-mutating triangle view and original polygon-face mapping |
+| mesh3d.edit | id, edit with kind, selected_revision and selected indices/loop |
+| mesh3d.set | id, optional name and/or visible |
 
 3D curve example:
 ```json
@@ -85,3 +91,34 @@ Unsupported options are rejected. Copy, atomic undo/redo and persistence apply.
 Scale defaults to false; when true it uses only the first-edge length ratio.
 The third point defines plane orientation. Exact curves/control surfaces only.
 Invalid/near-collinear triples and unsupported options reject atomically.
+
+## Worldwright editable polygon mesh API
+
+New native polygons are retained as triangle or quad faces. The document stores
+them inside the existing versioned `.bcraft` project (optional `mesh3d` field).
+Triangle conversion for preview and GLB export does not overwrite native quads.
+
+Example creation:
+
+```json
+{"command":"mesh3d.create","params":{"name":"Floor patch","mesh":{"vertices":[{"x":0,"y":0,"z":0},{"x":1,"y":0,"z":0},{"x":1,"y":1,"z":0},{"x":0,"y":1,"z":0}],"faces":[{"quad":[0,1,2,3]}]}}}
+```
+
+Query `mesh3d.boundaries {"id":123}` to retrieve `source_revision`
+and `report.closed_loops`. For numeric face deletion:
+
+```json
+{"command":"mesh3d.edit","params":{"id":123,"edit":{"kind":"delete_faces","selected_revision":4,"selected_faces":[0]}}}
+```
+
+The `123` ID and `4` revision above are illustrative: use the response
+from create, and the current revision from list or boundary analysis. Other
+edit kinds are `add_triangle_from_edge` (edge_vertices, point_vertex) and
+`fill_planar_hole` (loop_index). Invalid or stale edits do not modify the
+document or consume an undo step. The initial UI uses numeric face indices and
+listed boundary loops; viewport component picking is not complete.
+
+Native meshes are not silently exported to unsupported 2D file formats. Use
+`.bcraft` for editable persistence; GLB is a derived visualization, not an
+editable quad-mesh interchange format. All new integration tests require local
+Rust execution before the implementation can be claimed verified.

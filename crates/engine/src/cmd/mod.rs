@@ -4,6 +4,7 @@
 mod annotate;
 mod blocks;
 mod buildercraft;
+mod mesh3d;
 pub mod constraints;
 mod draw;
 mod draw2;
@@ -149,6 +150,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
     SPECS.get_or_init(|| {
         let mut v = Vec::new();
         v.extend(buildercraft::specs());
+        v.extend(mesh3d::specs());
         v.extend(file::specs());
         v.extend(edit::specs());
         v.extend(qselect::specs());

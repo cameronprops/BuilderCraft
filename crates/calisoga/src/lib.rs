@@ -262,7 +262,7 @@ mod tests {
         assert_eq!(result.evaluated_node_count, 2);
         assert_eq!(result.values.len(), 1);
         assert!(result.values.get(&9).is_some_and(|v|
-            matches!(v, Number(x) if (x - 1.).abs() < 1e-12)));
+            matches!(v, Number(x) if (*x - 1.).abs() < 1e-12)));
     }
     #[test]
     fn division_count_is_a_modifier_not_a_new_sampling_engine() {

@@ -17,7 +17,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("visualization.publish", "Publish Visualization Scene", publish_visualization).params("{project_id:32 hex digits,directory}").noundo(),
         CommandSpec::new("geometry3d.preview", "Tessellate 3D Preview", preview3d).params("{id,curve_segments?:64,surface_u?:16,surface_v?:16}").noundo(),
         CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
-        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface","polygonMesh"],"nativeProject":"bcraft","solids":false,"meshTools":true,"meshViewport":true,"viewportPicking":"orthographicPreviewWires","transient3dSelection":true,"changeSubscriptions":false}))).enabled(always).noundo(),
+        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface","polygonMesh"],"nativeProject":"dftba","legacyNativeProject":"bcraft","solids":false,"meshTools":true,"meshViewport":true,"viewportPicking":"orthographicPreviewWires","transient3dSelection":true,"changeSubscriptions":false}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
         CommandSpec::new("nurbs.surface", "NURBS Control Surface", surface3d).params("{name, surface:{rows:[curve,...],degree_v,knots_v}}"),
         CommandSpec::new("geometry3d.controlpoint", "Edit NURBS Control Point", controlpoint).params("{id,row?:0,index,point:[x,y,z]}"),
@@ -458,6 +458,17 @@ mod tests {
             )
             .unwrap();
         (s, result["id"].clone())
+    }
+    #[test]
+    fn capabilities_match_native_format_and_viewport_scope() {
+        let mut session = Session::new();
+        let revision = session.state().unwrap().revision;
+        let capabilities = session.execute("buildercraft.capabilities", &json!({})).unwrap();
+        assert_eq!(capabilities["nativeProject"], "dftba");
+        assert_eq!(capabilities["legacyNativeProject"], "bcraft");
+        assert_eq!(capabilities["meshTools"], true);
+        assert_eq!(capabilities["viewportPicking"], "orthographicPreviewWires");
+        assert_eq!(session.state().unwrap().revision, revision);
     }
     #[test]
     fn production_updates_are_validated_and_undoable() {

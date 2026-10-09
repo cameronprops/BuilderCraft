@@ -4,6 +4,7 @@
 mod annotate;
 mod blocks;
 mod buildercraft;
+mod closest3d;
 pub mod constraints;
 mod draw;
 mod draw2;
@@ -22,6 +23,7 @@ mod picking3d;
 mod props;
 mod qselect;
 mod settings;
+mod snap3d;
 mod table;
 mod utility;
 mod view;
@@ -153,7 +155,9 @@ pub fn command_specs() -> &'static [CommandSpec] {
     SPECS.get_or_init(|| {
         let mut v = Vec::new();
         v.extend(buildercraft::specs());
+        v.extend(closest3d::specs());
         v.extend(picking3d::specs());
+        v.extend(snap3d::specs());
         v.extend(mesh3d::specs());
         v.extend(feature_history::specs());
         v.extend(worldwright_tools::specs());

@@ -4,6 +4,7 @@
 
 mod bounds;
 mod bounds_ops;
+mod closest3d;
 mod data_tree;
 mod feature_history;
 mod geometry;
@@ -36,6 +37,7 @@ mod vector_ops;
 mod wireframe;
 pub use bounds::*;
 pub use bounds_ops::*;
+pub use closest3d::*;
 pub use data_tree::*;
 pub use feature_history::*;
 pub use geometry::*;

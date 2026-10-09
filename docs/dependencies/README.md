@@ -114,8 +114,9 @@ shared kernel services.
 These are **15 native paired operation contracts**, not 15 verified
 Grasshopper-equivalent components. OrbWeaver now supports tagged tree values,
 structural tree nodes, explicit list matching and branch-preserving graph links.
-It does **not** support Grasshopper's implicit branch-path matching or automatic
-application of all numeric nodes across tree items. Graph work is pure/headless and can run without the
+It supports explicit Shortest/Longest/CrossReference broadcasting for
+the first ten native point/vector/polyline operations, but **not** Grasshopper's
+implicit branch-path matching or full component-option parity. Graph work is pure/headless and can run without the
 CAD application. The new code has unit tests authored but not yet executed
 against Cargo/Rust; do not mark official catalog entries working yet.
 
@@ -166,3 +167,27 @@ graph persistence and the graphical component canvas are not yet wired.
 Run `python3 tools/build_dependency_index.py --check` and
 `python3 tools/check_paired_tools.py` for static consistency; run the
 local Rust test/lint scripts in a Rust-capable environment before merging.
+
+## Tree broadcasting increment (source authored, compilation pending)
+
+`crates/kernel/src/tool_broadcast.rs` is a policy adapter, **not** an
+additional geometry engine. It accepts native `ToolValue::Tree` inputs on
+the first ten CAD/OrbWeaver point, vector and polyline operations, validates
+every leaf type, and delegates each matched item back to the same scalar
+kernel operation. It preserves strict canonical branch paths and empty
+branches. The policy is selected via `matching` on a CAD command or on
+an OrbWeaver node, and defaults to Shortest for old version-1 graphs.
+
+Shortest truncates to the shortest list, Longest repeats the last item,
+and CrossReference applies a Cartesian product in port order with the
+rightmost varying fastest. Preflight checks limit branch count, output
+count, repeated input allocations and nested value costs. Mixed branch
+paths, invalid leaf types and runaway Cartesian products fail atomically.
+These behaviors are native contracts and do **not** claim complete
+Grasshopper implicit path alignment.
+
+Regression tests cover linked graph nodes, all three policies, three-port
+Cartesian ordering, stale/incompatible linked types, preserved empty
+branches, invalid paths and resource limits. Tests are committed but **not
+compiled or executed yet**. The next reusable infrastructure layer is
+versioned geometry references, shared with CAD document identity and undo.

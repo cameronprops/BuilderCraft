@@ -16,6 +16,8 @@ struct Project {
     mesh3d: Vec<cadcraft_doc::organization::PolygonGeometryObject>,
     #[serde(default)]
     production: buildercraft_kernel::ProductionModel,
+    #[serde(default)]
+    feature_timelines: Vec<buildercraft_kernel::FeatureTimeline>,
 }
 /// Bounded validation before persistence or loading into a document.
 /// The project payload itself is capped separately to 128 MiB.
@@ -46,6 +48,7 @@ fn validate_polygons(objects: &[cadcraft_doc::organization::PolygonGeometryObjec
 
 pub fn write(d: &Drawing) -> Result<Vec<u8>> {
     d.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
+    d.validate_feature_histories().map_err(|e| IoError::Format(e.to_string()))?;
     validate_polygons(&d.mesh3d)?;
     let mut organization = d.organization.clone();
     for node in &mut organization.nodes {
@@ -58,6 +61,7 @@ pub fn write(d: &Drawing) -> Result<Vec<u8>> {
         geometry3d: d.geometry3d.clone(),
         mesh3d: d.mesh3d.clone(),
         production: d.production.clone(),
+        feature_timelines: d.feature_timelines.clone(),
     })
     .map_err(|e| IoError::Format(e.to_string()))
 }
@@ -130,10 +134,12 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
         d.bump_handseed(cadcraft_doc::Handle(object.id));
     }
     p.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
+    d.feature_timelines = p.feature_timelines;
+    d.organization = p.organization;
+    d.validate_feature_histories().map_err(|e| IoError::Format(e.to_string()))?;
     d.production = p.production;
     d.geometry3d = p.geometry3d;
     d.mesh3d = p.mesh3d;
-    d.organization = p.organization;
     Ok(d)
 }
 #[cfg(test)]

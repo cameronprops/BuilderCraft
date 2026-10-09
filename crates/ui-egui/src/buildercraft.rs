@@ -315,7 +315,7 @@ pub fn new_surface(app: &mut CadApp) -> Result<serde_json::Value, String> {
     )
 }
 
-/// A small polygon ring that can be filled, undone and saved as .bcraft.
+/// A small polygon ring that can be filled, undone and saved as .dftba.
 pub fn new_mesh_sample(app: &mut CadApp) -> Result<serde_json::Value, String> {
     app.ui.view3d = true;
     let result = app.run("mesh3d.create", json!({

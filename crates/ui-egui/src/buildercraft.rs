@@ -378,10 +378,11 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             } else {
                 egui::Color32::from_rgb(110, 230, 180)
             };
+            let selected_face_is_current = picked_face_is_current(app, object.id);
             for (face_index, face) in object.mesh.faces.iter()
                 .take(crate::mesh_picking::MAX_VIEWPORT_FACES).enumerate()
             {
-                let highlighted = picked_face_is_current(app, object.id)
+                let highlighted = selected_face_is_current
                     && app.ui.mesh_face_index as usize == face_index;
                 let color = if highlighted {
                     egui::Color32::from_rgb(255, 245, 80)
@@ -739,6 +740,26 @@ mod mesh_ui_tests {
         assert!(app.session.selection().contains(&cadcraft_doc::Handle(id)));
         assert_eq!(app.session.state().unwrap().revision, revision);
         assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.faces.len(), 4);
+    }
+
+    #[test]
+    fn face_pick_cannot_cross_to_another_document_at_the_same_revision() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let id = new_mesh_sample(&mut app).unwrap()["id"].as_u64().unwrap();
+        let first_uid = app.session.state().unwrap().uid;
+        app.ui.mesh_face_object_id = Some(id);
+        app.ui.mesh_face_document_uid = Some(first_uid);
+        app.ui.mesh_face_revision = Some(app.session.state().unwrap().revision);
+        app.ui.mesh_face_index = 0;
+        assert!(picked_face_is_current(&app, id));
+
+        // A second document may reuse the same mesh object IDs and revision.
+        // That must NOT make a saved UI pick valid for this different document.
+        let duplicate = app.session.doc().unwrap().clone();
+        app.session.open_drawing(duplicate, "Copy", None);
+        assert_ne!(app.session.state().unwrap().uid, first_uid);
+        app.ui.mesh_face_revision = Some(app.session.state().unwrap().revision);
+        assert!(!picked_face_is_current(&app, id));
     }
 
 }

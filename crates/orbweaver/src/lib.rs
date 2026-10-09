@@ -7,14 +7,14 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+#[cfg(test)]
+use buildercraft_kernel::execute_shared_tool;
 use buildercraft_kernel::{
-    KernelError, SHARED_TOOLS, SharedToolContract, ToolRequest, ToolValue, TreeMatchPolicy, execute_shared_tool_with_matching,
-    shared_tool, shared_tool_value_cost, tool_output_may_match_port, tool_value_matches_port,
+    KernelError, SHARED_TOOLS, SharedToolContract, ToolRequest, ToolValue, TreeMatchPolicy, execute_shared_tool_with_matching, shared_tool,
+    shared_tool_value_cost, tool_output_may_match_port, tool_value_matches_port,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-#[cfg(test)]
-use buildercraft_kernel::execute_shared_tool;
 
 pub const GRAPH_SCHEMA_VERSION: u32 = 1;
 pub const MAX_GRAPH_NODES: usize = 512;

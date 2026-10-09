@@ -1,7 +1,8 @@
 //! Orb Weaver is Worldwright's headless, deterministic, typed parametric graph.
 //! Nodes execute the SAME validated algorithms as direct Worldwright CAD/API
-//! commands. Graph lists, data trees, bake/preview and visual canvas follow
-//! in later dependency layers; this first evaluator is deliberately scalar.
+//! commands. Typed trees, branch-structure modifiers and explicit list matching
+//! now execute through the same DAG and kernel dispatcher. Automatic numeric
+//! broadcasting over trees, bake/preview and the visual canvas come later.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
@@ -78,9 +79,9 @@ pub fn native_components() -> &'static [SharedToolContract] {
     SHARED_TOOLS
 }
 
-/// The initial graph evaluator intentionally has no list/tree matching or
-/// implicit conversions. All node outputs are single typed values, and graph
-/// evaluation is atomic: a failed node returns no partial result to callers.
+/// This evaluator handles tagged scalars AND explicit structural tree values;
+/// it does NOT implicitly align branches or broadcast numeric operations over
+/// tree items. Graph evaluation is atomic: failures return no partial result.
 /// Strict node and edge ceilings bound the quadratic deterministic scheduler.
 pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
     if graph.version != GRAPH_SCHEMA_VERSION {

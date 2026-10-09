@@ -114,7 +114,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
             let binding = node.inputs.get(port.name).ok_or(GraphError::Port(node.id))?;
             match binding {
                 InputBinding::Constant { value } => {
-                    retained_items = retained_items.checked_add(shared_tool_value_cost(value)?)
+                    retained_items = retained_items.checked_add(graph_value_cost(value)?)
                         .ok_or(GraphError::Budget)?;
                     if retained_items > MAX_GRAPH_VALUE_ITEMS {
                         return Err(GraphError::Budget);
@@ -176,7 +176,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 operation: contract.operation.into(),
                 inputs,
             }, node.matching)?;
-            retained_items = retained_items.checked_add(shared_tool_value_cost(&value)?)
+            retained_items = retained_items.checked_add(graph_value_cost(&value)?)
                 .ok_or(GraphError::Budget)?;
             if retained_items > MAX_GRAPH_VALUE_ITEMS {
                 return Err(GraphError::Budget);
@@ -193,6 +193,14 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
         values.retain(|id, _| graph.outputs.contains(id));
     }
     Ok(GraphResult { values, evaluated_node_count })
+}
+
+/// Shared value-budget validation mapped to the graph's public resource error.
+fn graph_value_cost(value: &ToolValue) -> Result<usize> {
+    shared_tool_value_cost(value).map_err(|error| match error {
+        KernelError::Budget => GraphError::Budget,
+        other => GraphError::Kernel(other),
+    })
 }
 
 fn require_component(id: &str) -> Result<&'static SharedToolContract> {
@@ -474,7 +482,7 @@ mod tests {
             }],
             outputs: vec![1],
         };
-        assert_eq!(evaluate(&graph), Err(GraphError::Kernel(KernelError::Budget)));
+        assert_eq!(evaluate(&graph), Err(GraphError::Budget));
     }
     #[test]
     fn linked_numerical_tree_output_flows_into_structural_node() {
@@ -570,6 +578,64 @@ mod tests {
         let decoded: Graph = serde_json::from_value(encoded).unwrap();
         assert_eq!(decoded.nodes[0].matching, TreeMatchPolicy::Shortest);
         assert_eq!(evaluate(&graph), evaluate(&decoded));
+    }
+
+    #[test]
+    fn linked_output_with_an_incompatible_runtime_leaf_reports_a_type_error() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let number_tree = ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0]),
+                items: vec![Number(12.)],
+            }],
+        });
+        let source = Node {
+            id: 1,
+            component: "orbweaver.tree.flatten".into(),
+            matching: TreeMatchPolicy::Shortest,
+            inputs: BTreeMap::from([("tree".into(), constant(number_tree))]),
+        };
+        let consumer = Node {
+            id: 2,
+            component: "orbweaver.point.distance".into(),
+            matching: TreeMatchPolicy::Shortest,
+            inputs: BTreeMap::from([
+                ("a".into(), InputBinding::Output { node: 1 }),
+                ("b".into(), constant(Point(Vec3::ZERO))),
+            ]),
+        };
+        let graph = Graph { version: 1, nodes: vec![consumer, source], outputs: vec![2] };
+        assert!(matches!(evaluate(&graph), Err(GraphError::Kernel(
+            KernelError::Invalid("tree leaf type does not match port")
+        ))));
+    }
+
+    #[test]
+    fn numeric_node_may_feed_a_tree_structural_port_when_lifted() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let points = ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0, 4]),
+                items: vec![Point(Vec3::new(0., 3., 4.)), Point(Vec3::new(0., 0., 2.))],
+            }],
+        });
+        let distance = Node {
+            id: 1,
+            component: "orbweaver.point.distance".into(),
+            matching: TreeMatchPolicy::Shortest,
+            inputs: BTreeMap::from([
+                ("a".into(), constant(points)),
+                ("b".into(), constant(Point(Vec3::ZERO))),
+            ]),
+        };
+        let count = Node {
+            id: 2,
+            component: "orbweaver.tree.validate".into(),
+            matching: TreeMatchPolicy::Shortest,
+            inputs: BTreeMap::from([("tree".into(), InputBinding::Output { node: 1 })]),
+        };
+        let graph = Graph { version: 1, nodes: vec![count, distance], outputs: vec![2] };
+        assert_eq!(evaluate(&graph).unwrap().values.get(&2), Some(&Count(2)));
     }
 
     #[test]

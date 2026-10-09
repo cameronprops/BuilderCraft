@@ -7,7 +7,7 @@
 
 use buildercraft_kernel::{
     KernelError, SharedToolContract, ToolRequest, ToolValue,
-    execute_shared_tool, shared_tool, SHARED_TOOLS,
+    execute_shared_tool, shared_tool, shared_tool_value_cost, SHARED_TOOLS,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -106,7 +106,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
             let binding = node.inputs.get(port.name).ok_or(GraphError::Port(node.id))?;
             match binding {
                 InputBinding::Constant { value } => {
-                    retained_items = retained_items.checked_add(value_items(value))
+                    retained_items = retained_items.checked_add(shared_tool_value_cost(value)?)
                         .ok_or(GraphError::Budget)?;
                     if retained_items > MAX_GRAPH_VALUE_ITEMS {
                         return Err(GraphError::Budget);
@@ -168,7 +168,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 operation: contract.operation.into(),
                 inputs,
             })?;
-            retained_items = retained_items.checked_add(value_items(&value))
+            retained_items = retained_items.checked_add(shared_tool_value_cost(&value)?)
                 .ok_or(GraphError::Budget)?;
             if retained_items > MAX_GRAPH_VALUE_ITEMS {
                 return Err(GraphError::Budget);
@@ -185,13 +185,6 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
         values.retain(|id, _| graph.outputs.contains(id));
     }
     Ok(GraphResult { values, evaluated_node_count })
-}
-
-fn value_items(value: &ToolValue) -> usize {
-    match value {
-        ToolValue::Polyline(points) => points.len(),
-        _ => 1,
-    }
 }
 
 fn require_component(id: &str) -> Result<&'static SharedToolContract> {
@@ -369,6 +362,100 @@ mod tests {
         assert_eq!(evaluate(&graph), Err(GraphError::Budget));
     }
 
+    #[test]
+    fn native_tree_nodes_graft_then_flatten_without_losing_values() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let start = ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0, 4]),
+                items: vec![Number(1.), Number(2.), Number(3.)],
+            }],
+        });
+        let graph = Graph {
+            version: 1,
+            nodes: vec![
+                Node {
+                    id: 2,
+                    component: "orbweaver.tree.flatten".into(),
+                    inputs: BTreeMap::from([(
+                        "tree".into(), InputBinding::Output {node: 1},
+                    )]),
+                },
+                Node {
+                    id: 1,
+                    component: "orbweaver.tree.graft".into(),
+                    inputs: BTreeMap::from([(
+                        "tree".into(), constant(start),
+                    )]),
+                },
+            ],
+            outputs: vec![2],
+        };
+        let result = evaluate(&graph).unwrap();
+        assert_eq!(result.evaluated_node_count, 2);
+        assert_eq!(result.values.get(&2), Some(&ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0]),
+                items: vec![Number(1.), Number(2.), Number(3.)],
+            }],
+        })));
+    }
+    #[test]
+    fn native_tree_matching_respects_mode_modifier_and_budget() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreeMatchPolicy, TreePath};
+        let tree = |values: Vec<ToolValue>| ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0]),
+                items: values,
+            }],
+        });
+        let graph = Graph {
+            version: 1,
+            nodes: vec![Node {
+                id: 7,
+                component: "orbweaver.tree.match".into(),
+                inputs: BTreeMap::from([
+                    ("a".into(), constant(tree(vec![Number(1.), Number(2.)]))),
+                    ("b".into(), constant(tree(vec![Number(8.)]))),
+                    ("mode".into(), constant(ToolValue::MatchMode(TreeMatchPolicy::Longest))),
+                ]),
+            }],
+            outputs: vec![7],
+        };
+        let result = evaluate(&graph).unwrap();
+        let Some(ToolValue::Tree(tree)) = result.values.get(&7) else {
+            assert!(false, "matching must return a tree");
+            return;
+        };
+        assert_eq!(tree.branches[0].items, vec![
+            ToolValue::Pair(Box::new((Number(1.),Number(8.)))),
+            ToolValue::Pair(Box::new((Number(2.),Number(8.)))),
+        ]);
+    }
+    #[test]
+    fn tree_input_types_are_validated_before_graph_execution() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let graph = Graph {
+            version: 1,
+            nodes: vec![Node {
+                id: 1,
+                component: "orbweaver.tree.flatten".into(),
+                inputs: BTreeMap::from([(
+                    "tree".into(),
+                    constant(ToolValue::Tree(DataTree {
+                        branches: vec![TreeBranch {
+                            path: TreePath(vec![0]),
+                            items: vec![ToolValue::Polyline(vec![
+                                Vec3::ZERO; MAX_GRAPH_VALUE_ITEMS + 1
+                            ])],
+                        }],
+                    })),
+                )]),
+            }],
+            outputs: vec![1],
+        };
+        assert_eq!(evaluate(&graph), Err(GraphError::Kernel(KernelError::Budget)));
+    }
     #[test]
     fn roundtrip_and_node_order_are_deterministic() {
         let graph = Graph { version:1, nodes:vec![

@@ -15,6 +15,8 @@ use std::collections::BTreeMap;
 pub const GRAPH_SCHEMA_VERSION: u32 = 1;
 pub const MAX_GRAPH_NODES: usize = 512;
 pub const MAX_GRAPH_CONNECTIONS: usize = 4096;
+/// Upper bound on all retained graph literal and evaluated value items.
+pub const MAX_GRAPH_VALUE_ITEMS: usize = 250_000;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "source", rename_all = "snake_case", deny_unknown_fields)]
@@ -41,7 +43,7 @@ pub struct Graph {
     pub outputs: Vec<u64>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GraphResult {
     /// Deterministic, node-ID-keyed values. No document mutation occurs.
     pub values: BTreeMap<u64, ToolValue>,
@@ -94,6 +96,7 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
         }
     }
     let mut edge_count = 0usize;
+    let mut retained_items = 0usize;
     for node in nodes.values() {
         let contract = require_component(&node.component)?;
         if node.inputs.len() != contract.inputs.len() {
@@ -103,6 +106,11 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
             let binding = node.inputs.get(port.name).ok_or(GraphError::Port(node.id))?;
             match binding {
                 InputBinding::Constant { value } => {
+                    retained_items = retained_items.checked_add(value_items(value))
+                        .ok_or(GraphError::Budget)?;
+                    if retained_items > MAX_GRAPH_VALUE_ITEMS {
+                        return Err(GraphError::Budget);
+                    }
                     if value.kind() != port.kind {
                         return Err(GraphError::Type {
                             node: node.id,
@@ -160,6 +168,11 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
                 operation: contract.operation.into(),
                 inputs,
             })?;
+            retained_items = retained_items.checked_add(value_items(&value))
+                .ok_or(GraphError::Budget)?;
+            if retained_items > MAX_GRAPH_VALUE_ITEMS {
+                return Err(GraphError::Budget);
+            }
             values.insert(id, value);
             progressed = true;
         }
@@ -174,6 +187,13 @@ pub fn evaluate(graph: &Graph) -> Result<GraphResult> {
     Ok(GraphResult { values, evaluated_node_count })
 }
 
+fn value_items(value: &ToolValue) -> usize {
+    match value {
+        ToolValue::Polyline(points) => points.len(),
+        _ => 1,
+    }
+}
+
 fn require_component(id: &str) -> Result<&'static SharedToolContract> {
     let spec = shared_tool(id).ok_or_else(|| GraphError::Component(id.into()))?;
     if spec.calisoga_node != id {
@@ -186,8 +206,6 @@ fn require_component(id: &str) -> Result<&'static SharedToolContract> {
 mod tests {
     use super::*;
     use buildercraft_kernel::ToolValue::{Count, Number, Point, Polyline, Vector};
-    use buildercraft_kernel::execute_shared_tool;
-    use buildercraft_kernel::ToolRequest;
     use cadcraft_geom::Vec3;
 
     fn constant(value: ToolValue) -> InputBinding {
@@ -334,6 +352,23 @@ mod tests {
         let g = Graph {version:2,nodes:vec![],outputs:vec![]};
         assert_eq!(evaluate(&g), Err(GraphError::Version));
     }
+    #[test]
+    fn bounded_input_collection_rejects_large_graph_values() {
+        let samples = vec![Vec3::ZERO; MAX_GRAPH_VALUE_ITEMS + 1];
+        let graph = Graph {
+            version: 1,
+            nodes: vec![Node {
+                id: 5,
+                component: "calisoga.polyline.length".into(),
+                inputs: BTreeMap::from([
+                    ("points".into(), constant(Polyline(samples))),
+                ]),
+            }],
+            outputs: vec![],
+        };
+        assert_eq!(evaluate(&graph), Err(GraphError::Budget));
+    }
+
     #[test]
     fn roundtrip_and_node_order_are_deterministic() {
         let graph = Graph { version:1, nodes:vec![

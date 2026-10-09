@@ -29,7 +29,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let graph_result = evaluate(&graph)?;
     let graph_value = graph_result.values.get(&1).ok_or("missing graph output")?;
-    assert_eq!(graph_value, &cad_result);
+    if graph_value != &cad_result {
+        return Err("CAD and Calisoga results differ".into());
+    }
     println!("Worldwright CAD + Calisoga: {graph_value:?}");
     println!("1 shared kernel algorithm; zero duplicate implementations.");
     Ok(())

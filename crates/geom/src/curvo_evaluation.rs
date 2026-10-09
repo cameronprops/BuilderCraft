@@ -4,7 +4,7 @@
 
 use crate::{
     Vec3,
-    nurbs3d::{self, Curve},
+    nurbs3d::Curve,
 };
 use curvo::prelude::NurbsCurve3D;
 use nalgebra::Point4;
@@ -27,6 +27,7 @@ pub fn evaluate_with_curvo(curve: &Curve, normalized_t: f64) -> Option<Vec3> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nurbs3d;
 
     fn test_curve(weights: Vec<f64>) -> Curve {
         Curve {
@@ -39,7 +40,7 @@ mod tests {
 
     #[test]
     fn curvo_matches_existing_curve_for_normal_and_rational_weights() {
-        for weights in [vec![1.0; 3], vec![1.0, 0.7071067811865476, 1.0]] {
+        for weights in [vec![1.0; 3], vec![1.0, std::f64::consts::FRAC_1_SQRT_2, 1.0]] {
             let curve = test_curve(weights);
             for i in 0..=20 {
                 let t = f64::from(i) / 20.0;

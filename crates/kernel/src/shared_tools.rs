@@ -4,6 +4,7 @@
 use crate::{
     KernelError, Result, DataTree, TreeBranch, TreeMatchPolicy,
     tree_flatten, tree_graft, tree_simplify, tree_match, tree_validate,
+    MAX_TREE_ITEMS,
     point_distance, point_midpoint,
     point_interpolate, vector_length, vector_normalize, vector_dot,
     vector_cross, polyline_length, polyline_divide_count,
@@ -275,6 +276,118 @@ fn polyline<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&
     }
 }
 
+fn tree<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a DataTree<ToolValue>> {
+    match inputs.get(name) {
+        Some(ToolValue::Tree(value)) => Ok(value),
+        _ => Err(KernelError::Invalid("tree input")),
+    }
+}
+fn match_mode(inputs: &BTreeMap<String, ToolValue>, name: &str) -> Result<TreeMatchPolicy> {
+    match inputs.get(name) {
+        Some(ToolValue::MatchMode(mode)) => Ok(*mode),
+        _ => Err(KernelError::Invalid("tree matching modifier")),
+    }
+}
+/// Count primitive storage units so a tree of heavy polylines cannot bypass
+/// the normal item budget. Depth is capped to avoid arbitrarily nested trees.
+fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
+    if depth > 8 {
+        return Err(KernelError::Budget);
+    }
+    match value {
+        ToolValue::Number(value) if !value.is_finite() => {
+            Err(KernelError::Invalid("nonfinite numeric value"))
+        }
+        ToolValue::Point(v) | ToolValue::Vector(v)
+            if !v.is_finite() || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12) => {
+            Err(KernelError::Invalid("nonfinite or oversized geometric value"))
+        }
+        ToolValue::Polyline(points) => {
+            if points.len() > MAX_TREE_ITEMS || points.iter().any(|v| !v.is_finite()
+                || [v.x, v.y, v.z].iter().any(|x| x.abs() > 1e12)) {
+                Err(KernelError::Budget)
+            } else {
+                Ok(points.len().max(1))
+            }
+        }
+        ToolValue::Pair(pair) => {
+            let total = value_cost(&pair.0, depth + 1)?
+                .checked_add(value_cost(&pair.1, depth + 1)?)
+                .ok_or(KernelError::Budget)?;
+            if total > MAX_TREE_ITEMS { Err(KernelError::Budget) } else { Ok(total) }
+        }
+        ToolValue::Tree(tree) => {
+            tree_validate(tree)?;
+            let mut total = tree.branches.len();
+            for branch in &tree.branches {
+                for item in &branch.items {
+                    total = total.checked_add(value_cost(item, depth + 1)?)
+                        .ok_or(KernelError::Budget)?;
+                    if total > MAX_TREE_ITEMS {
+                        return Err(KernelError::Budget);
+                    }
+                }
+            }
+            Ok(total)
+        }
+        _ => Ok(1),
+    }
+}
+fn match_tree_values(
+    a: &DataTree<ToolValue>, b: &DataTree<ToolValue>, mode: TreeMatchPolicy,
+) -> Result<DataTree<ToolValue>> {
+    // Preflight cloned value units BEFORE allocating the Cartesian or
+    // longest-list result, not merely checking the number of output pairs.
+    tree_validate(a)?;
+    tree_validate(b)?;
+    if a.branches.len() != b.branches.len() {
+        return Err(KernelError::Invalid("tree branch path mismatch"));
+    }
+    let mut budget = a.branches.len();
+    for (left, right) in a.branches.iter().zip(&b.branches) {
+        if left.path != right.path {
+            return Err(KernelError::Invalid("tree branch path mismatch"));
+        }
+        let n = match mode {
+            TreeMatchPolicy::Shortest => left.items.len().min(right.items.len()),
+            TreeMatchPolicy::Longest => left.items.len().max(right.items.len()),
+            TreeMatchPolicy::CrossReference => left.items.len()
+                .checked_mul(right.items.len()).ok_or(KernelError::Budget)?,
+        };
+        if matches!(mode, TreeMatchPolicy::Longest)
+            && left.items.is_empty() != right.items.is_empty() {
+            return Err(KernelError::Invalid("cannot repeat missing tree item"));
+        }
+        if n > MAX_TREE_ITEMS { return Err(KernelError::Budget); }
+        for index in 0..n {
+            let (ai, bi) = match mode {
+                TreeMatchPolicy::CrossReference => {
+                    (index / right.items.len(), index % right.items.len())
+                }
+                TreeMatchPolicy::Shortest => (index, index),
+                TreeMatchPolicy::Longest => {
+                    (index.min(left.items.len() - 1), index.min(right.items.len() - 1))
+                }
+            };
+            budget = budget.checked_add(2)
+                .and_then(|x| x.checked_add(value_cost(&left.items[ai], 1).ok()?))
+                .and_then(|x| x.checked_add(value_cost(&right.items[bi], 1).ok()?))
+                .ok_or(KernelError::Budget)?;
+            if budget > MAX_TREE_ITEMS { return Err(KernelError::Budget); }
+        }
+    }
+    let paired = tree_match(a, b, mode)?;
+    let result = DataTree { branches: paired.branches.into_iter().map(|branch| {
+        TreeBranch {
+            path: branch.path,
+            items: branch.items.into_iter().map(|(a, b)| {
+                ToolValue::Pair(Box::new((a, b)))
+            }).collect(),
+        }
+    }).collect() };
+    Ok(result)
+}
+
 /// Execute a pure shared operation. Missing, extra, incorrectly typed or
 /// nonfinite inputs fail before host document mutation. The native geometry
 /// functions apply their original bounds and degeneracy checks.
@@ -290,6 +403,7 @@ pub fn execute_shared_tool(request: &ToolRequest) -> Result<ToolValue> {
         if value.kind() != port.kind {
             return Err(KernelError::Invalid("tool port type mismatch"));
         }
+        value_cost(value, 0)?;
     }
     match contract.operation {
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(
@@ -322,6 +436,20 @@ pub fn execute_shared_tool(request: &ToolRequest) -> Result<ToolValue> {
         )?)),
         "kernel.polyline.divide_distance" => Ok(ToolValue::Polyline(polyline_divide_distance(
             polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?,
+        )?)),
+        "kernel.tree.flatten" => Ok(ToolValue::Tree(tree_flatten(
+            tree(&request.inputs, "tree")?,
+        )?)),
+        "kernel.tree.graft" => Ok(ToolValue::Tree(tree_graft(
+            tree(&request.inputs, "tree")?,
+        )?)),
+        "kernel.tree.simplify" => Ok(ToolValue::Tree(tree_simplify(
+            tree(&request.inputs, "tree")?,
+        )?)),
+        "kernel.tree.match" => Ok(ToolValue::Tree(match_tree_values(
+            tree(&request.inputs, "a")?,
+            tree(&request.inputs, "b")?,
+            match_mode(&request.inputs, "mode")?,
         )?)),
         _ => Err(KernelError::Invalid("shared operation implementation missing")),
     }

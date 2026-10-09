@@ -3,17 +3,55 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod bounds;
-pub use bounds::*;
+mod bounds_ops;
 mod geometry;
+mod mesh_analysis;
+mod mesh_cleanup;
+mod mesh_edges;
+mod mesh_edit;
+mod mesh_selection;
+mod polygon_mesh;
+mod polygon_topology;
+mod polygon_boundaries;
+mod polygon_hole_fill;
+mod polygon_delete;
+mod polygon_edge_triangle;
+mod mesh_weld_map;
+mod mesh_weld;
+mod mesh_repair;
 mod production;
+mod point_ops;
+mod polyline_ops;
+mod registry;
 mod scene;
 mod tessellation;
 mod transform;
+mod vector_ops;
+pub use bounds::*;
+pub use bounds_ops::*;
 pub use geometry::*;
+pub use mesh_analysis::*;
+pub use mesh_cleanup::*;
+pub use mesh_edges::*;
+pub use mesh_edit::*;
+pub use mesh_selection::*;
+pub use polygon_mesh::*;
+pub use polygon_topology::*;
+pub use polygon_boundaries::*;
+pub use polygon_hole_fill::*;
+pub use polygon_delete::*;
+pub use polygon_edge_triangle::*;
+pub use mesh_weld_map::*;
+pub use mesh_weld::*;
+pub use mesh_repair::*;
 pub use production::*;
+pub use point_ops::*;
+pub use polyline_ops::*;
+pub use registry::*;
 pub use scene::*;
 pub use tessellation::*;
 pub use transform::*;
+pub use vector_ops::*;
 
 use serde::{Deserialize, Serialize};
 

@@ -1,5 +1,22 @@
 # BuilderCraft suite instructions
 
+## Dependency-first native tool policy (Worldwright + Calisoga)
+
+The [dependency DAG and pair register](docs/dependencies/README.md) govern
+the sequence for **both** native CAD commands and Calisoga nodes. Prefer
+lower-tier primitives, then add modifiers and document/graph adapters as
+thin wrappers. One geometry algorithm must serve both interfaces; never
+reimplement the same operation in the Calisoga node evaluator.
+All 1,072 Rhino commands, 817 Grasshopper components, 110 Kangaroo components
+and 2,357 manual topics have preliminary category coverage, **not** verified
+per-item dependencies. Review unresolved entries and exact port/tree behavior
+before claiming parity. For every new pair update the Rust
+`SHARED_TOOLS` contracts and `docs/dependencies/tool-groups.json`,
+add CAD and Calisoga tests, run the local inventory/pair consistency scripts,
+and leave entries unvalidated until compilation/conformance tests pass.
+Do not run paid GitHub Actions automatically.
+
+
 Native BuilderCraft must be entirely free and open source. Use original implementations or dependencies whose relevant source and redistribution licenses have been verified. Rhino/Grasshopper/Kangaroo are public-behavior references only: never copy proprietary implementation code or require a paid host for native capabilities. Optional third-party adapters must not replace native functionality or become a required runtime dependency.
 
 BuilderCraft's accepted scope is CAD for themed entertainment professionals, implemented as independently runnable CAD, Scan, Graph and Show apps with shared core services and optional bridges. Read `docs/architecture/SUITE.md`, `docs/roadmap/SUITE_ROADMAP.md`, `docs/architecture/MEMORY_AND_JOBS.md` and `docs/commands/README.md` first. These BuilderCraft product priorities supersede inherited CADCraft parity percentages, app naming and AutoCAD-only command/UI priorities below; inherited engineering/attribution/never-crash rules still apply.

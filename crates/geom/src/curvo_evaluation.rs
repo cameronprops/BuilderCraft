@@ -13,12 +13,7 @@ pub fn evaluate_with_curvo(curve: &Curve, normalized_t: f64) -> Option<Vec3> {
         return None;
     }
     // Curvo control points are weighted homogeneous coordinates.
-    let controls = curve
-        .control
-        .iter()
-        .zip(&curve.weights)
-        .map(|(p, w)| Point4::new(p.x * w, p.y * w, p.z * w, *w))
-        .collect();
+    let controls = curve.control.iter().zip(&curve.weights).map(|(p, w)| Point4::new(p.x * w, p.y * w, p.z * w, *w)).collect();
     let candidate = NurbsCurve3D::<f64>::try_new(curve.degree, controls, curve.knots.clone()).ok()?;
     let (a, b) = candidate.knots_domain();
     let point = candidate.point_at(a + (b - a) * normalized_t);
@@ -33,11 +28,7 @@ mod tests {
     fn test_curve(weights: Vec<f64>) -> Curve {
         Curve {
             degree: 2,
-            control: vec![
-                Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(1.0, 3.0, 2.0),
-                Vec3::new(5.0, -2.0, 4.0),
-            ],
+            control: vec![Vec3::new(0.0, 1.0, 0.0), Vec3::new(1.0, 3.0, 2.0), Vec3::new(5.0, -2.0, 4.0)],
             weights,
             knots: nurbs3d::uniform_knots(3, 2),
         }
@@ -52,12 +43,7 @@ mod tests {
                 let expected = curve.evaluate(t).unwrap();
                 let actual = evaluate_with_curvo(&curve, t).unwrap();
                 let tolerance = if t == 1.0 { 1e-8 } else { 1e-10 };
-                assert!(
-                    (expected - actual).len() <= tolerance,
-                    "Curvo parity deviation at t={t}: {:?} vs {:?}",
-                    expected,
-                    actual
-                );
+                assert!((expected - actual).len() <= tolerance, "Curvo parity deviation at t={t}: {:?} vs {:?}", expected, actual);
             }
         }
     }

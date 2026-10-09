@@ -13,19 +13,50 @@ struct Project {
     #[serde(default)]
     geometry3d: Vec<cadcraft_doc::organization::GeometryObject>,
     #[serde(default)]
+    mesh3d: Vec<cadcraft_doc::organization::PolygonGeometryObject>,
+    #[serde(default)]
     production: buildercraft_kernel::ProductionModel,
 }
+/// Bounded validation before persistence or loading into a document.
+/// The project payload itself is capped separately to 128 MiB.
+fn validate_polygons(objects: &[cadcraft_doc::organization::PolygonGeometryObject]) -> Result<()> {
+    if objects.len() > 4096 {
+        return Err(IoError::Format("too many polygon objects".into()));
+    }
+    let mut vertices = 0usize;
+    let mut faces = 0usize;
+    for object in objects {
+        if object.name.trim().is_empty() || object.name.len() > 256
+            || object.layer.len() > 256 || object.id == u64::MAX
+        {
+            return Err(IoError::Format("invalid polygon object metadata".into()));
+        }
+        buildercraft_kernel::polygon_mesh_validate(&object.mesh)
+            .map_err(|e| IoError::Format(e.to_string()))?;
+        vertices = vertices.checked_add(object.mesh.vertices.len())
+            .ok_or_else(|| IoError::Format("polygon vertex budget exceeded".into()))?;
+        faces = faces.checked_add(object.mesh.faces.len())
+            .ok_or_else(|| IoError::Format("polygon face budget exceeded".into()))?;
+        if vertices > 1_000_000 || faces > 1_000_000 {
+            return Err(IoError::Format("aggregate polygon geometry limit".into()));
+        }
+    }
+    Ok(())
+}
+
 pub fn write(d: &Drawing) -> Result<Vec<u8>> {
     d.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
+    validate_polygons(&d.mesh3d)?;
     let mut organization = d.organization.clone();
     for node in &mut organization.nodes {
-        node.entities.retain(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0));
+        node.entities.retain(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0));
     }
     serde_json::to_vec(&Project {
         version: 1,
         drawing_dxf: dxf_write::write(d),
         organization,
         geometry3d: d.geometry3d.clone(),
+        mesh3d: d.mesh3d.clone(),
         production: d.production.clone(),
     })
     .map_err(|e| IoError::Format(e.to_string()))
@@ -38,9 +69,10 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
     if p.version != 1 {
         return Err(IoError::Format("unsupported BuilderCraft project version".into()));
     }
-    if p.organization.nodes.len() > 100_000 || p.geometry3d.len() > 4096 {
+    if p.organization.nodes.len() > 100_000 || p.geometry3d.len().checked_add(p.mesh3d.len()).is_none_or(|n| n > 4096) {
         return Err(IoError::Format("too many model items".into()));
     }
+    validate_polygons(&p.mesh3d)?;
     let mut d = dxf_read::read(p.drawing_dxf.as_bytes())?;
     let mut ids = std::collections::HashSet::new();
     let mut owned = std::collections::HashSet::new();
@@ -52,7 +84,7 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
             return Err(IoError::Format("only bodies can own entities".into()));
         }
         for h in &n.entities {
-            if (d.entity(*h).is_none() && !p.geometry3d.iter().any(|o| o.id == h.0)) || !owned.insert(*h) {
+            if (d.entity(*h).is_none() && !p.geometry3d.iter().any(|o| o.id == h.0) && !p.mesh3d.iter().any(|o| o.id == h.0)) || !owned.insert(*h) {
                 return Err(IoError::Format("invalid or multiply-owned body entity".into()));
             }
         }
@@ -88,9 +120,19 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
         }
         d.bump_handseed(cadcraft_doc::Handle(object.id));
     }
+    for object in &p.mesh3d {
+        if object.id == u64::MAX
+            || d.entity(cadcraft_doc::Handle(object.id)).is_some()
+            || !ids.insert(object.id)
+        {
+            return Err(IoError::Format("invalid or duplicate polygon object identity".into()));
+        }
+        d.bump_handseed(cadcraft_doc::Handle(object.id));
+    }
     p.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
     d.production = p.production;
     d.geometry3d = p.geometry3d;
+    d.mesh3d = p.mesh3d;
     d.organization = p.organization;
     Ok(d)
 }

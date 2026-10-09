@@ -123,8 +123,9 @@ against Cargo/Rust; do not mark official catalog entries working yet.
 
 1. Validate this layer with local Cargo: shared dispatcher, OrbWeaver graph,
    engine commands, reference-index checks, and `.dftba` persistence tests.
-2. Add **tree-aware numerical broadcasting** with explicit per-node list matching;
-   do not assume native Grasshopper path-alignment semantics.
+2. Expand **tree-aware numeric broadcasting** beyond the initial ten paired
+   primitives when each new geometry operation is validated; never presume
+   Grasshopper's implicit path alignment.
 3. Support **geometry references** as immutable versioned handles (including
    exact curves, surfaces, meshes) and preview/bake transactions.
 4. Then pair curve evaluation, division, length and transforms with CAD

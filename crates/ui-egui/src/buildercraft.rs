@@ -225,7 +225,7 @@ fn delete_mesh_face(
 
 pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| {
-        ui.label("Orthographic 3D").on_hover_text("Drag to orbit; Shift-drag to pan; scroll to zoom");
+        ui.label("Orthographic 3D").on_hover_text("Click to select; Shift-click to toggle; drag to orbit; Shift-drag to pan; scroll to zoom");
         if ui.button("New editable curve").clicked() {
             let _ = new_curve(app);
         }
@@ -262,10 +262,12 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         }
     });
+    crate::gizmo::controls(app, ui);
     let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     let rect = rect.intersect(ui.clip_rect());
     app.session.viewport_px = (f64::from(rect.width()), f64::from(rect.height()));
-    if response.dragged() {
+    let gizmo_drag = crate::gizmo::interact(app, ui, rect, &response);
+    if response.dragged() && !gizmo_drag {
         let d = ui.input(|i| i.pointer.delta());
         if ui.input(|i| i.modifiers.shift) {
             let frame = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
@@ -277,13 +279,13 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             app.ui.orbit_pitch = (app.ui.orbit_pitch + f64::from(d.y) * 0.01).clamp(-std::f64::consts::FRAC_PI_2, std::f64::consts::FRAC_PI_2);
         }
     }
-    if response.hovered() {
+    if response.hovered() && !gizmo_drag {
         let d = ui.input(|i| i.smooth_scroll_delta.y);
         app.ui.scale3d = (app.ui.scale3d * (f64::from(d) * 0.002).exp()).clamp(1e-9, 1e9);
     }
     // Short click picks the frontmost rendered polygon. Orbit/pan drags do not
     // commit picks, and selection itself never modifies the document revision.
-    if response.clicked() {
+    if response.clicked() && !gizmo_drag {
         if let Some(pointer) = response.interact_pointer_pos().filter(|p| rect.contains(*p)) {
             let offset = cadcraft_geom::Vec2::new(
                 f64::from(pointer.x - rect.center().x),
@@ -314,7 +316,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 app.session.set_selection(vec![cadcraft_doc::Handle(hit.object_id)]);
             } else {
                 clear_picked_mesh_face(app);
-                app.session.set_selection(Vec::new());
+                pick_at(app, rect, pointer, ui.input(|i| i.modifiers.shift));
             }
         }
     }
@@ -337,33 +339,36 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     line(cadcraft_geom::Vec3::ZERO, cadcraft_geom::Vec3::new(15., 0., 0.), egui::Color32::RED);
     line(cadcraft_geom::Vec3::ZERO, cadcraft_geom::Vec3::new(0., 15., 0.), egui::Color32::GREEN);
     line(cadcraft_geom::Vec3::ZERO, cadcraft_geom::Vec3::new(0., 0., 15.), egui::Color32::BLUE);
+    let mut work = 50_000_000;
+    let mut preview_limited = false;
+    let selected_ids: std::collections::HashSet<_> = app.session.selection().into_iter().collect();
     if let Ok(d) = app.session.doc() {
-        for object in &d.geometry3d {
+        preview_limited = d.geometry3d.len() > 4096;
+        for object in d.geometry3d.iter().take(4096) {
             if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible()) {
                 continue;
             }
-            match &object.shape {
-                cadcraft_doc::organization::Shape::Curve(c) => {
-                    for i in 0..96 {
-                        if let Some((a, b)) = c.evaluate(f64::from(i) / 96.).zip(c.evaluate(f64::from(i + 1) / 96.)) {
-                            line(a, b, egui::Color32::from_rgb(255, 210, 90));
-                        }
-                    }
-                    for p in &c.control {
-                        painter.circle_filled(project(*p), 3., egui::Color32::WHITE);
-                    }
+            let matrix = crate::gizmo::preview(app, object.id).unwrap_or(cadcraft_geom::Mat4::IDENTITY);
+            let project = |p| project(matrix.apply(p));
+            let line = |a, b, color| {
+                painter.line_segment([project(a), project(b)], egui::Stroke::new(1., color));
+            };
+            let selected = selected_ids.contains(&cadcraft_doc::Handle(object.id));
+            let color = if selected {
+                egui::Color32::from_rgb(255, 130, 40)
+            } else {
+                match &object.shape {
+                    cadcraft_doc::organization::Shape::Curve(_) => egui::Color32::from_rgb(255, 210, 90),
+                    cadcraft_doc::organization::Shape::Surface(_) => egui::Color32::from_rgb(90, 200, 240),
                 }
-                cadcraft_doc::organization::Shape::Surface(s) => {
-                    for i in 0..=12 {
-                        for j in 0..24 {
-                            let a = f64::from(i) / 12.;
-                            let b = f64::from(j) / 24.;
-                            let c = f64::from(j + 1) / 24.;
-                            for (p, q) in [s.evaluate(a, b).zip(s.evaluate(a, c)), s.evaluate(b, a).zip(s.evaluate(c, a))].into_iter().flatten() {
-                                line(p, q, egui::Color32::from_rgb(90, 200, 240));
-                            }
-                        }
-                    }
+            };
+            if buildercraft_kernel::visit_preview_wires(&object.shape, &mut work, |a, b| line(a, b, color)).is_err() {
+                preview_limited = true;
+                break;
+            }
+            if let cadcraft_doc::organization::Shape::Curve(c) = &object.shape {
+                for p in c.control.iter().take(4096) {
+                    painter.circle_filled(project(*p), 3., egui::Color32::WHITE);
                 }
             }
         }
@@ -400,7 +405,140 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         }
     }
+    if preview_limited {
+        painter.text(
+            rect.left_bottom() + egui::vec2(8., -8.),
+            egui::Align2::LEFT_BOTTOM,
+            "Preview limit reached; scene partly displayed",
+            egui::FontId::proportional(14.),
+            egui::Color32::YELLOW,
+        );
+    }
     crate::cmdline::keyboard(app, ui.ctx());
+}
+
+/// Picking is a shared engine query; failed or over-budget queries preserve selection.
+fn select_response(app: &mut CadApp, ui: &egui::Ui, rect: egui::Rect, response: &egui::Response, gizmo_drag: bool) {
+    if response.clicked()
+        && !gizmo_drag
+        && let Some(pixel) = response.interact_pointer_pos()
+    {
+        pick_at(app, rect, pixel, ui.input(|i| i.modifiers.shift));
+    }
+}
+fn pick_at(app: &mut CadApp, rect: egui::Rect, pixel: egui::Pos2, toggle: bool) {
+    let result = app.run(
+        "geometry3d.pick",
+        json!({
+            "pixel":[pixel.x-rect.min.x,pixel.y-rect.min.y],"viewport":[rect.width(),rect.height()],
+            "center":[app.ui.center3d.x,app.ui.center3d.y,app.ui.center3d.z],
+            "yaw":app.ui.orbit_yaw,"pitch":app.ui.orbit_pitch,"scale":app.ui.scale3d
+        }),
+    );
+    if let Ok(hit) = result {
+        let ids = hit["id"].as_u64().into_iter().collect::<Vec<_>>();
+        let _ = app.run("geometry3d.select", json!({"ids":ids,"mode":if toggle {"toggle"} else {"replace"}}));
+    }
+}
+
+#[cfg(test)]
+mod picking_tests {
+    use super::*;
+    fn frame(app: &mut CadApp, ctx: &egui::Context, mut events: Vec<egui::Event>, shift: bool) {
+        events.insert(0, egui::Event::ModifiersChanged(egui::Modifiers { shift, ..Default::default() }));
+        let mut output = ctx.run_ui(
+            egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400., 400.))), events, ..Default::default() },
+            |ui| {
+                let (rect, response) = ui.allocate_exact_size(egui::vec2(400., 400.), egui::Sense::click_and_drag());
+                let consumed = crate::gizmo::interact(app, ui, rect, &response);
+                select_response(app, ui, rect, &response, consumed);
+            },
+        );
+        output.textures_delta.clear();
+    }
+    fn pointer(p: egui::Pos2, down: bool, shift: bool) -> Vec<egui::Event> {
+        vec![
+            egui::Event::PointerMoved(p),
+            egui::Event::PointerButton {
+                pos: p,
+                button: egui::PointerButton::Primary,
+                pressed: down,
+                modifiers: egui::Modifiers { shift, ..Default::default() },
+            },
+        ]
+    }
+    #[test]
+    fn click_toggle_empty_and_gizmo_drag_share_the_viewport() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let id=app.run("nurbs.curve3d",json!({"name":"Click fixture","curve":{"degree":1,"control":[{"x":-10.,"y":0.,"z":0.},{"x":10.,"y":0.,"z":0.}],"weights":[1.,1.],"knots":[0.,0.,1.,1.]}})).unwrap()["id"].as_u64().unwrap();
+        app.ui.orbit_yaw = 0.;
+        app.ui.orbit_pitch = 0.;
+        app.ui.scale3d = 10.;
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![], false);
+        frame(&mut app, &ctx, vec![], false);
+        let click = egui::pos2(150., 200.);
+        frame(&mut app, &ctx, pointer(click, true, false), false);
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(egui::pos2(130., 200.))], false);
+        frame(&mut app, &ctx, pointer(egui::pos2(130., 200.), false, false), false);
+        assert!(app.session.selection().is_empty(), "camera drags must not click-select");
+        frame(&mut app, &ctx, pointer(click, true, false), false);
+        frame(&mut app, &ctx, pointer(click, false, false), false);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(id)]);
+        frame(&mut app, &ctx, pointer(click, true, true), true);
+        frame(&mut app, &ctx, pointer(click, false, true), true);
+        assert!(app.session.selection().is_empty());
+        frame(&mut app, &ctx, pointer(click, true, false), false);
+        frame(&mut app, &ctx, pointer(click, false, false), false);
+        let before = app.session.doc().unwrap().geometry3d.clone();
+        frame(&mut app, &ctx, pointer(egui::pos2(260., 200.), true, false), false);
+        frame(&mut app, &ctx, pointer(egui::pos2(260., 200.), false, false), false);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(id)]);
+        assert_eq!(app.session.doc().unwrap().geometry3d, before);
+        frame(&mut app, &ctx, pointer(egui::pos2(260., 200.), true, false), false);
+        frame(&mut app, &ctx, vec![egui::Event::PointerMoved(egui::pos2(295., 200.))], false);
+        assert_eq!(app.session.doc().unwrap().geometry3d, before);
+        frame(&mut app, &ctx, pointer(egui::pos2(295., 200.), false, false), false);
+        assert_ne!(app.session.doc().unwrap().geometry3d, before);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(id)]);
+        app.run("undo", json!({})).unwrap();
+        assert_eq!(app.session.doc().unwrap().geometry3d, before);
+        let empty = egui::pos2(20., 20.);
+        frame(&mut app, &ctx, pointer(empty, true, false), false);
+        frame(&mut app, &ctx, pointer(empty, false, false), false);
+        assert!(app.session.selection().is_empty());
+        if std::env::var_os("WORLDWRIGHT_SELECTION_CAPTURE").is_some() {
+            app.run("geometry3d.select", json!({"ids":[id]})).unwrap();
+            new_surface(&mut app).unwrap();
+            app.ui.orbit_yaw = 0.65;
+            app.ui.orbit_pitch = 0.45;
+            app.ui.scale3d = 12.;
+            let capture = egui::Context::default();
+            for _ in 0..2 {
+                let mut output = capture.run_ui(
+                    egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800., 600.))), ..Default::default() },
+                    |ui| viewport3d(&mut app, ui),
+                );
+                for delta in output.textures_delta.set.values().flatten() {
+                    let egui::ImageData::Color(texture) = &delta.image;
+                    image::RgbaImage::from_raw(
+                        texture.size[0] as u32,
+                        texture.size[1] as u32,
+                        texture.pixels.iter().flat_map(|p| p.to_array()).collect(),
+                    )
+                    .unwrap()
+                    .save("/tmp/worldwright-selection-atlas.png")
+                    .unwrap();
+                }
+                let meshes=capture.tessellate(output.shapes,1.).into_iter().filter_map(|p|{
+                    let egui::epaint::Primitive::Mesh(m)=p.primitive else{return None;};
+                    Some(json!({"clip":[p.clip_rect.min.x,p.clip_rect.min.y,p.clip_rect.max.x,p.clip_rect.max.y],"indices":m.indices,"vertices":m.vertices.iter().map(|v|json!([v.pos.x,v.pos.y,v.uv.x,v.uv.y,v.color.to_array()])).collect::<Vec<_>>()}))
+                }).collect::<Vec<_>>();
+                std::fs::write("/tmp/worldwright-selection-meshes.json", serde_json::to_vec(&meshes).unwrap()).unwrap();
+                output.textures_delta.clear();
+            }
+        }
+    }
 }
 
 pub fn new_curve(app: &mut CadApp) -> Result<serde_json::Value, String> {

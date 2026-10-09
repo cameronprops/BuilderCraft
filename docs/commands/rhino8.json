@@ -6048,12 +6048,21 @@
         "https://docs.mcneel.com/rhino/8/help/en-us/commands/gumball.htm",
         "https://docs.mcneel.com/rhino/8mac/help/en-us/commands/gumball.htm"
       ],
-      "status": "not_implemented",
-      "candidate_command": null,
+      "status": "partial",
+      "candidate_command": "geometry3d.transform",
       "owner": "cad",
-      "options": [],
-      "evidence": [],
-      "notes": "Native equivalent not mapped yet."
+      "options": [
+        "world-axis move",
+        "axis-plane rotation",
+        "positive uniform scale",
+        "release transaction",
+        "Escape cancellation"
+      ],
+      "evidence": [
+        "crates/ui-egui/src/gizmo.rs: numerical and pointer-event tests",
+        "483 workspace tests; cargo xtask ci passed all six gates on Rust 1.95.0"
+      ],
+      "notes": "Limited native viewport gadget for exact curves/control surfaces. Control-hull pivot; no local frames, plane translation, snapping, custom pivot or complete Rhino Gumball parity."
     },
     {
       "name": "GumballAlignment",

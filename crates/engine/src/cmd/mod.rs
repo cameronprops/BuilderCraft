@@ -4,6 +4,7 @@
 mod annotate;
 mod blocks;
 mod buildercraft;
+mod picking3d;
 mod mesh3d;
 mod feature_history;
 mod worldwright_tools;
@@ -152,6 +153,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
     SPECS.get_or_init(|| {
         let mut v = Vec::new();
         v.extend(buildercraft::specs());
+        v.extend(picking3d::specs());
         v.extend(mesh3d::specs());
         v.extend(feature_history::specs());
         v.extend(worldwright_tools::specs());

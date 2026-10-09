@@ -1,8 +1,8 @@
 //! Configurable, non-destructive mesh repair orchestration.
 //! All removal is explicit and every removed face is reported in ORIGINAL indices.
 use crate::{
-    CollapsedFacePolicy, KernelError, MeshValidationReport, Result, TriangleMesh,
-    mesh_duplicate_faces, mesh_remove_unused_vertices, mesh_validation_report, mesh_weld,
+    CollapsedFacePolicy, KernelError, MeshValidationReport, Result, TriangleMesh, mesh_duplicate_faces, mesh_remove_unused_vertices,
+    mesh_validation_report, mesh_weld,
 };
 use serde::{Deserialize, Serialize};
 
@@ -50,15 +50,12 @@ pub struct MeshRepairResult {
     pub original_to_final_vertices: Vec<Option<u32>>,
 }
 
-fn remove_marked_faces(
-    mesh: &mut TriangleMesh,
-    provenance: &mut Vec<usize>,
-    marked: &[usize],
-    removed: &mut Vec<usize>,
-) -> Result<()> {
+fn remove_marked_faces(mesh: &mut TriangleMesh, provenance: &mut Vec<usize>, marked: &[usize], removed: &mut Vec<usize>) -> Result<()> {
     let mut mask = vec![false; mesh.triangles.len()];
     for &index in marked {
-        if index >= mask.len() { return Err(KernelError::Invalid("face removal index")); }
+        if index >= mask.len() {
+            return Err(KernelError::Invalid("face removal index"));
+        }
         mask[index] = true;
     }
     let mut kept_faces = Vec::new();
@@ -66,7 +63,9 @@ fn remove_marked_faces(
     kept_faces.try_reserve_exact(mesh.triangles.len()).map_err(|_| KernelError::Budget)?;
     kept_provenance.try_reserve_exact(provenance.len()).map_err(|_| KernelError::Budget)?;
     for (index, (&face, &original)) in mesh.triangles.iter().zip(provenance.iter()).enumerate() {
-        if mask[index] { removed.push(original); } else {
+        if mask[index] {
+            removed.push(original);
+        } else {
             kept_faces.push(face);
             kept_provenance.push(original);
         }
@@ -82,15 +81,13 @@ fn remove_marked_faces(
 /// fix winding, resolve self intersections or certify watertightness.
 pub fn mesh_repair(mesh: &TriangleMesh, options: MeshRepairOptions) -> Result<MeshRepairResult> {
     // Validate options even when an input mesh has no faces.
-    if !options.relative_area_tolerance.is_finite()
-        || !(0.0..0.5).contains(&options.relative_area_tolerance) {
+    if !options.relative_area_tolerance.is_finite() || !(0.0..0.5).contains(&options.relative_area_tolerance) {
         return Err(KernelError::Invalid("mesh relative area tolerance"));
     }
     let before = mesh_validation_report(mesh, options.relative_area_tolerance)?;
     let mut work = mesh.clone();
     let mut provenance: Vec<usize> = (0..mesh.triangles.len()).collect();
-    let mut source_to_current: Vec<Option<u32>> =
-        (0..mesh.vertices.len()).map(|i| u32::try_from(i).ok()).collect();
+    let mut source_to_current: Vec<Option<u32>> = (0..mesh.vertices.len()).map(|i| u32::try_from(i).ok()).collect();
     let mut collapsed_source_faces = Vec::new();
     let mut duplicate_source_faces = Vec::new();
     let mut degenerate_source_faces = Vec::new();
@@ -98,10 +95,8 @@ pub fn mesh_repair(mesh: &TriangleMesh, options: MeshRepairOptions) -> Result<Me
 
     if let Some(tolerance) = options.weld_tolerance {
         let welded = mesh_weld(&work, tolerance, options.collapsed_faces)?;
-        collapsed_source_faces = welded.removed_face_indices.iter()
-            .map(|&i| provenance[i as usize]).collect();
-        provenance = welded.retained_face_indices.iter()
-            .map(|&i| provenance[i as usize]).collect();
+        collapsed_source_faces = welded.removed_face_indices.iter().map(|&i| provenance[i as usize]).collect();
+        provenance = welded.retained_face_indices.iter().map(|&i| provenance[i as usize]).collect();
         for mapped in &mut source_to_current {
             if let Some(index) = *mapped {
                 *mapped = Some(welded.old_to_new[index as usize]);
@@ -119,10 +114,7 @@ pub fn mesh_repair(mesh: &TriangleMesh, options: MeshRepairOptions) -> Result<Me
     if options.remove_degenerate_faces {
         // Reuse validated face diagnostics rather than recalculate a separate predicate.
         let analysis = mesh_validation_report(&work, options.relative_area_tolerance)?;
-        remove_marked_faces(
-            &mut work, &mut provenance,
-            &analysis.degenerate_face_indices, &mut degenerate_source_faces,
-        )?;
+        remove_marked_faces(&mut work, &mut provenance, &analysis.degenerate_face_indices, &mut degenerate_source_faces)?;
     }
 
     if options.remove_unused_vertices {
@@ -131,9 +123,7 @@ pub fn mesh_repair(mesh: &TriangleMesh, options: MeshRepairOptions) -> Result<Me
             if let Some(index) = *mapped {
                 *mapped = compact.old_to_new[index as usize];
                 if mapped.is_none() {
-                    removed_unused_vertices.push(
-                        u32::try_from(original).map_err(|_| KernelError::Budget)?
-                    );
+                    removed_unused_vertices.push(u32::try_from(original).map_err(|_| KernelError::Budget)?);
                 }
             }
         }
@@ -162,12 +152,14 @@ mod tests {
     fn fixture() -> TriangleMesh {
         TriangleMesh {
             vertices: vec![
-                Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0),
-                Vec3::ZERO, Vec3::new(0.0, 0.0, 2.0), Vec3::new(9.0, 9.0, 9.0),
+                Vec3::ZERO,
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::ZERO,
+                Vec3::new(0.0, 0.0, 2.0),
+                Vec3::new(9.0, 9.0, 9.0),
             ],
-            triangles: vec![
-                [0,1,2], [3,1,2], [0,0,4], [0,1,4],
-            ],
+            triangles: vec![[0, 1, 2], [3, 1, 2], [0, 0, 4], [0, 1, 4]],
         }
     }
 
@@ -176,8 +168,7 @@ mod tests {
         let mesh = fixture();
         let original = mesh.clone();
         let result = mesh_repair(&mesh, MeshRepairOptions::default());
-        assert!(result.is_ok_and(|r| r.mesh == original
-            && r.retained_source_faces == vec![0,1,2,3]));
+        assert!(result.is_ok_and(|r| r.mesh == original && r.retained_source_faces == vec![0, 1, 2, 3]));
         assert_eq!(mesh, original);
     }
 
@@ -195,15 +186,13 @@ mod tests {
         let repaired = mesh_repair(&source, options);
         assert!(repaired.is_ok());
         if let Ok(r) = repaired {
-            assert_eq!(r.retained_source_faces, vec![0,3]);
+            assert_eq!(r.retained_source_faces, vec![0, 3]);
             assert_eq!(r.collapsed_source_faces, vec![2]);
             assert_eq!(r.duplicate_source_faces, vec![1]);
             assert!(r.degenerate_source_faces.is_empty());
-            assert_eq!(r.mesh.triangles, vec![[0,1,2],[0,1,3]]);
+            assert_eq!(r.mesh.triangles, vec![[0, 1, 2], [0, 1, 3]]);
             assert_eq!(r.mesh.vertices.len(), 4);
-            assert_eq!(r.original_to_final_vertices, vec![
-                Some(0),Some(1),Some(2),Some(0),Some(3),None,
-            ]);
+            assert_eq!(r.original_to_final_vertices, vec![Some(0), Some(1), Some(2), Some(0), Some(3), None,]);
             assert_eq!(r.removed_unused_vertices, vec![5]);
             assert_eq!(r.after.face_count, 2);
         }
@@ -213,10 +202,7 @@ mod tests {
     fn reject_policy_is_atomic() {
         let input = fixture();
         let snapshot = input.clone();
-        let options = MeshRepairOptions {
-            weld_tolerance: Some(0.0),
-            ..MeshRepairOptions::default()
-        };
+        let options = MeshRepairOptions { weld_tolerance: Some(0.0), ..MeshRepairOptions::default() };
         assert!(mesh_repair(&input, options).is_err());
         assert_eq!(input, snapshot);
     }
@@ -224,28 +210,18 @@ mod tests {
     #[test]
     fn removes_geometrically_degenerate_faces_without_welding() {
         let source = TriangleMesh {
-            vertices: vec![Vec3::ZERO, Vec3::new(1.0,0.0,0.0),
-                Vec3::new(2.0,0.0,0.0), Vec3::new(0.0,1.0,0.0)],
-            triangles: vec![[0,1,2],[0,1,3]],
+            vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)],
+            triangles: vec![[0, 1, 2], [0, 1, 3]],
         };
-        let options = MeshRepairOptions {
-            remove_degenerate_faces: true,
-            ..MeshRepairOptions::default()
-        };
-        assert!(mesh_repair(&source, options).is_ok_and(|r|
-            r.degenerate_source_faces == vec![0]
-            && r.retained_source_faces == vec![1]));
+        let options = MeshRepairOptions { remove_degenerate_faces: true, ..MeshRepairOptions::default() };
+        assert!(mesh_repair(&source, options).is_ok_and(|r| r.degenerate_source_faces == vec![0] && r.retained_source_faces == vec![1]));
     }
 
     #[test]
     fn invalid_options_and_empty_mesh() {
         let empty = TriangleMesh { vertices: vec![], triangles: vec![] };
         assert!(mesh_repair(&empty, MeshRepairOptions::default()).is_ok());
-        assert!(mesh_repair(&empty, MeshRepairOptions {
-            relative_area_tolerance: f64::NAN, ..MeshRepairOptions::default()
-        }).is_err());
-        assert!(mesh_repair(&empty, MeshRepairOptions {
-            weld_tolerance: Some(-1.0), ..MeshRepairOptions::default()
-        }).is_err());
+        assert!(mesh_repair(&empty, MeshRepairOptions { relative_area_tolerance: f64::NAN, ..MeshRepairOptions::default() }).is_err());
+        assert!(mesh_repair(&empty, MeshRepairOptions { weld_tolerance: Some(-1.0), ..MeshRepairOptions::default() }).is_err());
     }
 }

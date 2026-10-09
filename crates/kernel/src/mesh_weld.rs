@@ -32,7 +32,9 @@ pub struct MeshWeldResult {
 /// collinear but distinct corners and duplicate coplanar faces require other tools.
 /// Valid input vertex coordinates and triangle indices are checked by the weld-map service.
 pub fn mesh_weld(mesh: &TriangleMesh, tolerance: f64, policy: CollapsedFacePolicy) -> Result<MeshWeldResult> {
-    if mesh.triangles.len() > MAX_FACES { return Err(KernelError::Budget); }
+    if mesh.triangles.len() > MAX_FACES {
+        return Err(KernelError::Budget);
+    }
     let map = mesh_vertex_weld_map(mesh, tolerance)?;
     // Build the complete remapping and compacted vertices before touching any faces.
     let mut compact = Vec::new();
@@ -63,8 +65,7 @@ pub fn mesh_weld(mesh: &TriangleMesh, tolerance: f64, policy: CollapsedFacePolic
     retained_face_indices.try_reserve_exact(mesh.triangles.len()).map_err(|_| KernelError::Budget)?;
     for (source_index, triangle) in mesh.triangles.iter().enumerate() {
         let remapped = triangle.map(|index| old_to_new[index as usize]);
-        let collapsed = remapped[0] == remapped[1]
-            || remapped[1] == remapped[2] || remapped[0] == remapped[2];
+        let collapsed = remapped[0] == remapped[1] || remapped[1] == remapped[2] || remapped[0] == remapped[2];
         let source_index = u32::try_from(source_index).map_err(|_| KernelError::Budget)?;
         if collapsed {
             match policy {
@@ -78,12 +79,7 @@ pub fn mesh_weld(mesh: &TriangleMesh, tolerance: f64, policy: CollapsedFacePolic
         triangles.push(remapped);
         retained_face_indices.push(source_index);
     }
-    Ok(MeshWeldResult {
-        mesh: TriangleMesh { vertices: compact, triangles },
-        old_to_new,
-        retained_face_indices,
-        removed_face_indices,
-    })
+    Ok(MeshWeldResult { mesh: TriangleMesh { vertices: compact, triangles }, old_to_new, retained_face_indices, removed_face_indices })
 }
 
 #[cfg(test)]
@@ -93,12 +89,7 @@ mod tests {
 
     fn source() -> TriangleMesh {
         TriangleMesh {
-            vertices: vec![
-                Vec3::ZERO,
-                Vec3::new(1.0, 0.0, 0.0),
-                Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(0.0, 0.0, 0.0),
-            ],
+            vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 0.0, 0.0)],
             triangles: vec![[0, 1, 2], [3, 1, 2]],
         }
     }
@@ -111,9 +102,9 @@ mod tests {
         assert!(result.is_ok());
         if let Ok(result) = result {
             assert_eq!(result.mesh.vertices.len(), 3);
-            assert_eq!(result.mesh.triangles, vec![[0,1,2], [0,1,2]]);
-            assert_eq!(result.old_to_new, vec![0,1,2,0]);
-            assert_eq!(result.retained_face_indices, vec![0,1]);
+            assert_eq!(result.mesh.triangles, vec![[0, 1, 2], [0, 1, 2]]);
+            assert_eq!(result.old_to_new, vec![0, 1, 2, 0]);
+            assert_eq!(result.retained_face_indices, vec![0, 1]);
             assert!(result.removed_face_indices.is_empty());
         }
         assert_eq!(source, original);
@@ -122,32 +113,27 @@ mod tests {
     #[test]
     fn collapse_policy_rejects_or_removes_explicitly() {
         let mesh = TriangleMesh {
-            vertices: vec![Vec3::ZERO, Vec3::new(0.01, 0.0, 0.0),
-                Vec3::new(0.0, 1.0, 0.0), Vec3::new(1.0, 0.0, 0.0)],
-            triangles: vec![[0,1,2], [0,3,2]],
+            vertices: vec![Vec3::ZERO, Vec3::new(0.01, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0), Vec3::new(1.0, 0.0, 0.0)],
+            triangles: vec![[0, 1, 2], [0, 3, 2]],
         };
         assert!(mesh_weld(&mesh, 0.02, CollapsedFacePolicy::Reject).is_err());
         let result = mesh_weld(&mesh, 0.02, CollapsedFacePolicy::Remove);
-        assert!(result.is_ok_and(|r| r.mesh.triangles == vec![[0,2,1]]
-            && r.removed_face_indices == vec![0] && r.retained_face_indices == vec![1]));
+        assert!(result.is_ok_and(|r| r.mesh.triangles == vec![[0, 2, 1]] && r.removed_face_indices == vec![0] && r.retained_face_indices == vec![1]));
     }
 
     #[test]
     fn zero_tolerance_keeps_distinct_vertices() {
-        let mesh = TriangleMesh {
-            vertices: vec![Vec3::ZERO, Vec3::new(0.01, 0.0, 0.0), Vec3::Z],
-            triangles: vec![[0,1,2]],
-        };
-        assert!(mesh_weld(&mesh, 0.0, CollapsedFacePolicy::Reject)
-            .is_ok_and(|r| r.mesh.vertices.len() == 3 && r.mesh.triangles == vec![[0,1,2]]));
+        let mesh = TriangleMesh { vertices: vec![Vec3::ZERO, Vec3::new(0.01, 0.0, 0.0), Vec3::Z], triangles: vec![[0, 1, 2]] };
+        assert!(mesh_weld(&mesh, 0.0, CollapsedFacePolicy::Reject).is_ok_and(|r| r.mesh.vertices.len() == 3 && r.mesh.triangles == vec![[0, 1, 2]]));
     }
 
     #[test]
     fn empty_mesh_and_unused_vertices() {
         let mesh = TriangleMesh { vertices: vec![Vec3::ZERO, Vec3::ZERO, Vec3::Z], triangles: vec![] };
-        assert!(mesh_weld(&mesh, 0.0, CollapsedFacePolicy::Remove)
-            .is_ok_and(|r| r.mesh.vertices == vec![Vec3::ZERO, Vec3::Z]
-                && r.mesh.triangles.is_empty() && r.old_to_new == vec![0,0,1]));
+        assert!(
+            mesh_weld(&mesh, 0.0, CollapsedFacePolicy::Remove)
+                .is_ok_and(|r| r.mesh.vertices == vec![Vec3::ZERO, Vec3::Z] && r.mesh.triangles.is_empty() && r.old_to_new == vec![0, 0, 1])
+        );
     }
 
     #[test]

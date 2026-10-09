@@ -75,7 +75,9 @@ pub fn mesh_edge_report(mesh: &TriangleMesh) -> Result<MeshEdgeReport> {
     let mut boundary_loops = Vec::new();
     let mut unresolved_boundary_edges = Vec::new();
     for &start in adjacency.keys() {
-        if !visited.insert(start) { continue; }
+        if !visited.insert(start) {
+            continue;
+        }
         let mut stack = vec![start];
         let mut component = Vec::new();
         while let Some(vertex) = stack.pop() {
@@ -98,7 +100,9 @@ pub fn mesh_edge_report(mesh: &TriangleMesh) -> Result<MeshEdgeReport> {
             loop {
                 let neighbors = &adjacency[&current];
                 let next = if Some(neighbors[0]) == previous { neighbors[1] } else { neighbors[0] };
-                if next == first { break; }
+                if next == first {
+                    break;
+                }
                 sequence.push(next);
                 previous = Some(current);
                 current = next;
@@ -106,17 +110,10 @@ pub fn mesh_edge_report(mesh: &TriangleMesh) -> Result<MeshEdgeReport> {
             boundary_loops.push(sequence);
         } else {
             let members: BTreeSet<u32> = component.into_iter().collect();
-            unresolved_boundary_edges.extend(boundary_edges.iter().copied()
-                .filter(|edge| members.contains(&edge[0]) && members.contains(&edge[1])));
+            unresolved_boundary_edges.extend(boundary_edges.iter().copied().filter(|edge| members.contains(&edge[0]) && members.contains(&edge[1])));
         }
     }
-    Ok(MeshEdgeReport {
-        boundary_edges,
-        non_manifold_edges,
-        inconsistent_winding_edges,
-        boundary_loops,
-        unresolved_boundary_edges,
-    })
+    Ok(MeshEdgeReport { boundary_edges, non_manifold_edges, inconsistent_winding_edges, boundary_loops, unresolved_boundary_edges })
 }
 
 #[cfg(test)]
@@ -130,10 +127,10 @@ mod tests {
 
     #[test]
     fn open_square_has_one_boundary_loop() {
-        let report = mesh_edge_report(&mesh(vec![[0,1,2], [0,2,3]]));
+        let report = mesh_edge_report(&mesh(vec![[0, 1, 2], [0, 2, 3]]));
         assert!(report.is_ok());
         if let Ok(r) = report {
-            assert_eq!(r.boundary_edges, vec![[0,1], [0,3], [1,2], [2,3]]);
+            assert_eq!(r.boundary_edges, vec![[0, 1], [0, 3], [1, 2], [2, 3]]);
             assert_eq!(r.boundary_loops.len(), 1);
             assert_eq!(r.boundary_loops[0].len(), 4);
             assert!(r.non_manifold_edges.is_empty());
@@ -143,33 +140,31 @@ mod tests {
 
     #[test]
     fn closed_tetrahedron_has_no_boundary() {
-        let r = mesh_edge_report(&mesh(vec![[0,2,1], [0,1,3], [1,2,3], [2,0,3]]));
-        assert!(r.is_ok_and(|r| r.boundary_edges.is_empty()
-            && r.non_manifold_edges.is_empty() && r.inconsistent_winding_edges.is_empty()));
+        let r = mesh_edge_report(&mesh(vec![[0, 2, 1], [0, 1, 3], [1, 2, 3], [2, 0, 3]]));
+        assert!(r.is_ok_and(|r| r.boundary_edges.is_empty() && r.non_manifold_edges.is_empty() && r.inconsistent_winding_edges.is_empty()));
     }
 
     #[test]
     fn three_faces_on_edge_are_non_manifold() {
-        let r = mesh_edge_report(&mesh(vec![[0,1,2], [1,0,3], [0,1,4]]));
-        assert!(r.is_ok_and(|r| r.non_manifold_edges == vec![[0,1]]));
+        let r = mesh_edge_report(&mesh(vec![[0, 1, 2], [1, 0, 3], [0, 1, 4]]));
+        assert!(r.is_ok_and(|r| r.non_manifold_edges == vec![[0, 1]]));
     }
 
     #[test]
     fn shared_edge_same_direction_reports_winding() {
-        let r = mesh_edge_report(&mesh(vec![[0,1,2], [0,1,3]]));
-        assert!(r.is_ok_and(|r| r.inconsistent_winding_edges == vec![[0,1]]));
+        let r = mesh_edge_report(&mesh(vec![[0, 1, 2], [0, 1, 3]]));
+        assert!(r.is_ok_and(|r| r.inconsistent_winding_edges == vec![[0, 1]]));
     }
 
     #[test]
     fn branched_boundary_is_not_falsely_reported_as_loop() {
-        let r = mesh_edge_report(&mesh(vec![[0,1,2], [0,3,4]]));
-        assert!(r.is_ok_and(|r| r.boundary_loops.is_empty()
-            && r.unresolved_boundary_edges.len() == 6));
+        let r = mesh_edge_report(&mesh(vec![[0, 1, 2], [0, 3, 4]]));
+        assert!(r.is_ok_and(|r| r.boundary_loops.is_empty() && r.unresolved_boundary_edges.len() == 6));
     }
 
     #[test]
     fn rejects_invalid_triangles() {
-        assert!(mesh_edge_report(&mesh(vec![[0,0,1]])).is_err());
-        assert!(mesh_edge_report(&mesh(vec![[0,1,99]])).is_err());
+        assert!(mesh_edge_report(&mesh(vec![[0, 0, 1]])).is_err());
+        assert!(mesh_edge_report(&mesh(vec![[0, 1, 99]])).is_err());
     }
 }

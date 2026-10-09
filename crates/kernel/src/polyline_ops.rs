@@ -53,8 +53,12 @@ impl<'a> Sampler<'a> {
     }
 
     fn sample(&mut self, distance: f64, total: f64) -> Result<Vec3> {
-        if distance <= 0.0 { return Ok(self.points[0]); }
-        if distance >= total { return Ok(self.points[self.points.len() - 1]); }
+        if distance <= 0.0 {
+            return Ok(self.points[0]);
+        }
+        if distance >= total {
+            return Ok(self.points[self.points.len() - 1]);
+        }
         while self.segment + 1 < self.points.len() {
             let a = self.points[self.segment];
             let b = self.points[self.segment + 1];
@@ -125,31 +129,24 @@ mod tests {
 
     #[test]
     fn divides_across_a_corner() {
-        assert_eq!(polyline_divide_count(&path(), 2), Ok(vec![
-            Vec3::ZERO, Vec3::new(3.0, 0.5, 0.0), Vec3::new(3.0, 4.0, 0.0)
-        ]));
-        assert_eq!(polyline_divide_distance(&path(), 2.0), Ok(vec![
-            Vec3::ZERO, Vec3::new(2.0, 0.0, 0.0),
-            Vec3::new(3.0, 1.0, 0.0), Vec3::new(3.0, 3.0, 0.0),
-            Vec3::new(3.0, 4.0, 0.0)
-        ]));
+        assert_eq!(polyline_divide_count(&path(), 2), Ok(vec![Vec3::ZERO, Vec3::new(3.0, 0.5, 0.0), Vec3::new(3.0, 4.0, 0.0)]));
+        assert_eq!(
+            polyline_divide_distance(&path(), 2.0),
+            Ok(vec![Vec3::ZERO, Vec3::new(2.0, 0.0, 0.0), Vec3::new(3.0, 1.0, 0.0), Vec3::new(3.0, 3.0, 0.0), Vec3::new(3.0, 4.0, 0.0)])
+        );
     }
 
     #[test]
     fn exact_spacing_does_not_duplicate_endpoint() {
         let line = [Vec3::ZERO, Vec3::new(4.0, 0.0, 0.0)];
-        assert_eq!(polyline_divide_distance(&line, 2.0), Ok(vec![
-            line[0], Vec3::new(2.0, 0.0, 0.0), line[1]
-        ]));
+        assert_eq!(polyline_divide_distance(&line, 2.0), Ok(vec![line[0], Vec3::new(2.0, 0.0, 0.0), line[1]]));
     }
 
     #[test]
     fn duplicate_vertices_do_not_prevent_sampling() {
         let line = [Vec3::ZERO, Vec3::ZERO, Vec3::new(2.0, 0.0, 0.0)];
         assert_eq!(polyline_segment_lengths(&line), Ok(vec![0.0, 2.0]));
-        assert_eq!(polyline_divide_count(&line, 2), Ok(vec![
-            line[0], Vec3::new(1.0, 0.0, 0.0), line[2]
-        ]));
+        assert_eq!(polyline_divide_count(&line, 2), Ok(vec![line[0], Vec3::new(1.0, 0.0, 0.0), line[2]]));
     }
 
     #[test]

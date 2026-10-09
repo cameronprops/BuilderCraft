@@ -10,6 +10,7 @@
 
 pub mod about;
 pub mod buildercraft;
+pub mod gizmo;
 mod feature_history;
 pub mod mesh_picking;
 pub mod canvas;

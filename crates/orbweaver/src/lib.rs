@@ -477,6 +477,102 @@ mod tests {
         assert_eq!(evaluate(&graph), Err(GraphError::Kernel(KernelError::Budget)));
     }
     #[test]
+    fn linked_numerical_tree_output_flows_into_structural_node() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let source = ToolValue::Tree(DataTree { branches: vec![
+            TreeBranch {
+                path: TreePath(vec![0, 5]),
+                items: vec![
+                    Point(Vec3::new(3., 4., 0.)),
+                    Point(Vec3::new(6., 8., 0.)),
+                ],
+            },
+        ]});
+        // Node 1 applies existing distance math across two points. Node 2
+        // consumes its tree output even though Distance's scalar output type
+        // is Number. Both graph node orders must behave identically.
+        let distance = Node {
+            id: 1,
+            component: "orbweaver.point.distance".into(),
+            match_policy: TreeMatchPolicy::Shortest,
+            inputs: BTreeMap::from([
+                ("a".into(), constant(source)),
+                ("b".into(), constant(Point(Vec3::ZERO))),
+            ]),
+        };
+        let flatten = Node {
+            id: 2,
+            component: "orbweaver.tree.flatten".into(),
+            match_policy: TreeMatchPolicy::Shortest,
+            inputs: BTreeMap::from([(
+                "tree".into(), InputBinding::Output { node: 1 },
+            )]),
+        };
+        let graph = Graph { version: 1, nodes: vec![flatten, distance], outputs: vec![2] };
+        let result = evaluate(&graph).unwrap();
+        assert_eq!(result.evaluated_node_count, 2);
+        assert_eq!(result.values.get(&2), Some(&ToolValue::Tree(DataTree {
+            branches: vec![TreeBranch {
+                path: TreePath(vec![0]),
+                items: vec![Number(5.), Number(10.)],
+            }],
+        })));
+    }
+
+    #[test]
+    fn cross_reference_modifier_is_applied_by_both_graph_and_direct_cad() {
+        use buildercraft_kernel::{DataTree, TreeBranch, TreePath};
+        let make = |xs: Vec<f64>| ToolValue::Tree(DataTree { branches: vec![
+            TreeBranch {
+                path: TreePath(vec![0]),
+                items: xs.into_iter().map(|x| Point(Vec3::new(x, 0., 0.))).collect(),
+            },
+        ]});
+        let inputs = BTreeMap::from([
+            ("a".into(), make(vec![1., 2.])),
+            ("b".into(), make(vec![4., 8., 16.])),
+        ]);
+        let node = Node {
+            id: 11,
+            component: "orbweaver.point.distance".into(),
+            match_policy: TreeMatchPolicy::CrossReference,
+            inputs: inputs.iter().map(|(name, value)| (
+                name.clone(), constant(value.clone()),
+            )).collect(),
+        };
+        let graph = Graph {version: 1, nodes: vec![node], outputs: vec![11]};
+        let computed = evaluate(&graph).unwrap();
+        let direct = execute_shared_tool_with_matching(&ToolRequest {
+            operation: "worldwright.point.distance".into(),
+            inputs,
+        }, TreeMatchPolicy::CrossReference).unwrap();
+        assert_eq!(computed.values.get(&11), Some(&direct));
+        let ToolValue::Tree(tree) = direct else {
+            assert!(false, "cross-reference must return a tree");
+            return;
+        };
+        assert_eq!(tree.branches[0].items, vec![
+            Number(3.), Number(7.), Number(15.),
+            Number(2.), Number(6.), Number(14.),
+        ]);
+    }
+
+    #[test]
+    fn old_version_one_graph_nodes_default_to_shortest_matching() {
+        let graph = Graph {
+            version: 1,
+            nodes: vec![dist(7, Vec3::ZERO, Vec3::new(0., 3., 4.))],
+            outputs: vec![7],
+        };
+        let mut encoded = serde_json::to_value(&graph).unwrap();
+        let nodes = encoded["nodes"].as_array_mut().unwrap();
+        nodes[0].as_object_mut().unwrap().remove("match_policy");
+        let decoded: Graph = serde_json::from_value(encoded).unwrap();
+        assert_eq!(decoded.nodes[0].match_policy, TreeMatchPolicy::Shortest);
+        assert_eq!(evaluate(&graph), evaluate(&decoded));
+    }
+
+    #[test]
     fn roundtrip_and_node_order_are_deterministic() {
         let graph = Graph { version:1, nodes:vec![
             dist(11,Vec3::ZERO,Vec3::new(0.,3.,4.)),

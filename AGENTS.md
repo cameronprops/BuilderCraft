@@ -30,6 +30,21 @@
   unrelated chat runtime is provisioned.
 - See `docs/architecture/DEVELOPMENT_ENVIRONMENT.md`.
 
+## Metrology and reusable geometry dependencies
+
+- Before authoring CAD, Scan, OrbWeaver, inspection, rockwork or fabrication
+  operations, consult `docs/dependencies/metrology-reuse.json`. Reuse already
+  registered kernel geometry/maths services; planned primitives are **not**
+  implemented merely because they appear in this planning registry.
+- Put ICP, best-fit, deviation, spatial indexes, thickness, mesh repair and
+  scan-to-NURBS mathematical work in shared Rust crates, never in separately
+  duplicated app engines. Scan and CAD are independent interface modules.
+- Preserve units/frames, source geometry IDs, fit residuals, tolerance policy,
+  immutable revision-keyed caches, bounded memory and cancellation.
+- Update cross-app dependency metadata alongside implementation/tests. Check
+  `python3 tools/check_metrology_reuse.py` and native Rust CI before declaring
+  operation parity. GOM/PolyWorks/Design X are behavioral references only.
+
 ## Dependency-first native tool policy (Worldwright + OrbWeaver)
 
 The [dependency DAG and pair register](docs/dependencies/README.md) govern

@@ -9,7 +9,8 @@ product name; trademark clearance has not been performed.
 | File | Meaning |
 |---|---|
 | `tool-groups.json` | Reviewed **group-level** dependency DAG, build tiers, modifier-first operation pair plan and provisional classification rules |
-| `kernel-operation-deps.json` | Prerequisite graph for **all 46** registered kernel operations; 28 have an explicit source/dataflow dependency review, 18 await it |
+| `kernel-operation-deps.json` | Prerequisite graph for **all 47** registered kernel operations; 29 have an explicit source/dataflow dependency review, 18 await it |
+| `metrology-reuse.json` | Source-checked existing kernel reuse plus **16 proposed shared primitives** and **17 planned Scan/CAD/OrbWeaver/fabrication adapters** for alignment, mesh repair, measurements, deviation and reconstruction |
 | `reference-index.json` | All 1,072 Rhino command refs, 817 Grasshopper refs, 110 Kangaroo refs and 2,357 Rhino manual topics given preliminary groups; 4,356 total source rows |
 | `../commands/rhino8.json` | Reference command behavior review and status; authoritative for command parity status |
 | `../commands/manual_inventory.json` | Manual topic review and acceptance evidence; authoritative for reviewed manuals |
@@ -19,7 +20,7 @@ product name; trademark clearance has not been performed.
 | `crates/engine/src/cmd/worldwright_tools.rs` | Worldwright CAD/API commands, calling the **same** kernel dispatcher |
 
 The dependency index is a **build-routing aid, not a verified full hierarchy of
-4,356 individual tool contracts**. By contrast, all 46 currently registered
+4,356 individual tool contracts**. By contrast, all 47 currently registered
 kernel operations have explicit DAG entries, with 18 marked source-review
 pending. The dependency graph is validated for cycles and tier ordering. It contains classification candidates and
 more than two thousand unclassified references. Every individual dependency
@@ -55,6 +56,44 @@ The tier labels are coarse execution ordering. The actual validated DAG is
 `tool-groups.json`, where each group lists its prerequisite IDs. Independent
 branches can proceed in parallel; lower-layer code must not import CAD or
 OrbWeaver UI code.
+
+## Shared metrology operations and app boundaries
+
+Scan workflows inspired by PolyWorks, GOM, and Geomagic Design X reuse the
+existing numerical kernel instead of growing independent CAD and Scan engines.
+The tracked dependency plan is [metrology-reuse.json](metrology-reuse.json),
+with **13 existing registered kernel foundations**, **16 proposed
+shared kernel operations** and **17 planned UI/command adapters**.
+
+The plan explicitly distinguishes three states: an **existing kernel operation**
+(some services already implemented but not evidence of a finished metrology tool),
+a **planned shared numerical primitive** (no Rust implementation yet), and a
+**planned app adapter** (Scan/CAD/OrbWeaver/fabrication interface not yet authored).
+No new planned IDs are added to the runtime kernel registry until implementation,
+unit tests, interface integration and native CI validation establish working code.
+
+High-leverage shared sequences:
+
+- Point-cloud spatial indexes → stable closest-point queries → rigid best-fit
+  and ICP → nominal-to-actual deviation with signed/unsigned policies.
+- Mesh topology and weld/repair → nearest triangle queries → wall thickness,
+  clearance, hole diagnostics and downstream fabrication QA.
+- Frames/units and world coordinates → height-band grouping, reports and
+  cross-application model synchronization (especially scenic rockwork).
+- Fit planes, primitives and mesh sections → editable NURBS reconstruction.
+
+Spatial indexes are immutable/revision-keyed and budgeted. Apps share source
+IDs, tolerances, coordinate frames and cancellation contracts without loading
+all scan datasets into CAD document entities. Metrology-specific user
+interfaces and optional commercial host API connectors contain **no separate
+geometry algorithms**. A native Scan app remains independent of CAD; pending
+Scan work never blocks the CAD alpha dependency chain.
+
+Validation: `python3 tools/check_metrology_reuse.py` is integrated into
+`tools/check_paired_tools.py` and the native CI validation suite. This checks
+referential integrity, tier ordering, cycles, typed port descriptions and
+truthful planned states, not geometry accuracy. No proprietary implementation
+or format reverse engineering is assumed.
 
 ## One kernel, two interfaces
 
@@ -200,7 +239,7 @@ primitives and 52 planned capabilities. These cover typed dimensions, sketch
 constraints and solving, profiles, BRep solids, extrude/revolve, holes, fillets,
 patterns, and mechanical assemblies.
 
-They are not 60 new geometry engines. The kernel registry remains at 46
+They are not 60 new geometry engines. The kernel registry remains at 47
 operations, including 15 existing CAD/OrbWeaver paired contracts. Histories
 execute those operations through the same dispatcher.
 

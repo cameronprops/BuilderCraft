@@ -1,0 +1,815 @@
+{
+  "schema_version": 1,
+  "purpose": "Scan metrology, mesh repair, reconstruction and fabrication dependency planning. Behavioral inspirations include GOM, PolyWorks and Geomagic Design X, never proprietary source.",
+  "policy": {
+    "one_engine": "Every shared numeric/geometry operation is implemented exactly once in the Rust kernel; applications, CAD commands, OrbWeaver nodes, APIs and proprietary host connectors are thin adapters.",
+    "truthful_status": "Existing kernel reuse references source-registered operations, but every planned primitive and tool adapter here remains planned until implemented, tested and integrated.",
+    "bounded_memory": "Immutable revision-keyed point/triangle spatial indexes, bounded work queues, cached derived data and cancelable scan jobs; never force scan point data into per-entity CAD objects.",
+    "optional_dependencies": "No CAD, OrbWeaver, Scan or fabrication executable requires the others; external GOM/PolyWorks/Design X APIs are optional, with no mandatory licensed host.",
+    "tolerance": "Explicit units, coordinate frames, numerical tolerances, degeneracy policy and per-output provenance on each fit, grouping and deviation.",
+    "scheduling": "Build low-level spatial queries, fitting and rigid registration before ICP, deviation inspection or reverse-engineering workspaces. Metrology does not delay the CAD alpha."
+  },
+  "existing_kernel_reuse": [
+    {
+      "id": "kernel.mesh.validation_report",
+      "used_by": [
+        "scan.mesh.diagnostics",
+        "fab.inspect.printability"
+      ]
+    },
+    {
+      "id": "kernel.mesh.edge_report",
+      "used_by": [
+        "scan.mesh.diagnostics",
+        "scan.reconstruct.sections"
+      ]
+    },
+    {
+      "id": "kernel.mesh.face_analysis",
+      "used_by": [
+        "scan.mesh.diagnostics",
+        "fab.inspect.printability"
+      ]
+    },
+    {
+      "id": "kernel.mesh.repair",
+      "used_by": [
+        "scan.mesh.repair",
+        "fab.inspect.printability"
+      ]
+    },
+    {
+      "id": "kernel.mesh.weld",
+      "used_by": [
+        "scan.mesh.repair",
+        "scan.reconstruct.sections"
+      ]
+    },
+    {
+      "id": "kernel.polygon.boundary_loops",
+      "used_by": [
+        "scan.mesh.diagnostics",
+        "scan.reconstruct.sections"
+      ]
+    },
+    {
+      "id": "kernel.polygon.triangulate",
+      "used_by": [
+        "scan.inspect.deviation",
+        "scan.reconstruct.sections"
+      ]
+    },
+    {
+      "id": "kernel.bounds.from_points",
+      "used_by": [
+        "scan.group.by_height",
+        "scan.io.sync_bridge"
+      ]
+    },
+    {
+      "id": "kernel.geometry.transform_exact",
+      "used_by": [
+        "scan.fit.rigid_landmarks",
+        "scan.align.icp",
+        "scan.io.sync_bridge"
+      ]
+    },
+    {
+      "id": "kernel.point.distance",
+      "used_by": [
+        "scan.measure.point_to_point",
+        "scan.fit.rigid_landmarks"
+      ]
+    },
+    {
+      "id": "kernel.frame.convert_point",
+      "used_by": [
+        "scan.group.by_height",
+        "scan.io.sync_bridge"
+      ]
+    },
+    {
+      "id": "kernel.vector.dot",
+      "used_by": [
+        "scan.fit.plane",
+        "scan.align.icp"
+      ]
+    },
+    {
+      "id": "kernel.vector.cross",
+      "used_by": [
+        "scan.fit.plane",
+        "scan.inspect.wall_thickness"
+      ]
+    }
+  ],
+  "planned_shared_primitives": [
+    {
+      "id": "kernel.math.symmetric_eigen3",
+      "status": "planned",
+      "group": "math.scalar",
+      "depends_on": [
+        "kernel.vector.dot"
+      ],
+      "inputs": [
+        "symmetric_3x3",
+        "tolerance"
+      ],
+      "outputs": [
+        "eigenvalues",
+        "eigenvectors",
+        "rank"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Repeated and near-singular matrices return bounded, deterministic results with explicit rank."
+    },
+    {
+      "id": "kernel.math.svd3",
+      "status": "planned",
+      "group": "math.scalar",
+      "depends_on": [
+        "kernel.vector.dot"
+      ],
+      "inputs": [
+        "matrix_3x3",
+        "tolerance"
+      ],
+      "outputs": [
+        "u",
+        "singular_values",
+        "v_transpose",
+        "rank"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Prove orthogonality, scale invariance and proper rotation with reflection handling."
+    },
+    {
+      "id": "kernel.math.robust_stats",
+      "status": "planned",
+      "group": "math.scalar",
+      "depends_on": [],
+      "inputs": [
+        "finite_values",
+        "weights",
+        "quantile_policy"
+      ],
+      "outputs": [
+        "count",
+        "mean",
+        "rms",
+        "quantiles",
+        "outliers"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Reject nonfinite data, bound allocation, compare weighted results to reference fixtures."
+    },
+    {
+      "id": "kernel.spatial.point_index",
+      "status": "planned",
+      "group": "geometry.point",
+      "depends_on": [
+        "kernel.bounds.from_points"
+      ],
+      "inputs": [
+        "points",
+        "revision",
+        "memory_budget"
+      ],
+      "outputs": [
+        "immutable_index",
+        "source_id_map"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Deterministic nearest queries, empty cloud support, bounded index memory and revision invalidation."
+    },
+    {
+      "id": "kernel.spatial.nearest_point",
+      "status": "planned",
+      "group": "geometry.point",
+      "depends_on": [
+        "kernel.spatial.point_index",
+        "kernel.point.distance"
+      ],
+      "inputs": [
+        "immutable_index",
+        "query_points",
+        "max_distance"
+      ],
+      "outputs": [
+        "closest_indices",
+        "distances"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Known-cloud nearest-neighbor fixtures, stable tie breaks and exact squared-distance threshold behavior."
+    },
+    {
+      "id": "kernel.geometry.nearest_mesh_point",
+      "status": "planned",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.triangulate",
+        "kernel.vector.dot",
+        "kernel.vector.cross"
+      ],
+      "inputs": [
+        "mesh",
+        "query_points",
+        "signed_policy",
+        "revision"
+      ],
+      "outputs": [
+        "closest_points",
+        "source_faces",
+        "distances",
+        "normals"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver",
+        "fab"
+      ],
+      "acceptance": "Exact point-to-triangle footpoint fixtures, stable original face IDs, nonmanifold sign policy and budgets."
+    },
+    {
+      "id": "kernel.fit.least_squares_plane",
+      "status": "planned",
+      "group": "geometry.surface",
+      "depends_on": [
+        "kernel.math.symmetric_eigen3",
+        "kernel.bounds.from_points"
+      ],
+      "inputs": [
+        "points",
+        "weights",
+        "tolerance"
+      ],
+      "outputs": [
+        "origin",
+        "normal",
+        "rms",
+        "inlier_mask"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Plane fixture fit, degenerate collinear cases and stable normal orientation tested."
+    },
+    {
+      "id": "kernel.fit.rigid_landmarks",
+      "status": "planned",
+      "group": "geometry.transforms",
+      "depends_on": [
+        "kernel.math.svd3",
+        "kernel.geometry.transform_exact",
+        "kernel.frame.convert_point"
+      ],
+      "inputs": [
+        "source_points",
+        "target_points",
+        "weights",
+        "allow_reflection"
+      ],
+      "outputs": [
+        "rigid_transform",
+        "residuals",
+        "rms"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Recover known rigid rotation and translation; reject scale/reflection unless explicitly permitted."
+    },
+    {
+      "id": "kernel.fit.basic_primitives",
+      "status": "planned",
+      "group": "geometry.surface",
+      "depends_on": [
+        "kernel.fit.least_squares_plane",
+        "kernel.math.symmetric_eigen3"
+      ],
+      "inputs": [
+        "points",
+        "primitive_type",
+        "tolerance"
+      ],
+      "outputs": [
+        "primitive",
+        "rms",
+        "inliers"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Plane, sphere, and cylinder fixtures expose units, degeneracies and residuals."
+    },
+    {
+      "id": "kernel.metrology.icp",
+      "status": "planned",
+      "group": "discipline.scan",
+      "depends_on": [
+        "kernel.spatial.nearest_point",
+        "kernel.geometry.nearest_mesh_point",
+        "kernel.fit.rigid_landmarks"
+      ],
+      "inputs": [
+        "source",
+        "target",
+        "initial_transform",
+        "sampling",
+        "outlier_policy",
+        "iterations",
+        "cancellation"
+      ],
+      "outputs": [
+        "transform",
+        "rms_history",
+        "convergence_reason"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Known offset/rotation fixture converges deterministically; robust stopping, outliers, cancellation and budgets."
+    },
+    {
+      "id": "kernel.metrology.deviation_field",
+      "status": "planned",
+      "group": "discipline.scan",
+      "depends_on": [
+        "kernel.geometry.nearest_mesh_point",
+        "kernel.math.robust_stats"
+      ],
+      "inputs": [
+        "nominal",
+        "actual_samples",
+        "alignment",
+        "signed_policy",
+        "tolerance"
+      ],
+      "outputs": [
+        "per_sample_deviation",
+        "source_ids",
+        "statistics"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver",
+        "fab"
+      ],
+      "acceptance": "Signed/unsigned deviations, datum frames, known tolerance histogram and stable provenance."
+    },
+    {
+      "id": "kernel.metrology.height_bands",
+      "status": "planned",
+      "group": "discipline.scan",
+      "depends_on": [
+        "kernel.frame.convert_point",
+        "kernel.bounds.from_points"
+      ],
+      "inputs": [
+        "objects",
+        "axis_or_frame",
+        "band_edges",
+        "inclusion_policy"
+      ],
+      "outputs": [
+        "group_ids",
+        "height_ranges",
+        "membership"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Deterministic height-band grouping with explicit boundary inclusion and document-unit conversions."
+    },
+    {
+      "id": "kernel.metrology.wall_thickness",
+      "status": "planned",
+      "group": "discipline.scan",
+      "depends_on": [
+        "kernel.geometry.nearest_mesh_point",
+        "kernel.mesh.edge_report"
+      ],
+      "inputs": [
+        "mesh",
+        "samples",
+        "ray_policy",
+        "tolerance"
+      ],
+      "outputs": [
+        "thicknesses",
+        "failure_flags",
+        "source_faces"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver",
+        "fab"
+      ],
+      "acceptance": "Closed-shell thickness fixtures, ambiguous open mesh handling, invalid rays, max thickness and budgets."
+    },
+    {
+      "id": "kernel.reconstruction.sections",
+      "status": "planned",
+      "group": "discipline.scan",
+      "depends_on": [
+        "kernel.geometry.nearest_mesh_point",
+        "kernel.polygon.boundary_loops"
+      ],
+      "inputs": [
+        "mesh_or_points",
+        "section_planes",
+        "tolerance"
+      ],
+      "outputs": [
+        "section_curves",
+        "source_ids",
+        "gaps"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Section intersects with stable IDs; coplanar and tangency cases produce explicit ambiguity."
+    },
+    {
+      "id": "kernel.reconstruction.surface_fit",
+      "status": "planned",
+      "group": "discipline.scan",
+      "depends_on": [
+        "kernel.reconstruction.sections",
+        "kernel.fit.least_squares_plane"
+      ],
+      "inputs": [
+        "sections",
+        "continuity",
+        "degree_bounds",
+        "tolerance"
+      ],
+      "outputs": [
+        "exact_surface",
+        "fit_error",
+        "diagnostics"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "acceptance": "Fit validates continuity, parameterization and round-trip to native editable NURBS."
+    },
+    {
+      "id": "kernel.geometry.mesh_offset",
+      "status": "planned",
+      "group": "geometry.solid",
+      "depends_on": [
+        "kernel.mesh.edge_report",
+        "kernel.mesh.face_analysis"
+      ],
+      "inputs": [
+        "mesh",
+        "distance",
+        "self_intersection_policy",
+        "tolerance"
+      ],
+      "outputs": [
+        "offset_mesh",
+        "closure_report",
+        "source_ids"
+      ],
+      "consumers": [
+        "scan",
+        "cad",
+        "orbweaver",
+        "fab"
+      ],
+      "acceptance": "Valid inward/outward offsets on closed fixtures; no silent self-intersections or lost provenance."
+    }
+  ],
+  "planned_tool_adapters": [
+    {
+      "id": "scan.mesh.diagnostics",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.mesh.validation_report",
+        "kernel.mesh.edge_report",
+        "kernel.mesh.face_analysis",
+        "kernel.polygon.boundary_loops"
+      ],
+      "tool_dependencies": [],
+      "acceptance": "Expose unchanged kernel report from Scan and CAD, with source face IDs and stable output."
+    },
+    {
+      "id": "scan.mesh.repair",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.mesh.repair",
+        "kernel.mesh.weld"
+      ],
+      "tool_dependencies": [
+        "scan.mesh.diagnostics"
+      ],
+      "acceptance": "Use existing repair transaction, preserve original mesh and source mappings, test undo and reinspection."
+    },
+    {
+      "id": "scan.measure.point_to_point",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.point.distance",
+        "kernel.frame.convert_point"
+      ],
+      "tool_dependencies": [],
+      "acceptance": "Report document units, input provenance, repeatable point-to-point measurement."
+    },
+    {
+      "id": "scan.fit.plane",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.fit.least_squares_plane"
+      ],
+      "tool_dependencies": [],
+      "acceptance": "Interactive and headless plane fit share identical RMS and normal orientation."
+    },
+    {
+      "id": "scan.fit.rigid_landmarks",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.fit.rigid_landmarks"
+      ],
+      "tool_dependencies": [
+        "scan.measure.point_to_point"
+      ],
+      "acceptance": "Matched survey points recover a verified transform without unrequested scaling."
+    },
+    {
+      "id": "scan.align.icp",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.metrology.icp"
+      ],
+      "tool_dependencies": [
+        "scan.fit.rigid_landmarks"
+      ],
+      "acceptance": "Known aligned scan fixture converges, records residual curve and yields deterministic revisioned output."
+    },
+    {
+      "id": "scan.inspect.deviation",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.metrology.deviation_field"
+      ],
+      "tool_dependencies": [
+        "scan.align.icp"
+      ],
+      "acceptance": "Tolerance-colored nominal-to-actual deviation matches numeric reports; no unapproved geometry edits."
+    },
+    {
+      "id": "scan.group.by_height",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.metrology.height_bands"
+      ],
+      "tool_dependencies": [],
+      "acceptance": "Rockwork groups preserve stable IDs and band bounds across CAD/API/OrbWeaver exports."
+    },
+    {
+      "id": "scan.inspect.wall_thickness",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver",
+        "fab"
+      ],
+      "kernel_dependencies": [
+        "kernel.metrology.wall_thickness"
+      ],
+      "tool_dependencies": [
+        "scan.mesh.diagnostics"
+      ],
+      "acceptance": "Printable shell fixture reports minimum thickness, invalid regions and units."
+    },
+    {
+      "id": "scan.reconstruct.sections",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.reconstruction.sections"
+      ],
+      "tool_dependencies": [
+        "scan.mesh.diagnostics"
+      ],
+      "acceptance": "Reproducible section locations and source mapping, respecting mesh openness."
+    },
+    {
+      "id": "scan.reconstruct.nurbs",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.reconstruction.surface_fit"
+      ],
+      "tool_dependencies": [
+        "scan.reconstruct.sections",
+        "scan.fit.plane"
+      ],
+      "acceptance": "Surface remains editable and meets reported fit residuals after save/reopen."
+    },
+    {
+      "id": "scan.mesh.offset",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "scan",
+        "cad",
+        "orbweaver",
+        "fab"
+      ],
+      "kernel_dependencies": [
+        "kernel.geometry.mesh_offset"
+      ],
+      "tool_dependencies": [
+        "scan.mesh.diagnostics"
+      ],
+      "acceptance": "Conservative closed output or explicit repair error, no hidden offset fallback."
+    },
+    {
+      "id": "cad.inspect.nominal_actual",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "cad",
+        "scan",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.metrology.deviation_field"
+      ],
+      "tool_dependencies": [
+        "scan.inspect.deviation"
+      ],
+      "acceptance": "Identical deviation IDs and colors whether invoked in CAD or Scan."
+    },
+    {
+      "id": "cad.measure.clearance",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "cad",
+        "scan",
+        "orbweaver"
+      ],
+      "kernel_dependencies": [
+        "kernel.geometry.nearest_mesh_point"
+      ],
+      "tool_dependencies": [
+        "scan.mesh.diagnostics"
+      ],
+      "acceptance": "Nearest-surface clearance fixture with datum frame and source ID checks."
+    },
+    {
+      "id": "orbweaver.scan.deviation",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "orbweaver",
+        "cad",
+        "scan"
+      ],
+      "kernel_dependencies": [
+        "kernel.metrology.deviation_field"
+      ],
+      "tool_dependencies": [
+        "scan.inspect.deviation"
+      ],
+      "acceptance": "Graph and direct command return the same ordered tree of signed distances."
+    },
+    {
+      "id": "fab.inspect.printability",
+      "status": "planned",
+      "kind": "shared_adapter",
+      "frontends": [
+        "fab",
+        "scan",
+        "cad"
+      ],
+      "kernel_dependencies": [
+        "kernel.metrology.wall_thickness",
+        "kernel.mesh.validation_report"
+      ],
+      "tool_dependencies": [
+        "scan.inspect.wall_thickness",
+        "scan.mesh.diagnostics"
+      ],
+      "acceptance": "Manufacturing checks share the geometry result but own print-process tolerance policy."
+    },
+    {
+      "id": "scan.io.sync_bridge",
+      "status": "planned",
+      "kind": "host_adapter",
+      "frontends": [
+        "scan",
+        "cad"
+      ],
+      "kernel_dependencies": [
+        "kernel.geometry.transform_exact",
+        "kernel.frame.convert_point"
+      ],
+      "tool_dependencies": [
+        "scan.mesh.diagnostics"
+      ],
+      "acceptance": "Adapter-only exchange preserves model ID, revision, units and source lineage; remote updates remain opt-in."
+    }
+  ]
+}

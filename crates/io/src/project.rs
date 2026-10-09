@@ -308,4 +308,58 @@ mod tests {
         assert!(crate::write(&source, "unsafe.dxf").is_err());
     }
 
+    #[test]
+    fn dftba_roundtrip_retains_document_and_block_local_histories() {
+        use buildercraft_kernel::{
+            FeatureHistoryEdit, FeatureScope, FeatureStep, FeatureInput,
+            FeatureTimeline, ToolValue, TreeMatchPolicy,
+        };
+        use std::collections::BTreeMap;
+        let mut d = Drawing::new_metric();
+        let mut block = cadcraft_doc::Block::new("Bracket");
+        block.description = "Parametric bracket definition".into();
+        d.blocks.insert("Bracket".into(), std::sync::Arc::new(block));
+        let mut local = FeatureTimeline::new(FeatureScope::BlockDefinition("Bracket".into())).unwrap();
+        local.apply(0, FeatureHistoryEdit::Append { step: FeatureStep {
+            id: 17,
+            name: "Parametric Midpoint".into(),
+            operation: "kernel.point.midpoint".into(),
+            inputs: BTreeMap::from([
+                ("a".into(), FeatureInput::Constant {
+                    value: ToolValue::Point(cadcraft_geom::Vec3::ZERO),
+                }),
+                ("b".into(), FeatureInput::Constant {
+                    value: ToolValue::Point(cadcraft_geom::Vec3::new(10., 0., 0.)),
+                }),
+            ]),
+            matching: TreeMatchPolicy::Shortest,
+            suppressed: false,
+        }}).unwrap();
+        d.feature_timelines.push(local);
+        d.feature_timelines.push(FeatureTimeline::new(FeatureScope::Document).unwrap());
+        let reopened = read(&write(&d).unwrap()).unwrap();
+        assert_eq!(reopened.feature_timelines, d.feature_timelines);
+        assert_eq!(reopened.feature_timelines[0].evaluate().unwrap().outputs.get(&17),
+            Some(&ToolValue::Point(cadcraft_geom::Vec3::new(5., 0., 0.))));
+    }
+
+    #[test]
+    fn missing_timeline_scope_is_invalid_and_old_dftba_defaults_to_no_histories() {
+        use buildercraft_kernel::{FeatureScope, FeatureTimeline};
+        let d = Drawing::new_metric();
+        let bytes = write(&d).unwrap();
+        let mut old: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        old.as_object_mut().unwrap().remove("feature_timelines");
+        assert!(read(&serde_json::to_vec(&old).unwrap()).is_ok_and(|d| d.feature_timelines.is_empty()));
+
+        let mut invalid = d.clone();
+        invalid.feature_timelines.push(FeatureTimeline::new(
+            FeatureScope::BlockDefinition("NotFound".into())
+        ).unwrap());
+        assert!(write(&invalid).is_err());
+
+        old["feature_timelines"] = serde_json::to_value(&invalid.feature_timelines).unwrap();
+        assert!(read(&serde_json::to_vec(&old).unwrap()).is_err());
+    }
+
 }

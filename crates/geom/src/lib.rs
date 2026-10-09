@@ -16,6 +16,7 @@ mod mat;
 pub mod nurbs3d;
 pub mod picking;
 pub mod region;
+pub mod snap3d;
 mod spline;
 mod vec;
 

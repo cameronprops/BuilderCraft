@@ -34,6 +34,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libegl1-mesa-dev
       - name: Verify installed toolchain
         run: bash tools/check-worldwright-rust.sh
+      - name: Validate shared cross-domain dependency register
+        run: python3 tools/check_cross_domain_dependencies.py
       - name: Test shared 3D geometry and command engine
         run: cargo test --locked -p cadcraft-geom -p cadcraft-engine -p buildercraft-kernel
       - name: Check Rust formatting

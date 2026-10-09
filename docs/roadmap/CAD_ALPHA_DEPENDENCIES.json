@@ -101,6 +101,20 @@
         "shared_exact_geometry"
       ],
       "scope": ".dftba native save/reopen with .bcraft compatibility; subsequent graph/history schema migration"
+    },
+    {
+      "id": "cross_domain_metrology_foundation",
+      "level": "L2-L6",
+      "status": "planned",
+      "depends_on": [
+        "point_input_snapping",
+        "shared_exact_geometry"
+      ],
+      "scope": "One reusable Rust geometry service for CAD, OrbWeaver, metrology and reverse engineering. Prerequisites: bounded 3D spatial index, closest-point queries, source-revision references, normals, datum frames and calibration/tolerance policy. See cross-domain register.",
+      "implementation": [
+        "docs/roadmap/CROSS_DOMAIN_KERNEL_DEPENDENCIES.json"
+      ],
+      "evidence": []
     }
   ],
   "existing_reuse": [
@@ -122,5 +136,6 @@
     "graph persistence and transactional bake",
     "aggregate memory/undo/cache and cancellation measurements",
     "cross-platform native builds; Haiku remains separately unvalidated"
-  ]
+  ],
+  "cross_domain_reuse_registry": "docs/roadmap/CROSS_DOMAIN_KERNEL_DEPENDENCIES.json"
 }

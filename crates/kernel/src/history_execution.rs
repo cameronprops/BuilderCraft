@@ -3,8 +3,9 @@
 use crate::{
     FeatureHistoryEdit, FeatureTimeline, FeatureEvaluation, FeatureInput,
     FeatureStatus, FeatureStepState, KernelError, Result, ToolRequest,
-    execute_shared_tool_with_matching, shared_tool_value_cost, valid_history_parameter,
+    execute_shared_tool_with_matching, shared_tool_value_cost,
 };
+use crate::feature_history::valid_history_parameter;
 use std::collections::BTreeMap;
 
 impl FeatureTimeline {

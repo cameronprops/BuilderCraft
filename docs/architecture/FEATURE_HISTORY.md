@@ -16,7 +16,7 @@ Fusion, without copying any proprietary source or requiring those products.
 
 The first increment creates the **history contract, scoped persistence and
 headless editing API**. It does not yet create solids from sketches or display
-a visual drag-and-drop timeline.
+a complete SolidWorks-style drag-and-drop design-history editor. An initial optional 3D workspace panel can already display steps, reorder, suppress, roll back and edit basic local parameters; full feature creation, dependency diagnostics and preview/bake remain later work.
 
 ## Scope and ownership
 

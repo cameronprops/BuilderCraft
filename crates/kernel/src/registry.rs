@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.vector.length",
+        label: "Vector Length",
+        category: "vector",
+        inputs: &["vector"],
+        outputs: &["length"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.scene.edit_polygon",
         label: "Edit Retained Polygon Mesh in Scene Transaction",
         category: "mesh",

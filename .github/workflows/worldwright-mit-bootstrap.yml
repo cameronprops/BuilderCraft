@@ -1,4 +1,4 @@
-name: Resolve reviewed MIT integration lockfile
+name: Resolve reviewed open-source integration lockfile
 
 # Temporary branch-only bootstrap. This workflow MUST NOT be merged into main.
 # Normal repository CI continues to use cargo --locked.

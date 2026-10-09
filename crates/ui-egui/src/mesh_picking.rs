@@ -81,8 +81,13 @@ pub fn pick_visible_mesh_face<'a>(
     }
     let toward_camera = camera.right().cross(camera.up());
     let mut best = None;
+    // The cap is shared across all visible objects, not separately per mesh.
+    // Picking and viewport drawing traverse the same bounded prefix.
+    let mut remaining_faces = MAX_VIEWPORT_FACES;
     for (object_id, mesh) in objects {
-        for (index, face) in mesh.faces.iter().take(MAX_VIEWPORT_FACES).enumerate() {
+        let visible_faces = remaining_faces.min(mesh.faces.len());
+        remaining_faces -= visible_faces;
+        for (index, face) in mesh.faces.iter().take(visible_faces).enumerate() {
             let triangles = match face {
                 PolygonFace::Triangle(indices) => [Some(*indices), None],
                 PolygonFace::Quad([a, b, c, d]) => [Some([*a, *b, *c]), Some([*a, *c, *d])],
@@ -174,6 +179,19 @@ mod tests {
         let mesh = square(0.);
         let hit = pick_visible_mesh_face([(7, &mesh)], top(), Vec3::new(1., 1., 0.), 30., Vec2::new(0., 0.));
         assert_eq!(hit.map(|hit| hit.object_id), Some(7));
+    }
+
+    #[test]
+    fn viewport_face_budget_is_global_across_visible_objects() {
+        let mut filled = square(0.);
+        filled.faces = vec![PolygonFace::Quad([0, 1, 2, 3]); MAX_VIEWPORT_FACES];
+        let second = PolygonMesh {
+            vertices: square(0.).vertices.iter().map(|v| Vec3::new(v.x + 10., v.y, v.z)).collect(),
+            faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
+        };
+        let under_second = Vec2::new(1100., 100.);
+        assert!(pick([(1, &filled), (2, &second)], under_second).is_none(), "undrawn faces must not be pickable");
+        assert_eq!(pick([(2, &second), (1, &filled)], under_second).map(|hit| hit.object_id), Some(2));
     }
 
     #[test]

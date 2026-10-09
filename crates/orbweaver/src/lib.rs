@@ -408,10 +408,8 @@ mod tests {
             outputs: vec![7],
         };
         let result = evaluate(&graph).unwrap();
-        let Some(ToolValue::Tree(tree)) = result.values.get(&7) else {
-            assert!(false, "matching must return a tree");
-            return;
-        };
+        assert!(matches!(result.values.get(&7), Some(ToolValue::Tree(_))), "matching must return a tree");
+        let Some(ToolValue::Tree(tree)) = result.values.get(&7) else { return };
         assert_eq!(
             tree.branches[0].items,
             vec![ToolValue::Pair(Box::new((Number(1.), Number(8.)))), ToolValue::Pair(Box::new((Number(2.), Number(8.)))),]
@@ -493,10 +491,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(computed.values.get(&11), Some(&direct));
-        let ToolValue::Tree(tree) = direct else {
-            assert!(false, "cross-reference must return a tree");
-            return;
-        };
+        assert!(matches!(direct, ToolValue::Tree(_)), "cross-reference must return a tree");
+        let ToolValue::Tree(tree) = direct else { return };
         assert_eq!(tree.branches[0].items, vec![Number(3.), Number(7.), Number(15.), Number(2.), Number(6.), Number(14.),]);
     }
 

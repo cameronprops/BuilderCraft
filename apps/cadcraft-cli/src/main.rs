@@ -20,7 +20,7 @@ const USAGE: &str = "usage:
   cadcraft-cli info FILE.dxf
   cadcraft-cli convert IN.dxf OUT.(dxf|svg|png)
   cadcraft-cli run [FILE | --sample | --metric] [--script TEXT] [--script-file F.scr] [--cmd 'id {json}']... [--save OUT.dxf] [--export OUT.(png|svg)]
-  cadcraft-cli visualize-watch IN.bcraft OUTDIR PROJECT_ID [--once]
+  cadcraft-cli visualize-watch IN.dftba OUTDIR PROJECT_ID [--once]
   cadcraft-cli commands [FILTER]
   cadcraft-cli mcp [--connect HOST:PORT]
   cadcraft-cli perf [N]

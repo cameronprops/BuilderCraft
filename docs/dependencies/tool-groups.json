@@ -366,6 +366,63 @@
         "spacing"
       ],
       "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.validate",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.validate",
+      "orbweaver_node": "orbweaver.tree.validate",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "native_tree_primitive",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.flatten",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.flatten",
+      "orbweaver_node": "orbweaver.tree.flatten",
+      "reference_inventory_id": "d03d067f85f162db0d0f",
+      "reference_name": "Flatten Tree",
+      "relation": "structural_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.graft",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.graft",
+      "orbweaver_node": "orbweaver.tree.graft",
+      "reference_inventory_id": "55802be9cae2b5ff2efe",
+      "reference_name": "Graft Tree",
+      "relation": "structural_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.simplify",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.simplify",
+      "orbweaver_node": "orbweaver.tree.simplify",
+      "reference_inventory_id": "b403e90696f22d088557",
+      "reference_name": "Simplify Tree",
+      "relation": "structural_subset",
+      "modifiers": [],
+      "graph_tree_parity": "not_verified"
+    },
+    {
+      "kernel_operation": "kernel.tree.match",
+      "group": "graph.list_tree",
+      "cad_command": "worldwright.tree.match",
+      "orbweaver_node": "orbweaver.tree.match",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "strict_branch_matching_subset",
+      "modifiers": [
+        "mode"
+      ],
+      "graph_tree_parity": "not_verified"
     }
   ],
   "tool_layers": [
@@ -984,5 +1041,6 @@
       "group": "graph.constraints"
     }
   ],
-  "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review."
+  "validation_policy": "No inferred dependency assignment updates implementation status or proves reference-tool parity. Unknowns remain unclassified for human review.",
+  "next_dependency_layer": "Typed geometry reference handles and tree-aware broadcast of numerical operations. Orb Weaver graph scalar DAG now supports tree-structural nodes but does not yet implicitly map all CAD math over tree items."
 }

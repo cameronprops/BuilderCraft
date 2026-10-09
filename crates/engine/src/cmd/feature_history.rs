@@ -22,11 +22,19 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-fn scope_from(p: &Value) -> Result<FeatureScope> {
+fn scope_from(session: &Session, p: &Value) -> Result<FeatureScope> {
     let value = p.get("scope")
         .ok_or_else(|| bad("worldwright.history", "scope is required"))?;
-    serde_json::from_value(value.clone())
-        .map_err(|e| bad("worldwright.history", e.to_string()))
+    let scope: FeatureScope = serde_json::from_value(value.clone())
+        .map_err(|e| bad("worldwright.history", e.to_string()))?;
+    // CAD block names are case-insensitive. Normalize to the canonical
+    // definition name before finding a local history or creating one.
+    if let FeatureScope::BlockDefinition(name) = &scope {
+        if let Some(block) = session.doc()?.block(name) {
+            return Ok(FeatureScope::BlockDefinition(block.name.clone()));
+        }
+    }
+    Ok(scope)
 }
 fn find<'a>(d: &'a cadcraft_doc::Drawing, scope: &FeatureScope) -> Result<&'a FeatureTimeline> {
     d.feature_timelines.iter().find(|history| &history.scope == scope)
@@ -34,7 +42,7 @@ fn find<'a>(d: &'a cadcraft_doc::Drawing, scope: &FeatureScope) -> Result<&'a Fe
 }
 
 fn create(session: &mut Session, p: &Value) -> Result<Value> {
-    let scope = scope_from(p)?;
+    let scope = scope_from(session, p)?;
     let history = FeatureTimeline::new(scope.clone())
         .map_err(|e| bad("worldwright.history.create", e.to_string()))?;
     // Validate ownership and duplicates BEFORE copy-on-write document edit.
@@ -47,7 +55,7 @@ fn create(session: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn edit(session: &mut Session, p: &Value) -> Result<Value> {
-    let scope = scope_from(p)?;
+    let scope = scope_from(session, p)?;
     let expected = p.get("expected_revision").and_then(Value::as_u64)
         .ok_or_else(|| bad("worldwright.history.edit", "expected_revision is required"))?;
     let change: FeatureHistoryEdit = serde_json::from_value(
@@ -79,12 +87,12 @@ fn list(session: &mut Session, _: &Value) -> Result<Value> {
     })).collect::<Vec<_>>()}))
 }
 fn inspect(session: &mut Session, p: &Value) -> Result<Value> {
-    let scope = scope_from(p)?;
+    let scope = scope_from(session, p)?;
     serde_json::to_value(find(session.doc()?, &scope)?)
         .map_err(|e| bad("worldwright.history.inspect", e.to_string()))
 }
 fn evaluate(session: &mut Session, p: &Value) -> Result<Value> {
-    let scope = scope_from(p)?;
+    let scope = scope_from(session, p)?;
     let result = find(session.doc()?, &scope)?.evaluate()
         .map_err(|e| bad("worldwright.history.evaluate", e.to_string()))?;
     serde_json::to_value(&result)

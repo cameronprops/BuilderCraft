@@ -160,6 +160,16 @@
       "scope": "File adapters and host interchange"
     },
     {
+      "id": "workflow.model_edit",
+      "tier": 6,
+      "requires": [
+        "workflow.document",
+        "workflow.selection",
+        "geometry.mesh_topology"
+      ],
+      "scope": "Transaction-bound native object edits, revisioned picks and undo/bake wrappers"
+    },
+    {
       "id": "graph.typed_ports",
       "tier": 1,
       "requires": [

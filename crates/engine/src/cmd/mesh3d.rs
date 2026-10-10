@@ -3,8 +3,8 @@
 use super::*;
 use buildercraft_kernel::{
     MeshDecimateOptions, PolygonMesh, PolygonPatchMode, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate,
-    polygon_mesh_boundary_loops, polygon_mesh_fill_hole_advanced, polygon_mesh_topology, polygon_mesh_triangulate,
-    polygon_mesh_validate, polygon_mesh_vertex_fans,
+    polygon_mesh_boundary_loops, polygon_mesh_fill_hole_advanced, polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate,
+    polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;

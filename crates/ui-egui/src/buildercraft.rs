@@ -41,7 +41,7 @@ fn load_exact_brep_wires(app: &mut CadApp, id: u64) -> Result<(), String> {
         }
         if chain.len() >= 2 { chains.push(chain); }
     }
-    if app.session.state().is_err_or(|st| st.uid != document_uid || st.revision != revision) {
+    if !app.session.state().is_ok_and(|st| st.uid == document_uid && st.revision == revision) {
         return Err("BRep source changed while generating preview".into());
     }
     app.ui.brep_preview = Some(BrepPreview {

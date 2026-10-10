@@ -4,7 +4,7 @@
 //! certificate or an exact NURBS curvature-continuity solver.
 use crate::{
     KernelError, PolygonAdvancedFillResult, PolygonFace, PolygonMesh, PolygonPatchMode, Result, polygon_mesh_fill_hole_advanced,
-    polygon_mesh_validate,
+    polygon_mesh_topology, polygon_mesh_validate,
 };
 use cadcraft_geom::Vec3;
 use std::collections::BTreeMap;

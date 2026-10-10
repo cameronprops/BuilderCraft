@@ -93,7 +93,7 @@ fn draw_mesh_patch_preview(
 ) {
     let light = cadcraft_geom::Vec3::new(0.2, 0.35, 0.91);
     for &[a, b, c] in &cache.triangles {
-        let Some((&p, &q, &r)) = cache
+        let Some(((&p, &q), &r)) = cache
             .vertices
             .get(a as usize)
             .zip(cache.vertices.get(b as usize))
@@ -759,7 +759,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
         && let Ok(d) = app.session.doc()
         && d.mesh3d.iter().any(|o| o.id == cache.object_id && o.visible && d.layer(&o.layer).is_none_or(|l| l.visible()))
     {
-        draw_mesh_patch_preview(&painter, project, cache);
+        draw_mesh_patch_preview(&painter, &project, cache);
         painter.text(
             rect.left_top() + egui::vec2(8., 8.),
             egui::Align2::LEFT_TOP,

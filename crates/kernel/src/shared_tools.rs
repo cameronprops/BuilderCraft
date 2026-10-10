@@ -766,15 +766,22 @@ mod tests {
         use crate::{PolygonFace, PolygonMesh};
         let geometry = PolygonMesh {
             vertices: vec![
-                Vec3::new(0.0, 0.0, 1.0), Vec3::new(0.0, 0.0, -1.0),
-                Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, -1.0, 0.0),
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
             ],
             faces: vec![
-                PolygonFace::Triangle([0, 2, 3]), PolygonFace::Triangle([0, 3, 4]),
-                PolygonFace::Triangle([0, 4, 5]), PolygonFace::Triangle([0, 5, 2]),
-                PolygonFace::Triangle([1, 3, 2]), PolygonFace::Triangle([1, 4, 3]),
-                PolygonFace::Triangle([1, 5, 4]), PolygonFace::Triangle([1, 2, 5]),
+                PolygonFace::Triangle([0, 2, 3]),
+                PolygonFace::Triangle([0, 3, 4]),
+                PolygonFace::Triangle([0, 4, 5]),
+                PolygonFace::Triangle([0, 5, 2]),
+                PolygonFace::Triangle([1, 3, 2]),
+                PolygonFace::Triangle([1, 4, 3]),
+                PolygonFace::Triangle([1, 5, 4]),
+                PolygonFace::Triangle([1, 2, 5]),
             ],
         };
         let source = geometry.clone();
@@ -786,15 +793,12 @@ mod tests {
             ("preserve_boundary".into(), ToolValue::Count(1)),
             ("crease_degrees".into(), ToolValue::Number(180.0)),
         ]);
-        let run = |operation: &str, inputs: BTreeMap<String, ToolValue>| {
-            execute_shared_tool(&ToolRequest { operation: operation.to_string(), inputs })
-        };
+        let run =
+            |operation: &str, inputs: BTreeMap<String, ToolValue>| execute_shared_tool(&ToolRequest { operation: operation.to_string(), inputs });
         let cad = run("worldwright.mesh.decimate", inputs.clone());
         let graph = run("orbweaver.mesh.decimate", inputs.clone());
         assert_eq!(cad, graph);
-        assert!(cad.is_ok_and(|mesh| {
-            matches!(mesh, ToolValue::Mesh(ref value) if value.faces.len() == 6)
-        }));
+        assert!(cad.is_ok_and(|mesh| { matches!(mesh, ToolValue::Mesh(ref value) if value.faces.len() == 6) }));
         assert_eq!(inputs.get("geometry"), Some(&ToolValue::Mesh(source)));
         let mut bad = inputs;
         bad.insert("preserve_boundary".into(), ToolValue::Count(2));

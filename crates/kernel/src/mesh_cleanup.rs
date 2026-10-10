@@ -214,11 +214,15 @@ mod tests {
             triangles: vec![[0, 1, 3], [3, 1, 0]],
         };
         let before = mesh.clone();
-        let compact = mesh_remove_unused_vertices(&mesh).unwrap();
-        let report = mesh_validation_report(&mesh, 0.0).unwrap();
-        assert_eq!(report.unused_vertex_indices, compact.removed_vertex_indices);
-        assert_eq!(report.unused_vertex_indices, vec![2, 4, 5]);
-        assert_eq!(report.duplicate_faces.duplicates, vec![[1, 0]]);
+        let compact = mesh_remove_unused_vertices(&mesh);
+        let report = mesh_validation_report(&mesh, 0.0);
+        assert!(compact.is_ok());
+        assert!(report.is_ok());
+        if let (Ok(compact), Ok(report)) = (compact, report) {
+            assert_eq!(report.unused_vertex_indices, compact.removed_vertex_indices);
+            assert_eq!(report.unused_vertex_indices, vec![2, 4, 5]);
+            assert_eq!(report.duplicate_faces.duplicates, vec![[1, 0]]);
+        }
         assert_eq!(mesh, before);
     }
 

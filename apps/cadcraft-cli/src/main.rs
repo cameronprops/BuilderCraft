@@ -11,6 +11,8 @@
 //! ```
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod openscad_bridge;
+
 use std::process::ExitCode;
 
 use cadcraft_engine::Session;
@@ -25,6 +27,7 @@ const USAGE: &str = "usage:
   cadcraft-cli mcp [--connect HOST:PORT]
   cadcraft-cli perf [N]
   cadcraft-cli sample (bracket|floorplan) OUT.(dxf|dwg|svg|png)
+  cadcraft-cli openscad-render --allow-execute --bin /path/to/openscad INPUT.scad OUTPUT.(stl|3mf)
   cadcraft-cli --version";
 
 fn install_io() {
@@ -320,6 +323,7 @@ fn main() -> ExitCode {
             _ => Err(USAGE.into()),
         },
         Some("visualize-watch") => visualize_watch(&rest),
+        Some("openscad-render") => openscad_bridge::render(&rest),
         Some("run") => run(&rest),
         Some("perf") => perf(&rest),
         Some("sample") => sample(&rest),

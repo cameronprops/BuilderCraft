@@ -9,8 +9,8 @@
 #![forbid(unsafe_code)]
 
 pub mod about;
-pub mod buildercraft;
 mod brep_display;
+pub mod buildercraft;
 pub mod canvas;
 pub mod chrome;
 pub mod cmdline;

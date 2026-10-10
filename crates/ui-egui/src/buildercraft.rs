@@ -317,8 +317,7 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
         if !solid.visible || document.layer(&solid.layer).is_some_and(|l| !l.visible() || l.locked) {
             return None;
         }
-        cache.pick_depth(camera, app.ui.center3d, app.ui.scale3d, offset)
-            .map(|depth| (solid.id, depth))
+        cache.pick_depth(camera, app.ui.center3d, app.ui.scale3d, offset).map(|depth| (solid.id, depth))
     });
     if let Some((id, depth)) = brep_hit
         && picked.is_none_or(|mesh| depth > mesh.depth + 1e-9)

@@ -27,15 +27,13 @@ fn point(value: &Value) -> Result<Vec3, String> {
     let values = value.as_array().filter(|v| v.len() == 3).ok_or("invalid exact BRep display point")?;
     let mut xyz = [0.; 3];
     for (index, coordinate) in xyz.iter_mut().enumerate() {
-        *coordinate = values[index].as_f64().filter(|v| v.is_finite() && v.abs() <= 1e12)
-            .ok_or("invalid exact BRep display coordinate")?;
+        *coordinate = values[index].as_f64().filter(|v| v.is_finite() && v.abs() <= 1e12).ok_or("invalid exact BRep display coordinate")?;
     }
     Ok(Vec3::new(xyz[0], xyz[1], xyz[2]))
 }
 
 fn points(value: &Value, limit: usize) -> Result<Vec<Vec3>, String> {
-    let array = value.as_array().filter(|v| !v.is_empty() && v.len() <= limit)
-        .ok_or("exact BRep display vertex budget exceeded or empty")?;
+    let array = value.as_array().filter(|v| !v.is_empty() && v.len() <= limit).ok_or("exact BRep display vertex budget exceeded or empty")?;
     array.iter().map(point).collect()
 }
 
@@ -58,7 +56,9 @@ impl BrepPreview {
         for face in indices.chunks_exact(3) {
             let mut triangle = [0; 3];
             for (slot, value) in triangle.iter_mut().zip(face) {
-                *slot = value.as_u64().and_then(|n| u32::try_from(n).ok())
+                *slot = value
+                    .as_u64()
+                    .and_then(|n| u32::try_from(n).ok())
                     .filter(|n| (*n as usize) < vertices.len())
                     .ok_or("exact BRep display triangle index is out of range")?;
             }
@@ -94,11 +94,13 @@ impl BrepPreview {
             return None;
         }
         let toward_camera = frame.right().cross(frame.up());
-        self.mesh.triangles.iter().filter_map(|triangle| {
-            crate::mesh_picking::hit_triangle_vertices(
-                &self.mesh.vertices, *triangle, frame, center, toward_camera, scale, cursor
-            )
-        }).max_by(f64::total_cmp)
+        self.mesh
+            .triangles
+            .iter()
+            .filter_map(|triangle| {
+                crate::mesh_picking::hit_triangle_vertices(&self.mesh.vertices, *triangle, frame, center, toward_camera, scale, cursor)
+            })
+            .max_by(f64::total_cmp)
     }
 
     /// Painter's algorithm for a single preview solid, with one egui Mesh
@@ -111,21 +113,35 @@ impl BrepPreview {
         }
         let camera_axis = frame.right().cross(frame.up());
         let light = camera_axis * 0.8 + frame.up() * 0.35 + frame.right() * -0.2;
-        let positions: Vec<_> = self.mesh.vertices.iter().map(|p| {
-            let q = frame.project(*p, center);
-            egui::pos2(rect.center().x + (q.x * scale) as f32, rect.center().y - (q.y * scale) as f32)
-        }).collect();
+        let positions: Vec<_> = self
+            .mesh
+            .vertices
+            .iter()
+            .map(|p| {
+                let q = frame.project(*p, center);
+                egui::pos2(rect.center().x + (q.x * scale) as f32, rect.center().y - (q.y * scale) as f32)
+            })
+            .collect();
         let base = if selected { [255., 175., 90.] } else { [125., 190., 230.] };
-        let colors: Vec<_> = self.mesh.normals.iter().map(|n| {
-            let intensity = (0.35 + 0.6 * n.dot(light).max(0.0)).clamp(0., 1.);
-            egui::Color32::from_rgb(
-                (base[0] * intensity) as u8, (base[1] * intensity) as u8, (base[2] * intensity) as u8
-            )
-        }).collect();
-        let mut order: Vec<(f64, usize)> = self.mesh.triangles.iter().enumerate().map(|(i, ids)| {
-            let depth = ids.iter().map(|id| (self.mesh.vertices[*id as usize] - center).dot(camera_axis)).sum::<f64>() / 3.0;
-            (depth, i)
-        }).collect();
+        let colors: Vec<_> = self
+            .mesh
+            .normals
+            .iter()
+            .map(|n| {
+                let intensity = (0.35 + 0.6 * n.dot(light).max(0.0)).clamp(0., 1.);
+                egui::Color32::from_rgb((base[0] * intensity) as u8, (base[1] * intensity) as u8, (base[2] * intensity) as u8)
+            })
+            .collect();
+        let mut order: Vec<(f64, usize)> = self
+            .mesh
+            .triangles
+            .iter()
+            .enumerate()
+            .map(|(i, ids)| {
+                let depth = ids.iter().map(|id| (self.mesh.vertices[*id as usize] - center).dot(camera_axis)).sum::<f64>() / 3.0;
+                (depth, i)
+            })
+            .collect();
         // Farthest first; deterministic ties avoid flickering during orbit.
         order.sort_unstable_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
         let mut mesh = egui::Mesh::default();
@@ -145,11 +161,7 @@ impl BrepPreview {
         }
         // A lightweight X-ray wire overlay is deliberate. Hidden-line removal
         // will use the common depth buffer, not BRep topology mutation.
-        let wire_color = if selected {
-            egui::Color32::from_rgb(255, 210, 125)
-        } else {
-            egui::Color32::from_rgb(65, 115, 150)
-        };
+        let wire_color = if selected { egui::Color32::from_rgb(255, 210, 125) } else { egui::Color32::from_rgb(65, 115, 150) };
         for chain in &self.mesh.edge_chains {
             for pair in chain.windows(2) {
                 let points = [pair[0], pair[1]].map(|p| {
@@ -192,13 +204,13 @@ mod tests {
     #[test]
     fn rejects_malformed_workers_and_unbounded_proxies() {
         let mut value = triangle();
-        value["mesh"]["indices"] = json!([0,1,9]);
+        value["mesh"]["indices"] = json!([0, 1, 9]);
         assert!(BrepPreview::from_worker(&value, 1, 1, 1).is_err());
         value = triangle();
-        value["mesh"]["normals"] = json!([[0.,0.,0.]]);
+        value["mesh"]["normals"] = json!([[0., 0., 0.]]);
         assert!(BrepPreview::from_worker(&value, 1, 1, 1).is_err());
         value = triangle();
-        value["mesh"]["indices"] = json!([0,0,2]);
+        value["mesh"]["indices"] = json!([0, 0, 2]);
         assert!(BrepPreview::from_worker(&value, 1, 1, 1).is_err());
         value = triangle();
         value["mesh"]["exact"] = json!(true);

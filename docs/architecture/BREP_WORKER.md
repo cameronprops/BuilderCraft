@@ -30,3 +30,56 @@ Optional `tolerance` for all operations defaults to 1e-7 document units. It curr
 **Known issue:** the native CellsBuilder fails when Boolean operands refer to identical shapes. The Rust adapter resolves proven identical objects/boxes; the worker resolves *byte-identical* persisted BRep requests before invoking C++. Equal volumes/bounds **do not** imply equal exact geometry. Other independently serialized yet geometrically identical BReps remain a regression target.
 
 **Remaining acceptance:** reliable triangle/trimmed face tessellation for shaded view, topology naming, trimmed NURBS conversion, shell validation, healing, large offsets/scale tolerance, general Boolean ambiguity, native + STEP material/units, atomic CAD engine command, save/reopen, GPL/LGPL and bundled OCCT binary distribution audit, Haiku native. A passing kernel test is not a successful whole-CAD alpha.
+
+
+## Document integration branch (2026-10-10)
+
+The stacked `feature/brep-document-native-integration` branch adds `Drawing.exact_breps`, a
+bounded Base64-preserved native OCCT archive for each solid, and optional
+`brep.*` CAD/API/CLI commands. This is **not signed off** until the native
+integration CI passes and an interactive shaded viewport renders the objects.
+
+- `brep.box`, `brep.sphere`, `brep.cylinder`, `brep.boolean`,
+  `brep.inspect`, `brep.preview`, `brep.to_step`, `brep.from_step`,
+  `brep.list`, `brep.set` execute through one isolated native worker.
+- Put the absolute path to the compiled binary in `WORLDWRIGHT_BREP_WORKER`,
+  or install the worker alongside the desktop executable. User-supplied
+  document or command JSON is never accepted as an executable pathname.
+- The host caps requests to 8 MiB and responses to 16 MiB, reads stdout
+  concurrently, terminates timed-out workers after 30 seconds, reports
+  child process failure and never changes document geometry on worker failure.
+- Up to 4 MiB binary data per exact solid, 64 MiB aggregate stored BRep bytes,
+  at most 64 returned solids and 4096 CAD 3D objects; data is copy-on-write
+  with `Arc` across undo snapshots. Existing `.bcraft` and `.dftba`
+  files missing `exact_breps` still load.
+- A `brep.boolean` never destructively mutates operands, and successful
+  multiple-solid results enter one undoable transaction. An empty Boolean
+  intersection produces no geometry and no document mutation.
+- Ordinary DXF, PDF, PNG and other unsupported exports reject exact-solid
+  documents rather than silently discarding BRep topology. `brep.to_step`
+  intentionally returns an exact Base64 STEP payload to the caller.
+- Only the OCCT worker can authenticate the meaning of native BRep bytes:
+  project load checks decoding, size, statistics and IDs, but does **not**
+  pretend to validate arbitrary topological content. Run `brep.inspect`
+  to reopen and check its shape through OCCT.
+
+### Native test path
+
+```sh
+cargo build --manifest-path evaluations/cadrum/Cargo.toml --bin worldwright-brep-worker
+export WORLDWRIGHT_BREP_WORKER="$PWD/evaluations/cadrum/target/debug/worldwright-brep-worker"
+cargo test --locked -p cadcraft-io exact_brep
+cargo test --locked -p cadcraft-engine exact_worker_document_undo_and_roundtrip_when_worker_is_installed -- --nocapture
+```
+
+On Windows, point the variable to the compiled `.exe`. The second fixture only
+executes when the variable is set; absence of the worker cannot be interpreted
+as an exact-BRep test pass.
+
+### Remaining blockers for a finished Rhino-depth alpha
+
+Full source/third-party binary licensing and deployment; source and destination
+tolerance equivalence; topological naming across revisions; edit-in-place and
+model browser/selection; native shaded viewport caching and depth; complex
+self-intersection/tangency/manifoldness stress cases; standalone Haiku native
+worker support. No routine should claim the full alpha closed before those gates.

@@ -17,7 +17,7 @@ fn switching_2d_3d_back_preserves_document_revision_selection_and_history() {
     let mut app = CadApp::new(Session::new(), Services::default());
     app.run("line", json!({"points": [[0.0, 0.0], [7.0, 3.0]]})).unwrap();
     let initial = snapshot(&app);
-    let selection = app.session.selection().to_vec();
+    let selection = app.session.selection();
     assert!(app.ui.view3d);
 
     let first = app.run("ui.workspace.2d", json!({})).unwrap();
@@ -25,7 +25,7 @@ fn switching_2d_3d_back_preserves_document_revision_selection_and_history() {
     assert!(!app.ui.view3d);
     assert_eq!(app.ui.toolset_tab, "Drafting");
     assert_eq!(snapshot(&app), initial);
-    assert_eq!(app.session.selection(), &selection);
+    assert_eq!(app.session.selection(), selection);
 
     let second = app.run("ui.workspace.3d", json!({})).unwrap();
     assert_eq!(second["workspace"], "3d");

@@ -1,7 +1,8 @@
 //! Shared polygonal sweep construction. A geometry-preview/mesh path, *not*
 //! a tolerance-certified trimmed NURBS/BRep Rhino Sweep replacement.
 //! Arc-length rail stations and frames are delegated to rail_frames.rs.
-use crate::{KernelError, PolygonFace, PolygonMesh, Result, polygon_mesh_validate, rail_frames, rail_frames::normalized};
+use crate::{KernelError, PolygonFace, PolygonMesh, Result, polygon_mesh_validate};
+use crate::rail_frames::{rail_frames as sample_rail, normalized};
 use cadcraft_geom::Vec3;
 
 const MAX_GRID:usize=256;
@@ -58,7 +59,7 @@ pub fn loft_section_grid(rows:&[Vec<Vec3>],closed_profile:bool,cap_ends:bool)->R
 pub fn sweep1_mesh(rail:&[Vec3],guide_up:Vec3,profile:&[Vec3],stations:usize,closed_profile:bool)->Result<PolygonMesh>{
     if profile.len()>MAX_GRID || profile.len()<if closed_profile{3}else{2} {return Err(KernelError::Invalid("sweep profile size"));}
     for &p in profile {ensure(p)?;}
-    let frames=rail_frames(rail,stations,guide_up)?;
+    let frames=sample_rail(rail,stations,guide_up)?;
     let first=frames[0];
     let mut rows=Vec::new();rows.try_reserve_exact(stations).map_err(|_|KernelError::Budget)?;
     for frame in frames {
@@ -84,10 +85,10 @@ pub fn sweep2_mesh(rail_a:&[Vec3],rail_b:&[Vec3],section:&[Vec3],stations:usize)
     if start.x.abs()>1e-8 || end.x-1.>1e-8 || (end.x-1.).abs()>1e-8 || start.y.abs()>1e-8 || end.y.abs()>1e-8 {
         return Err(KernelError::Invalid("sweep2 section endpoints must meet the rails"));
     }
-    let a=rail_frames(rail_a,stations,Vec3::Z)
-        .or_else(|_|rail_frames(rail_a,stations,Vec3::Y))?;
-    let b=rail_frames(rail_b,stations,Vec3::Z)
-        .or_else(|_|rail_frames(rail_b,stations,Vec3::Y))?;
+    let a=sample_rail(rail_a,stations,Vec3::Z)
+        .or_else(|_|sample_rail(rail_a,stations,Vec3::Y))?;
+    let b=sample_rail(rail_b,stations,Vec3::Z)
+        .or_else(|_|sample_rail(rail_b,stations,Vec3::Y))?;
     let mut rows=Vec::new();
     for (left,right) in a.iter().zip(b.iter()){
         let lateral=right.origin-left.origin;
@@ -110,7 +111,7 @@ pub fn pipe_mesh(rail:&[Vec3],guide_up:Vec3,start_radius:f64,end_radius:f64,wall
         start_radius>1e9||end_radius>1e9||!wall.is_finite()||wall<0.||wall>=start_radius.min(end_radius) {
         return Err(KernelError::Invalid("pipe radii / thickness"));
     }
-    let frames=rail_frames(rail,stations,guide_up)?;
+    let frames=sample_rail(rail,stations,guide_up)?;
     let mut rows=Vec::new();
     for (i,f) in frames.iter().enumerate(){
         let t=i as f64/(stations-1) as f64;

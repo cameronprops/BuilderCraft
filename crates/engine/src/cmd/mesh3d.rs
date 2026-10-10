@@ -2,7 +2,8 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_vertex_fans, polygon_mesh_triangulate, polygon_mesh_validate,
+    PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_triangulate,
+    polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -185,7 +186,8 @@ fn boundaries(s: &mut Session, p: &Value) -> Result<Value> {
 /// vertex IDs are revision-bound selection candidates for UI/Scan/OrbWeaver.
 fn topology(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
-    let include_all = p.get("include_all_vertices")
+    let include_all = p
+        .get("include_all_vertices")
         .map(|v| v.as_bool().ok_or_else(|| invalid("include_all_vertices must be boolean")))
         .transpose()?
         .unwrap_or(false);
@@ -393,11 +395,7 @@ mod tests {
     fn topology_query_selects_bow_tie_without_modifying_document() {
         let mut s = Session::new();
         let source = PolygonMesh {
-            vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.),
-                Vec3::new(0., 2., 0.), Vec3::new(-2., 0., 0.),
-                Vec3::new(0., -2., 0.),
-            ],
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(0., 2., 0.), Vec3::new(-2., 0., 0.), Vec3::new(0., -2., 0.)],
             faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])],
         };
         let id = s.execute("mesh3d.create", &json!({"name":"Pinched source", "mesh":source})).unwrap()["id"].as_u64().unwrap();
@@ -417,9 +415,7 @@ mod tests {
     fn split_edge_document_edit_is_undoable_and_rejects_stale_pick() {
         let mut s = Session::new();
         let source = PolygonMesh {
-            vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(1., 1., 0.),
-            ],
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(1., 1., 0.)],
             faces: vec![PolygonFace::Triangle([0, 1, 2])],
         };
         let id = s.execute("mesh3d.create", &json!({"name":"Split source", "mesh":source})).unwrap()["id"].as_u64().unwrap();

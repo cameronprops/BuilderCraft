@@ -45,9 +45,7 @@ pub fn polygon_mesh_split_edge(
         return Err(KernelError::Invalid("edge split fraction must lie inside (0, 1)"));
     }
     polygon_mesh_validate(mesh)?;
-    if edge_vertices[0] == edge_vertices[1]
-        || edge_vertices.iter().any(|&v| v as usize >= mesh.vertices.len())
-    {
+    if edge_vertices[0] == edge_vertices[1] || edge_vertices.iter().any(|&v| v as usize >= mesh.vertices.len()) {
         return Err(KernelError::Invalid("invalid selected edge"));
     }
     if mesh.vertices.len() >= MAX_EDIT_ELEMENTS || mesh.faces.len() >= MAX_EDIT_ELEMENTS {
@@ -56,16 +54,11 @@ pub fn polygon_mesh_split_edge(
 
     let topology = polygon_mesh_topology(mesh)?;
     let vertex_fans = polygon_mesh_vertex_fans(mesh)?;
-    if !topology.non_manifold_edges.is_empty()
-        || !topology.inconsistent_winding_edges.is_empty()
-        || !vertex_fans.non_manifold_vertices.is_empty()
-    {
+    if !topology.non_manifold_edges.is_empty() || !topology.inconsistent_winding_edges.is_empty() || !vertex_fans.non_manifold_vertices.is_empty() {
         return Err(KernelError::Invalid("repair non-manifold or inconsistent polygon topology before splitting"));
     }
     let canonical = [edge_vertices[0].min(edge_vertices[1]), edge_vertices[0].max(edge_vertices[1])];
-    let edge = topology.edges.iter()
-        .find(|edge| edge.vertices == canonical)
-        .ok_or(KernelError::Invalid("selected edge does not exist"))?;
+    let edge = topology.edges.iter().find(|edge| edge.vertices == canonical).ok_or(KernelError::Invalid("selected edge does not exist"))?;
     if edge.halfedges.is_empty() || edge.halfedges.len() > 2 {
         return Err(KernelError::Invalid("selected edge has invalid incidence"));
     }
@@ -95,14 +88,15 @@ pub fn polygon_mesh_split_edge(
                 return Err(KernelError::Invalid("quad edge split requires a quad-preserving subdivision operator"));
             }
         };
-        let side = (0..3).find(|&i| corners[i] == halfedge.from && corners[(i + 1) % 3] == halfedge.to)
+        let side = (0..3)
+            .find(|&i| corners[i] == halfedge.from && corners[(i + 1) % 3] == halfedge.to)
             .ok_or(KernelError::Invalid("edge and polygon winding mismatch"))?;
         let a = corners[side];
         let b = corners[(side + 1) % 3];
         let c = corners[(side + 2) % 3];
         result.faces[halfedge.face as usize] = PolygonFace::Triangle([a, new_vertex_index, c]);
-        let new_face_index = u32::try_from(mesh.faces.len().checked_add(additions.len()).ok_or(KernelError::Budget)?)
-            .map_err(|_| KernelError::Budget)?;
+        let new_face_index =
+            u32::try_from(mesh.faces.len().checked_add(additions.len()).ok_or(KernelError::Budget)?).map_err(|_| KernelError::Budget)?;
         additions.push(PolygonFace::Triangle([new_vertex_index, b, c]));
         affected_faces.push(halfedge.face);
         new_face_indices.push(new_face_index);
@@ -117,14 +111,7 @@ pub fn polygon_mesh_split_edge(
     if !after_fans.non_manifold_vertices.is_empty() {
         return Err(KernelError::Invalid("split produced non-manifold vertex fan"));
     }
-    Ok(PolygonEdgeSplitResult {
-        mesh: result,
-        revision: next_revision,
-        selected_edge: canonical,
-        new_vertex_index,
-        affected_faces,
-        new_face_indices,
-    })
+    Ok(PolygonEdgeSplitResult { mesh: result, revision: next_revision, selected_edge: canonical, new_vertex_index, affected_faces, new_face_indices })
 }
 
 #[cfg(test)]
@@ -158,10 +145,7 @@ mod tests {
             assert_eq!(result.affected_faces, vec![0]);
             assert_eq!(result.new_face_indices, vec![1]);
             assert_eq!(result.mesh.vertices[3], Vec3::new(1., 0., 0.));
-            assert_eq!(result.mesh.faces, vec![
-                PolygonFace::Triangle([0, 3, 2]),
-                PolygonFace::Triangle([3, 1, 2]),
-            ]);
+            assert_eq!(result.mesh.faces, vec![PolygonFace::Triangle([0, 3, 2]), PolygonFace::Triangle([3, 1, 2]),]);
             assert!(polygon_mesh_vertex_fans(&result.mesh).is_ok_and(|r| r.non_manifold_vertices.is_empty()));
         }
         assert_eq!(source.faces.len(), 1);
@@ -178,8 +162,7 @@ mod tests {
             assert_eq!(result.mesh.faces.len(), 4);
             assert_eq!(result.mesh.vertices.len(), 5);
             let topo = polygon_mesh_topology(&result.mesh);
-            assert!(topo.is_ok_and(|t| t.boundary_edges.len() == 4
-                && t.inconsistent_winding_edges.is_empty() && t.non_manifold_edges.is_empty()));
+            assert!(topo.is_ok_and(|t| t.boundary_edges.len() == 4 && t.inconsistent_winding_edges.is_empty() && t.non_manifold_edges.is_empty()));
             assert!(polygon_mesh_vertex_fans(&result.mesh).is_ok_and(|r| r.non_manifold_vertices.is_empty()));
         }
     }
@@ -194,8 +177,7 @@ mod tests {
     fn rejects_stale_picks_and_invalid_fractions_without_mutating() {
         let source = triangle();
         let copy = source.clone();
-        assert_eq!(polygon_mesh_split_edge(&source, 5, 4, [0, 1], 0.5),
-            Err(KernelError::Conflict { expected: 4, actual: 5 }));
+        assert_eq!(polygon_mesh_split_edge(&source, 5, 4, [0, 1], 0.5), Err(KernelError::Conflict { expected: 4, actual: 5 }));
         for f in [0., 1., -1., 1e-8, f64::NAN, f64::INFINITY] {
             assert!(polygon_mesh_split_edge(&source, 0, 0, [0, 1], f).is_err());
         }
@@ -213,10 +195,7 @@ mod tests {
     #[test]
     fn refuses_quad_edges_instead_of_destroying_quad_identity() {
         let source = PolygonMesh {
-            vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.),
-                Vec3::new(1., 1., 0.), Vec3::new(0., 1., 0.),
-            ],
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.), Vec3::new(1., 1., 0.), Vec3::new(0., 1., 0.)],
             faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
         };
         let original = source.clone();

@@ -505,77 +505,15 @@
       ]
     },
     {
-      "kernel_operation": "kernel.solid.pushpull_quad",
-      "group": "geometry.solid",
-      "cad_command": "worldwright.pushpull",
-      "orbweaver_node": "orbweaver.solid.pushpull_quad",
-      "reference_inventory_id": null,
-      "reference_name": "PushPull Isolated Quad into Solid",
-      "relation": "bounded_alpha_subset",
-      "modifiers": [
-        "distance"
-      ],
-      "graph_tree_parity": "not_verified",
-      "tree_item_broadcast": false
-    },
-    {
-      "kernel_operation": "kernel.surface.flow_patch",
-      "group": "geometry.surface",
-      "cad_command": "worldwright.flow_along_srf",
-      "orbweaver_node": "orbweaver.surface.flow_patch",
-      "reference_inventory_id": null,
-      "reference_name": "Flow Along Bilinear Surface Patch",
-      "relation": "bounded_alpha_subset",
-      "modifiers": [
-        "base",
-        "target"
-      ],
-      "graph_tree_parity": "not_verified",
-      "tree_item_broadcast": false
-    },
-    {
-      "kernel_operation": "kernel.project.plane",
-      "group": "geometry.intersections",
-      "cad_command": "worldwright.project",
-      "orbweaver_node": "orbweaver.project.plane",
-      "reference_inventory_id": null,
-      "reference_name": "Directional Project to Plane",
-      "relation": "bounded_alpha_subset",
-      "modifiers": [
-        "origin",
-        "normal",
-        "direction"
-      ],
-      "graph_tree_parity": "not_verified",
-      "tree_item_broadcast": false
-    },
-    {
-      "kernel_operation": "kernel.array.path",
+      "kernel_operation": "kernel.array.linear",
       "group": "geometry.transforms",
-      "cad_command": "worldwright.array.path",
-      "orbweaver_node": "orbweaver.array.path",
+      "cad_command": "worldwright.array.linear",
+      "orbweaver_node": "orbweaver.array.linear",
       "reference_inventory_id": null,
-      "reference_name": "Array Along Path",
+      "reference_name": "Linear Array",
       "relation": "bounded_alpha_subset",
       "modifiers": [
-        "path",
-        "count"
-      ],
-      "graph_tree_parity": "not_verified",
-      "tree_item_broadcast": false
-    },
-    {
-      "kernel_operation": "kernel.array.polar",
-      "group": "geometry.transforms",
-      "cad_command": "worldwright.array.polar",
-      "orbweaver_node": "orbweaver.array.polar",
-      "reference_inventory_id": null,
-      "reference_name": "Polar Array",
-      "relation": "bounded_alpha_subset",
-      "modifiers": [
-        "center",
-        "axis",
-        "sweep_degrees",
+        "step",
         "count"
       ],
       "graph_tree_parity": "not_verified",
@@ -601,16 +539,78 @@
       "tree_item_broadcast": false
     },
     {
-      "kernel_operation": "kernel.array.linear",
+      "kernel_operation": "kernel.array.polar",
       "group": "geometry.transforms",
-      "cad_command": "worldwright.array.linear",
-      "orbweaver_node": "orbweaver.array.linear",
+      "cad_command": "worldwright.array.polar",
+      "orbweaver_node": "orbweaver.array.polar",
       "reference_inventory_id": null,
-      "reference_name": "Linear Array",
+      "reference_name": "Polar Array",
       "relation": "bounded_alpha_subset",
       "modifiers": [
-        "step",
+        "center",
+        "axis",
+        "sweep_degrees",
         "count"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.array.path",
+      "group": "geometry.transforms",
+      "cad_command": "worldwright.array.path",
+      "orbweaver_node": "orbweaver.array.path",
+      "reference_inventory_id": null,
+      "reference_name": "Array Along Path",
+      "relation": "bounded_alpha_subset",
+      "modifiers": [
+        "path",
+        "count"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.project.plane",
+      "group": "geometry.intersections",
+      "cad_command": "worldwright.project",
+      "orbweaver_node": "orbweaver.project.plane",
+      "reference_inventory_id": null,
+      "reference_name": "Directional Project to Plane",
+      "relation": "bounded_alpha_subset",
+      "modifiers": [
+        "origin",
+        "normal",
+        "direction"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.surface.flow_patch",
+      "group": "geometry.surface",
+      "cad_command": "worldwright.flow_along_srf",
+      "orbweaver_node": "orbweaver.surface.flow_patch",
+      "reference_inventory_id": null,
+      "reference_name": "Flow Along Bilinear Surface Patch",
+      "relation": "bounded_alpha_subset",
+      "modifiers": [
+        "base",
+        "target"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.solid.pushpull_quad",
+      "group": "geometry.solid",
+      "cad_command": "worldwright.pushpull",
+      "orbweaver_node": "orbweaver.solid.pushpull_quad",
+      "reference_inventory_id": null,
+      "reference_name": "PushPull Isolated Quad into Solid",
+      "relation": "bounded_alpha_subset",
+      "modifiers": [
+        "distance"
       ],
       "graph_tree_parity": "not_verified",
       "tree_item_broadcast": false

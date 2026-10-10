@@ -22,6 +22,7 @@ pub enum ToolType {
     MatchMode,
     Pair,
     Mesh,
+    Surface,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -37,6 +38,7 @@ pub enum ToolValue {
     MatchMode(TreeMatchPolicy),
     Pair(Box<(ToolValue, ToolValue)>),
     Mesh(crate::PolygonMesh),
+    Surface(cadcraft_geom::nurbs3d::Surface),
 }
 
 impl ToolValue {
@@ -51,6 +53,7 @@ impl ToolValue {
             Self::MatchMode(_) => ToolType::MatchMode,
             Self::Pair(_) => ToolType::Pair,
             Self::Mesh(_) => ToolType::Mesh,
+            Self::Surface(_) => ToolType::Surface,
         }
     }
 }
@@ -112,6 +115,21 @@ const PATCH_FLOW: &[ToolPort] = &[
     ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "base", kind: ToolType::Polyline, modifier: true },
     ToolPort { name: "target", kind: ToolType::Polyline, modifier: true },
+];
+const MESH_PROJECT: &[ToolPort] = &[
+    ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "target", kind: ToolType::Mesh, modifier: true },
+    ToolPort { name: "direction", kind: ToolType::Vector, modifier: true },
+];
+const NURBS_PROJECT: &[ToolPort] = &[
+    ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "target", kind: ToolType::Surface, modifier: true },
+    ToolPort { name: "direction", kind: ToolType::Vector, modifier: true },
+];
+const NURBS_FLOW: &[ToolPort] = &[
+    ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "base", kind: ToolType::Surface, modifier: true },
+    ToolPort { name: "target", kind: ToolType::Surface, modifier: true },
 ];
 const QUAD_PUSHPULL: &[ToolPort] =
     &[ToolPort { name: "face", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "distance", kind: ToolType::Number, modifier: true }];
@@ -294,6 +312,21 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         output: ToolType::Mesh,
     },
     SharedToolContract {
+        operation: "kernel.project.mesh", cad_command: "worldwright.project.mesh", orbweaver_node: "orbweaver.project.mesh",
+        dependency_group: "geometry.intersections", prerequisites: &["kernel.polygon.triangulate", "kernel.vector.dot"],
+        inputs: MESH_PROJECT, output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.project.nurbs", cad_command: "worldwright.project.nurbs", orbweaver_node: "orbweaver.project.nurbs",
+        dependency_group: "geometry.intersections", prerequisites: &["kernel.geometry.tessellate", "kernel.vector.dot"],
+        inputs: NURBS_PROJECT, output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.surface.flow_nurbs", cad_command: "worldwright.flow_along_nurbs", orbweaver_node: "orbweaver.surface.flow_nurbs",
+        dependency_group: "geometry.surface", prerequisites: &["kernel.vector.cross", "kernel.vector.dot"],
+        inputs: NURBS_FLOW, output: ToolType::Polyline,
+    },
+    SharedToolContract {
         operation: "kernel.tree.validate",
         cad_command: "worldwright.tree.validate",
         orbweaver_node: "orbweaver.tree.validate",
@@ -382,6 +415,18 @@ fn polyline<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&
     }
 }
 
+fn mesh<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a crate::PolygonMesh> {
+    match inputs.get(name) {
+        Some(ToolValue::Mesh(mesh)) => Ok(mesh),
+        _ => Err(KernelError::Invalid("native polygon mesh input")),
+    }
+}
+fn surface<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a cadcraft_geom::nurbs3d::Surface> {
+    match inputs.get(name) {
+        Some(ToolValue::Surface(s)) => Ok(s),
+        _ => Err(KernelError::Invalid("NURBS surface input")),
+    }
+}
 fn tree<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a DataTree<ToolValue>> {
     match inputs.get(name) {
         Some(ToolValue::Tree(value)) => Ok(value),
@@ -411,6 +456,11 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
             } else {
                 Ok(points.len().max(1))
             }
+        }
+        ToolValue::Surface(surface) => {
+            if !surface.valid() { return Err(KernelError::Invalid("invalid rational surface input")); }
+            let count=surface.rows.iter().try_fold(0usize, |n,row| n.checked_add(row.control.len()).ok_or(KernelError::Budget))?;
+            if count > MAX_TREE_ITEMS { Err(KernelError::Budget) } else { Ok(count) }
         }
         ToolValue::Mesh(mesh) => {
             crate::polygon_mesh_validate(mesh)?;
@@ -583,6 +633,9 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.solid.pushpull_quad" => {
             Ok(ToolValue::Mesh(crate::pushpull_quad(polyline(&request.inputs, "face")?, number(&request.inputs, "distance")?)?))
         }
+        "kernel.project.mesh" => Ok(ToolValue::Polyline(crate::project_onto_mesh(polyline(&request.inputs, "geometry")?, mesh(&request.inputs, "target")?, vector(&request.inputs, "direction")?)?)),
+        "kernel.project.nurbs" => Ok(ToolValue::Polyline(crate::project_onto_nurbs(polyline(&request.inputs, "geometry")?, surface(&request.inputs, "target")?, vector(&request.inputs, "direction")?)?)),
+        "kernel.surface.flow_nurbs" => Ok(ToolValue::Polyline(crate::flow_along_nurbs(polyline(&request.inputs, "geometry")?, surface(&request.inputs, "base")?, surface(&request.inputs, "target")?)?)),
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.midpoint" => Ok(ToolValue::Point(point_midpoint(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.interpolate" => {
@@ -638,7 +691,7 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 22);
+        assert_eq!(SHARED_TOOLS.len(), 25);
     }
     #[test]
     fn distance_is_shared_across_both_entry_points() {
@@ -669,7 +722,7 @@ mod tests {
         let original = ToolValue::Tree(tree.clone());
         let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
-        assert_eq!(SHARED_TOOLS.len(), 22);
+        assert_eq!(SHARED_TOOLS.len(), 25);
         let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();
         assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());

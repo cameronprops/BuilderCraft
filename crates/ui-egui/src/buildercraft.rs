@@ -497,9 +497,11 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 preview_limited = true;
             }
             let picked = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
-            let preview_source = app.ui.mesh_simplify_preview.as_ref().is_some_and(|preview| {
-                app.session.state().is_ok_and(|st| preview.matches(st.uid, st.revision, object.id))
-            });
+            let preview_source = app
+                .ui
+                .mesh_simplify_preview
+                .as_ref()
+                .is_some_and(|preview| app.session.state().is_ok_and(|st| preview.matches(st.uid, st.revision, object.id)));
             // Source remains visible and selectable. Dim it while showing a
             // clearly distinct, non-pickable derived wire overlay.
             let color = if preview_source {

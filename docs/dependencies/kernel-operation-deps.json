@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 57,
-    "explicit_dependencies_mapped": 39,
+    "total": 58,
+    "explicit_dependencies_mapped": 40,
     "pending_source_review": 18,
-    "paired": 25
+    "paired": 26
   },
   "entries": [
     {
@@ -559,6 +559,18 @@
       ],
       "registry_category": "surface",
       "dependency_basis": "source_inspected_or_dataflow",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.mesh.decimate",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.validate",
+        "kernel.polygon.triangulate",
+        "kernel.polygon.topology"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
       "paired_cad_graph": true
     }
   ]

@@ -1,0 +1,60 @@
+name: WorldWright exact BRep document integration
+on:
+  push:
+    branches:
+      - feature/brep-document-native-integration
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worldwright-brep-document-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  exact-document-and-worker:
+    name: ${{ matrix.os }} OCCT document, STEP and undo integration
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - name: Linux CAD linker dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y pkg-config build-essential libxkbcommon-dev libwayland-dev libegl1-mesa-dev
+      # Format validation is separate. Early build probes normalize ephemeral
+      # checkout only; never push modified source from CI.
+      - name: Report committed Rust formatting differences
+        shell: bash
+        run: |
+          cargo fmt --all -- --check || echo "::warning::Committed source requires rustfmt before merge"
+          cargo fmt --manifest-path evaluations/cadrum/Cargo.toml --all -- --check || echo "::warning::Isolated candidate requires rustfmt"
+      - name: Format ephemeral checkout for compilation only
+        shell: bash
+        run: |
+          cargo fmt --all
+          cargo fmt --manifest-path evaluations/cadrum/Cargo.toml --all
+          git diff --stat
+      - name: Build exact OCCT worker executable
+        run: cargo build --manifest-path evaluations/cadrum/Cargo.toml --bin worldwright-brep-worker
+      - name: Run exact OCCT worker golden tests
+        run: cargo test --manifest-path evaluations/cadrum/Cargo.toml --all-targets -- --test-threads=1
+      - name: Run native CAD exact BRep save, Boolean and undo smoke
+        shell: bash
+        run: |
+          suffix=""
+          if [ "${{ runner.os }}" = "Windows" ]; then suffix=".exe"; fi
+          export WORLDWRIGHT_BREP_WORKER="$GITHUB_WORKSPACE/evaluations/cadrum/target/debug/worldwright-brep-worker${suffix}"
+          test -f "$WORLDWRIGHT_BREP_WORKER"
+          cargo test --locked -p cadcraft-engine exact_worker_document_undo_and_roundtrip_when_worker_is_installed -- --nocapture
+      - name: Validate all Rust workspace tests
+        run: cargo test --locked --workspace
+      - name: Strict workspace Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings

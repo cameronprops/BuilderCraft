@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "purpose": "Executable minimal Worldwright alpha command and native GUI acceptance contract. A registered command is not automatically a verified alpha feature.",
+  "reviewed_from": "main at dfc1d9a9f4bfdb62b20ced2f966690fa4307fc2f, 2026-10-09",
+  "compiled_smoke_script": "tools/alpha_compiled_smoke.py",
+  "ui_workspace_regressions": "crates/ui-egui/tests/workspace_navigation.rs",
+  "categories": [
+    {
+      "id": "application_boot",
+      "priority": "P0",
+      "commands": [
+        "cadcraft --version",
+        "cadcraft-cli --version",
+        "cadcraft-cli commands"
+      ],
+      "required_workflow": "Both real native executables compile; version/command catalog respond without display server",
+      "automation": "compiled_smoke"
+    },
+    {
+      "id": "document_lifecycle",
+      "priority": "P0",
+      "commands": [
+        "new",
+        "open",
+        "saveas",
+        "qsave",
+        "undo",
+        "redo",
+        "document.switch"
+      ],
+      "required_workflow": "Create blank drawing, edit, undo/redo, save/reopen .dftba, preserve exact 2D/3D and object names; reopen legacy .bcraft",
+      "automation": "compiled_smoke_partial"
+    },
+    {
+      "id": "two_dimensional_authoring",
+      "priority": "P0",
+      "commands": [
+        "line",
+        "circle",
+        "pline",
+        "spline",
+        "rectang",
+        "layer.new",
+        "layer.current"
+      ],
+      "required_workflow": "Draw in 2D from a blank document; show coordinates and editable layers; save/reopen",
+      "automation": "compiled_smoke_partial"
+    },
+    {
+      "id": "three_dimensional_authoring",
+      "priority": "P0",
+      "commands": [
+        "nurbs.curve3d",
+        "nurbs.surface",
+        "geometry3d.list",
+        "geometry3d.preview",
+        "geometry3d.transform",
+        "geometry3d.controlpoint"
+      ],
+      "required_workflow": "Author exact curve and control surface; preview/edit/transform without replacing exact source with tessellation",
+      "automation": "compiled_smoke_partial"
+    },
+    {
+      "id": "mesh_authoring",
+      "priority": "P0",
+      "commands": [
+        "mesh3d.create",
+        "mesh3d.list",
+        "mesh3d.preview",
+        "mesh3d.boundaries",
+        "mesh3d.edit"
+      ],
+      "required_workflow": "Create/edit/select polygon meshes; inspect boundaries, reject degeneracy and preserve source faces",
+      "automation": "compiled_smoke_partial"
+    },
+    {
+      "id": "selection_snapping_viewport",
+      "priority": "P0",
+      "commands": [
+        "geometry3d.pick",
+        "geometry3d.select",
+        "geometry3d.snap",
+        "geometry3d.cplane.point",
+        "geometry3d.line"
+      ],
+      "required_workflow": "3D viewport orbit/pan/zoom, click/toggle selection and transform gizmo, snapping and construction plane",
+      "automation": "unit_tests_and_manual_viewport"
+    },
+    {
+      "id": "object_management",
+      "priority": "P0",
+      "commands": [
+        "layer.new",
+        "layer.current",
+        "model.create",
+        "model.list",
+        "model.rename",
+        "model.visible"
+      ],
+      "required_workflow": "Maintain layers and hierarchy on save/reopen with stable identity",
+      "automation": "catalog_and_document_test"
+    },
+    {
+      "id": "graph_execution",
+      "priority": "P0",
+      "commands": [
+        "worldwright.tool.list",
+        "worldwright.tool.run",
+        "worldwright.point.distance",
+        "worldwright.history.create",
+        "worldwright.history.evaluate"
+      ],
+      "required_workflow": "Same typed geometry math through CAD and OrbWeaver, deterministic graph evaluation, visible editable graph canvas and bake into document",
+      "automation": "catalog_and_orbweaver_tests_canvas_manual_pending"
+    },
+    {
+      "id": "formats",
+      "priority": "P0",
+      "commands": [
+        "open",
+        "saveas",
+        "export"
+      ],
+      "required_workflow": ".dftba native roundtrip and .bcraft migration; at least DXF and STL/OBJ interchange with measured loss, no false claim of exact B-Rep exchange",
+      "automation": "dftba_and_bcraft_smoke_only"
+    },
+    {
+      "id": "native_ui",
+      "priority": "P0",
+      "commands": [
+        "ui.workspace.2d",
+        "ui.workspace.3d",
+        "ui.workspace.previous",
+        "ui.toggle.cmdline"
+      ],
+      "required_workflow": "Start native window; 2D and 3D palettes share one command line, no document revision on workspace change; stable selection, keyboard focus, viewport/gizmo, menus and accessibility settings",
+      "automation": "headless_ui_state_tests_and_human_session"
+    }
+  ],
+  "blocking_gaps": [
+    "Validate the native GUI on actual Windows, macOS and Linux displays; building + --version is not a GUI interaction test",
+    "OrbWeaver visual graph canvas and persistent graph editing must be exercised in the compiled UI",
+    "Verify basic solid creation/editing and expected Boolean/trim operations against concrete geometry fixtures",
+    "Complete and test STL/OBJ import/export and surface/mesh attribute fidelity through GUI/API",
+    "Measure reopen/undo/history reproducibility and memory under a representative mixed 2D/3D model",
+    "Haiku native build remains an experimental target"
+  ],
+  "release_decision": "FAIL unless all P0 workflows and native UI review are verified. Compiled smoke passing alone must not be described as alpha-complete."
+}

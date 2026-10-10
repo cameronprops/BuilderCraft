@@ -22,6 +22,7 @@ pub mod icons;
 pub mod layers;
 pub mod menus;
 pub mod mesh_picking;
+pub mod orbweaver_canvas;
 pub mod palettes;
 pub mod parametric;
 pub mod quick;
@@ -144,6 +145,7 @@ pub struct CadApp {
     pub ui: UiState,
     pub services: Services,
     pub canvas: canvas::CanvasState,
+    pub orb_canvas: orbweaver_canvas::OrbCanvas,
     pub cmd: cmdline::CmdLine,
     pub status: Option<(String, f64)>,
     pub integrated_titlebar: bool,
@@ -164,6 +166,7 @@ impl CadApp {
             ui: UiState::default(),
             services,
             canvas: canvas::CanvasState::default(),
+            orb_canvas: orbweaver_canvas::OrbCanvas::default(),
             cmd: cmdline::CmdLine::default(),
             status: None,
             integrated_titlebar: false,

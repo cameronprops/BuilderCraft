@@ -1,0 +1,31 @@
+name: OrbWeaver visual alpha validation
+
+on:
+  push:
+    branches:
+      - feature/orbweaver-snarl-ui
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-editor:
+    name: Linux Rust 1.95 OrbWeaver editor compile, tests and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - name: Install native UI dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libegl1-mesa-dev
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Build and test graph and UI
+        run: cargo test --locked -p orbweaver -p cadcraft-ui-egui
+      - name: Lint graph and UI
+        run: cargo clippy --locked -p orbweaver -p cadcraft-ui-egui --all-targets -- -D warnings
+      - name: Compile desktop
+        run: cargo check --locked -p cadcraft

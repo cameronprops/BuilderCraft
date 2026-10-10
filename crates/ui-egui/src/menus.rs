@@ -39,6 +39,7 @@ pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("ui.dialog.dsettings", "Drafting Settings...", &[], None),
     ("ui.dialog.about", "About BuilderCraft", &["Help", "About BuilderCraft"], None),
     ("ui.dialog.commands", "Command Reference", &["Help", "BuilderCraft Help"], Some("F1")),
+    ("ui.dialog.orbweaver", "OrbWeaver Node Editor", &["Window", "OrbWeaver Node Editor"], None),
     ("ui.noop", "", &[], None),
     ("ui.quit", "Quit BuilderCraft", &[], Some("Cmd+Q")),
 ];
@@ -143,6 +144,7 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
         | "ui.dialog.dsettings"
         | "ui.dialog.about"
         | "ui.dialog.commands"
+        | "ui.dialog.orbweaver"
         | "ui.dialog.qselect"
         | "ui.dialog.parameters" => {
             app.ui.dialog = Some(id.trim_start_matches("ui.dialog.").to_string());

@@ -9,6 +9,14 @@ use crate::{
 use cadcraft_geom::Vec3;
 use std::collections::BTreeMap;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CurvatureFillOptions {
+    pub refinement_levels: u8,
+    pub smoothing_iterations: u16,
+    pub tangent_weight: f64,
+    pub max_interior_offset: f64,
+}
+
 fn length(v: Vec3) -> f64 {
     v.x.hypot(v.y).hypot(v.z)
 }
@@ -34,11 +42,9 @@ pub fn polygon_mesh_fill_hole_curvature(
     revision: u64,
     picked_revision: u64,
     loop_index: u32,
-    refinement_levels: u8,
-    smoothing_iterations: u16,
-    tangent_weight: f64,
-    max_interior_offset: f64,
+    options: CurvatureFillOptions,
 ) -> Result<PolygonAdvancedFillResult> {
+    let CurvatureFillOptions { refinement_levels, smoothing_iterations, tangent_weight, max_interior_offset } = options;
     if !(1..=3).contains(&refinement_levels)
         || !(1..=64).contains(&smoothing_iterations)
         || !tangent_weight.is_finite()
@@ -54,24 +60,44 @@ pub fn polygon_mesh_fill_hole_curvature(
     let original_vertex_count = base.mesh.vertices.len();
     let origin = base.plane.origin;
     let axis = normalized(base.plane.normal)?;
-    let boundary = polygon_mesh_boundary_loops(mesh)?;
-    let loop_data = boundary.closed_loops.get(loop_index as usize).ok_or(KernelError::Invalid("boundary loop index"))?;
-    let topology = polygon_mesh_topology(mesh)?;
-
-    // Area-weighted averages of the adjacent faces at the two ends of each
-    // oriented rim edge. The external surface already has the desired slope.
+    // The base fill has already validated the source halfedge topology.
+    // Scan source faces once to recover their normals at the selected
+    // boundary edges, instead of building that large topology twice.
+    let rim = &base.boundary_vertices;
+    let mut pending = std::collections::BTreeSet::<(u32, u32)>::new();
+    for i in 0..rim.len() {
+        pending.insert((rim[i], rim[(i + 1) % rim.len()]));
+    }
     let mut boundary_normals: BTreeMap<u32, Vec3> = BTreeMap::new();
-    for &halfedge_index in &loop_data.halfedges {
-        let h = topology.halfedges.get(halfedge_index as usize).ok_or(KernelError::Invalid("boundary halfedge"))?;
-        let corners = mesh.faces.get(h.face as usize).ok_or(KernelError::Invalid("boundary face"))?.indices();
-        let p = *mesh.vertices.get(corners[0] as usize).ok_or(KernelError::Invalid("boundary face point"))?;
-        let q = *mesh.vertices.get(corners[1] as usize).ok_or(KernelError::Invalid("boundary face point"))?;
-        let r = *mesh.vertices.get(corners[2] as usize).ok_or(KernelError::Invalid("boundary face point"))?;
-        let face_normal = normalized((q - p).cross(r - p))?;
-        for vertex in [h.from, h.to] {
-            let entry = boundary_normals.entry(vertex).or_insert(Vec3::ZERO);
-            *entry = *entry + face_normal;
+    for face in &mesh.faces {
+        let corners = face.indices();
+        let mut matched = Vec::new();
+        for i in 0..corners.len() {
+            let from = corners[i];
+            let to = corners[(i + 1) % corners.len()];
+            if pending.remove(&(from, to)) {
+                matched.push((from, to));
+            }
         }
+        if matched.is_empty() {
+            continue;
+        }
+        let p = mesh.vertices[corners[0] as usize];
+        let q = mesh.vertices[corners[1] as usize];
+        let r = mesh.vertices[corners[2] as usize];
+        let face_normal = normalized((q - p).cross(r - p))?;
+        for (from, to) in matched {
+            for vertex in [from, to] {
+                let entry = boundary_normals.entry(vertex).or_insert(Vec3::ZERO);
+                *entry = *entry + face_normal;
+            }
+        }
+        if pending.is_empty() {
+            break;
+        }
+    }
+    if !pending.is_empty() {
+        return Err(KernelError::Invalid("boundary face normals unavailable"));
     }
 
     // Each centroid split turns one triangle into three without ever splitting
@@ -270,7 +296,7 @@ mod tests {
     #[test]
     fn curvature_fill_keeps_outer_shell_and_rim_unchanged() {
         let source = ring();
-        let r = polygon_mesh_fill_hole_curvature(&source, 10, 10, inner(&source), 2, 16, 0.4, 0.5);
+        let r = polygon_mesh_fill_hole_curvature(&source, 10, 10, inner(&source), CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 16, tangent_weight: 0.4, max_interior_offset: 0.5 });
         assert!(r.is_ok(), "{r:?}");
         if let Ok(patch) = r {
             assert_eq!(&patch.mesh.vertices[..source.vertices.len()], &source.vertices);
@@ -286,7 +312,7 @@ mod tests {
     fn flat_rim_remains_flat_to_roundoff() {
         let mut source = ring();
         source.vertices[4].z = 0.0;
-        let r = polygon_mesh_fill_hole_curvature(&source, 0, 0, inner(&source), 2, 18, 0.8, 0.01);
+        let r = polygon_mesh_fill_hole_curvature(&source, 0, 0, inner(&source), CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 18, tangent_weight: 0.8, max_interior_offset: 0.01 });
         assert!(r.is_ok(), "{r:?}");
         if let Ok(patch) = r {
             for vertex in patch.mesh.vertices.iter().skip(source.vertices.len()) {
@@ -299,10 +325,10 @@ mod tests {
     fn rejects_excessive_offset_and_invalid_settings() {
         let source = ring();
         let i = inner(&source);
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, 4, 8, 0.4, 1.).is_err());
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, 2, 0, 0.4, 1.).is_err());
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, 2, 8, f64::NAN, 1.).is_err());
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, 2, 8, 0.4, 0.).is_err());
-        assert_eq!(polygon_mesh_fill_hole_curvature(&source, 2, 1, i, 2, 8, 0.4, 1.), Err(KernelError::Conflict { expected: 1, actual: 2 }));
+        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 4, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 1. }).is_err());
+        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 0, tangent_weight: 0.4, max_interior_offset: 1. }).is_err());
+        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: f64::NAN, max_interior_offset: 1. }).is_err());
+        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 0. }).is_err());
+        assert_eq!(polygon_mesh_fill_hole_curvature(&source, 2, 1, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 1. }), Err(KernelError::Conflict { expected: 1, actual: 2 }));
     }
 }

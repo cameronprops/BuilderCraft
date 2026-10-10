@@ -42,3 +42,20 @@ pub struct PolygonGeometryObject {
     pub visible: bool,
     pub mesh: std::sync::Arc<buildercraft_kernel::PolygonMesh>,
 }
+
+/// Owned OCCT exact solid. This is NOT a tessellated polygon mesh.
+/// The Base64 payload is a bounded, opaque native OpenCascade BRep archive.
+/// CPU/GPU display proxies are derived and must never replace this source.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExactBrepObject {
+    pub id: u64,
+    pub name: String,
+    pub layer: String,
+    pub visible: bool,
+    /// Exact native BRep bytes in Base64; Arc avoids N-megabyte undo copies.
+    pub brep: std::sync::Arc<String>,
+    /// Measurements returned by the exact kernel, not independently recomputed by the host.
+    pub volume: f64,
+    pub faces: u32,
+    pub edges: u32,
+}

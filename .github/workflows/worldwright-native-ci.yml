@@ -36,6 +36,10 @@ jobs:
         run: bash tools/check-worldwright-rust.sh
       - name: Validate shared cross-domain dependency register
         run: python3 tools/check_cross_domain_dependencies.py
+      - name: Verify third-party UI source provenance
+        run: |
+          python3 tools/check_ui_reuse_manifest.py
+          python3 -m unittest discover -s tools/tests -p 'test_ui_reuse_manifest.py'
       - name: Run Worldwright kernel, document, CAD and OrbWeaver gates
         run: bash tools/verify-worldwright-kernel.sh
       - name: Test full Rust workspace

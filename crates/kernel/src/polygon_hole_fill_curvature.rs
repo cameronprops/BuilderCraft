@@ -3,8 +3,8 @@
 //! This deliberately preserves the boundary. It is NOT a global intersection
 //! certificate or an exact NURBS curvature-continuity solver.
 use crate::{
-    KernelError, PolygonAdvancedFillResult, PolygonFace, PolygonMesh, PolygonPatchMode, Result, polygon_mesh_boundary_loops,
-    polygon_mesh_fill_hole_advanced, polygon_mesh_topology, polygon_mesh_validate,
+    KernelError, PolygonAdvancedFillResult, PolygonFace, PolygonMesh, PolygonPatchMode, Result, polygon_mesh_fill_hole_advanced,
+    polygon_mesh_validate,
 };
 use cadcraft_geom::Vec3;
 use std::collections::BTreeMap;
@@ -263,6 +263,7 @@ pub fn polygon_mesh_fill_hole_curvature(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::polygon_mesh_boundary_loops;
 
     fn ring() -> PolygonMesh {
         PolygonMesh {

@@ -2,8 +2,8 @@
 //! Edits are applied to a new mesh; the scene owns revision, undo and budgets.
 
 use crate::{
-    KernelError, PolygonMesh, Result, polygon_mesh_add_triangle_from_edge, polygon_mesh_delete_faces, polygon_mesh_fill_hole,
-    polygon_mesh_split_edge, polygon_mesh_split_quad_strip, polygon_mesh_fill_hole_with_mode, PolygonHoleFillMode, pushpull_mesh_face,
+    KernelError, PolygonHoleFillMode, PolygonMesh, Result, polygon_mesh_add_triangle_from_edge, polygon_mesh_delete_faces, polygon_mesh_fill_hole,
+    polygon_mesh_fill_hole_with_mode, polygon_mesh_split_edge, polygon_mesh_split_quad_strip, pushpull_mesh_face,
 };
 use serde::{Deserialize, Serialize};
 

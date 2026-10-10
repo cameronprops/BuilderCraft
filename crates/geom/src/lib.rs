@@ -7,8 +7,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
-mod bounds;
 mod best_fit_plane;
+mod bounds;
 pub mod camera;
 pub mod closest3d;
 mod curve;

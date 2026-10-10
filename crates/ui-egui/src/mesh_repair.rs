@@ -55,7 +55,17 @@ pub struct State {
 }
 impl Default for State {
     fn default() -> Self {
-        Self { active: false, selecting: false, edge: [0, 1], fraction: 0.5, hole_index: 0, fill_mode: PolygonHoleFillMode::PlanarOnly, picking_hole: false, patch: None, inspection: None }
+        Self {
+            active: false,
+            selecting: false,
+            edge: [0, 1],
+            fraction: 0.5,
+            hole_index: 0,
+            fill_mode: PolygonHoleFillMode::PlanarOnly,
+            picking_hole: false,
+            patch: None,
+            inspection: None,
+        }
     }
 }
 
@@ -203,9 +213,10 @@ pub fn patch_is_current(app: &CadApp, patch: &HolePatchPreview) -> bool {
 /// Resolve transient vertices from the exact validated preview geometry.
 pub fn preview_vertex(mesh: &buildercraft_kernel::PolygonMesh, patch: &HolePatchPreview, index: u32) -> Option<Vec3> {
     let len = mesh.vertices.len();
-    if patch.source_vertex_count as usize != len { return None; }
-    if (index as usize) < len { mesh.vertices.get(index as usize).copied() }
-    else { patch.new_vertices.get(index as usize - len).copied() }
+    if patch.source_vertex_count as usize != len {
+        return None;
+    }
+    if (index as usize) < len { mesh.vertices.get(index as usize).copied() } else { patch.new_vertices.get(index as usize - len).copied() }
 }
 
 pub fn preview_hole(app: &mut CadApp, id: u64, loop_index: u32) -> Result<(), String> {
@@ -213,32 +224,50 @@ pub fn preview_hole(app: &mut CadApp, id: u64, loop_index: u32) -> Result<(), St
     let uid = st.uid;
     let revision = st.revision;
     let mode = app.ui.mesh_repair.fill_mode.clone();
-    let response = app.run("mesh3d.hole_preview", json!({
-        "id":id,"loop_index":loop_index,"selected_revision":revision,"mode":mode
-    }))?;
+    let response = app.run(
+        "mesh3d.hole_preview",
+        json!({
+            "id":id,"loop_index":loop_index,"selected_revision":revision,"mode":mode
+        }),
+    )?;
     let raw = response["new_triangles"].as_array().ok_or("Missing patch triangles")?;
-    if raw.len() > 1024 { return Err("Hole patch is too large".into()); }
-    let triangles = raw.iter().map(|v| serde_json::from_value::<[u32; 3]>(v.clone()).map_err(|e| e.to_string()))
+    if raw.len() > 1024 {
+        return Err("Hole patch is too large".into());
+    }
+    let triangles = raw.iter().map(|v| serde_json::from_value::<[u32; 3]>(v.clone()).map_err(|e| e.to_string())).collect::<Result<Vec<_>, _>>()?;
+    let boundary_vertices = response["boundary_vertices"]
+        .as_array()
+        .ok_or("Missing boundary vertices")?
+        .iter()
+        .map(|v| v.as_u64().and_then(|n| u32::try_from(n).ok()).ok_or("Invalid boundary vertex"))
         .collect::<Result<Vec<_>, _>>()?;
-    let boundary_vertices = response["boundary_vertices"].as_array().ok_or("Missing boundary vertices")?
-        .iter().map(|v| v.as_u64().and_then(|n| u32::try_from(n).ok()).ok_or("Invalid boundary vertex"))
+    let source_vertex_count = response["source_vertex_count"].as_u64().and_then(|n| u32::try_from(n).ok()).ok_or("Invalid source vertex count")?;
+    let new_vertices = response["new_vertices"]
+        .as_array()
+        .ok_or("Missing new patch vertices")?
+        .iter()
+        .map(|v| serde_json::from_value::<Vec3>(v.clone()).map_err(|e| e.to_string()))
         .collect::<Result<Vec<_>, _>>()?;
-    let source_vertex_count = response["source_vertex_count"].as_u64()
-        .and_then(|n| u32::try_from(n).ok()).ok_or("Invalid source vertex count")?;
-    let new_vertices = response["new_vertices"].as_array().ok_or("Missing new patch vertices")?
-        .iter().map(|v| serde_json::from_value::<Vec3>(v.clone()).map_err(|e| e.to_string()))
-        .collect::<Result<Vec<_>, _>>()?;
-    if new_vertices.len() > 256 { return Err("Too many planar cap vertices".into()); }
-    let cap_plane: Option<FillPlaneReport> = serde_json::from_value(response["cap_plane"].clone())
-        .map_err(|e| e.to_string())?;
+    if new_vertices.len() > 256 {
+        return Err("Too many planar cap vertices".into());
+    }
+    let cap_plane: Option<FillPlaneReport> = serde_json::from_value(response["cap_plane"].clone()).map_err(|e| e.to_string())?;
     let now = app.session.state().map_err(|e| e.to_string())?;
     if now.uid != uid || now.revision != revision || response["source_revision"].as_u64() != Some(revision) {
         return Err("Hole preview became stale".into());
     }
     app.ui.mesh_repair.hole_index = loop_index;
     app.ui.mesh_repair.patch = Some(HolePatchPreview {
-        object_id:id,uid,revision,loop_index,boundary_vertices,triangles,
-        source_vertex_count,new_vertices,mode,cap_plane,
+        object_id: id,
+        uid,
+        revision,
+        loop_index,
+        boundary_vertices,
+        triangles,
+        source_vertex_count,
+        new_vertices,
+        mode,
+        cap_plane,
     });
     app.ui.mesh_repair.picking_hole = false;
     app.set_status(format!("Validated hole {} preview, ready to commit", loop_index));
@@ -488,9 +517,13 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 let loop_index = patch.loop_index;
                 let mode = patch.mode.clone();
                 if ui.button("Commit fill").clicked() {
-                    if let Err(err) = run_edit(app, id, json!({
-                        "kind":"fill_hole","selected_revision":revision,"loop_index":loop_index,"mode":mode
-                    })) {
+                    if let Err(err) = run_edit(
+                        app,
+                        id,
+                        json!({
+                            "kind":"fill_hole","selected_revision":revision,"loop_index":loop_index,"mode":mode
+                        }),
+                    ) {
                         app.set_status(err);
                     }
                 }
@@ -725,29 +758,40 @@ mod tests {
         let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
         let mesh = PolygonMesh {
             vertices: vec![
-                Vec3::new(0.,0.,0.),Vec3::new(4.,0.,0.),Vec3::new(4.,4.,0.),Vec3::new(0.,4.,0.),
-                Vec3::new(1.,1.,0.07),Vec3::new(3.,1.,0.),
-                Vec3::new(3.,3.,-0.08),Vec3::new(1.,3.,0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(4., 4., 0.),
+                Vec3::new(0., 4., 0.),
+                Vec3::new(1., 1., 0.07),
+                Vec3::new(3., 1., 0.),
+                Vec3::new(3., 3., -0.08),
+                Vec3::new(1., 3., 0.),
             ],
             faces: vec![
-                PolygonFace::Quad([0,1,5,4]),PolygonFace::Quad([1,2,6,5]),
-                PolygonFace::Quad([2,3,7,6]),PolygonFace::Quad([3,0,4,7]),
+                PolygonFace::Quad([0, 1, 5, 4]),
+                PolygonFace::Quad([1, 2, 6, 5]),
+                PolygonFace::Quad([2, 3, 7, 6]),
+                PolygonFace::Quad([3, 0, 4, 7]),
             ],
         };
         let id = app.run("mesh3d.create", json!({"name":"Warped boundary","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
         let loops = app.run("mesh3d.boundaries", json!({"id":id})).unwrap();
-        let index = loops["report"]["closed_loops"].as_array().unwrap().iter().position(|l|
-            l["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap() >= 4)).unwrap() as u32;
+        let index = loops["report"]["closed_loops"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|l| l["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap() >= 4))
+            .unwrap() as u32;
         let revision = app.session.state().unwrap().revision;
         app.ui.mesh_repair.fill_mode = PolygonHoleFillMode::BestFitPlanar;
-        preview_hole(&mut app,id,index).unwrap();
+        preview_hole(&mut app, id, index).unwrap();
         let patch = app.ui.mesh_repair.patch.as_ref().unwrap();
-        assert_eq!(patch.triangles.len(),10);
-        assert_eq!(patch.new_vertices.len(),4);
+        assert_eq!(patch.triangles.len(), 10);
+        assert_eq!(patch.new_vertices.len(), 4);
         assert!(patch.cap_plane.is_some());
-        assert_eq!(app.session.state().unwrap().revision,revision);
+        assert_eq!(app.session.state().unwrap().revision, revision);
         let original = &app.session.doc().unwrap().mesh3d[0].mesh;
-        assert!(preview_vertex(original,patch,patch.source_vertex_count).is_some());
-        assert_eq!(preview_vertex(original,patch,u32::MAX),None);
+        assert!(preview_vertex(original, patch, patch.source_vertex_count).is_some());
+        assert_eq!(preview_vertex(original, patch, u32::MAX), None);
     }
 }

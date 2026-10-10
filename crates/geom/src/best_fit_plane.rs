@@ -18,7 +18,9 @@ pub fn best_fit_plane(points: &[Vec3]) -> Option<BestFitPlane> {
         return None;
     }
     let base = points[0];
-    if !base.is_finite() { return None; }
+    if !base.is_finite() {
+        return None;
+    }
     let mut sum = Vec3::ZERO;
     let mut extent: f64 = 0.0;
     for &point in points {
@@ -33,7 +35,9 @@ pub fn best_fit_plane(points: &[Vec3]) -> Option<BestFitPlane> {
         return None;
     }
     let origin = base + sum * (1.0 / points.len() as f64);
-    if !origin.is_finite() { return None; }
+    if !origin.is_finite() {
+        return None;
+    }
     let scale = extent.recip();
     let mut a = [[0.; 3]; 3];
     for &point in points {
@@ -58,9 +62,13 @@ pub fn best_fit_plane(points: &[Vec3]) -> Option<BestFitPlane> {
     for _ in 0..36 {
         let (mut p, mut q) = (0, 1);
         for (i, j) in [(0, 2), (1, 2)] {
-            if a[i][j].abs() > a[p][q].abs() { (p, q) = (i, j); }
+            if a[i][j].abs() > a[p][q].abs() {
+                (p, q) = (i, j);
+            }
         }
-        if a[p][q].abs() < 1e-14 { break; }
+        if a[p][q].abs() < 1e-14 {
+            break;
+        }
         let tau = (a[q][q] - a[p][p]) / (2. * a[p][q]);
         let t = (if tau >= 0. { 1. } else { -1. }) / (tau.abs() + (1. + tau * tau).sqrt());
         let c = (1. + t * t).sqrt().recip();
@@ -86,14 +94,15 @@ pub fn best_fit_plane(points: &[Vec3]) -> Option<BestFitPlane> {
     let mut order = [0usize, 1, 2];
     order.sort_by(|&i, &j| a[i][i].total_cmp(&a[j][j]));
     // A valid plane must have two measurable axes, not a single line.
-    if !a[order[1]][order[1]].is_finite()
-        || a[order[1]][order[1]] <= a[order[2]][order[2]].max(1e-15) * 1e-12 {
+    if !a[order[1]][order[1]].is_finite() || a[order[1]][order[1]] <= a[order[2]][order[2]].max(1e-15) * 1e-12 {
         return None;
     }
     let candidate = Vec3::new(v[0][order[0]], v[1][order[0]], v[2][order[0]]);
     let magnitude = candidate.x.hypot(candidate.y).hypot(candidate.z);
-    if !magnitude.is_finite() || magnitude <= 0. { return None; }
-    let normal = candidate / magnitude;
+    if !magnitude.is_finite() || magnitude <= 0. {
+        return None;
+    }
+    let normal = candidate * magnitude.recip();
     let mut squared = 0.;
     let mut max_distance: f64 = 0.;
     for &p in points {
@@ -111,10 +120,7 @@ mod tests {
 
     #[test]
     fn fits_tilted_plane_and_exposes_scan_deviation() {
-        let points = [
-            Vec3::new(0., 0., 1.), Vec3::new(2., 0., 3.),
-            Vec3::new(0., 4., 9.), Vec3::new(2., 4., 11.),
-        ];
+        let points = [Vec3::new(0., 0., 1.), Vec3::new(2., 0., 3.), Vec3::new(0., 4., 9.), Vec3::new(2., 4., 11.)];
         let plane = best_fit_plane(&points).unwrap();
         assert!(plane.max_distance < 1e-9);
         assert!((plane.normal.dot(Vec3::new(-1., -2., 1.))).abs() / 6_f64.sqrt() > 0.99999);
@@ -127,10 +133,7 @@ mod tests {
 
     #[test]
     fn vertical_and_translated_plane_stays_stable() {
-        let points = [
-            Vec3::new(3e8, 5e8, -2e8), Vec3::new(3e8, 5e8+3., -2e8),
-            Vec3::new(3e8, 5e8+3., -2e8+5.), Vec3::new(3e8, 5e8, -2e8+5.),
-        ];
+        let points = [Vec3::new(3e8, 5e8, -2e8), Vec3::new(3e8, 5e8 + 3., -2e8), Vec3::new(3e8, 5e8 + 3., -2e8 + 5.), Vec3::new(3e8, 5e8, -2e8 + 5.)];
         let fit = best_fit_plane(&points).unwrap();
         assert!(fit.normal.x.abs() > 0.999999);
         assert!(fit.max_distance < 1e-8);
@@ -138,8 +141,8 @@ mod tests {
 
     #[test]
     fn rejects_collinear_nonfinite_and_unsupported_budgets() {
-        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1.,0.,0.), Vec3::new(2.,0.,0.)]).is_none());
-        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1.,0.,0.)]).is_none());
-        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1.,0.,0.), Vec3::new(f64::NAN,0.,1.)]).is_none());
+        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1., 0., 0.), Vec3::new(2., 0., 0.)]).is_none());
+        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1., 0., 0.)]).is_none());
+        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1., 0., 0.), Vec3::new(f64::NAN, 0., 1.)]).is_none());
     }
 }

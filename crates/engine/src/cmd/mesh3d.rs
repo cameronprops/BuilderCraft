@@ -2,8 +2,8 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_fill_hole_with_mode, PolygonHoleFillMode, polygon_mesh_topology,
-    polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
+    PolygonHoleFillMode, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_fill_hole_with_mode,
+    polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -21,8 +21,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.array", "Array Native Polygon Mesh Object", array_object).params("{id,mode:linear|rectangular|polar|path, ...}"),
         CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face)
             .params("{id,face_index,distance,selected_revision?}"),
-        CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
-            .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|fill_hole|split_edge|split_quad_strip,selected_revision,...}}"),
+        CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit).params(
+            "{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|fill_hole|split_edge|split_quad_strip,selected_revision,...}}",
+        ),
         CommandSpec::new("mesh3d.list", "List Native Polygon Meshes", list).noundo(),
         CommandSpec::new("mesh3d.boundaries", "Inspect Polygon Boundaries", boundaries).params("{id}").noundo(),
         CommandSpec::new("mesh3d.hole_preview", "Preview Planar Hole Patch", hole_preview).params("{id,loop_index,selected_revision}").noundo(),
@@ -544,46 +545,66 @@ mod tests {
     #[test]
     fn nonplanar_modes_have_matching_preview_edit_and_undo() {
         let mut s = Session::new();
-        let mut ring = PolygonMesh {
+        let ring = PolygonMesh {
             vertices: vec![
-                Vec3::new(0.,0.,0.), Vec3::new(4.,0.,0.), Vec3::new(4.,4.,0.), Vec3::new(0.,4.,0.),
-                Vec3::new(1.,1.,0.12), Vec3::new(3.,1.,0.),
-                Vec3::new(3.,3.,-0.08), Vec3::new(1.,3.,0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(4., 4., 0.),
+                Vec3::new(0., 4., 0.),
+                Vec3::new(1., 1., 0.12),
+                Vec3::new(3., 1., 0.),
+                Vec3::new(3., 3., -0.08),
+                Vec3::new(1., 3., 0.),
             ],
             faces: vec![
-                buildercraft_kernel::PolygonFace::Quad([0,1,5,4]),
-                buildercraft_kernel::PolygonFace::Quad([1,2,6,5]),
-                buildercraft_kernel::PolygonFace::Quad([2,3,7,6]),
-                buildercraft_kernel::PolygonFace::Quad([3,0,4,7]),
+                buildercraft_kernel::PolygonFace::Quad([0, 1, 5, 4]),
+                buildercraft_kernel::PolygonFace::Quad([1, 2, 6, 5]),
+                buildercraft_kernel::PolygonFace::Quad([2, 3, 7, 6]),
+                buildercraft_kernel::PolygonFace::Quad([3, 0, 4, 7]),
             ],
         };
         // Nonplanar quads remain source geometry, never flattened by repair.
         let id = s.execute("mesh3d.create", &json!({"name":"Scan boundary","mesh":ring})).unwrap()["id"].as_u64().unwrap();
         let report = s.execute("mesh3d.boundaries", &json!({"id":id})).unwrap();
-        let loop_index = report["report"]["closed_loops"].as_array().unwrap()
-            .iter().position(|l| l["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap()>=4)).unwrap();
+        let loop_index = report["report"]["closed_loops"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|l| l["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap() >= 4))
+            .unwrap();
         let rev = s.state().unwrap().revision;
         let before = s.doc().unwrap().mesh3d[0].mesh.clone();
         let mode = json!({"mode":"best_fit_planar"});
         let view = s.execute("mesh3d.hole_preview", &json!({"id":id,"selected_revision":rev,"loop_index":loop_index,"mode":mode})).unwrap();
-        assert_eq!(view["new_vertices"].as_array().unwrap().len(),4);
-        assert_eq!(view["new_triangles"].as_array().unwrap().len(),10);
-        assert_eq!(s.state().unwrap().revision,rev);
-        assert_eq!(s.doc().unwrap().mesh3d[0].mesh,before);
-        s.execute("mesh3d.edit", &json!({"id":id,"edit":{
-            "kind":"fill_hole","selected_revision":rev,"loop_index":loop_index,"mode":{"mode":"best_fit_planar"}
-        }})).unwrap();
+        assert_eq!(view["new_vertices"].as_array().unwrap().len(), 4);
+        assert_eq!(view["new_triangles"].as_array().unwrap().len(), 10);
+        assert_eq!(s.state().unwrap().revision, rev);
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh, before);
+        s.execute(
+            "mesh3d.edit",
+            &json!({"id":id,"edit":{
+                "kind":"fill_hole","selected_revision":rev,"loop_index":loop_index,"mode":{"mode":"best_fit_planar"}
+            }}),
+        )
+        .unwrap();
         let after = s.doc().unwrap().mesh3d[0].mesh.clone();
-        assert_eq!(&after.vertices[..before.vertices.len()],before.vertices.as_slice());
-        assert_eq!(serde_json::to_value(&after.vertices[before.vertices.len()..]).unwrap(),view["new_vertices"]);
-        let patch_faces: Vec<[u32; 3]> = after.faces[before.faces.len()..].iter().filter_map(|f| {
-            if let buildercraft_kernel::PolygonFace::Triangle(v) = f {Some(*v)} else {None}
-        }).collect();
-        assert_eq!(serde_json::to_value(patch_faces).unwrap(),view["new_triangles"]);
-        assert!(s.execute("mesh3d.edit", &json!({"id":id,"edit":{
-            "kind":"fill_hole","selected_revision":rev,"loop_index":loop_index,"mode":{"mode":"faceted"}
-        }})).is_err());
-        s.execute("undo",&json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(),before.as_ref());
+        assert_eq!(&after.vertices[..before.vertices.len()], before.vertices.as_slice());
+        assert_eq!(serde_json::to_value(&after.vertices[before.vertices.len()..]).unwrap(), view["new_vertices"]);
+        let patch_faces: Vec<[u32; 3]> = after.faces[before.faces.len()..]
+            .iter()
+            .filter_map(|f| if let buildercraft_kernel::PolygonFace::Triangle(v) = f { Some(*v) } else { None })
+            .collect();
+        assert_eq!(serde_json::to_value(patch_faces).unwrap(), view["new_triangles"]);
+        assert!(
+            s.execute(
+                "mesh3d.edit",
+                &json!({"id":id,"edit":{
+                    "kind":"fill_hole","selected_revision":rev,"loop_index":loop_index,"mode":{"mode":"faceted"}
+                }})
+            )
+            .is_err()
+        );
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), before.as_ref());
     }
 }

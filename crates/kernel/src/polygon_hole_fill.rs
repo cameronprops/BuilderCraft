@@ -236,7 +236,9 @@ pub fn polygon_mesh_fill_hole_with_mode(
         }
         PolygonHoleFillMode::DirectionPlanar { direction } => {
             let n = norm(*direction);
-            if !n.is_finite() || n < 1e-12 { return Err(KernelError::Invalid("invalid plane direction")); }
+            if !n.is_finite() || n < 1e-12 {
+                return Err(KernelError::Invalid("invalid plane direction"));
+            }
             let unit = *direction * (1. / n);
             if unit.dot(normal).abs() < 0.4 {
                 return Err(KernelError::Invalid("direction is too oblique to hole normal"));
@@ -255,15 +257,10 @@ pub fn polygon_mesh_fill_hole_with_mode(
                 squared += distance * distance;
                 max_distance = max_distance.max(distance);
             }
-            Some(FillPlaneReport {
-                origin: mean, normal: plane_normal,
-                rms_distance: (squared / ids.len() as f64).sqrt(), max_distance,
-            })
+            Some(FillPlaneReport { origin: mean, normal: plane_normal, rms_distance: (squared / ids.len() as f64).sqrt(), max_distance })
         }
     };
-    if matches!(mode, PolygonHoleFillMode::PlanarOnly)
-        && positions.iter().any(|&p| (p - origin).dot(normal).abs() > 1e-7 * extent)
-    {
+    if matches!(mode, PolygonHoleFillMode::PlanarOnly) && positions.iter().any(|&p| (p - origin).dot(normal).abs() > 1e-7 * extent) {
         return Err(KernelError::Invalid("nonplanar boundary"));
     }
     let points = project_loop(mesh, ids, plane_normal, mean);
@@ -311,14 +308,10 @@ pub fn polygon_mesh_fill_hole_with_mode(
         };
         for i in 0..ids.len() {
             let j = (i + 1) % ids.len();
-            if !clockwise(points[j], points[i], ring_points[i])?
-                || !clockwise(points[j], ring_points[i], ring_points[j])? {
+            if !clockwise(points[j], points[i], ring_points[i])? || !clockwise(points[j], ring_points[i], ring_points[j])? {
                 return Err(KernelError::Invalid("inset cap would fold or cross its boundary"));
             }
-            for tri in [
-                [ids[j], ids[i], ring_ids[i]],
-                [ids[j], ring_ids[i], ring_ids[j]],
-            ] {
+            for tri in [[ids[j], ids[i], ring_ids[i]], [ids[j], ring_ids[i], ring_ids[j]]] {
                 let idx = u32::try_from(output.faces.len()).map_err(|_| KernelError::Budget)?;
                 new_face_indices.push(idx);
                 output.faces.push(PolygonFace::Triangle(tri));
@@ -508,8 +501,10 @@ mod tests {
         assert!(result.cap_plane.as_ref().is_some_and(|p| p.normal.z.abs() > 0.999));
         let automatically = polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::BoundaryNormalPlanar).unwrap();
         assert!(automatically.cap_plane.is_some());
-        assert_eq!(polygon_mesh_fill_hole_with_mode(&source, 2, 1, ix, &z_axis), Err(KernelError::Conflict { expected:1,actual:2 }));
+        assert_eq!(polygon_mesh_fill_hole_with_mode(&source, 2, 1, ix, &z_axis), Err(KernelError::Conflict { expected: 1, actual: 2 }));
         assert!(polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::ZERO }).is_err());
-        assert!(polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::new(1., 0., 0.) }).is_err());
+        assert!(
+            polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::new(1., 0., 0.) }).is_err()
+        );
     }
 }

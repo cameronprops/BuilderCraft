@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/paired-transform-project-flow-pushpull
+      - feature/modeling-document-surface-edit
   pull_request:
     paths:
       - crates/kernel/**

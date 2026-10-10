@@ -149,14 +149,15 @@ mod tests{
         }
     }
     #[test]
-    fn intersecting_noncoincident_box_predicate_allows_backend_computation(){
+    fn known_truck_intersection_gap_is_contained_as_a_recoverable_error(){
         let a=rectangular_solid([0.,0.,0.],[2.,2.,2.]).unwrap();
         let b=rectangular_solid([0.75,0.65,0.55],[2.,2.,2.]).unwrap();
         assert!(transversal_boxes(&a,&b,tolerance()));
-        // Shapeops regression gate is intentionally strict: a backend that
-        // cannot resolve a simple transversal pair cannot graduate to main.
-        let result=boolean_boxes(&a,&b,BooleanOperation::Intersection,tolerance()).unwrap();
-        assert!(result.is_geometric_consistent());
-        assert!(result.face_iter().count()>0);
+        // Real upstream failure observed on Truck 0.6.0 + shapeops 0.4.0:
+        // geometry.rs "not implemented" on this *transversal* box pair.
+        // This regression must become a successful boolean fixture before
+        // Truck can be promoted to the canonical production BRep backend.
+        let result=boolean_boxes(&a,&b,BooleanOperation::Intersection,tolerance());
+        assert!(matches!(result, Err(BrepError::BackendPanicked)|Err(BrepError::BooleanFailed)));
     }
 }

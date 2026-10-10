@@ -1,0 +1,14 @@
+[package]
+name = "worldwright-occt-brep-evaluation"
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Isolated from the main Rust workspace. Compiling embedded OCCT is a
+# substantial C++ task; never make it a mandatory dependency until accepted.
+[workspace]
+
+[dependencies]
+opencascade = { version = "0.3.0", default-features = true }
+glam = "0.24"

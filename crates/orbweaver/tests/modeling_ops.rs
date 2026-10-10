@@ -110,3 +110,30 @@ fn invalid_input_rejects_entire_graph() {
     );
     assert!(evaluate(&Graph { version: GRAPH_SCHEMA_VERSION, nodes: vec![n], outputs: vec![1] }).is_err());
 }
+
+
+#[test]
+fn oriented_path_array_node_aligns_copies_and_keeps_source_geometry() {
+    let shape=node(
+        10,
+        "orbweaver.array.path_oriented",
+        vec![
+            ("geometry",literal(ToolValue::Polyline(vec![p(0.,0.,0.),p(1.,0.,0.)]))),
+            ("path",literal(ToolValue::Polyline(vec![p(0.,0.,0.),p(5.,0.,0.),p(5.,5.,0.)]))),
+            ("count",literal(ToolValue::Count(3))),
+            ("up",literal(ToolValue::Vector(Vec3::Z))),
+            ("anchor",literal(ToolValue::Point(Vec3::ZERO))),
+        ],
+    );
+    let graph=Graph {version:GRAPH_SCHEMA_VERSION,nodes:vec![shape],outputs:vec![10]};
+    let evaluated=evaluate(&graph).unwrap();
+    let Some(ToolValue::Tree(tree))=evaluated.values.get(&10) else {panic!("expected oriented arrays")};
+    assert_eq!(tree.branches.len(),3);
+    assert_eq!(tree.branches[0].items[0],ToolValue::Polyline(vec![p(0.,0.,0.),p(1.,0.,0.)]));
+    let ToolValue::Polyline(bent)=&tree.branches[1].items[0] else {panic!("expected copy geometry")};
+    assert!((bent[0]-p(5.,0.,0.)).len()<1e-9);
+    assert!((bent[1]-p(5.,1.,0.)).len()<1e-9);
+    let mut bad=graph;
+    bad.nodes[0].inputs.insert("up".into(),literal(ToolValue::Vector(p(1.,0.,0.))));
+    assert!(evaluate(&bad).is_err());
+}

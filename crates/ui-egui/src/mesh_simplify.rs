@@ -171,7 +171,11 @@ pub fn panel(app: &mut CadApp, ui: &mut egui::Ui, object_id: u64, source_triangl
                     } else {
                         match Preview::decode(&reply, document_uid, revision, object_id) {
                             Ok(preview) => {
-                                controls.info = Some(format!("Preview: {} triangles removed. Target {}.", preview.removed_faces, if preview.target_reached { "reached" } else { "limited by protected geometry" }));
+                                controls.info = Some(format!(
+                                    "Preview: {} triangles removed. Target {}.",
+                                    preview.removed_faces,
+                                    if preview.target_reached { "reached" } else { "limited by protected geometry" }
+                                ));
                                 app.ui.mesh_simplify_preview = Some(preview);
                             }
                             Err(error) => {
@@ -256,7 +260,7 @@ mod tests {
         assert!(p.as_ref().is_ok_and(|v| v.matches(4, 10, 9) && v.wire_edges.len() == 3));
         assert!(Preview::decode(&response, 4, 11, 9).is_err());
         let mut bad = response;
-        bad["triangles"] = json!([[0,1,4]]);
+        bad["triangles"] = json!([[0, 1, 4]]);
         assert!(Preview::decode(&bad, 4, 10, 9).is_err());
     }
 }

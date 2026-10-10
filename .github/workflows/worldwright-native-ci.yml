@@ -46,6 +46,8 @@ jobs:
         run: cargo test --locked --workspace
       - name: Build native CAD and CLI
         run: cargo build --locked -p cadcraft -p cadcraft-cli
+      - name: Smoke-test compiled Worldwright alpha commands and native project roundtrip
+        run: bash tools/smoke-worldwright-alpha.sh --already-built
       - name: Lint all Rust targets
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
 

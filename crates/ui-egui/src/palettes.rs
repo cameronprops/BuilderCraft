@@ -135,10 +135,8 @@ pub fn toolsets(app: &mut CadApp, ui: &mut egui::Ui) {
             p.rect_filled(tr, 0.0, if active { t.tab_active } else { t.chrome });
             p.text(tr.center(), egui::Align2::CENTER_CENTER, name, egui::FontId::proportional(13.5), if active { t.text } else { t.text_dim });
             if resp.clicked() {
-                app.ui.toolset_tab = name.into();
-                if app.ui.buildercraft_workspace {
-                    app.ui.view3d = name == "Modeling";
-                }
+                let target = if name == "Modeling" { crate::workspace::Workspace::Modeling } else { crate::workspace::Workspace::Drafting };
+                crate::workspace::activate(&mut app.ui, target);
             }
             x += w;
         }

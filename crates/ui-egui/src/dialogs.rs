@@ -19,10 +19,13 @@ pub fn show(app: &mut CadApp, ctx: &egui::Context) {
         "dsettings" => dsettings(app, ctx, &mut open),
         "about" => about(ctx, &mut open),
         "commands" => commands(app, ctx, &mut open),
+        "palette" => crate::command_palette::show(app, ctx, &mut open),
         "blocks" => blocks(app, ctx, &mut open),
         _ => open = false,
     }
-    if !open {
+    // A command chosen in the palette may intentionally open another dialog.
+    // Close only the original dialog; do not overwrite the selected destination.
+    if !open && app.ui.dialog.as_deref() == Some(d.as_str()) {
         app.ui.dialog = None;
     }
 }

@@ -10,6 +10,9 @@ pub const MENUS: &[&str] = &["File", "Edit", "View", "Insert", "Format", "Tools"
 
 /// UI-only commands: (id, label, menu path, shortcut).
 pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
+    ("ui.workspace.drafting", "2D Drawing Workspace", &["Window", "Workspaces", "2D Drawing"], Some("Alt+1")),
+    ("ui.workspace.modeling", "3D Modeling Workspace", &["Window", "Workspaces", "3D Modeling"], Some("Alt+2")),
+    ("ui.workspace.back", "Previous Workspace", &["Window", "Workspaces", "Previous Workspace"], Some("Alt+Left")),
     ("ui.buildercraft.top", "Top", &["View", "3D", "Top"], None),
     ("ui.buildercraft.front", "Front", &["View", "3D", "Front"], None),
     ("ui.buildercraft.right", "Right", &["View", "3D", "Right"], None),
@@ -39,6 +42,7 @@ pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("ui.dialog.dsettings", "Drafting Settings...", &[], None),
     ("ui.dialog.about", "About BuilderCraft", &["Help", "About BuilderCraft"], None),
     ("ui.dialog.commands", "Command Reference", &["Help", "BuilderCraft Help"], Some("F1")),
+    ("ui.dialog.palette", "Command Palette", &["Window", "Command Palette"], Some("Cmd+K")),
     ("ui.noop", "", &[], None),
     ("ui.quit", "Quit BuilderCraft", &[], Some("Cmd+Q")),
 ];
@@ -54,6 +58,18 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
     };
     let no_path = params.is_null() || (params.get("path").is_none() && params.get("data").is_none());
     let r = match id {
+        "ui.workspace.drafting" => {
+            crate::workspace::activate(&mut app.ui, crate::workspace::Workspace::Drafting);
+            Ok(Value::Null)
+        }
+        "ui.workspace.modeling" => {
+            crate::workspace::activate(&mut app.ui, crate::workspace::Workspace::Modeling);
+            Ok(Value::Null)
+        }
+        "ui.workspace.back" => {
+            crate::workspace::back(&mut app.ui);
+            Ok(Value::Null)
+        }
         "ui.buildercraft.top" | "ui.buildercraft.front" | "ui.buildercraft.right" | "ui.buildercraft.iso" | "ui.buildercraft.fit" => {
             crate::buildercraft::camera_command(app, id)
         }
@@ -143,6 +159,7 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
         | "ui.dialog.dsettings"
         | "ui.dialog.about"
         | "ui.dialog.commands"
+        | "ui.dialog.palette"
         | "ui.dialog.qselect"
         | "ui.dialog.parameters" => {
             app.ui.dialog = Some(id.trim_start_matches("ui.dialog.").to_string());
@@ -304,6 +321,10 @@ pub fn shortcuts(app: &mut CadApp, ctx: &egui::Context) {
         (sc(cmd, Key::Num1), "ui.toggle.palettes"),
         (sc(cmd, Key::Num3), "ui.toggle.toolsets"),
         (sc(cmd, Key::Num9), "ui.toggle.cmdline"),
+        (sc(cmd, Key::K), "ui.dialog.palette"),
+        (sc(Modifiers::ALT, Key::Num1), "ui.workspace.drafting"),
+        (sc(Modifiers::ALT, Key::Num2), "ui.workspace.modeling"),
+        (sc(Modifiers::ALT, Key::ArrowLeft), "ui.workspace.back"),
         (sc(Modifiers::NONE, Key::F1), "ui.dialog.commands"),
         (sc(Modifiers::NONE, Key::F3), "osnap"),
         (sc(Modifiers::NONE, Key::F7), "grid"),

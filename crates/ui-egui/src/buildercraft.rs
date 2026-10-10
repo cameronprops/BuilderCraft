@@ -7,14 +7,20 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
     egui::Panel::top("buildercraft_workspace").exact_size(28.0).show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.strong("Worldwright");
-            if ui.selectable_value(&mut app.ui.view3d, true, "3D").clicked() {
-                app.ui.toolset_tab = "Modeling".into();
+            let current = crate::workspace::active(&app.ui);
+            for target in crate::workspace::Workspace::ALL {
+                if ui.selectable_label(current == target, target.label()).on_hover_text(target.description()).clicked() {
+                    crate::workspace::activate(&mut app.ui, target);
+                }
             }
-            if ui.selectable_value(&mut app.ui.view3d, false, "2D / Drafting").clicked() {
-                app.ui.toolset_tab = "Drafting".into();
+            if ui
+                .add_enabled(app.ui.previous_workspace.is_some(), egui::Button::new("Back"))
+                .on_hover_text("Return to the previous workspace (Alt+Left)")
+                .clicked()
+            {
+                crate::workspace::back(&mut app.ui);
             }
-            ui.selectable_value(&mut app.ui.buildercraft_workspace, true, "Modeling workspace");
-            ui.selectable_value(&mut app.ui.buildercraft_workspace, false, "CADCraft drafting workspace");
+            ui.weak("Alt+1: 2D · Alt+2: 3D");
         });
     });
 }

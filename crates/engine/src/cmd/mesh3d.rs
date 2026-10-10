@@ -2,7 +2,7 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    MeshDecimateOptions, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate, polygon_mesh_boundary_loops,
+    MeshDecimateOptions, MeshDecimateResult, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate, polygon_mesh_boundary_loops,
     polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
@@ -29,6 +29,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.preview", "Preview Triangulated Polygon Mesh", preview).params("{id}").noundo(),
         CommandSpec::new("mesh3d.preview_decimate", "Preview Reduced Triangle Mesh", preview_decimate)
             .params("{id,target_faces,max_quadric_error?,max_normal_change_degrees?,preserve_boundary?,preserve_creases_above_degrees?,selected_revision?}").noundo(),
+        CommandSpec::new("mesh3d.simplify", "Simplify Mesh (Undoable)", simplify)
+            .params("{id,target_faces,mode?:copy|replace,name?,selected_revision?,max_quadric_error?,max_normal_change_degrees?,preserve_boundary?,preserve_creases_above_degrees?}"),
         CommandSpec::new("mesh3d.set", "Set Polygon Mesh Metadata", set).params("{id,name?,visible?}"),
     ]
 }
@@ -229,7 +231,7 @@ fn preview(s: &mut Session, p: &Value) -> Result<Value> {
 /// Read-only manufacturing / display proxy. Native source triangles and
 /// authored quads are untouched, and any preview is tied to source revision.
 /// Result face IDs are *not* interchangeable with source polygon IDs.
-fn preview_decimate(s: &mut Session, p: &Value) -> Result<Value> {
+fn calculate_decimation(s: &Session, p: &Value) -> Result<(u64, u64, MeshDecimateResult)> {
     let object_id = id(p)?;
     let current_revision = s.state()?.revision;
     if let Some(requested) = p.get("selected_revision") {
@@ -264,22 +266,96 @@ fn preview_decimate(s: &mut Session, p: &Value) -> Result<Value> {
     if triangulation.mesh.triangles.len() > 20_000 {
         return Err(invalid("interactive decimation preview limited to 20000 triangles"));
     }
-    let before_count = triangulation.mesh.triangles.len();
     let result = mesh_quadric_decimate(
         &triangulation.mesh,
         MeshDecimateOptions { target_faces, max_quadric_error, max_normal_change_degrees, preserve_boundary, preserve_creases_above_degrees },
     )
     .map_err(|e| invalid(&e.to_string()))?;
+    Ok((object_id, current_revision, result))
+}
+
+
+/// Revision-bound, read-only manufacturing/display proxy. The derived face
+/// identities are not aliases for the original polygon faces.
+fn preview_decimate(s: &mut Session, p: &Value) -> Result<Value> {
+    let (object_id, source_revision, result) = calculate_decimation(s, p)?;
+    let original_face_count = result.mesh.triangles.len() + result.removed_faces;
     Ok(json!({
         "id": object_id,
-        "source_revision": current_revision,
+        "source_revision": source_revision,
         "derived_triangle_mesh": true,
-        "original_face_count": before_count,
+        "original_face_count": original_face_count,
         "removed_faces": result.removed_faces,
         "target_reached": result.target_reached,
         "vertices": result.mesh.vertices,
         "triangles": result.mesh.triangles,
         "old_to_new_vertices": result.old_to_new,
+    }))
+}
+
+/// Bake a validated derived triangle mesh into the native document. Copy is
+/// the default, keeping the authored source polygons/quads. Replace is opt-in
+/// and keeps the object's ID/layer/visibility for undo and selection.
+///
+/// Geometry, display bounds, name and identity budgets are checked before
+/// the first mutation. This is a normal undoable Session command.
+fn simplify(s: &mut Session, p: &Value) -> Result<Value> {
+    let (source_id, source_revision, result) = calculate_decimation(s, p)?;
+    let replace = match p.get("mode") {
+        None => false,
+        Some(Value::String(mode)) if mode == "copy" => false,
+        Some(Value::String(mode)) if mode == "replace" => true,
+        _ => return Err(invalid("mode must be copy or replace")),
+    };
+    if result.removed_faces == 0 {
+        return Err(invalid("no legal face collapses; source mesh unchanged"));
+    }
+    let source = selected(s, source_id)?.clone();
+    let reduced = buildercraft_kernel::polygon_mesh_from_triangles(&result.mesh).map_err(|e| invalid(&e.to_string()))?;
+    validate_size(&reduced)?;
+    let new_mesh = Arc::new(reduced);
+    let name = match p.get("name") {
+        Some(Value::String(name)) if !name.trim().is_empty() && name.len() <= 256 => Some(name.clone()),
+        None => None,
+        _ => return Err(invalid("name must be a non-empty string up to 256 bytes")),
+    };
+    if replace && name.is_some() {
+        return Err(invalid("renaming while replacing is not supported; use mesh3d.set"));
+    }
+    let (final_name, result_faces) = if replace {
+        (String::new(), new_mesh.faces.len())
+    } else {
+        let title = name.unwrap_or_else(|| format!("{} (simplified)", source.name));
+        if title.len() > 256 {
+            return Err(invalid("simplified mesh name exceeds 256 bytes"));
+        }
+        (title, new_mesh.faces.len())
+    };
+    if !replace {
+        let doc = s.doc()?;
+        if doc.geometry3d.len().checked_add(doc.mesh3d.len()).is_none_or(|n| n >= 4096) || doc.handseed == u64::MAX {
+            return Err(invalid("3D object or identity limit"));
+        }
+    }
+
+    let output_id = if replace {
+        let object = s.doc_mut()?.mesh3d.iter_mut().find(|o| o.id == source_id).ok_or_else(|| invalid("unknown polygon object ID"))?;
+        object.mesh = new_mesh;
+        source_id
+    } else {
+        let doc = s.doc_mut()?;
+        let new_id = doc.new_handle().0;
+        doc.mesh3d.push(PolygonGeometryObject {
+            id: new_id, name: final_name, layer: source.layer, visible: source.visible, mesh: new_mesh,
+        });
+        new_id
+    };
+    Ok(json!({
+        "id": output_id, "source_id": source_id, "source_revision": source_revision,
+        "mode": if replace { "replace" } else { "copy" },
+        "result_faces": result_faces, "removed_faces": result.removed_faces,
+        "target_reached": result.target_reached, "kind": "polygonMesh",
+        "derived_triangle_mesh": true,
     }))
 }
 

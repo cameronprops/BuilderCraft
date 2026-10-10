@@ -616,6 +616,51 @@
       "tree_item_broadcast": false
     },
     {
+      "kernel_operation": "kernel.project.mesh",
+      "group": "geometry.intersections",
+      "cad_command": "worldwright.project.mesh",
+      "orbweaver_node": "orbweaver.project.mesh",
+      "reference_inventory_id": null,
+      "reference_name": "Project to Mesh",
+      "relation": "untrimmed_alpha_subset",
+      "modifiers": [
+        "target",
+        "direction"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.project.nurbs",
+      "group": "geometry.intersections",
+      "cad_command": "worldwright.project.nurbs",
+      "orbweaver_node": "orbweaver.project.nurbs",
+      "reference_inventory_id": null,
+      "reference_name": "Project to Surface",
+      "relation": "untrimmed_alpha_subset",
+      "modifiers": [
+        "target",
+        "direction"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.surface.flow_nurbs",
+      "group": "geometry.surface",
+      "cad_command": "worldwright.flow_along_nurbs",
+      "orbweaver_node": "orbweaver.surface.flow_nurbs",
+      "reference_inventory_id": null,
+      "reference_name": "Flow Along Surface",
+      "relation": "untrimmed_alpha_subset",
+      "modifiers": [
+        "base",
+        "target"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
       "kernel_operation": "kernel.tree.validate",
       "group": "graph.list_tree",
       "cad_command": "worldwright.tree.validate",

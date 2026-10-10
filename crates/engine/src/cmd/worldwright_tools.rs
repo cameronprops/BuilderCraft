@@ -165,16 +165,16 @@ mod tests {
         ]);
         let request = json!({"inputs":inputs});
         let mut session = Session::new();
-        let revision = session.state().map(|state| state.revision);
+        let revision = session.state().ok().map(|state| state.revision);
         let direct = session.execute("worldwright.mesh.decimate", &request);
         let generic = session.execute("worldwright.tool.run", &json!({"operation":"kernel.mesh.decimate","inputs":inputs}));
         assert!(direct.is_ok());
-        assert_eq!(direct, generic);
+        assert_eq!(direct.as_ref().ok(), generic.as_ref().ok());
         if let Ok(value) = direct {
             assert_eq!(value["output"]["kind"], "mesh");
             assert_eq!(value["output"]["value"]["faces"].as_array().map(Vec::len), Some(6));
         }
-        assert_eq!(session.state().map(|state| state.revision), revision);
+        assert_eq!(session.state().ok().map(|state| state.revision), revision);
     }
 
     #[test]

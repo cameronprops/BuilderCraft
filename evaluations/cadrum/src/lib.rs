@@ -1,6 +1,9 @@
 //! Isolation and acceptance tests for an OCCT-backed exact BRep candidate.
-//! NOT a production kernel, API adapter, or proof of Rhino/STEP parity.
+//! NOT a production kernel, installed backend, or proof of Rhino/STEP parity.
+
 #![forbid(unsafe_code)]
+
+pub mod adapter;
 
 #[cfg(test)]
 mod tests {

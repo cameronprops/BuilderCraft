@@ -1,0 +1,26 @@
+name: Kurbo geometry differential acceptance
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - crates/geom/**
+      - Cargo.lock
+      - .github/workflows/kurbo-evaluation.yml
+permissions:
+  contents: read
+jobs:
+  kurbo-geometry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Differential and invariant tests
+        run: cargo test --locked -p cadcraft-geom --features kurbo-eval kurbo_evaluation -- --nocapture
+      - name: Strict lint
+        run: cargo clippy --locked -p cadcraft-geom --features kurbo-eval --all-targets -- -D warnings

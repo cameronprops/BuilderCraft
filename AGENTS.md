@@ -2,6 +2,19 @@
 
 ## Worldwright toolchain and environment policy
 
+**License policy:** Worldwright is intended as free, donation-supported open
+source. GPL, LGPL, MPL, MIT, Apache and other legally compatible open-source
+components may be evaluated. Do not copy source without verified file-level
+licenses, upstream revision and preserved notice obligations. GPL-linked
+combined distributions may need GPL source and packaging even if the original
+Rust files remain MIT OR Apache-2.0; commercial sale is not inherently forbidden.
+See `docs/architecture/COPYLEFT_AND_DONATIONWARE.md` and
+`docs/dependencies/UI_CODE_REUSE.json`. Run
+`python3 tools/check_ui_reuse_manifest.py` before source-reuse changes.
+Photon Studio's free desktop binary is a UI behavior reference only pending
+an actual source grant; a third-party Photon Studio website license does not
+license the editor. Preserve original CADCraft upstream licenses.
+
 - The native product is **Worldwright**. Legacy `BuilderCraft` and
   `CADCraft` names remain in repository/crate paths until migration.
 - `rust-toolchain.toml` pins **Rust 1.95.0**; use the checked-in
@@ -29,6 +42,49 @@
   Docker/Rust. Repository setup is reproducible, not a guarantee that an
   unrelated chat runtime is provisioned.
 - See `docs/architecture/DEVELOPMENT_ENVIRONMENT.md`.
+
+## Metrology and reusable geometry dependencies
+
+- Before authoring CAD, Scan, OrbWeaver, inspection, rockwork or fabrication
+  operations, consult `docs/dependencies/metrology-reuse.json`. Reuse already
+  registered kernel geometry/maths services; planned primitives are **not**
+  implemented merely because they appear in this planning registry.
+- Put ICP, best-fit, deviation, spatial indexes, thickness, mesh repair and
+  scan-to-NURBS mathematical work in shared Rust crates, never in separately
+  duplicated app engines. Scan and CAD are independent interface modules.
+- Preserve units/frames, source geometry IDs, fit residuals, tolerance policy,
+  immutable revision-keyed caches, bounded memory and cancellation.
+- Update cross-app dependency metadata alongside implementation/tests. Check
+  `python3 tools/check_metrology_reuse.py` and native Rust CI before declaring
+  operation parity. GOM/PolyWorks/Design X are behavioral references only.
+
+## Dependency-first native tool policy (Worldwright + OrbWeaver)
+
+The [dependency DAG and pair register](docs/dependencies/README.md) govern
+the sequence for **both** native CAD commands and OrbWeaver nodes. Prefer
+lower-tier primitives, then add modifiers and document/graph adapters as
+thin wrappers. One geometry algorithm must serve both interfaces; never
+reimplement the same operation in the OrbWeaver node evaluator.
+All 1,072 Rhino commands, 817 Grasshopper components, 110 Kangaroo components
+and 2,357 manual topics have preliminary category coverage, **not** verified
+per-item dependencies. Review unresolved entries and exact port/tree behavior
+before claiming parity. For every new pair update the Rust
+`SHARED_TOOLS` contracts and `docs/dependencies/tool-groups.json`,
+add CAD and OrbWeaver tests, run the local inventory/pair consistency scripts,
+and leave entries unvalidated until compilation/conformance tests pass.
+Run free public-repository standard-runner Actions automatically; never initiate paid runners without explicit approval.
+
+OrbWeaver now has native `DataTree<T>` structure operations in the **shared
+kernel**: `kernel.tree.validate/flatten/graft/simplify/match`. CAD
+`worldwright.tree.*` commands and `orbweaver.tree.*` nodes must call that
+same kernel contract. Tree branches use lexicographically ordered unique paths;
+matching is explicit and strict by identical path, not automatic Grasshopper
+path matching. Keep modifier policies named and typed (shortest, longest,
+cross-reference), and preserve empty branches. The next dependency is **immutable geometry handles** and document-scoped
+reference resolution. Tree-aware numeric broadcasting is now authored and
+must remain a thin shared-kernel adapter, not a second CAD/graph algorithm.
+not another copy of tree algorithms in the graph crate. Rust code remains
+pending compiled validation.
 
 
 Native BuilderCraft must be entirely free and open source. Use original implementations or dependencies whose relevant source and redistribution licenses have been verified. Rhino/Grasshopper/Kangaroo are public-behavior references only: never copy proprietary implementation code or require a paid host for native capabilities. Optional third-party adapters must not replace native functionality or become a required runtime dependency.
@@ -94,3 +150,14 @@ People trust CADCraft with their drawings; a crash loses their work. **This outr
 `ROADMAP.md` (committed) tracks status, milestones, parity and estimates. Update it whenever a milestone task lands. `cargo xtask parity` recomputes the command-catalog parity in `docs/parity.md`.
 
 Original native host adapter code may use the host's required language (Unreal C++/UBT C#) under `bridges/`; these adapters are optional, separately validated and must not copy engine implementation code. Core suite services and applications remain Rust.
+
+## Optional feature-history modeling
+
+Read `docs/architecture/FEATURE_HISTORY.md` and
+`docs/dependencies/feature-history.json` before implementing mechanical tools.
+Timelines are optional per document, model node or block definition. Preserve
+direct modeling. Stable step IDs, local typed parameters, chronological
+references, reversible suppression/rollback and `.dftba` recipe persistence
+are source-authored, not yet compiled. The 52 planned sketch/solid/assembly
+features are NOT implemented. Reuse the shared Rust geometry operations for
+both CAD feature commands and OrbWeaver nodes. Never duplicate math engines.

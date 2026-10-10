@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "purpose": "Verified provenance for UI libraries, source reuse and behavioral references. This manifest does not imply integration.",
+  "source_entries": [
+    {
+      "id": "cadcraft-foundation",
+      "name": "CADCraft upstream",
+      "url": "https://github.com/storytold/cadcraft",
+      "license": "MIT OR Apache-2.0",
+      "license_evidence": "https://github.com/storytold/cadcraft",
+      "reuse_mode": "existing_foundation",
+      "source_access": "source_available",
+      "source_revision": null,
+      "destinations": [
+        "crates/ui-egui/",
+        "crates/engine/"
+      ],
+      "notices": [
+        "LICENSE-MIT",
+        "LICENSE-APACHE"
+      ],
+      "decision": "Reuse actual checked-in CADCraft UI and command functions. Provenance inherited from existing fork; specific upstream base commit should be audited before further vendoring."
+    },
+    {
+      "id": "gimp-application",
+      "name": "GIMP application core",
+      "url": "https://github.com/GNOME/gimp",
+      "license": "GPL-3.0-or-later",
+      "license_evidence": "https://github.com/GNOME/gimp/blob/master/LICENSE",
+      "reuse_mode": "reference_only",
+      "source_access": "source_available",
+      "source_revision": null,
+      "destinations": [],
+      "notices": [],
+      "decision": "Eligible for source integration after precise file and copyleft/GTK compatibility review; currently GIMP-inspired persistent docks, dockbooks, tool options and contextual command UX only."
+    },
+    {
+      "id": "gimp-library",
+      "name": "GIMP libgimp",
+      "url": "https://github.com/GNOME/gimp",
+      "license": "LGPL (file-level version must be checked)",
+      "license_evidence": "https://github.com/GNOME/gimp/blob/master/LICENSE",
+      "reuse_mode": "reference_only",
+      "source_access": "source_available",
+      "source_revision": null,
+      "destinations": [],
+      "notices": [],
+      "decision": "Library integration candidate for image workflows. GIMP declares a separately LGPL-licensed libgimp interface and a procedural database exception; no direct source integration yet."
+    },
+    {
+      "id": "gimp-asset-themes",
+      "name": "GIMP icon/themes/assets",
+      "url": "https://github.com/GNOME/gimp",
+      "license": "CC BY-SA 3.0/4.0 and individually licensed assets",
+      "license_evidence": "https://github.com/GNOME/gimp/blob/master/LICENSE",
+      "reuse_mode": "reference_only",
+      "source_access": "source_available",
+      "source_revision": null,
+      "destinations": [],
+      "notices": [],
+      "decision": "Do not copy icon themes, fonts or bundled imagery until individual licenses and asset attribution are reviewed. Prefer Worldwright originals."
+    },
+    {
+      "id": "tenzen-photon",
+      "name": "Tenzen Photon Studio desktop editor",
+      "url": "https://tenzen.studio/photon",
+      "license": "UNVERIFIED_PROPRIETARY",
+      "license_evidence": "https://tenzen.studio/photon",
+      "reuse_mode": "reference_only",
+      "source_access": "unverified",
+      "source_revision": null,
+      "destinations": [],
+      "notices": [],
+      "decision": "Free app and donation model, but no verified open-source desktop code grant. Familiar command search, layer/mask workflows and panels are behavioral inspiration only; copying application code is NOT authorized."
+    },
+    {
+      "id": "arsnexc-photon-site",
+      "name": "PhotonStudio website (not desktop app)",
+      "url": "https://github.com/arsnexc/PhotonStudio",
+      "license": "MIT (website only)",
+      "license_evidence": "https://github.com/arsnexc/PhotonStudio",
+      "reuse_mode": "reference_only",
+      "source_access": "source_available",
+      "source_revision": null,
+      "destinations": [],
+      "notices": [],
+      "decision": "Separate public website repository. MIT on website assets or code does not license Tenzen's photo editor or establish shared ownership."
+    }
+  ],
+  "copy_requirements": {
+    "source_copy": [
+      "license_evidence",
+      "source_revision",
+      "destinations",
+      "notices"
+    ],
+    "dependency": [
+      "license_evidence",
+      "source_revision"
+    ],
+    "distribution": "Review combined work, corresponding source, license texts, local modifications and attribution on every packaged release."
+  }
+}

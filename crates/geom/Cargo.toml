@@ -10,8 +10,11 @@ workspace = true
 
 [features]
 curvo-eval = ["dep:curvo", "dep:nalgebra"]
+kurbo-eval = ["dep:kurbo"]
 
 [dependencies]
 curvo = { version = "0.3.2", default-features = false, optional = true }
 nalgebra = { version = "0.35", optional = true }
+kurbo = { version = "0.13.1", default-features = false, features = ["std"], optional = true }
 serde = { workspace = true }
+robust = { version = "1.2.0" } # MIT OR Apache-2.0; choose MIT option

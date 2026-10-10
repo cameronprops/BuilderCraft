@@ -1,12 +1,12 @@
-# BuilderCraft: themed entertainment CAD suite
+# Worldwright: open-source design environment
 
-BuilderCraft combines independent CAD, Scan, Graph and Show apps around shared geometry, scene data, commands and versioned bridges. The current alpha is the CAD desktop; the other executable apps and their planned capabilities are not implemented yet.
+Worldwright combines independent CAD, Scan, Graph and Show apps around shared geometry, scene data, commands and versioned bridges. The current alpha is the CAD desktop; the other executable apps and their planned capabilities are not implemented yet.
 
 | App | Product direction |
 |---|---|
 | CAD | Rhino-style 3D CAD, NURBS/Brep modeling, full command coverage, layers and body browser |
 | Scan | GOM/PolyWorks/DesignX-inspired mesh repair, best fit, inspection and scan reconstruction |
-| Graph | Houdini-style procedural modeling/VFX with Grasshopper data flow and engine pipelines |
+| OrbWeaver (Graph) | Native typed procedural graph for Grasshopper-style workflows, embedded in CAD and independently usable; Houdini-style/VFX extensions later |
 | Show | Lighting, AV and automation organization, paperwork, patch, pre-cueing and previs |
 
 Every app should operate independently, with optional file/live bridges to BuilderCraft or proprietary tools. Early immersive walkthroughs from massing models are a core requirement.
@@ -16,6 +16,106 @@ Start with [suite architecture](docs/architecture/SUITE.md), [delivery roadmap](
 ## Current CAD alpha 0.1
 
 A standalone Rust CAD application based on CADCraft, adding a modeling workspace, named model organization, and initial 3D NURBS tools. No AI, account, Rhino license, or internet connection is required to use the application after installation.
+
+## Run from source
+Requires Rust 1.95 or newer and the normal system dependencies for eframe/wgpu.
+
+```sh
+cargo run -p cadcraft -- --sample
+```
+
+The package name remains `cadcraft` to keep upstream integration simple; the desktop workspace is Worldwright. The `--sample` option opens an inherited drafting sample. Choose **3D** to create a 3D curve or control surface. Drag the viewport to orbit and scroll to zoom. Expand **Control points** in the Model Browser to edit XYZ coordinates. Save as `.dftba` to preserve 3D objects and named organization.
+
+Switch to **2D / Drafting** for existing CADCraft drafting. The workspace selector restores the CADCraft-style layout. This alpha's 3D view is orthographic with an orbit camera; perspective projection, four viewports and 3D snapping are next steps.
+
+## Alpha tools
+- Original Rust rational 3D B-spline curves and tensor-product control surfaces.
+- Surface wireframe display, orbit and zoom; numerical control-point editing.
+- Undoable curve/surface creation, editing, naming and visibility.
+- Named assemblies, components and bodies independent of layers; body creation from selected objects; descendant selection and visibility.
+- Versioned native `.dftba` project envelope preserving supported drafting data, model organization and exact 3D control data.
+- Shared command API via the inherited CLI, loopback JSON control channel and MCP.
+
+Bodies in this alpha are named owners of geometry, not a claim of watertight solid topology. Trimming, booleans, solid modeling, mesh processing and scan metrology are not implemented yet. Original CADCraft drafting tools are inherited and must be evaluated against the files you use; this is not full AutoCAD or Rhino parity.
+
+## API
+```sh
+cargo run -p cadcraft -- --sample --control 7979
+```
+
+See docs/BUILDERCRAFT_API.md and docs/FORMAT_SUPPORT.md. The control endpoint is optional and local. Every modeling mutation runs through the command engine and its undo transactions.
+
+## Git
+Branch: `buildercraft/alpha-foundation`. Upstream: https://github.com/storytold/cadcraft . User-owned repository: https://github.com/cameronprops/BuilderCraft . Source imported from local commit `8509232c17f4763137d8714946f48d9cc0511863`; `history/BuilderCraft.bundle` preserves the original Git history. Keep upstream updates separate from BuilderCraft feature branches.
+
+## Procedural modeling
+The first headless **OrbWeaver** typed graph evaluator and fifteen paired CAD/Graph operations (ten numeric, five data-tree) are authored (compilation pending), with native tree-structural operations but no graphical node canvas or full Grasshopper data-tree parity yet. See [procedural modeling](docs/PROCEDURAL_MODELING.md) and the [dependency plan](docs/dependencies/README.md).
+
+## License and attribution
+MIT OR Apache-2.0, retaining CADCraft's copyright notices and third-party attribution. BuilderCraft is an independent fork, not an ArtCraft product. Upstream trademark assets have been removed from the current source tree; upstream history remains intact.
+
+The first shared scene/geometry kernel is implemented in `crates/kernel`; see [kernel usage and limits](docs/architecture/KERNEL.md). Embedded CAD parametric modeling and native Kangaroo-style solving are accepted roadmap items.
+
+A local saved-project visualization feed and GLB export are available; see [Unreal bridge setup and validation status](bridges/unreal/README.md). [Production organization](docs/architecture/PRODUCTION_ORGANIZATION.md) now persists scene/effect and department relationships.
+
+## Native CAD and parametric coverage
+
+Current priority is the CAD workspace with native Rhino-like tools, a full embedded Grasshopper-style workspace and SolidWorks-style sketch/feature workflows. The component-by-component build register is [Grasshopper 1 and Kangaroo 2](docs/components/README.md), containing 817 and 110 public-index entries respectively. None is currently marked implemented; runtime/version reconciliation and full port/tree contracts remain pending.
+
+The 3D viewport offers Top, Front, Right, Isometric and Fit; drag to orbit,
+Shift-drag to pan, and scroll to zoom. Fit frames visible control hulls with
+a bounded traversal. Native polygon meshes can be clicked to select individual
+triangle or quad faces, highlighted in the wireframe, then edited using the
+existing undoable Delete Face command. The selection is tied to the document
+revision. This first picker only considers polygon meshes; edge/vertex picking,
+shaded occlusion, perspective and full parametric authoring remain future work.
+
+The new native filename is `.dftba`; existing `.bcraft` projects remain readable.
+For local source validation (no GitHub Actions), run
+`bash tools/verify-worldwright-kernel.sh` on Unix/macOS or
+`powershell -ExecutionPolicy Bypass -File tools/verify-worldwright-kernel.ps1`
+on Windows. The mesh UI changes are still undergoing local build validation.
+
+## Building native CAD and OrbWeaver nodes together
+
+The [dependency hierarchy](docs/dependencies/README.md) routes all 4,356
+catalogued references to provisional dependency groups, with 2,347 still
+unclassified pending manual review. The [shared typed dispatcher](crates/kernel/src/shared_tools.rs)
+owns the implementation for fifteen native point, vector, polyline, and data-tree tools; the
+CAD commands and the OrbWeaver graph engine call it rather than duplicate
+algorithms. These new files and authored tests await local Rust compilation.
+Run `python3 tools/build_dependency_index.py --check` to verify catalog
+coverage and `python3 tools/check_paired_tools.py` to catch drift between
+the reference plan, kernel, CAD commands and OrbWeaver node identities.
+
+
+### OrbWeaver data trees (initial native layer)
+
+`crates/orbweaver` now evaluates tagged data-tree operations using the exact
+same kernel functions as Worldwright CAD/API. Five new paired operations add
+validation, flatten, graft, simplify and list matching with a typed matching
+mode modifier. Native branches are strictly ordered, preserve empty branches,
+and require exact matching paths; implicit Grasshopper tree alignment is future work. The first ten shared
+numeric operations now broadcast over typed branches with explicit
+shortest/longest/cross-reference matching and an optional `matching` modifier. See
+[`docs/PROCEDURAL_MODELING.md`](docs/PROCEDURAL_MODELING.md). Rust tests are
+authored but are **not yet compiled or executed**.
+
+## Optional history-driven modeling
+
+Worldwright retains direct modeling while introducing an **opt-in, scoped
+parametric feature history** for mechanical/assembly workflows. A whole
+document, model node or reusable block definition can own its own ordered
+timeline, local parameters, dependency links, suppression, rollback and
+revision-checked edits. The source is implemented in the shared kernel and
+CAD document rather than in a second application-specific solver. Native
+`.dftba` persists the recipes and older files without histories still load.
+
+The initial code executes only **already-registered shared kernel operations**,
+not yet sketch-to-solid features, feature previews or a full timeline authoring editor. An initial 3D workspace history panel can inspect, reorder, suppress, roll back and edit simple parameters.
+See [the architecture](docs/architecture/FEATURE_HISTORY.md) and
+[60-item planned feature hierarchy](docs/dependencies/feature-history.json).
+The new Rust code and tests are **not compiled/verified yet**.
 
 ## Reproducible development environment
 
@@ -32,50 +132,3 @@ charges are needed** for this process. GitHub Codespaces may charge separately.
 See [Development environments](docs/architecture/DEVELOPMENT_ENVIRONMENT.md).
 ChatGPT's temporary execution containers are not automatically provisioned
 by repository files and may lack Cargo.
-
-## Run from source
-Requires Rust 1.90 or newer and the normal system dependencies for eframe/wgpu.
-
-```sh
-cargo run -p cadcraft -- --sample
-```
-
-The package name remains `cadcraft` to keep upstream integration simple; the desktop workspace is BuilderCraft. The `--sample` option opens an inherited drafting sample. Choose **3D** to create a 3D curve or control surface. Drag the viewport to orbit and scroll to zoom. Expand **Control points** in the Model Browser to edit XYZ coordinates. Save as `.bcraft` to preserve 3D objects and named organization.
-
-Switch to **2D / Drafting** for existing CADCraft drafting. The workspace selector restores the CADCraft-style layout. This alpha's 3D view is orthographic with an orbit camera; perspective projection, four viewports and 3D snapping are next steps.
-
-## Alpha tools
-- Original Rust rational 3D B-spline curves and tensor-product control surfaces.
-- Surface wireframe display, orbit and zoom; numerical control-point editing.
-- Undoable curve/surface creation, editing, naming and visibility.
-- Named assemblies, components and bodies independent of layers; body creation from selected objects; descendant selection and visibility.
-- Versioned native `.bcraft` project envelope preserving supported drafting data, model organization and exact 3D control data.
-- Shared command API via the inherited CLI, loopback JSON control channel and MCP.
-
-Bodies in this alpha are named owners of geometry, not a claim of watertight solid topology. Trimming, booleans, solid modeling, mesh processing and scan metrology are not implemented yet. Original CADCraft drafting tools are inherited and must be evaluated against the files you use; this is not full AutoCAD or Rhino parity.
-
-## API
-```sh
-cargo run -p cadcraft -- --sample --control 7979
-```
-
-See docs/BUILDERCRAFT_API.md and docs/FORMAT_SUPPORT.md. The control endpoint is optional and local. Every modeling mutation runs through the command engine and its undo transactions.
-
-## Git
-Branch: `buildercraft/alpha-foundation`. Upstream: https://github.com/storytold/cadcraft . User-owned repository: https://github.com/cameronprops/BuilderCraft . Source imported from local commit `8509232c17f4763137d8714946f48d9cc0511863`; `history/BuilderCraft.bundle` preserves the original Git history. Keep upstream updates separate from BuilderCraft feature branches.
-
-## Procedural modeling
-The Houdini-like component with Grasshopper functionality is requested but not implemented. See [the shared procedural modeling scope](docs/PROCEDURAL_MODELING.md).
-
-## License and attribution
-MIT OR Apache-2.0, retaining CADCraft's copyright notices and third-party attribution. BuilderCraft is an independent fork, not an ArtCraft product. Upstream trademark assets have been removed from the current source tree; upstream history remains intact.
-
-The first shared scene/geometry kernel is implemented in `crates/kernel`; see [kernel usage and limits](docs/architecture/KERNEL.md). Embedded CAD parametric modeling and native Kangaroo-style solving are accepted roadmap items.
-
-A local saved-project visualization feed and GLB export are available; see [Unreal bridge setup and validation status](bridges/unreal/README.md). [Production organization](docs/architecture/PRODUCTION_ORGANIZATION.md) now persists scene/effect and department relationships.
-
-## Native CAD and parametric coverage
-
-Current priority is the CAD workspace with native Rhino-like tools, a full embedded Grasshopper-style workspace and SolidWorks-style sketch/feature workflows. The component-by-component build register is [Grasshopper 1 and Kangaroo 2](docs/components/README.md), containing 817 and 110 public-index entries respectively. None is currently marked implemented; runtime/version reconciliation and full port/tree contracts remain pending.
-
-The 3D viewport now offers Top, Front, Right, Isometric and Fit through the View menu and viewport controls. Drag to orbit, Shift-drag to pan, scroll to zoom. Fit frames visible control hulls conservatively and is bounded to 100,000 controls. These remain orthographic wireframe previews; perspective, geometry picking and full parametric authoring are subsequent work.

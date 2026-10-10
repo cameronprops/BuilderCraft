@@ -1,4 +1,4 @@
-use crate::{Frame, GeometryBudget, GeometryLease, Id, KernelError, Result};
+use crate::{Frame, GeometryBudget, GeometryData, GeometryLease, Id, KernelError, PolygonSceneEdit, Result, apply_polygon_scene_edit};
 use serde::Serialize;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -33,6 +33,8 @@ pub enum SceneCommand {
     Remove(Id),
     Rename(Id, String),
     SetGeometry(Id, GeometryLease),
+    /// Transactional edit of an already-retained polygon mesh.
+    EditPolygon(Id, PolygonSceneEdit),
 }
 #[derive(Clone, Debug)]
 pub struct SceneSnapshot {
@@ -124,6 +126,24 @@ impl Scene {
                 }
                 SceneCommand::SetGeometry(id, geometry) => {
                     Arc::make_mut(staged.get_mut(&id).ok_or(KernelError::Object)?).geometry = Some(geometry);
+                }
+                SceneCommand::EditPolygon(id, edit) => {
+                    let existing = staged.get(&id).ok_or(KernelError::Object)?;
+                    let geometry = existing.geometry.as_ref().ok_or(KernelError::Invalid("object has no polygon mesh"))?;
+                    let GeometryData::PolygonMesh(source) = geometry.data() else {
+                        return Err(KernelError::Invalid("object geometry is not an editable polygon mesh"));
+                    };
+                    // Native mesh editing is synchronous. Bound work until
+                    // cooperative cancellation is supported inside each operation.
+                    if source.vertices.len() > 100_000 || source.faces.len() > 100_000 {
+                        return Err(KernelError::Budget);
+                    }
+                    cancellation.check()?;
+                    let edited = apply_polygon_scene_edit(source, self.revision, &edit)?;
+                    cancellation.check()?;
+                    let lease = self.budget.retain(GeometryData::PolygonMesh(edited))?;
+                    cancellation.check()?;
+                    Arc::make_mut(staged.get_mut(&id).ok_or(KernelError::Object)?).geometry = Some(lease);
                 }
             }
         }

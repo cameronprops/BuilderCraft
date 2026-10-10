@@ -142,7 +142,6 @@ pub fn inspect(app: &mut CadApp, id: u64) -> Result<(), String> {
     Ok(())
 }
 
-
 /// Distance-based screen-space pick on the kernel's oriented boundary loops.
 /// This is a UI projection query, not a second topology implementation.
 pub fn closest_hole_loop(
@@ -154,24 +153,27 @@ pub fn closest_hole_loop(
     cursor: cadcraft_geom::Vec2,
     radius: f64,
 ) -> Option<u32> {
-    if !cursor.is_finite() || !center.is_finite() || !scale.is_finite() || scale <= 0.
-        || !radius.is_finite() || radius <= 0. {
+    if !cursor.is_finite() || !center.is_finite() || !scale.is_finite() || scale <= 0. || !radius.is_finite() || radius <= 0. {
         return None;
     }
     let mut closest = radius * radius;
     let mut selected = None;
     for (loop_id, ids) in loops.iter().enumerate() {
-        if ids.len() < 3 || ids.len() > 256 { continue; }
+        if ids.len() < 3 || ids.len() > 256 {
+            continue;
+        }
         for i in 0..ids.len() {
-            let (Some(&a), Some(&b)) =
-                (mesh.vertices.get(ids[i] as usize), mesh.vertices.get(ids[(i + 1) % ids.len()] as usize))
-            else { continue };
+            let (Some(&a), Some(&b)) = (mesh.vertices.get(ids[i] as usize), mesh.vertices.get(ids[(i + 1) % ids.len()] as usize)) else { continue };
             let a = frame.project(a, center) * scale;
             let b = frame.project(b, center) * scale;
             let ab = b - a;
-            if !a.is_finite() || !b.is_finite() { continue; }
+            if !a.is_finite() || !b.is_finite() {
+                continue;
+            }
             let length = ab.dot(ab);
-            if length <= 1e-15 { continue; }
+            if length <= 1e-15 {
+                continue;
+            }
             let t = ((cursor - a).dot(ab) / length).clamp(0., 1.);
             let delta = cursor - (a + ab * t);
             let d = delta.dot(delta);
@@ -197,18 +199,23 @@ pub fn preview_hole(app: &mut CadApp, id: u64, loop_index: u32) -> Result<(), St
     let revision = st.revision;
     let response = app.run("mesh3d.hole_preview", json!({"id":id,"loop_index":loop_index,"selected_revision":revision}))?;
     let raw = response["new_triangles"].as_array().ok_or("Missing patch triangles")?;
-    if raw.len() > 254 { return Err("Hole patch is too large".into()); }
-    let triangles = raw.iter().map(|face| serde_json::from_value::<[u32; 3]>(face.clone()).map_err(|e| e.to_string()))
-        .collect::<Result<Vec<_>, _>>()?;
-    let boundary_vertices = response["boundary_vertices"].as_array().ok_or("Missing boundary vertices")?
-        .iter().map(|id| id.as_u64().and_then(|id| u32::try_from(id).ok()).ok_or("Invalid boundary vertex"))
+    if raw.len() > 254 {
+        return Err("Hole patch is too large".into());
+    }
+    let triangles =
+        raw.iter().map(|face| serde_json::from_value::<[u32; 3]>(face.clone()).map_err(|e| e.to_string())).collect::<Result<Vec<_>, _>>()?;
+    let boundary_vertices = response["boundary_vertices"]
+        .as_array()
+        .ok_or("Missing boundary vertices")?
+        .iter()
+        .map(|id| id.as_u64().and_then(|id| u32::try_from(id).ok()).ok_or("Invalid boundary vertex"))
         .collect::<Result<Vec<_>, _>>()?;
     let now = app.session.state().map_err(|e| e.to_string())?;
     if now.uid != uid || now.revision != revision || response["source_revision"].as_u64() != Some(revision) {
         return Err("Hole preview became stale".into());
     }
     app.ui.mesh_repair.hole_index = loop_index;
-    app.ui.mesh_repair.patch = Some(HolePatchPreview { object_id:id, uid, revision, loop_index, boundary_vertices, triangles });
+    app.ui.mesh_repair.patch = Some(HolePatchPreview { object_id: id, uid, revision, loop_index, boundary_vertices, triangles });
     app.ui.mesh_repair.picking_hole = false;
     app.set_status(format!("Validated hole {} preview, ready to commit", loop_index));
     Ok(())
@@ -224,10 +231,13 @@ pub fn pick_hole_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2) {
     let result = (|| -> Result<Option<u32>, String> {
         let report = app.run("mesh3d.boundaries", json!({"id":id}))?;
         let lists = report["report"]["closed_loops"].as_array().ok_or("Missing boundary loop list")?;
-        let loops: Vec<Vec<u32>> = lists.iter().map(|v| {
-            let vertices = v["vertices"].as_array().ok_or("Invalid loop")?;
-            vertices.iter().map(|v| v.as_u64().and_then(|i| u32::try_from(i).ok()).ok_or("Invalid vertex")).collect()
-        }).collect::<Result<_, _>>()?;
+        let loops: Vec<Vec<u32>> = lists
+            .iter()
+            .map(|v| {
+                let vertices = v["vertices"].as_array().ok_or("Invalid loop")?;
+                vertices.iter().map(|v| v.as_u64().and_then(|i| u32::try_from(i).ok()).ok_or("Invalid vertex")).collect()
+            })
+            .collect::<Result<_, _>>()?;
         let doc = app.session.doc().map_err(|e| e.to_string())?;
         let object = doc.mesh3d.iter().find(|o| o.id == id).ok_or("Missing selected mesh")?;
         if !object.visible || doc.layer(&object.layer).is_some_and(|l| !l.visible() || l.locked) {
@@ -242,7 +252,9 @@ pub fn pick_hole_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2) {
     })();
     match result {
         Ok(Some(loop_id)) => {
-            if let Err(error) = preview_hole(app, id, loop_id) { app.set_status(error); }
+            if let Err(error) = preview_hole(app, id, loop_id) {
+                app.set_status(error);
+            }
         }
         Ok(None) => app.set_status("Click within 10 pixels of a visible hole boundary"),
         Err(error) => app.set_status(error),
@@ -407,7 +419,9 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 ui.add(egui::DragValue::new(&mut app.ui.mesh_repair.hole_index).speed(1.));
                 if ui.button("Preview").clicked() {
                     let loop_index = app.ui.mesh_repair.hole_index;
-                    if let Err(err) = preview_hole(app, id, loop_index) { app.set_status(err); }
+                    if let Err(err) = preview_hole(app, id, loop_index) {
+                        app.set_status(err);
+                    }
                 }
             });
             if let Some(patch) = app.ui.mesh_repair.patch.as_ref().filter(|p| p.object_id == id && patch_is_current(app, p)) {
@@ -577,16 +591,23 @@ mod tests {
     fn click_boundary_returns_nearest_inner_loop_or_none() {
         let mesh = PolygonMesh {
             vertices: vec![
-                Vec3::new(0.,0.,0.), Vec3::new(4.,0.,0.), Vec3::new(4.,4.,0.), Vec3::new(0.,4.,0.),
-                Vec3::new(1.,1.,0.), Vec3::new(3.,1.,0.), Vec3::new(3.,3.,0.), Vec3::new(1.,3.,0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(4., 4., 0.),
+                Vec3::new(0., 4., 0.),
+                Vec3::new(1., 1., 0.),
+                Vec3::new(3., 1., 0.),
+                Vec3::new(3., 3., 0.),
+                Vec3::new(1., 3., 0.),
             ],
             faces: vec![
-                PolygonFace::Quad([0,1,5,4]), PolygonFace::Quad([1,2,6,5]),
-                PolygonFace::Quad([2,3,7,6]), PolygonFace::Quad([3,0,4,7]),
+                PolygonFace::Quad([0, 1, 5, 4]),
+                PolygonFace::Quad([1, 2, 6, 5]),
+                PolygonFace::Quad([2, 3, 7, 6]),
+                PolygonFace::Quad([3, 0, 4, 7]),
             ],
         };
-        let loops = buildercraft_kernel::polygon_mesh_boundary_loops(&mesh).unwrap()
-            .closed_loops.into_iter().map(|l| l.vertices).collect::<Vec<_>>();
+        let loops = buildercraft_kernel::polygon_mesh_boundary_loops(&mesh).unwrap().closed_loops.into_iter().map(|l| l.vertices).collect::<Vec<_>>();
         let camera = cadcraft_geom::camera::OrthoFrame { yaw: 0., pitch: -std::f64::consts::FRAC_PI_2 };
         let hit = closest_hole_loop(&mesh, &loops, camera, Vec3::ZERO, 100., cadcraft_geom::Vec2::new(200., 101.), 10.);
         assert!(hit.is_some());
@@ -599,18 +620,30 @@ mod tests {
         let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
         let mesh = PolygonMesh {
             vertices: vec![
-                Vec3::new(0.,0.,0.), Vec3::new(4.,0.,0.), Vec3::new(4.,4.,0.), Vec3::new(0.,4.,0.),
-                Vec3::new(1.,1.,0.), Vec3::new(3.,1.,0.), Vec3::new(3.,3.,0.), Vec3::new(1.,3.,0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(4., 4., 0.),
+                Vec3::new(0., 4., 0.),
+                Vec3::new(1., 1., 0.),
+                Vec3::new(3., 1., 0.),
+                Vec3::new(3., 3., 0.),
+                Vec3::new(1., 3., 0.),
             ],
             faces: vec![
-                PolygonFace::Quad([0,1,5,4]), PolygonFace::Quad([1,2,6,5]),
-                PolygonFace::Quad([2,3,7,6]), PolygonFace::Quad([3,0,4,7]),
+                PolygonFace::Quad([0, 1, 5, 4]),
+                PolygonFace::Quad([1, 2, 6, 5]),
+                PolygonFace::Quad([2, 3, 7, 6]),
+                PolygonFace::Quad([3, 0, 4, 7]),
             ],
         };
         let id = app.run("mesh3d.create", json!({"name":"Ring","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
         let boundary = app.run("mesh3d.boundaries", json!({"id":id})).unwrap();
-        let index = boundary["report"]["closed_loops"].as_array().unwrap().iter().position(|loop_data|
-            loop_data["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap() >= 4)).unwrap() as u32;
+        let index = boundary["report"]["closed_loops"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|loop_data| loop_data["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap() >= 4))
+            .unwrap() as u32;
         let revision = app.session.state().unwrap().revision;
         let old = app.session.doc().unwrap().mesh3d[0].mesh.clone();
         preview_hole(&mut app, id, index).unwrap();

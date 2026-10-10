@@ -546,8 +546,8 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 }
             }
             if repair
-                && let Some(patch) = app.ui.mesh_repair.patch.as_ref().filter(|p|
-                    p.object_id == object.id && crate::mesh_repair::patch_is_current(app, p))
+                && let Some(patch) =
+                    app.ui.mesh_repair.patch.as_ref().filter(|p| p.object_id == object.id && crate::mesh_repair::patch_is_current(app, p))
             {
                 let color = crate::mesh_repair::PATCH;
                 let fill = egui::Color32::from_rgba_unmultiplied(85, 230, 175, 85);
@@ -556,7 +556,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                     if let (Some(&a), Some(&b), Some(&c)) = (
                         object.mesh.vertices.get(tri[0] as usize),
                         object.mesh.vertices.get(tri[1] as usize),
-                        object.mesh.vertices.get(tri[2] as usize)
+                        object.mesh.vertices.get(tri[2] as usize),
                     ) {
                         painter.add(egui::Shape::convex_polygon(vec![project(a), project(b), project(c)], fill, stroke));
                     }
@@ -564,7 +564,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 for i in 0..patch.boundary_vertices.len() {
                     if let (Some(&a), Some(&b)) = (
                         object.mesh.vertices.get(patch.boundary_vertices[i] as usize),
-                        object.mesh.vertices.get(patch.boundary_vertices[(i + 1) % patch.boundary_vertices.len()] as usize)
+                        object.mesh.vertices.get(patch.boundary_vertices[(i + 1) % patch.boundary_vertices.len()] as usize),
                     ) {
                         painter.line_segment([project(a), project(b)], egui::Stroke::new(3., color));
                     }

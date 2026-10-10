@@ -13,6 +13,114 @@ pub struct BrepPreview {
     pub edge_chains: Vec<Vec<cadcraft_geom::Vec3>>,
 }
 
+/// Disposable preview of only the proposed patch faces. This does not own or
+/// modify source geometry and is invalidated by document/revision changes.
+#[derive(Clone, Debug)]
+pub struct MeshPatchPreview {
+    pub document_uid: u64,
+    pub source_revision: u64,
+    pub object_id: u64,
+    pub vertices: Vec<cadcraft_geom::Vec3>,
+    pub triangles: Vec<[u32; 3]>,
+}
+
+impl MeshPatchPreview {
+    fn from_reply(document_uid: u64, source_revision: u64, object_id: u64, value: &serde_json::Value) -> Result<Self, String> {
+        if value["id"].as_u64() != Some(object_id) || value["source_revision"].as_u64() != Some(source_revision) {
+            return Err("patch preview reply does not match the selected object/revision".into());
+        }
+        let new_faces = value["new_face_indices"].as_array().ok_or("missing patch face indices")?;
+        if new_faces.is_empty() || new_faces.len() > 8192 {
+            return Err("patch face count outside interactive preview budget".into());
+        }
+        let changed: std::collections::BTreeSet<u32> = new_faces
+            .iter()
+            .map(|id| id.as_u64().and_then(|n| u32::try_from(n).ok()).ok_or("invalid patch face index"))
+            .collect::<Result<_, _>>()?;
+        if changed.len() != new_faces.len() {
+            return Err("duplicate patch face index".into());
+        }
+        let all_vertices = value["vertices"].as_array().ok_or("missing preview vertices")?;
+        let all_triangles = value["triangles"].as_array().ok_or("missing preview triangles")?;
+        let face_indices = value["source_face_indices"].as_array().ok_or("missing preview polygon face map")?;
+        if all_triangles.len() != face_indices.len() || all_vertices.len() > 100_000 || all_triangles.len() > 200_000 {
+            return Err("invalid preview mesh sizes".into());
+        }
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+        let mut remap = std::collections::BTreeMap::<u32, u32>::new();
+        for (triangle, face_id) in all_triangles.iter().zip(face_indices) {
+            let polygon = face_id.as_u64().and_then(|id| u32::try_from(id).ok()).ok_or("invalid source face map")?;
+            if !changed.contains(&polygon) {
+                continue;
+            }
+            if triangles.len() >= 8192 {
+                return Err("patch preview triangle budget exceeded".into());
+            }
+            let ids = triangle.as_array().filter(|v| v.len() == 3).ok_or("invalid preview triangle")?;
+            let mut mapped = [0_u32; 3];
+            for (slot, value) in mapped.iter_mut().zip(ids) {
+                let old_id = value.as_u64().and_then(|id| u32::try_from(id).ok()).ok_or("invalid preview vertex index")?;
+                let id = if let Some(&index) = remap.get(&old_id) {
+                    index
+                } else {
+                    let point_value = all_vertices.get(old_id as usize).ok_or("preview vertex index outside mesh")?;
+                    let point: cadcraft_geom::Vec3 = serde_json::from_value(point_value.clone()).map_err(|e| e.to_string())?;
+                    if !point.is_finite() {
+                        return Err("non-finite patch preview vertex".into());
+                    }
+                    let index = u32::try_from(vertices.len()).map_err(|_| "preview vertex budget exceeded")?;
+                    vertices.push(point);
+                    remap.insert(old_id, index);
+                    index
+                };
+                *slot = id;
+            }
+            triangles.push(mapped);
+        }
+        if triangles.len() != changed.len() {
+            return Err("patch preview triangulation is incomplete".into());
+        }
+        Ok(Self { document_uid, source_revision, object_id, vertices, triangles })
+    }
+}
+
+/// Translucent shaded x-ray overlay, not an occlusion-certified surface render.
+fn draw_mesh_patch_preview(
+    painter: &egui::Painter,
+    project: impl Fn(cadcraft_geom::Vec3) -> egui::Pos2,
+    cache: &MeshPatchPreview,
+) {
+    let light = cadcraft_geom::Vec3::new(0.2, 0.35, 0.91);
+    for &[a, b, c] in &cache.triangles {
+        let Some((&p, &q, &r)) = cache
+            .vertices
+            .get(a as usize)
+            .zip(cache.vertices.get(b as usize))
+            .zip(cache.vertices.get(c as usize))
+        else {
+            continue;
+        };
+        let normal = (q - p).cross(r - p);
+        let normal_length = normal.x.hypot(normal.y).hypot(normal.z);
+        if normal_length <= 1e-14 {
+            continue;
+        }
+        let illumination = (0.28 + 0.72 * (normal.dot(light) / normal_length).abs()).clamp(0.0, 1.0);
+        let fill = egui::Color32::from_rgba_unmultiplied(
+            (40.0 * illumination) as u8,
+            (210.0 * illumination) as u8,
+            (245.0 * illumination) as u8,
+            154,
+        );
+        painter.add(egui::Shape::convex_polygon(
+            vec![project(p), project(q), project(r)],
+            fill,
+            egui::Stroke::new(0.8, egui::Color32::from_rgb(40, 235, 250)),
+        ));
+    }
+}
+
 fn load_exact_brep_wires(app: &mut CadApp, id: u64) -> Result<(), String> {
     let state = app.session.state().map_err(|e| e.to_string())?;
     let (document_uid, revision) = (state.uid, state.revision);
@@ -269,6 +377,9 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                     data.remove::<String>(feedback_id);
                                 }
                             });
+                            if changed {
+                                app.ui.mesh_patch_preview = None;
+                            }
                             let mode = match selected_mode {
                                 1 => json!({"mode":"planar_best_fit","max_displacement":max_displacement}),
                                 2 => json!({"mode":"planar_average_normal","max_displacement":max_displacement}),
@@ -283,7 +394,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                 if ui.button("Preview and measure").clicked()
                                     && let Ok(state) = app.session.state()
                                 {
-                                    let revision = state.revision;
+                                    let (document_uid, revision) = (state.uid, state.revision);
                                     let outcome = app.run(
                                         "mesh3d.fill_preview",
                                         json!({
@@ -291,15 +402,35 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                         }),
                                     );
                                     let message = match outcome {
-                                        Ok(value) => format!(
-                                            "Patch preview: {} triangles, {} interior vertices, RMS {:.5}, max {:.5}, {} rim vertices moved. No model changes.",
-                                            value["new_face_indices"].as_array().map_or(0, Vec::len),
-                                            value["interior_vertices_added"].as_u64().unwrap_or(0),
-                                            value["plane"]["rms_boundary_deviation"].as_f64().unwrap_or(0.0),
-                                            value["plane"]["max_boundary_deviation"].as_f64().unwrap_or(0.0),
-                                            value["moved_vertices"].as_array().map_or(0, Vec::len)
-                                        ),
-                                        Err(error) => format!("Preview rejected: {error}"),
+                                        Ok(value) => {
+                                            let cache = MeshPatchPreview::from_reply(document_uid, revision, object.id, &value);
+                                            if app.session.state().is_ok_and(|st| st.uid == document_uid && st.revision == revision) {
+                                                match cache {
+                                                    Ok(cache) => {
+                                                        let count = cache.triangles.len();
+                                                        app.ui.mesh_patch_preview = Some(cache);
+                                                        format!(
+                                                            "3D patch overlay: {count} triangles, {} interior vertices, RMS {:.5}, max {:.5}, {} rim vertices moved. Model unchanged.",
+                                                            value["interior_vertices_added"].as_u64().unwrap_or(0),
+                                                            value["plane"]["rms_boundary_deviation"].as_f64().unwrap_or(0.0),
+                                                            value["plane"]["max_boundary_deviation"].as_f64().unwrap_or(0.0),
+                                                            value["moved_vertices"].as_array().map_or(0, Vec::len)
+                                                        )
+                                                    }
+                                                    Err(error) => {
+                                                        app.ui.mesh_patch_preview = None;
+                                                        format!("Preview rejected: {error}")
+                                                    }
+                                                }
+                                            } else {
+                                                app.ui.mesh_patch_preview = None;
+                                                "Preview rejected: source document changed during preview".into()
+                                            }
+                                        }
+                                        Err(error) => {
+                                            app.ui.mesh_patch_preview = None;
+                                            format!("Preview rejected: {error}")
+                                        }
                                     };
                                     ui.ctx().data_mut(|data| data.insert_temp(feedback_id, message));
                                 }
@@ -315,7 +446,10 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                         }),
                                     );
                                     let message = match outcome {
-                                        Ok(_) => "Patch committed. Undo restores the original mesh.".to_owned(),
+                                        Ok(_) => {
+                                            app.ui.mesh_patch_preview = None;
+                                            "Patch committed. Undo restores the original mesh.".to_owned()
+                                        },
                                         Err(error) => format!("Patch rejected: {error}"),
                                     };
                                     ui.ctx().data_mut(|data| data.insert_temp(feedback_id, message));
@@ -617,6 +751,22 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 }
             }
         }
+    }
+    // The patch overlay is explicitly generated by a non-mutating engine command.
+    // Render only source-mapped patch faces. All other mesh faces stay untouched.
+    if let Some(cache) = &app.ui.mesh_patch_preview
+        && app.session.state().is_ok_and(|st| st.uid == cache.document_uid && st.revision == cache.source_revision)
+        && let Ok(d) = app.session.doc()
+        && d.mesh3d.iter().any(|o| o.id == cache.object_id && o.visible && d.layer(&o.layer).is_none_or(|l| l.visible()))
+    {
+        draw_mesh_patch_preview(&painter, project, cache);
+        painter.text(
+            rect.left_top() + egui::vec2(8., 8.),
+            egui::Align2::LEFT_TOP,
+            "PROPOSED PATCH  /  X-RAY PREVIEW  /  NOT COMMITTED",
+            egui::FontId::monospace(12.),
+            egui::Color32::from_rgb(40, 235, 250),
+        );
     }
     // BRep wires are loaded explicitly from OCCT and tied to source revision.
     // No persistent conversion and no claim of occlusion-correct shading.

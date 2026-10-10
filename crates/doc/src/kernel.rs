@@ -4,6 +4,11 @@ use crate::Drawing;
 use buildercraft_kernel::*;
 
 pub fn manifest(drawing: &Drawing, project_id: Id, revision: u64, geometry_budget_bytes: usize) -> Result<Manifest> {
+    // The shared scene's GeometryData does not yet own a BRep representation.
+    // Explicitly reject instead of silently omitting exact solids from exports.
+    if !drawing.exact_breps.is_empty() {
+        return Err(KernelError::Invalid("exact BRep scene manifest not yet implemented"));
+    }
     if drawing
         .organization
         .nodes

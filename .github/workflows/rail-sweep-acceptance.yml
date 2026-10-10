@@ -36,3 +36,5 @@ jobs:
         run: cargo clippy --locked -p buildercraft-kernel -p orbweaver -p cadcraft-engine --all-targets -- -D warnings
       - name: Compile command-line application
         run: cargo build --locked -p cadcraft-cli
+      - name: Execute native Pipe, Sweep1 and Sweep2 from the CLI
+        run: python3 tools/tests/smoke_rail_cli.py

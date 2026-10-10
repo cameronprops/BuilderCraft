@@ -22,6 +22,7 @@ impl eframe::App for App {
         if let Ok(profile) = cadcraft_ui_egui::workbench::encode(&self.0) {
             storage.set_string("worldwright.workspace.v1", profile);
         }
+        storage.set_string("worldwright.hardware.v1", self.0.machine_profile.json());
     }
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         #[cfg(target_os = "macos")]
@@ -136,6 +137,8 @@ fn main() -> eframe::Result {
             if let Some(rs) = &cc.wgpu_render_state {
                 app.set_wgpu(rs);
             }
+            let previous_hardware = cc.storage.and_then(|storage| storage.get_string("worldwright.hardware.v1"));
+            app.configure_machine(previous_hardware.as_deref(), cc.wgpu_render_state.as_ref());
             if let Some(port) = control_port {
                 let rx = control_server::start(port, cc.egui_ctx.clone());
                 app = app.with_control(rx);

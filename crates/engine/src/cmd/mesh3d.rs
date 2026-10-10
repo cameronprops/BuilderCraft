@@ -6,6 +6,8 @@ use buildercraft_kernel::{
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use serde_json::json;
+use serde::Deserialize;
+use cadcraft_geom::Vec3;
 use std::sync::Arc;
 
 const MAX_EDIT_VERTICES: usize = 100_000;
@@ -15,6 +17,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("mesh3d.create", "Create Native Polygon Mesh", create)
             .params("{name,mesh:{vertices:[{x,y,z},...],faces:[{triangle:[...]},{quad:[...]}]}}"),
+        CommandSpec::new("mesh3d.array", "Array Native Polygon Mesh Object", array_object).params("{id,mode:linear|rectangular|polar|path, ...}"),
         CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face).params("{id,face_index,distance,selected_revision?}"),
         CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
             .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole,selected_revision,...}}"),
@@ -73,6 +76,59 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
 /// Persistent face extrusion through the document undo/revision transaction.
 /// An explicit pick revision is required for GUI callers that hold stale picks;
 /// headless clients may omit it to use the current document revision.
+
+#[derive(Deserialize)]
+#[serde(tag="mode",rename_all="snake_case",deny_unknown_fields)]
+enum MeshArraySpec {
+    Linear { step: Vec3, count: usize },
+    Rectangular { x_step: Vec3, y_step: Vec3, z_step: Vec3, nx: usize, ny: usize, nz: usize },
+    Polar { center: Vec3, axis: Vec3, sweep_degrees: f64, count: usize },
+    Path { path: Vec<Vec3>, count: usize },
+}
+
+/// Populate native document objects. All geometry and size checks finish
+/// before a single document mutation, preserving the Session undo snapshot.
+/// This command creates explicit independent meshes, not associative instances.
+fn array_object(s: &mut Session, p: &Value) -> Result<Value> {
+    let source_id=id(p)?;
+    let source=selected(s,source_id)?.clone();
+    let args:MeshArraySpec=serde_json::from_value(p.clone()).map_err(|e| invalid(&e.to_string()))?;
+    let copies=match args {
+        MeshArraySpec::Linear{step,count} => buildercraft_kernel::array_linear(&source.mesh.vertices,step,count),
+        MeshArraySpec::Rectangular{x_step,y_step,z_step,nx,ny,nz} =>
+            buildercraft_kernel::array_rectangular(&source.mesh.vertices,x_step,y_step,z_step,nx,ny,nz),
+        MeshArraySpec::Polar{center,axis,sweep_degrees,count} =>
+            buildercraft_kernel::array_polar(&source.mesh.vertices,center,axis,sweep_degrees,count),
+        MeshArraySpec::Path{path,count} => buildercraft_kernel::array_path(&source.mesh.vertices,&path,count),
+    }.map_err(|e| invalid(&e.to_string()))?;
+    if copies.len()<2 { return Err(invalid("array needs at least two instances to add objects")); }
+    let required=copies.len()-1;
+    let d=s.doc()?;
+    if d.geometry3d.len().checked_add(d.mesh3d.len()).and_then(|n| n.checked_add(required)).is_none_or(|n| n>4096)
+        || d.handseed > u64::MAX - required as u64 {
+        return Err(invalid("3D object or identity budget exceeded"));
+    }
+    let mut staged=Vec::new();
+    staged.try_reserve_exact(required).map_err(|_| invalid("array allocation rejected"))?;
+    for (i, vertices) in copies.into_iter().enumerate().skip(1) {
+        let mesh=PolygonMesh { vertices, faces: source.mesh.faces.clone() };
+        validate_size(&mesh)?;
+        let name=format!("{} array {}",source.name,i);
+        if name.len()>256 { return Err(invalid("array copy name too long")); }
+        staged.push((name,Arc::new(mesh)));
+    }
+    let d=s.doc_mut()?;
+    let mut ids=Vec::new();
+    for (name,mesh) in staged {
+        let new_id=d.new_handle().0;
+        d.mesh3d.push(PolygonGeometryObject {
+            id:new_id, name, layer:source.layer.clone(), visible:source.visible, mesh
+        });
+        ids.push(new_id);
+    }
+    Ok(json!({"source_id":source_id,"new_ids":ids,"copy_count":ids.len()}))
+}
+
 fn pushpull_face(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
     let face_index = p.get("face_index").and_then(Value::as_u64).ok_or_else(|| invalid("face_index required"))?;
@@ -158,6 +214,22 @@ mod tests {
         assert!(s.execute("mesh3d.pushpull",&json!({"id":id,"face_index":1,"distance":1.,"selected_revision":revision})).is_err());
         s.execute("undo",&json!({})).unwrap();
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(),before.as_ref());
+    }
+
+    #[test]
+    fn document_array_creates_independent_geometry_and_is_undoable() {
+        let mut s=Session::new();
+        let square=vec![Vec3::new(0.,0.,0.),Vec3::new(1.,0.,0.),Vec3::new(1.,1.,0.),Vec3::new(0.,1.,0.)];
+        let cube=buildercraft_kernel::pushpull_quad(&square,1.).unwrap();
+        let id=s.execute("mesh3d.create",&json!({"name":"Seed","mesh":cube})).unwrap()["id"].as_u64().unwrap();
+        let created=s.execute("mesh3d.array",&json!({"id":id,"mode":"polar","center":{"x":0.,"y":0.,"z":0.},"axis":{"x":0.,"y":0.,"z":1.},"sweep_degrees":360.,"count":4})).unwrap();
+        assert_eq!(created["copy_count"],3);
+        assert_eq!(s.doc().unwrap().mesh3d.len(),4);
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.vertices[0],Vec3::ZERO);
+        s.execute("undo",&json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d.len(),1);
+        assert!(s.execute("mesh3d.array",&json!({"id":id,"mode":"linear","step":{"x":1.,"y":0.,"z":0.},"count":usize::MAX})).is_err());
+        assert_eq!(s.doc().unwrap().mesh3d.len(),1);
     }
 
     fn ring() -> PolygonMesh {

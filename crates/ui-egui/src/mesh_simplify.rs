@@ -255,10 +255,7 @@ mod tests {
             document_uid: 6,
             source_revision: 10,
             object_id: 9,
-            mesh: TriangleMesh {
-                vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)],
-                triangles: vec![[0, 1, 2]],
-            },
+            mesh: TriangleMesh { vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)], triangles: vec![[0, 1, 2]] },
             wire_edges: vec![[0, 1], [0, 2], [1, 2]],
             removed_faces: 2,
             target_reached: true,

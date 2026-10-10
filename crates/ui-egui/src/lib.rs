@@ -26,6 +26,7 @@ pub mod palettes;
 pub mod parametric;
 pub mod quick;
 pub mod theme;
+pub mod workspace;
 
 use std::sync::mpsc::Receiver;
 
@@ -58,6 +59,8 @@ pub struct UiState {
     pub dialog: Option<String>,
     pub history_lines: usize,
     pub buildercraft_workspace: bool,
+    /// Optional return destination for the workspace navigation control.
+    pub previous_workspace: Option<workspace::Workspace>,
     pub model_name: String,
     /// Index of the polygon face selected for numeric mesh edit commands.
     pub mesh_face_index: u32,
@@ -106,6 +109,7 @@ impl Default for UiState {
             dialog: None,
             history_lines: 3,
             buildercraft_workspace: true,
+            previous_workspace: None,
             model_name: "Body".into(),
             mesh_face_index: 0,
             mesh_face_object_id: None,

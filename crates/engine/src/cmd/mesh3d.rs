@@ -2,8 +2,8 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    MeshDecimateOptions, MeshDecimateResult, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate, polygon_mesh_boundary_loops,
-    polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
+    MeshDecimateOptions, MeshDecimateResult, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate,
+    polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -274,7 +274,6 @@ fn calculate_decimation(s: &Session, p: &Value) -> Result<(u64, u64, MeshDecimat
     Ok((object_id, current_revision, result))
 }
 
-
 /// Revision-bound, read-only manufacturing/display proxy. The derived face
 /// identities are not aliases for the original polygon faces.
 fn preview_decimate(s: &mut Session, p: &Value) -> Result<Value> {
@@ -345,9 +344,7 @@ fn simplify(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         let doc = s.doc_mut()?;
         let new_id = doc.new_handle().0;
-        doc.mesh3d.push(PolygonGeometryObject {
-            id: new_id, name: final_name, layer: source.layer, visible: source.visible, mesh: new_mesh,
-        });
+        doc.mesh3d.push(PolygonGeometryObject { id: new_id, name: final_name, layer: source.layer, visible: source.visible, mesh: new_mesh });
         new_id
     };
     Ok(json!({
@@ -410,11 +407,21 @@ mod tests {
         assert_eq!(session.state().unwrap().revision, revision);
         assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
 
-        let preview = session.execute("mesh3d.preview_decimate", &json!({"id":source_id,"target_faces":6,"selected_revision":revision,"max_normal_change_degrees":85.0})).unwrap();
-        let output = session.execute("mesh3d.simplify", &json!({
-            "id":source_id,"target_faces":6,"selected_revision":revision,
-            "max_normal_change_degrees":85.0
-        })).unwrap();
+        let preview = session
+            .execute(
+                "mesh3d.preview_decimate",
+                &json!({"id":source_id,"target_faces":6,"selected_revision":revision,"max_normal_change_degrees":85.0}),
+            )
+            .unwrap();
+        let output = session
+            .execute(
+                "mesh3d.simplify",
+                &json!({
+                    "id":source_id,"target_faces":6,"selected_revision":revision,
+                    "max_normal_change_degrees":85.0
+                }),
+            )
+            .unwrap();
         let baked_id = output["id"].as_u64().unwrap();
         assert_ne!(baked_id, source_id);
         assert_eq!(output["removed_faces"], preview["removed_faces"]);
@@ -427,10 +434,15 @@ mod tests {
         assert_eq!(session.doc().unwrap().mesh3d[0].mesh, source);
 
         let replacement_revision = session.state().unwrap().revision;
-        let replaced = session.execute("mesh3d.simplify", &json!({
-            "id":source_id,"target_faces":6,"mode":"replace",
-            "selected_revision":replacement_revision,"max_normal_change_degrees":85.0
-        })).unwrap();
+        let replaced = session
+            .execute(
+                "mesh3d.simplify",
+                &json!({
+                    "id":source_id,"target_faces":6,"mode":"replace",
+                    "selected_revision":replacement_revision,"max_normal_change_degrees":85.0
+                }),
+            )
+            .unwrap();
         assert_eq!(replaced["id"], source_id);
         assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
         assert_eq!(session.doc().unwrap().mesh3d[0].mesh.faces.len(), 6);

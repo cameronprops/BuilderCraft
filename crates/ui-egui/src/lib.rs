@@ -76,7 +76,7 @@ pub struct UiState {
     pub mesh_face_revision: Option<u64>,
     /// Derived QEM wire preview. Never saved in preferences or the CAD document.
     #[serde(skip)]
-    pub mesh_simplify_preview: Option<mesh_simplify::Preview>,
+    pub(crate) mesh_simplify_preview: Option<mesh_simplify::Preview>,
     /// Explicitly loaded, revision-scoped OCCT wire display cache, not source geometry.
     #[serde(skip)]
     pub brep_preview: Option<buildercraft::BrepPreview>,

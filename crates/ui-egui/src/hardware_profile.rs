@@ -34,7 +34,7 @@ pub struct Graphics {
     pub adapter_name: String,
     pub adapter_class: AdapterClass,
     pub max_texture_2d: u32,
-    pub max_storage_binding_bytes: u32,
+    pub max_storage_binding_bytes: u64,
     /// Device reports compute limits; this does NOT mean GPU mesh repair exists.
     pub compute_capable: bool,
 }

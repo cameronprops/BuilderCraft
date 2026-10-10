@@ -45,6 +45,7 @@ pub struct UiState {
     #[serde(skip)]
     pub layout_dirty: bool,
     pub layout: workbench::Layout,
+    pub tool_shelf: Vec<String>,
     pub saved_layout: Option<workbench::Layout>,
     #[serde(skip)]
     pub command_search: workbench::Search,
@@ -109,6 +110,7 @@ impl Default for UiState {
         UiState {
             layout_dirty: true,
             layout: Default::default(),
+            tool_shelf: Vec::new(),
             saved_layout: None,
             command_search: Default::default(),
             show_toolsets: true,
@@ -332,6 +334,7 @@ impl CadApp {
             self.ui.layout_dirty = false;
         }
         chrome::title_and_toolbar(self, ui);
+        workbench::shelf(self, ui);
         if self.ui.in_window_menu {
             menus::menu_bar(self, ui);
         }

@@ -224,3 +224,7 @@ not create a document transaction. Preferences exclude geometry, selection,
 camera and transient drafting state. This does not implement the broader
 cross-domain shell, mixed custom palettes or free docking proposed above.
 See `docs/ALPHA_SMOKE_TEST.md` for acceptance and remaining work.
+
+## Tool shelf restoration
+
+The alpha workbench supports pinning registered commands from search into a scrolling My tools shelf. Edit can reorder or remove entries. Shelf launch uses existing command handlers and availability checks. Preferences accept at most 32 unique command IDs, preserve unavailable IDs as disabled removable entries, and default older profiles to an empty shelf. Invalid profile data is rejected before applying layout or shelf changes. Restored source passed eight workbench tests (including pointer pin and launch), full workspace tests, all six local gates and rendered layout inspection on Rust 1.95. Native build and the required kernel script are separately recorded at publication.

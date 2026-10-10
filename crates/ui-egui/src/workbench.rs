@@ -71,10 +71,14 @@ impl Layout {
 struct Preferences {
     active: Layout,
     saved: Option<Layout>,
+    #[serde(default)]
+    shelf: Vec<String>,
 }
 /// Only user workspace fields are persisted. Selection, camera, dialogs and geometry are excluded.
 pub fn encode(app: &CadApp) -> Result<String, String> {
-    serde_json::to_string(&Preferences { active: Layout::capture(app), saved: app.ui.saved_layout.clone() }).map_err(|e| e.to_string())
+    validate_shelf(&app.ui.tool_shelf)?;
+    serde_json::to_string(&Preferences { active: Layout::capture(app), saved: app.ui.saved_layout.clone(), shelf: app.ui.tool_shelf.clone() })
+        .map_err(|e| e.to_string())
 }
 pub fn restore(app: &mut CadApp, text: &str) -> Result<(), String> {
     if text.len() > 16_384 {
@@ -86,7 +90,9 @@ pub fn restore(app: &mut CadApp, text: &str) -> Result<(), String> {
     {
         return Err("Invalid saved workspace profile".into());
     }
+    validate_shelf(&profile.shelf)?;
     profile.active.apply(app)?;
+    app.ui.tool_shelf = profile.shelf;
     app.ui.saved_layout = profile.saved;
     Ok(())
 }
@@ -211,18 +217,26 @@ pub fn search(app: &mut CadApp, ctx: &egui::Context) {
                 ui.label("No matching commands. Try a tool name or category.");
             }
             for (index, row) in rows.iter().enumerate() {
-                let response = ui
-                    .add_enabled(
-                        row.enabled,
-                        egui::Button::selectable(index == app.ui.command_search.selected, format!("{}   {}", row.label, row.id)),
-                    )
-                    .on_hover_text(&row.reason);
-                if index == app.ui.command_search.selected {
-                    response.scroll_to_me(Some(egui::Align::Center));
-                }
-                if response.clicked() {
-                    chosen = Some(row.id);
-                }
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(!app.ui.tool_shelf.iter().any(|id| id == row.id) && app.ui.tool_shelf.len() < 32, egui::Button::new("Pin"))
+                        .clicked()
+                    {
+                        let _ = pin(app, row.id);
+                    }
+                    let response = ui
+                        .add_enabled(
+                            row.enabled,
+                            egui::Button::selectable(index == app.ui.command_search.selected, format!("{}   {}", row.label, row.id)),
+                        )
+                        .on_hover_text(&row.reason);
+                    if index == app.ui.command_search.selected {
+                        response.scroll_to_me(Some(egui::Align::Center));
+                    }
+                    if response.clicked() {
+                        chosen = Some(row.id);
+                    }
+                });
             }
         });
         if ui.button("Close").clicked() {
@@ -234,6 +248,91 @@ pub fn search(app: &mut CadApp, ctx: &egui::Context) {
     }
     if let Some(id) = chosen {
         app.start(id);
+    }
+}
+
+fn validate_shelf(ids: &[String]) -> Result<(), String> {
+    if ids.len() > 32 || ids.iter().any(|id| id.is_empty() || id.len() > 128 || !id.bytes().all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c)))
+    {
+        return Err("Invalid tool shelf or shelf budget exceeded".into());
+    }
+    let mut unique = std::collections::BTreeSet::new();
+    if ids.iter().any(|id| !unique.insert(id)) {
+        return Err("Duplicate shelf command".into());
+    }
+    Ok(())
+}
+pub fn pin(app: &mut CadApp, id: &str) -> Result<(), String> {
+    let mut ids = app.ui.tool_shelf.clone();
+    ids.push(id.into());
+    validate_shelf(&ids)?;
+    app.ui.tool_shelf = ids;
+    app.ui.layout_dirty = true;
+    Ok(())
+}
+fn edit_shelf(app: &mut CadApp, index: usize, direction: i8) -> Result<(), String> {
+    let len = app.ui.tool_shelf.len();
+    if index >= len {
+        return Err("Shelf entry no longer exists".into());
+    }
+    match direction {
+        -1 if index > 0 => app.ui.tool_shelf.swap(index, index - 1),
+        1 if index + 1 < len => app.ui.tool_shelf.swap(index, index + 1),
+        0 => {
+            app.ui.tool_shelf.remove(index);
+        }
+        _ => return Err("Invalid shelf move".into()),
+    }
+    app.ui.layout_dirty = true;
+    Ok(())
+}
+pub fn shelf(app: &mut CadApp, ui: &mut egui::Ui) {
+    if !app.ui.show_toolbar || app.ui.tool_shelf.is_empty() {
+        return;
+    }
+    let mut chosen = None;
+    let mut edit = None;
+    egui::Panel::top("worldwright_tool_shelf").show(ui, |ui| {
+        ui.horizontal(|ui| {
+            ui.weak("My tools");
+            ui.menu_button("Edit", |ui| {
+                for (i, id) in app.ui.tool_shelf.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.label(id);
+                        if ui.add_enabled(i > 0, egui::Button::new("↑")).clicked() {
+                            edit = Some((i, -1));
+                        }
+                        if ui.add_enabled(i + 1 < app.ui.tool_shelf.len(), egui::Button::new("↓")).clicked() {
+                            edit = Some((i, 1));
+                        }
+                        if ui.button("Remove").clicked() {
+                            edit = Some((i, 0));
+                        }
+                    });
+                }
+            });
+            egui::ScrollArea::horizontal().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    for id in &app.ui.tool_shelf {
+                        let row = matches(app, id).into_iter().find(|r| r.id == id);
+                        let (label, enabled, reason) = row.as_ref().map(|r| (r.label, r.enabled, r.reason.as_str())).unwrap_or((
+                            id.as_str(),
+                            false,
+                            "Command unavailable; remove it using Edit",
+                        ));
+                        if ui.add_enabled(enabled, egui::Button::new(label)).on_hover_text(reason).clicked() {
+                            chosen = Some(id.clone());
+                        }
+                    }
+                });
+            });
+        });
+    });
+    if let Some((i, direction)) = edit {
+        let _ = edit_shelf(app, i, direction);
+    }
+    if let Some(id) = chosen {
+        app.start(&id);
     }
 }
 
@@ -326,6 +425,8 @@ mod tests {
         assert_eq!(document_before_search, format!("{:?}", app.session.state().unwrap()));
         if std::env::var_os("WORLDWRIGHT_WORKBENCH_CAPTURE").is_some() {
             app.ui.point_input = Default::default();
+            pin(&mut app, "ui.buildercraft.drawcurve").unwrap();
+            pin(&mut app, "ui.workspace.focus").unwrap();
             app.start("ui.buildercraft.curve");
             let capture = egui::Context::default();
             for _ in 0..2 {
@@ -388,5 +489,110 @@ mod tests {
         assert_eq!(before, format!("{:?}", app.session.state().unwrap()));
         frame(&mut app, &ctx, vec![key(egui::Key::Escape)]);
         assert!(!app.ui.command_search.open);
+    }
+}
+
+#[cfg(test)]
+mod shelf_tests {
+    use super::*;
+    #[test]
+    fn shelf_roundtrip_legacy_and_atomic_rejection() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let document_before = format!("{:?}", app.session.state().unwrap());
+        pin(&mut app, "ui.buildercraft.drawcurve").unwrap();
+        assert_eq!(document_before, format!("{:?}", app.session.state().unwrap()));
+        let before = encode(&app).unwrap();
+        assert!(pin(&mut app, "ui.buildercraft.drawcurve").is_err());
+        assert_eq!(before, encode(&app).unwrap());
+        let mut other = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        restore(&mut other, &before).unwrap();
+        assert_eq!(app.ui.tool_shelf, other.ui.tool_shelf);
+        let mut legacy: Value = serde_json::from_str(&before).unwrap();
+        legacy.as_object_mut().unwrap().remove("shelf");
+        restore(&mut other, &legacy.to_string()).unwrap();
+        assert!(other.ui.tool_shelf.is_empty());
+        let mut bad: Value = serde_json::from_str(&before).unwrap();
+        bad["shelf"] = json!(["bad id"]);
+        assert!(restore(&mut app, &bad.to_string()).is_err());
+        assert_eq!(before, encode(&app).unwrap());
+    }
+    #[test]
+    fn shelf_order_limits_and_missing_commands() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        pin(&mut app, "ui.workspace.focus").unwrap();
+        pin(&mut app, "missing.future.command").unwrap();
+        edit_shelf(&mut app, 1, -1).unwrap();
+        assert_eq!(app.ui.tool_shelf[0], "missing.future.command");
+        edit_shelf(&mut app, 0, 1).unwrap();
+        assert_eq!(app.ui.tool_shelf[0], "ui.workspace.focus");
+        let before = encode(&app).unwrap();
+        assert!(edit_shelf(&mut app, usize::MAX, 1).is_err());
+        assert!(edit_shelf(&mut app, 0, -1).is_err());
+        assert_eq!(encode(&app).unwrap(), before);
+        edit_shelf(&mut app, 1, 0).unwrap();
+        for i in 1..32 {
+            pin(&mut app, &format!("fixture.{i}")).unwrap();
+        }
+        let before = encode(&app).unwrap();
+        assert!(pin(&mut app, "fixture.extra").is_err());
+        assert_eq!(before, encode(&app).unwrap());
+    }
+    fn text_center(shapes: &[egui::epaint::ClippedShape], label: &str) -> Option<egui::Pos2> {
+        fn find(shape: &egui::Shape, label: &str) -> Option<egui::Pos2> {
+            match shape {
+                egui::Shape::Text(text) if text.galley.text() == label => Some(text.pos + text.galley.size() * 0.5),
+                egui::Shape::Vec(shapes) => shapes.iter().find_map(|shape| find(shape, label)),
+                _ => None,
+            }
+        }
+        shapes.iter().find_map(|shape| find(&shape.shape, label))
+    }
+    fn pointer_frame(app: &mut CadApp, ctx: &egui::Context, events: Vec<egui::Event>) -> egui::FullOutput {
+        let mut out = ctx.run_ui(
+            egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1440., 900.))), events, ..Default::default() },
+            |ui| {
+                app.logic(ui.ctx());
+                app.ui(ui);
+            },
+        );
+        out.textures_delta.clear();
+        out
+    }
+    fn click(app: &mut CadApp, ctx: &egui::Context, pos: egui::Pos2) {
+        pointer_frame(
+            app,
+            ctx,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: true, modifiers: Default::default() },
+            ],
+        );
+        pointer_frame(
+            app,
+            ctx,
+            vec![egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed: false, modifiers: Default::default() }],
+        );
+    }
+    #[test]
+    fn pointer_pin_does_not_run_and_shelf_launch_reuses_handler() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let ctx = egui::Context::default();
+        pointer_frame(&mut app, &ctx, vec![]);
+        let before = format!("{:?}", app.session.state().unwrap());
+        app.start("ui.command.search");
+        app.ui.command_search.query = "ui.buildercraft.drawcurve".into();
+        pointer_frame(&mut app, &ctx, vec![]);
+        let output = pointer_frame(&mut app, &ctx, vec![]);
+        click(&mut app, &ctx, text_center(&output.shapes, "Pin").unwrap());
+        assert_eq!(app.ui.tool_shelf, ["ui.buildercraft.drawcurve"]);
+        assert!(!crate::point_input::active(&app));
+        assert_eq!(before, format!("{:?}", app.session.state().unwrap()));
+        app.ui.command_search = Default::default();
+        pointer_frame(&mut app, &ctx, vec![]);
+        let output = pointer_frame(&mut app, &ctx, vec![]);
+        let label = matches(&app, "ui.buildercraft.drawcurve").into_iter().find(|r| r.id == "ui.buildercraft.drawcurve").unwrap().label;
+        click(&mut app, &ctx, text_center(&output.shapes, label).unwrap());
+        assert!(crate::point_input::active(&app));
+        assert_eq!(before, format!("{:?}", app.session.state().unwrap()));
     }
 }

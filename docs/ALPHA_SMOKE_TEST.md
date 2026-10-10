@@ -99,3 +99,7 @@ kernel validation wrapper and native CAD/CLI compilation on Linux Rust 1.95.0.
 CLI control-curve `.dftba` save/reopen and the PushPull example above ran
 successfully. The drafting viewport was rendered and inspected headlessly.
 This is not a completed interactive desktop or four-platform release sign-off.
+
+### Custom tool shelf
+
+Search for Draw control curve, click Pin, and confirm no draft begins. Close search and click its My tools entry to begin drafting. Pin another command, reorder and remove entries through Edit, then restart and confirm the shelf order survives. Focus mode hides the shelf with the toolbar. Commands unavailable in the current context remain disabled; missing saved commands can be removed.

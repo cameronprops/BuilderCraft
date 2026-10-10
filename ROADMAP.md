@@ -15,3 +15,5 @@ presets; one saved custom layout; versioned desktop layout persistence; resizabl
 Tool Sets/Inspector; compact modeling toolbar and bottom command line.
 Acceptance: `docs/ALPHA_SMOKE_TEST.md`. Free docking, shortcut/toolbar editing,
 light theme, shaded/material viewport and exact-solid/demo gates remain open.
+
+Tool shelf restoration: registered command pinning, bounded persistent preferences, reorder/remove, and disabled missing entries are source-authored on current main. Restored source passed eight workbench tests, rendered inspection and all six local CI gates on Rust 1.95.

@@ -28,7 +28,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.topology", "Inspect Polygon Vertex Fans", topology).params("{id,include_all_vertices?:false}").noundo(),
         CommandSpec::new("mesh3d.preview", "Preview Triangulated Polygon Mesh", preview).params("{id}").noundo(),
         CommandSpec::new("mesh3d.fill_preview", "Preview Nonplanar or Planarized Hole Patch", fill_preview)
-            .params("{id,loop_index,mode:{mode:surface|planar_best_fit|planar_average_normal|planar_direction,max_displacement?,normal?},selected_revision?}")
+            .params("{id,loop_index,mode:{mode:surface|curvature_smooth|planar_best_fit|planar_average_normal|planar_direction,max_displacement?,normal?},selected_revision?}")
             .noundo(),
         CommandSpec::new("mesh3d.set", "Set Polygon Mesh Metadata", set).params("{id,name?,visible?}"),
     ]
@@ -242,6 +242,7 @@ fn fill_preview(s: &mut Session, p: &Value) -> Result<Value> {
         "plane": candidate.plane,
         "moved_vertices": candidate.moved_vertices,
         "new_face_indices": candidate.new_face_indices,
+        "interior_vertices_added": candidate.mesh.vertices.len().saturating_sub(source.vertices.len()),
         "vertices": rendered.mesh.vertices,
         "triangles": rendered.mesh.triangles,
         "source_face_indices": rendered.source_face_indices,

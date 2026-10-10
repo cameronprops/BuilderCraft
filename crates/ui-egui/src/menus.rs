@@ -10,6 +10,9 @@ pub const MENUS: &[&str] = &["File", "Edit", "View", "Insert", "Format", "Tools"
 
 /// UI-only commands: (id, label, menu path, shortcut).
 pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
+    ("ui.workspace.2d", "2D Drawing", &["Window", "Workspaces", "2D Drawing"], None),
+    ("ui.workspace.3d", "3D Modeling", &["Window", "Workspaces", "3D Modeling"], None),
+    ("ui.workspace.previous", "Previous Workspace", &["Window", "Workspaces", "Previous Workspace"], None),
     ("ui.buildercraft.top", "Top", &["View", "3D", "Top"], None),
     ("ui.buildercraft.front", "Front", &["View", "3D", "Front"], None),
     ("ui.buildercraft.right", "Right", &["View", "3D", "Right"], None),
@@ -54,6 +57,23 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
     };
     let no_path = params.is_null() || (params.get("path").is_none() && params.get("data").is_none());
     let r = match id {
+        "ui.workspace.2d" | "ui.workspace.3d" | "ui.workspace.previous" => {
+            let want_3d = if id == "ui.workspace.previous" {
+                match app.ui.previous_workspace_3d {
+                    Some(previous) => previous,
+                    None => return Some(Err("no previous workspace to return to".into())),
+                }
+            } else {
+                id == "ui.workspace.3d"
+            };
+            if !app.ui.buildercraft_workspace || app.ui.view3d != want_3d {
+                app.ui.previous_workspace_3d = Some(app.ui.view3d);
+            }
+            app.ui.buildercraft_workspace = true;
+            app.ui.view3d = want_3d;
+            app.ui.toolset_tab = if want_3d { "Modeling" } else { "Drafting" }.into();
+            Ok(json!({"workspace": if want_3d { "3d" } else { "2d" }}))
+        }
         "ui.buildercraft.top" | "ui.buildercraft.front" | "ui.buildercraft.right" | "ui.buildercraft.iso" | "ui.buildercraft.fit" => {
             crate::buildercraft::camera_command(app, id)
         }

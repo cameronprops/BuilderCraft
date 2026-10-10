@@ -15,6 +15,7 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("mesh3d.create", "Create Native Polygon Mesh", create)
             .params("{name,mesh:{vertices:[{x,y,z},...],faces:[{triangle:[...]},{quad:[...]}]}}"),
+        CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face).params("{id,face_index,distance,selected_revision?}"),
         CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
             .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole,selected_revision,...}}"),
         CommandSpec::new("mesh3d.list", "List Native Polygon Meshes", list).noundo(),
@@ -68,6 +69,20 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
     });
     Ok(json!({"id":object_id,"kind":"polygonMesh"}))
 }
+
+/// Persistent face extrusion through the document undo/revision transaction.
+/// An explicit pick revision is required for GUI callers that hold stale picks;
+/// headless clients may omit it to use the current document revision.
+fn pushpull_face(s: &mut Session, p: &Value) -> Result<Value> {
+    let object_id = id(p)?;
+    let face_index = p.get("face_index").and_then(Value::as_u64).ok_or_else(|| invalid("face_index required"))?;
+    let face_index = u32::try_from(face_index).map_err(|_| invalid("face_index exceeds supported size"))?;
+    let distance = p.get("distance").and_then(Value::as_f64).filter(|d| d.is_finite()).ok_or_else(|| invalid("finite distance required"))?;
+    let revision = s.state()?.revision;
+    let pick_revision = p.get("selected_revision").map(|v| v.as_u64().ok_or_else(|| invalid("selected_revision must be a revision number"))).transpose()?.unwrap_or(revision);
+    edit(s, &json!({"id":object_id, "edit":{"kind":"push_pull_face", "selected_revision":pick_revision, "face_index":face_index, "distance":distance}}))
+}
+
 fn edit(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
     let operation: PolygonSceneEdit =
@@ -128,6 +143,22 @@ mod tests {
     use super::*;
     use buildercraft_kernel::{PolygonFace, PolygonMesh};
     use cadcraft_geom::Vec3;
+
+    #[test]
+    fn persistent_face_pushpull_is_undoable_and_revision_checked() {
+        let mut s = Session::new();
+        let face = vec![Vec3::new(0.,0.,0.),Vec3::new(2.,0.,0.),Vec3::new(2.,2.,0.),Vec3::new(0.,2.,0.)];
+        let mesh = buildercraft_kernel::pushpull_quad(&face,2.).unwrap();
+        let id=s.execute("mesh3d.create",&json!({"name":"Extrusion target","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
+        let before=s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision=s.state().unwrap().revision;
+        let result=s.execute("mesh3d.pushpull",&json!({"id":id,"face_index":1,"distance":1.5,"selected_revision":revision}));
+        assert!(result.is_ok());
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.faces.len(),10);
+        assert!(s.execute("mesh3d.pushpull",&json!({"id":id,"face_index":1,"distance":1.,"selected_revision":revision})).is_err());
+        s.execute("undo",&json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(),before.as_ref());
+    }
 
     fn ring() -> PolygonMesh {
         PolygonMesh {

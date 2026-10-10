@@ -107,8 +107,11 @@ pub fn boolean_boxes(left:&ExactBox,right:&ExactBox,operation:BooleanOperation,t
     // Third-party boolean topology can internally panic on a complex case.
     // Contain this while Truck is an evaluation backend, and never publish
     // a half-complete result on failure.
-    let computed=std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        match operation {
+    // Boolean construction AND result validation must sit inside the panic
+    // boundary. Truck can construct an intersection curve successfully and
+    // still panic when its geometric consistency is subsequently inspected.
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let computed=match operation {
             BooleanOperation::Intersection=>truck_shapeops::and(&left.solid,&right.solid,tol.absolute),
             BooleanOperation::Union=>truck_shapeops::or(&left.solid,&right.solid,tol.absolute),
             BooleanOperation::Difference=>{
@@ -116,11 +119,10 @@ pub fn boolean_boxes(left:&ExactBox,right:&ExactBox,operation:BooleanOperation,t
                 complement.not();
                 truck_shapeops::and(&left.solid,&complement,tol.absolute)
             }
-        }
+        }.ok_or(BrepError::BooleanFailed)?;
+        if !computed.is_geometric_consistent(){return Err(BrepError::InvalidTopology);}
+        Ok(computed)
     })).map_err(|_|BrepError::BackendPanicked)?
-      .ok_or(BrepError::BooleanFailed)?;
-    if !computed.is_geometric_consistent(){return Err(BrepError::InvalidTopology);}
-    Ok(computed)
 }
 
 #[cfg(test)]

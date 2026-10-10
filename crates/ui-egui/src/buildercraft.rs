@@ -518,17 +518,15 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     // participate in scene picking or document serialization.
     if let Some(cache) = &app.ui.mesh_simplify_preview
         && app.session.state().is_ok_and(|st| cache.matches(st.uid, st.revision, cache.object_id))
-        && app.session.doc().is_ok_and(|d| {
-            d.mesh3d.iter().any(|o| o.id == cache.object_id && o.visible && d.layer(&o.layer).is_none_or(|layer| layer.visible()))
-        })
+        && app
+            .session
+            .doc()
+            .is_ok_and(|d| d.mesh3d.iter().any(|o| o.id == cache.object_id && o.visible && d.layer(&o.layer).is_none_or(|layer| layer.visible())))
     {
         for [a, b] in &cache.wire_edges {
             let p = cache.mesh.vertices[*a as usize];
             let q = cache.mesh.vertices[*b as usize];
-            painter.line_segment(
-                [project(p), project(q)],
-                egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 178, 52)),
-            );
+            painter.line_segment([project(p), project(q)], egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 178, 52)));
         }
     }
     // BRep wires are loaded explicitly from OCCT and tied to source revision.

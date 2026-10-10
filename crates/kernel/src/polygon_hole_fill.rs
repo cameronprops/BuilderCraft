@@ -1,8 +1,8 @@
 //! Conservative, quality-aware triangulation of simple planar INNER boundaries of polygon meshes.
 use crate::{KernelError, PolygonFace, PolygonMesh, Result, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_validate};
 use cadcraft_geom::{Vec2, Vec3, robust_predicates::orientation2d};
-use std::cmp::Ordering;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PolygonFillResult {
@@ -15,28 +15,28 @@ fn norm(v: Vec3) -> f64 {
     v.x.hypot(v.y).hypot(v.z)
 }
 
-
 fn project_loop(mesh: &PolygonMesh, ids: &[u32], normal: Vec3, origin: Vec3) -> Vec<Vec2> {
     // Pick a signed dominant-axis plane, preserving the orientation of
     // the boundary in the 2D projection. Relative positions reduce
     // catastrophic cancellation for drawings far from the world origin.
-    ids.iter().map(|&id| {
-        let d = mesh.vertices[id as usize] - origin;
-        if normal.x.abs() >= normal.y.abs() && normal.x.abs() >= normal.z.abs() {
-            if normal.x >= 0. { Vec2::new(d.y, d.z) } else { Vec2::new(d.z, d.y) }
-        } else if normal.y.abs() >= normal.z.abs() {
-            if normal.y >= 0. { Vec2::new(d.z, d.x) } else { Vec2::new(d.x, d.z) }
-        } else if normal.z >= 0. {
-            Vec2::new(d.x, d.y)
-        } else {
-            Vec2::new(d.y, d.x)
-        }
-    }).collect()
+    ids.iter()
+        .map(|&id| {
+            let d = mesh.vertices[id as usize] - origin;
+            if normal.x.abs() >= normal.y.abs() && normal.x.abs() >= normal.z.abs() {
+                if normal.x >= 0. { Vec2::new(d.y, d.z) } else { Vec2::new(d.z, d.y) }
+            } else if normal.y.abs() >= normal.z.abs() {
+                if normal.y >= 0. { Vec2::new(d.z, d.x) } else { Vec2::new(d.x, d.z) }
+            } else if normal.z >= 0. {
+                Vec2::new(d.x, d.y)
+            } else {
+                Vec2::new(d.y, d.x)
+            }
+        })
+        .collect()
 }
 
 fn on_segment(a: Vec2, b: Vec2, point: Vec2) -> bool {
-    point.x >= a.x.min(b.x) && point.x <= a.x.max(b.x)
-        && point.y >= a.y.min(b.y) && point.y <= a.y.max(b.y)
+    point.x >= a.x.min(b.x) && point.x <= a.x.max(b.x) && point.y >= a.y.min(b.y) && point.y <= a.y.max(b.y)
 }
 
 fn intersects(a: Vec2, b: Vec2, c: Vec2, d: Vec2) -> Result<bool> {
@@ -47,7 +47,8 @@ fn intersects(a: Vec2, b: Vec2, c: Vec2, d: Vec2) -> Result<bool> {
     if (ab_c == Ordering::Equal && on_segment(a, b, c))
         || (ab_d == Ordering::Equal && on_segment(a, b, d))
         || (cd_a == Ordering::Equal && on_segment(c, d, a))
-        || (cd_b == Ordering::Equal && on_segment(c, d, b)) {
+        || (cd_b == Ordering::Equal && on_segment(c, d, b))
+    {
         return Ok(true);
     }
     Ok(ab_c != ab_d && cd_a != cd_b)
@@ -63,7 +64,9 @@ fn validate_simple_loop(points: &[Vec2], extent: f64) -> Result<()> {
             return Err(KernelError::Invalid("collapsed boundary edge"));
         }
         for j in i + 1..n {
-            if j == i + 1 || (i == 0 && j == n - 1) { continue; }
+            if j == i + 1 || (i == 0 && j == n - 1) {
+                continue;
+            }
             if intersects(a, b, points[j], points[(j + 1) % n])? {
                 return Err(KernelError::Invalid("self-intersecting planar hole boundary"));
             }
@@ -99,9 +102,13 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
             let ib = remaining[slot];
             let ic = remaining[(slot + 1) % n];
             let (a, b, c) = (points[ia], points[ib], points[ic]);
-            if orientation2d(a, b, c) != Some(Ordering::Greater) { continue; }
+            if orientation2d(a, b, c) != Some(Ordering::Greater) {
+                continue;
+            }
             let twice_area = (b - a).cross(c - a);
-            if !twice_area.is_finite() || twice_area <= area_tol { continue; }
+            if !twice_area.is_finite() || twice_area <= area_tol {
+                continue;
+            }
             let mut blocked = false;
             for &other in &remaining {
                 if other != ia && other != ib && other != ic && triangle_contains_or_touches(a, b, c, points[other])? {
@@ -109,7 +116,9 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
                     break;
                 }
             }
-            if blocked { continue; }
+            if blocked {
+                continue;
+            }
             // Compact triangle quality proxy: avoids repeatedly choosing
             // near-zero-angle ears when a better ear exists.
             let edge_squares = (b - a).len2() + (c - b).len2() + (a - c).len2();
@@ -126,16 +135,13 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
         remaining.remove(slot);
     }
     let [a, b, c] = [remaining[0], remaining[1], remaining[2]];
-    if orientation2d(points[a], points[b], points[c]) != Some(Ordering::Greater)
-        || (points[b] - points[a]).cross(points[c] - points[a]) <= area_tol {
+    if orientation2d(points[a], points[b], points[c]) != Some(Ordering::Greater) || (points[b] - points[a]).cross(points[c] - points[a]) <= area_tol {
         return Err(KernelError::Invalid("degenerate final hole triangle"));
     }
     covered_twice_area += (points[b] - points[a]).cross(points[c] - points[a]);
     triangles.push([ids[a], ids[c], ids[b]]);
     // Area conservation independently guards all ear selections.
-    if !covered_twice_area.is_finite()
-        || (covered_twice_area - original_twice_area).abs() > 1e-8 * original_twice_area.max(area_tol)
-    {
+    if !covered_twice_area.is_finite() || (covered_twice_area - original_twice_area).abs() > 1e-8 * original_twice_area.max(area_tol) {
         return Err(KernelError::Invalid("triangulated patch does not conserve area"));
     }
     Ok(triangles)
@@ -279,11 +285,7 @@ mod tests {
         let mut mesh = ring();
         mesh.vertices.push(Vec3::new(2., 1.6, 0.));
         mesh.faces.remove(0);
-        mesh.faces.splice(0..0, [
-            PolygonFace::Triangle([0, 1, 5]),
-            PolygonFace::Triangle([0, 5, 8]),
-            PolygonFace::Triangle([0, 8, 4]),
-        ]);
+        mesh.faces.splice(0..0, [PolygonFace::Triangle([0, 1, 5]), PolygonFace::Triangle([0, 5, 8]), PolygonFace::Triangle([0, 8, 4])]);
         mesh
     }
 
@@ -307,15 +309,9 @@ mod tests {
 
     #[test]
     fn robust_simple_loop_validation_rejects_crossings_and_collapsed_edges() {
-        let crossing = [
-            Vec2::new(0., 0.), Vec2::new(4., 3.),
-            Vec2::new(0., 4.), Vec2::new(4., 0.),
-        ];
+        let crossing = [Vec2::new(0., 0.), Vec2::new(4., 3.), Vec2::new(0., 4.), Vec2::new(4., 0.)];
         assert!(validate_simple_loop(&crossing, 5.).is_err());
-        let collapsed = [
-            Vec2::new(0., 0.), Vec2::new(4., 0.),
-            Vec2::new(4., 0.), Vec2::new(0., 4.),
-        ];
+        let collapsed = [Vec2::new(0., 0.), Vec2::new(4., 0.), Vec2::new(4., 0.), Vec2::new(0., 4.)];
         assert!(validate_simple_loop(&collapsed, 5.).is_err());
     }
 

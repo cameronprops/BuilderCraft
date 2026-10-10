@@ -199,7 +199,9 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                 data.insert_temp(mode_id, selected_mode);
                                 data.insert_temp(limit_id, max_displacement);
                                 data.insert_temp(axis_id, axis);
-                                if changed { data.remove::<String>(feedback_id); }
+                                if changed {
+                                    data.remove::<String>(feedback_id);
+                                }
                             });
                             let mode = match selected_mode {
                                 1 => json!({"mode":"planar_best_fit","max_displacement":max_displacement}),
@@ -213,9 +215,12 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                     && let Ok(state) = app.session.state()
                                 {
                                     let revision = state.revision;
-                                    let outcome = app.run("mesh3d.fill_preview", json!({
-                                        "id":object.id, "selected_revision":revision, "loop_index":index, "mode":mode
-                                    }));
+                                    let outcome = app.run(
+                                        "mesh3d.fill_preview",
+                                        json!({
+                                            "id":object.id, "selected_revision":revision, "loop_index":index, "mode":mode
+                                        }),
+                                    );
                                     let message = match outcome {
                                         Ok(value) => format!(
                                             "Patch preview: {} triangles, RMS {:.5}, max {:.5}, {} rim vertices moved. No model changes.",
@@ -232,10 +237,13 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                     && let Ok(state) = app.session.state()
                                 {
                                     let revision = state.revision;
-                                    let outcome = app.run("mesh3d.edit", json!({
-                                        "id":object.id,
-                                        "edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":index,"mode":mode}
-                                    }));
+                                    let outcome = app.run(
+                                        "mesh3d.edit",
+                                        json!({
+                                            "id":object.id,
+                                            "edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":index,"mode":mode}
+                                        }),
+                                    );
                                     let message = match outcome {
                                         Ok(_) => "Patch committed. Undo restores the original mesh.".to_owned(),
                                         Err(error) => format!("Patch rejected: {error}"),

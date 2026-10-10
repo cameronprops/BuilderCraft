@@ -437,7 +437,11 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
         && (!repair || app.ui.mesh_repair.selecting)
         && let Some(pointer) = response.interact_pointer_pos().filter(|p| rect.contains(*p))
     {
-        select_3d_at(app, rect, pointer, ui.input(|i| i.modifiers.shift));
+        if repair && app.ui.mesh_repair.picking_hole {
+            crate::mesh_repair::pick_hole_at(app, rect, pointer);
+        } else {
+            select_3d_at(app, rect, pointer, ui.input(|i| i.modifiers.shift));
+        }
     }
     let yaw = app.ui.orbit_yaw;
     let pitch = app.ui.orbit_pitch;
@@ -538,6 +542,31 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                         let a = object.mesh.vertices[corners[side] as usize];
                         let b = object.mesh.vertices[corners[(side + 1) % corners.len()] as usize];
                         painter.line_segment([project(a), project(b)], stroke);
+                    }
+                }
+            }
+            if repair
+                && let Some(patch) = app.ui.mesh_repair.patch.as_ref().filter(|p|
+                    p.object_id == object.id && crate::mesh_repair::patch_is_current(app, p))
+            {
+                let color = crate::mesh_repair::PATCH;
+                let fill = egui::Color32::from_rgba_unmultiplied(85, 230, 175, 85);
+                let stroke = egui::Stroke::new(1.5, color);
+                for tri in &patch.triangles {
+                    if let (Some(&a), Some(&b), Some(&c)) = (
+                        object.mesh.vertices.get(tri[0] as usize),
+                        object.mesh.vertices.get(tri[1] as usize),
+                        object.mesh.vertices.get(tri[2] as usize)
+                    ) {
+                        painter.add(egui::Shape::convex_polygon(vec![project(a), project(b), project(c)], fill, stroke));
+                    }
+                }
+                for i in 0..patch.boundary_vertices.len() {
+                    if let (Some(&a), Some(&b)) = (
+                        object.mesh.vertices.get(patch.boundary_vertices[i] as usize),
+                        object.mesh.vertices.get(patch.boundary_vertices[(i + 1) % patch.boundary_vertices.len()] as usize)
+                    ) {
+                        painter.line_segment([project(a), project(b)], egui::Stroke::new(3., color));
                     }
                 }
             }

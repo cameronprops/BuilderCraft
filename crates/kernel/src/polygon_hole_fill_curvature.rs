@@ -3,8 +3,8 @@
 //! This deliberately preserves the boundary. It is NOT a global intersection
 //! certificate or an exact NURBS curvature-continuity solver.
 use crate::{
-    KernelError, PolygonAdvancedFillResult, PolygonFace, PolygonMesh, PolygonPatchMode, Result,
-    polygon_mesh_boundary_loops, polygon_mesh_fill_hole_advanced, polygon_mesh_topology, polygon_mesh_validate,
+    KernelError, PolygonAdvancedFillResult, PolygonFace, PolygonMesh, PolygonPatchMode, Result, polygon_mesh_boundary_loops,
+    polygon_mesh_fill_hole_advanced, polygon_mesh_topology, polygon_mesh_validate,
 };
 use cadcraft_geom::Vec3;
 use std::collections::BTreeMap;
@@ -196,16 +196,8 @@ pub fn polygon_mesh_fill_hole_curvature(
             predicted += weight * estimated_height;
             sum_weight += weight;
         }
-        let blend = if sum_weight > 0.0 {
-            tangent_weight * (-closest / (0.3 * radius)).exp()
-        } else {
-            0.0
-        };
-        let target = if sum_weight > 0.0 {
-            predicted / sum_weight
-        } else {
-            (p - origin).dot(axis)
-        };
+        let blend = if sum_weight > 0.0 { tangent_weight * (-closest / (0.3 * radius)).exp() } else { 0.0 };
+        let target = if sum_weight > 0.0 { predicted / sum_weight } else { (p - origin).dot(axis) };
         if !target.is_finite() || !blend.is_finite() {
             return Err(KernelError::Invalid("invalid tangent-plane blend"));
         }
@@ -237,9 +229,8 @@ pub fn polygon_mesh_fill_hole_curvature(
     if !result_topology.non_manifold_edges.is_empty() || !result_topology.inconsistent_winding_edges.is_empty() {
         return Err(KernelError::Invalid("invalid curvature patch topology"));
     }
-    base.new_face_indices = (mesh.faces.len()..base.mesh.faces.len())
-        .map(|index| u32::try_from(index).map_err(|_| KernelError::Budget))
-        .collect::<Result<Vec<u32>>>()?;
+    base.new_face_indices =
+        (mesh.faces.len()..base.mesh.faces.len()).map(|index| u32::try_from(index).map_err(|_| KernelError::Budget)).collect::<Result<Vec<u32>>>()?;
     Ok(base)
 }
 
@@ -250,20 +241,30 @@ mod tests {
     fn ring() -> PolygonMesh {
         PolygonMesh {
             vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(4., 0., 0.), Vec3::new(4., 4., 0.), Vec3::new(0., 4., 0.),
-                Vec3::new(1., 1., 0.1), Vec3::new(3., 1., 0.), Vec3::new(3., 3., 0.), Vec3::new(1., 3., 0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(4., 4., 0.),
+                Vec3::new(0., 4., 0.),
+                Vec3::new(1., 1., 0.1),
+                Vec3::new(3., 1., 0.),
+                Vec3::new(3., 3., 0.),
+                Vec3::new(1., 3., 0.),
             ],
             faces: vec![
-                PolygonFace::Quad([0, 1, 5, 4]), PolygonFace::Quad([1, 2, 6, 5]),
-                PolygonFace::Quad([2, 3, 7, 6]), PolygonFace::Quad([3, 0, 4, 7]),
+                PolygonFace::Quad([0, 1, 5, 4]),
+                PolygonFace::Quad([1, 2, 6, 5]),
+                PolygonFace::Quad([2, 3, 7, 6]),
+                PolygonFace::Quad([3, 0, 4, 7]),
             ],
         }
     }
 
     fn inner(source: &PolygonMesh) -> u32 {
-        polygon_mesh_boundary_loops(source).ok()
+        polygon_mesh_boundary_loops(source)
+            .ok()
             .and_then(|r| r.closed_loops.iter().position(|b| b.vertices.iter().all(|&id| id >= 4)))
-            .and_then(|n| u32::try_from(n).ok()).unwrap_or(u32::MAX)
+            .and_then(|n| u32::try_from(n).ok())
+            .unwrap_or(u32::MAX)
     }
 
     #[test]
@@ -302,9 +303,6 @@ mod tests {
         assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, 2, 0, 0.4, 1.).is_err());
         assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, 2, 8, f64::NAN, 1.).is_err());
         assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, 2, 8, 0.4, 0.).is_err());
-        assert_eq!(
-            polygon_mesh_fill_hole_curvature(&source, 2, 1, i, 2, 8, 0.4, 1.),
-            Err(KernelError::Conflict { expected: 1, actual: 2 })
-        );
+        assert_eq!(polygon_mesh_fill_hole_curvature(&source, 2, 1, i, 2, 8, 0.4, 1.), Err(KernelError::Conflict { expected: 1, actual: 2 }));
     }
 }

@@ -647,7 +647,7 @@ mod tests {
                 }),
             )
             .unwrap();
-        assert!(preview["moved_vertices"].as_array().unwrap().len() > 0);
+        assert!(!preview["moved_vertices"].as_array().unwrap().is_empty());
         assert_eq!(s.state().unwrap().revision, revision);
         assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
         s.execute(

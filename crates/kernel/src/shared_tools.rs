@@ -105,6 +105,13 @@ const PATH_ARRAY: &[ToolPort] = &[
     ToolPort { name: "path", kind: ToolType::Polyline, modifier: true },
     ToolPort { name: "count", kind: ToolType::Count, modifier: true },
 ];
+const PATH_ARRAY_ORIENTED: &[ToolPort] = &[
+    ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "path", kind: ToolType::Polyline, modifier: true },
+    ToolPort { name: "count", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "up", kind: ToolType::Vector, modifier: true },
+    ToolPort { name: "anchor", kind: ToolType::Point, modifier: true },
+];
 const PLANE_PROJECT: &[ToolPort] = &[
     ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "origin", kind: ToolType::Point, modifier: true },
@@ -282,6 +289,15 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         dependency_group: "geometry.transforms",
         prerequisites: &["kernel.polyline.divide_count"],
         inputs: PATH_ARRAY,
+        output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.array.path_oriented",
+        cad_command: "worldwright.array.path_oriented",
+        orbweaver_node: "orbweaver.array.path_oriented",
+        dependency_group: "geometry.transforms",
+        prerequisites: &["kernel.polyline.divide_count", "kernel.vector.cross", "kernel.vector.dot"],
+        inputs: PATH_ARRAY_ORIENTED,
         output: ToolType::Tree,
     },
     SharedToolContract {
@@ -633,6 +649,13 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
             polyline(&request.inputs, "path")?,
             count(&request.inputs, "count")?,
         )?),
+        "kernel.array.path_oriented" => array_output(crate::array_path_oriented(
+            polyline(&request.inputs, "geometry")?,
+            polyline(&request.inputs, "path")?,
+            count(&request.inputs, "count")?,
+            vector(&request.inputs, "up")?,
+            point(&request.inputs, "anchor")?,
+        )?),
         "kernel.project.plane" => Ok(ToolValue::Polyline(crate::project_to_plane(
             polyline(&request.inputs, "geometry")?,
             point(&request.inputs, "origin")?,
@@ -717,7 +740,7 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 25);
+        assert_eq!(SHARED_TOOLS.len(), 26);
     }
     #[test]
     fn distance_is_shared_across_both_entry_points() {
@@ -748,7 +771,7 @@ mod tests {
         let original = ToolValue::Tree(tree.clone());
         let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
-        assert_eq!(SHARED_TOOLS.len(), 25);
+        assert_eq!(SHARED_TOOLS.len(), 26);
         let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();
         assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());

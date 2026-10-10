@@ -9,6 +9,7 @@
 #![forbid(unsafe_code)]
 
 pub mod about;
+mod brep_display;
 pub mod buildercraft;
 pub mod canvas;
 pub mod chrome;
@@ -73,7 +74,7 @@ pub struct UiState {
     pub mesh_face_object_id: Option<u64>,
     pub mesh_face_document_uid: Option<u64>,
     pub mesh_face_revision: Option<u64>,
-    /// Explicitly loaded, revision-scoped OCCT wire display cache, not source geometry.
+    /// Transient, bounded and revision-scoped shaded BRep proxy, not exact source geometry.
     #[serde(skip)]
     pub brep_preview: Option<buildercraft::BrepPreview>,
     /// Transient gizmo drag state must not be serialized with UI preferences.

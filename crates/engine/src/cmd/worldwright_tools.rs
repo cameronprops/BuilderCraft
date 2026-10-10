@@ -12,6 +12,40 @@ pub fn specs() -> Vec<CommandSpec> {
             .enabled(always)
             .noundo(),
         CommandSpec::new("worldwright.tool.list", "List Paired CAD/OrbWeaver Tools", list).enabled(always).noundo(),
+        CommandSpec::new("worldwright.array.linear", "Linear Array of 3D Geometry", array_linear)
+            .params("{inputs:{geometry,step,count}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.array.rectangular", "Rectangular/3D Array", array_rectangular)
+            .params("{inputs:{geometry,x_step,y_step,z_step,nx,ny,nz}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.array.polar", "Polar Array", array_polar)
+            .params("{inputs:{geometry,center,axis,sweep_degrees,count}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.array.path", "Array Along Curve", array_path).params("{inputs:{geometry,path,count}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.project", "Project Geometry to Plane", project)
+            .params("{inputs:{geometry,origin,normal,direction}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.flow_along_srf", "Flow Along Surface Patch", flow_along_srf)
+            .params("{inputs:{geometry,base,target}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.pushpull", "PushPull Planar Face", pushpull).params("{inputs:{face,distance}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.project.mesh", "Project Geometry Onto Polygon Mesh", project_mesh)
+            .params("{inputs:{geometry,target,direction}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.project.nurbs", "Project Geometry Onto Rational NURBS Surface", project_nurbs)
+            .params("{inputs:{geometry,target,direction}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.flow_along_nurbs", "Flow Geometry Between Rational NURBS Surfaces", flow_along_nurbs)
+            .params("{inputs:{geometry,base,target}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")
             .enabled(always)
@@ -63,6 +97,16 @@ macro_rules! paired_command {
         }
     };
 }
+paired_command!(array_linear, "kernel.array.linear");
+paired_command!(array_rectangular, "kernel.array.rectangular");
+paired_command!(array_polar, "kernel.array.polar");
+paired_command!(array_path, "kernel.array.path");
+paired_command!(project, "kernel.project.plane");
+paired_command!(flow_along_srf, "kernel.surface.flow_patch");
+paired_command!(pushpull, "kernel.solid.pushpull_quad");
+paired_command!(project_mesh, "kernel.project.mesh");
+paired_command!(project_nurbs, "kernel.project.nurbs");
+paired_command!(flow_along_nurbs, "kernel.surface.flow_nurbs");
 paired_command!(point_distance, "kernel.point.distance");
 paired_command!(point_midpoint, "kernel.point.midpoint");
 paired_command!(point_interpolate, "kernel.point.interpolate");
@@ -242,7 +286,7 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(15));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(25));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

@@ -78,6 +78,8 @@ pub struct Drawing {
     pub geometry3d: Vec<organization::GeometryObject>,
     /// Native editable triangle/quad geometry, independent from exact NURBS.
     pub mesh3d: Vec<organization::PolygonGeometryObject>,
+    /// Persistent exact trimmed BRep solids, separate from polygon display proxies.
+    pub exact_breps: Vec<organization::ExactBrepObject>,
     /// Optional ordered feature histories, independent per document, component, or block.
     pub feature_timelines: Vec<buildercraft_kernel::FeatureTimeline>,
 }
@@ -130,6 +132,7 @@ impl Drawing {
             production: buildercraft_kernel::ProductionModel::default(),
             geometry3d: Vec::new(),
             mesh3d: Vec::new(),
+            exact_breps: Vec::new(),
             feature_timelines: Vec::new(),
         }
     }

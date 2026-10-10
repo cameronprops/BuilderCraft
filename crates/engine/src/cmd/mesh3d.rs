@@ -2,8 +2,9 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    MeshDecimateOptions, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate, polygon_mesh_boundary_loops,
-    polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
+    MeshDecimateOptions, PolygonMesh, PolygonPatchMode, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate,
+    polygon_mesh_boundary_loops, polygon_mesh_fill_hole_advanced, polygon_mesh_topology, polygon_mesh_triangulate,
+    polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -22,13 +23,16 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face)
             .params("{id,face_index,distance,selected_revision?}"),
         CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
-            .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|split_edge,selected_revision,...}}"),
+            .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|fill_hole|split_edge,selected_revision,...}}"),
         CommandSpec::new("mesh3d.list", "List Native Polygon Meshes", list).noundo(),
         CommandSpec::new("mesh3d.boundaries", "Inspect Polygon Boundaries", boundaries).params("{id}").noundo(),
         CommandSpec::new("mesh3d.topology", "Inspect Polygon Vertex Fans", topology).params("{id,include_all_vertices?:false}").noundo(),
         CommandSpec::new("mesh3d.preview", "Preview Triangulated Polygon Mesh", preview).params("{id}").noundo(),
         CommandSpec::new("mesh3d.preview_decimate", "Preview Reduced Triangle Mesh", preview_decimate)
             .params("{id,target_faces,max_quadric_error?,max_normal_change_degrees?,preserve_boundary?,preserve_creases_above_degrees?,selected_revision?}").noundo(),
+        CommandSpec::new("mesh3d.fill_preview", "Preview Nonplanar or Planarized Hole Patch", fill_preview)
+            .params("{id,loop_index,mode:{mode:surface|curvature_smooth|planar_best_fit|planar_average_normal|planar_direction,max_displacement?,normal?},selected_revision?}")
+            .noundo(),
         CommandSpec::new("mesh3d.set", "Set Polygon Mesh Metadata", set).params("{id,name?,visible?}"),
     ]
 }
@@ -211,6 +215,40 @@ fn topology(s: &mut Session, p: &Value) -> Result<Value> {
             "inconsistent_winding_edges": edge_report.inconsistent_winding_edges,
             "boundary_edges": edge_report.boundary_edges,
         },
+    }))
+}
+
+/// Read-only patch preview with diagnostics and render-ready triangles.
+/// Revision must be checked again when the caller commits through mesh3d.edit.
+fn fill_preview(s: &mut Session, p: &Value) -> Result<Value> {
+    let object_id = id(p)?;
+    let loop_index = p
+        .get("loop_index")
+        .and_then(Value::as_u64)
+        .and_then(|index| u32::try_from(index).ok())
+        .ok_or_else(|| invalid("valid loop_index required"))?;
+    let mode: PolygonPatchMode =
+        serde_json::from_value(p.get("mode").cloned().ok_or_else(|| invalid("patch mode required"))?).map_err(|e| invalid(&e.to_string()))?;
+    let revision = s.state()?.revision;
+    let picked_revision = p
+        .get("selected_revision")
+        .map(|value| value.as_u64().ok_or_else(|| invalid("selected_revision must be a revision number")))
+        .transpose()?
+        .unwrap_or(revision);
+    let source = &selected(s, object_id)?.mesh;
+    validate_size(source)?;
+    let candidate = polygon_mesh_fill_hole_advanced(source, revision, picked_revision, loop_index, mode).map_err(|e| invalid(&e.to_string()))?;
+    validate_size(&candidate.mesh)?;
+    let rendered = polygon_mesh_triangulate(&candidate.mesh).map_err(|e| invalid(&e.to_string()))?;
+    Ok(json!({
+        "id": object_id, "source_revision":revision, "loop_index": loop_index,
+        "plane": candidate.plane,
+        "moved_vertices": candidate.moved_vertices,
+        "new_face_indices": candidate.new_face_indices,
+        "interior_vertices_added": candidate.mesh.vertices.len().saturating_sub(source.vertices.len()),
+        "vertices": rendered.mesh.vertices,
+        "triangles": rendered.mesh.triangles,
+        "source_face_indices": rendered.source_face_indices,
     }))
 }
 
@@ -547,5 +585,80 @@ mod tests {
         assert!(Arc::ptr_eq(&after, &s.doc().unwrap().mesh3d[0].mesh));
         s.execute("undo", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), original.as_ref());
+    }
+    #[test]
+    fn curvature_patch_preview_reports_interior_vertices_and_is_undoable() {
+        let (mut s, id) = session();
+        let before = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = s.state().unwrap().revision;
+        let report = s.execute("mesh3d.boundaries", &json!({"id":id})).unwrap();
+        let loop_index = report["report"]["closed_loops"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|entry| entry["vertices"].as_array().is_some_and(|ids| ids.iter().all(|v| v.as_u64().is_some_and(|n| n >= 4))))
+            .unwrap();
+        let mode = json!({"mode":"curvature_smooth","refinement_levels":2,"smoothing_iterations":12,
+            "tangent_weight":0.5,"max_interior_offset":0.1});
+        let preview = s
+            .execute(
+                "mesh3d.fill_preview",
+                &json!({
+                    "id":id,"loop_index":loop_index,"selected_revision":revision,"mode":mode
+                }),
+            )
+            .unwrap();
+        assert_eq!(preview["interior_vertices_added"], 8);
+        assert_eq!(preview["new_face_indices"].as_array().unwrap().len(), 18);
+        assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
+        s.execute(
+            "mesh3d.edit",
+            &json!({
+                "id":id,"edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":loop_index,"mode":mode}
+            }),
+        )
+        .unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.vertices.len(), before.vertices.len() + 8);
+        s.undo().unwrap();
+        assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
+    }
+
+    #[test]
+    fn advanced_hole_preview_does_not_edit_and_commit_is_undoable() {
+        let mut s = Session::new();
+        let mut source = ring();
+        source.vertices[4].z = 0.2;
+        let id = s.execute("mesh3d.create", &json!({"name":"Nonplanar scanned rim","mesh":source})).unwrap()["id"].as_u64().unwrap();
+        let revision = s.state().unwrap().revision;
+        let boundary = s.execute("mesh3d.boundaries", &json!({"id":id})).unwrap();
+        let index = boundary["report"]["closed_loops"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|l| l["vertices"].as_array().is_some_and(|ids| ids.iter().all(|id| id.as_u64().is_some_and(|v| v >= 4))))
+            .unwrap();
+        let before = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let mode = json!({"mode":"planar_best_fit","max_displacement":0.3});
+        let preview = s
+            .execute(
+                "mesh3d.fill_preview",
+                &json!({
+                    "id":id, "loop_index":index, "selected_revision":revision, "mode":mode
+                }),
+            )
+            .unwrap();
+        assert!(preview["moved_vertices"].as_array().unwrap().len() > 0);
+        assert_eq!(s.state().unwrap().revision, revision);
+        assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
+        s.execute(
+            "mesh3d.edit",
+            &json!({
+                "id":id, "edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":index,"mode":mode}
+            }),
+        )
+        .unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.faces.len(), 6);
+        s.undo().unwrap();
+        assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
     }
 }

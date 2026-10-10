@@ -7,14 +7,17 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
     egui::Panel::top("buildercraft_workspace").exact_size(28.0).show(ui, |ui| {
         ui.horizontal(|ui| {
             ui.strong("Worldwright");
-            if ui.selectable_value(&mut app.ui.view3d, true, "3D").clicked() {
-                app.ui.toolset_tab = "Modeling".into();
+            if ui.selectable_label(app.ui.buildercraft_workspace && app.ui.view3d, "3D Modeling").clicked() {
+                let _ = app.run("ui.workspace.3d", json!({}));
             }
-            if ui.selectable_value(&mut app.ui.view3d, false, "2D / Drafting").clicked() {
-                app.ui.toolset_tab = "Drafting".into();
+            if ui.selectable_label(app.ui.buildercraft_workspace && !app.ui.view3d, "2D Drawing").clicked() {
+                let _ = app.run("ui.workspace.2d", json!({}));
             }
-            ui.selectable_value(&mut app.ui.buildercraft_workspace, true, "Modeling workspace");
-            ui.selectable_value(&mut app.ui.buildercraft_workspace, false, "CADCraft drafting workspace");
+            if ui.add_enabled(app.ui.previous_workspace_3d.is_some(), egui::Button::new("Back")).on_hover_text("Return to the previous workspace without changing the document").clicked() {
+                let _ = app.run("ui.workspace.previous", json!({}));
+            }
+            ui.separator();
+            ui.selectable_value(&mut app.ui.buildercraft_workspace, false, "Classic CAD layout");
         });
     });
 }

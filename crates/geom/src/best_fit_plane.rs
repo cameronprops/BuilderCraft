@@ -27,12 +27,12 @@ pub fn best_fit_plane(points: &[Vec3]) -> Option<BestFitPlane> {
         }
         let local = point - base;
         extent = extent.max(local.x.abs().max(local.y.abs()).max(local.z.abs()));
-        sum += local;
+        sum = sum + local;
     }
     if !extent.is_finite() || extent < 1e-12 {
         return None;
     }
-    let origin = base + sum / points.len() as f64;
+    let origin = base + sum * (1.0 / points.len() as f64);
     if !origin.is_finite() { return None; }
     let scale = extent.recip();
     let mut a = [[0.; 3]; 3];
@@ -138,8 +138,8 @@ mod tests {
 
     #[test]
     fn rejects_collinear_nonfinite_and_unsupported_budgets() {
-        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::X, Vec3::X*2.]).is_none());
-        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::X]).is_none());
-        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::X, Vec3::new(f64::NAN,0.,1.)]).is_none());
+        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1.,0.,0.), Vec3::new(2.,0.,0.)]).is_none());
+        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1.,0.,0.)]).is_none());
+        assert!(best_fit_plane(&[Vec3::ZERO, Vec3::new(1.,0.,0.), Vec3::new(f64::NAN,0.,1.)]).is_none());
     }
 }

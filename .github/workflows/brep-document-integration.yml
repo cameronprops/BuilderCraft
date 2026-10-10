@@ -66,6 +66,6 @@ jobs:
           test -f "$WORLDWRIGHT_BREP_WORKER"
           cargo test --locked -p cadcraft-engine exact_worker_document_undo_and_roundtrip_when_worker_is_installed -- --nocapture
       - name: Native project schema, legacy compatibility and corruption regressions
-        run: cargo test --locked -p cadcraft-io exact_brep
+        run: cargo test --locked -p cadcraft-io project::tests
       - name: Strict native CAD engine and document Clippy
         run: cargo clippy --locked -p cadcraft-engine -p cadcraft-io --all-targets -- -D warnings

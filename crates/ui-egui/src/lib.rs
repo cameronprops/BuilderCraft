@@ -22,6 +22,7 @@ pub mod icons;
 pub mod layers;
 pub mod menus;
 pub mod mesh_picking;
+mod mesh_simplify;
 pub mod palettes;
 pub mod parametric;
 mod point_input;
@@ -73,6 +74,9 @@ pub struct UiState {
     pub mesh_face_object_id: Option<u64>,
     pub mesh_face_document_uid: Option<u64>,
     pub mesh_face_revision: Option<u64>,
+    /// Derived QEM wire preview. Never saved in preferences or the CAD document.
+    #[serde(skip)]
+    pub mesh_simplify_preview: Option<mesh_simplify::Preview>,
     /// Explicitly loaded, revision-scoped OCCT wire display cache, not source geometry.
     #[serde(skip)]
     pub brep_preview: Option<buildercraft::BrepPreview>,
@@ -132,6 +136,7 @@ impl Default for UiState {
             mesh_face_object_id: None,
             mesh_face_document_uid: None,
             mesh_face_revision: None,
+            mesh_simplify_preview: None,
             brep_preview: None,
             gizmo: gizmo::Gizmo::default(),
             view3d: true,

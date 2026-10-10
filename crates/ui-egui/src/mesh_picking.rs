@@ -22,8 +22,8 @@ fn cross2(a: Vec2, b: Vec2) -> f64 {
 
 /// Orthographic ray hit with a projected triangle. Barycentric depth is
 /// evaluated at the actual cursor, not the triangle's average vertex depth.
-fn hit_triangle(
-    mesh: &PolygonMesh,
+pub(crate) fn hit_triangle_vertices(
+    vertices: &[Vec3],
     triangle: [u32; 3],
     camera: OrthoFrame,
     center: Vec3,
@@ -31,9 +31,9 @@ fn hit_triangle(
     scale: f64,
     cursor: Vec2,
 ) -> Option<f64> {
-    let a = *mesh.vertices.get(triangle[0] as usize)?;
-    let b = *mesh.vertices.get(triangle[1] as usize)?;
-    let c = *mesh.vertices.get(triangle[2] as usize)?;
+    let a = *vertices.get(triangle[0] as usize)?;
+    let b = *vertices.get(triangle[1] as usize)?;
+    let c = *vertices.get(triangle[2] as usize)?;
     let projected = [a, b, c].map(|point| camera.project(point, center) * scale);
     if projected.iter().any(|p| !p.is_finite()) {
         return None;
@@ -93,7 +93,7 @@ pub fn pick_visible_mesh_face<'a>(
                 PolygonFace::Quad([a, b, c, d]) => [Some([*a, *b, *c]), Some([*a, *c, *d])],
             };
             for triangle in triangles.into_iter().flatten() {
-                if let Some(depth) = hit_triangle(mesh, triangle, camera, center, toward_camera, scale, cursor) {
+                if let Some(depth) = hit_triangle_vertices(&mesh.vertices, triangle, camera, center, toward_camera, scale, cursor) {
                     let candidate = PickedMeshFace { object_id, face_index: index as u32, depth };
                     if preferred(candidate, best) {
                         best = Some(candidate);

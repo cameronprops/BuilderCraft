@@ -3,48 +3,19 @@ use crate::CadApp;
 use cadcraft_doc::organization::{ModelNode, NodeKind};
 use serde_json::json;
 
-/// Explicit revision/document-bound *derived* BRep wires. Never serialized in
-/// the document or promoted into exact topology, IDs, trimming or surfaces.
-#[derive(Clone, Debug)]
-pub struct BrepPreview {
-    pub document_uid: u64,
-    pub source_revision: u64,
-    pub object_id: u64,
-    pub edge_chains: Vec<Vec<cadcraft_geom::Vec3>>,
-}
+pub use crate::brep_display::BrepPreview;
 
-fn load_exact_brep_wires(app: &mut CadApp, id: u64) -> Result<(), String> {
+fn load_exact_brep_preview(app: &mut CadApp, id: u64) -> Result<(), String> {
     let state = app.session.state().map_err(|e| e.to_string())?;
     let (document_uid, revision) = (state.uid, state.revision);
     let reply = app.run("brep.preview", json!({"id":id,"linear_deflection":0.15,"angular_deflection":0.4}))?;
-    let lines = reply["mesh"]["edge_chains"].as_array().ok_or("exact BRep preview has no wire chains")?;
-    let mut chains = Vec::new();
-    let mut points = 0usize;
-    for line in lines {
-        let source = line.as_array().ok_or("invalid BRep wire chain")?;
-        points = points.checked_add(source.len()).ok_or("BRep preview point overflow")?;
-        if points > 50_000 {
-            return Err("BRep display proxy point budget exceeded".into());
-        }
-        let mut chain = Vec::with_capacity(source.len());
-        for point in source {
-            let values = point.as_array().filter(|v| v.len() == 3).ok_or("invalid BRep preview 3D point")?;
-            let get = |index: usize| -> Result<f64, String> {
-                values[index].as_f64().filter(|v| v.is_finite()).ok_or_else(|| "non-finite BRep preview coordinate".into())
-            };
-            chain.push(cadcraft_geom::Vec3::new(get(0)?, get(1)?, get(2)?));
-        }
-        if chain.len() >= 2 {
-            chains.push(chain);
-        }
+    let preview = BrepPreview::from_worker(&reply, document_uid, revision, id)?;
+    if !app.session.state().is_ok_and(|st| preview.current(st.uid, st.revision)) {
+        return Err("BRep source changed while generating shaded preview".into());
     }
-    if !app.session.state().is_ok_and(|st| st.uid == document_uid && st.revision == revision) {
-        return Err("BRep source changed while generating preview".into());
-    }
-    app.ui.brep_preview = Some(BrepPreview { document_uid, source_revision: revision, object_id: id, edge_chains: chains });
+    app.ui.brep_preview = Some(preview);
     Ok(())
 }
-
 pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
     egui::Panel::top("buildercraft_workspace").exact_size(28.0).show(ui, |ui| {
         ui.horizontal(|ui| {
@@ -242,13 +213,13 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             if ui.button("Validate native topology").clicked() {
                 let _ = app.run("brep.inspect", json!({"id": object.id}));
             }
-            if ui.button("Load exact BRep wire preview").clicked()
-                && let Err(error) = load_exact_brep_wires(app, object.id)
+            if ui.button("Load shaded BRep preview").clicked()
+                && let Err(error) = load_exact_brep_preview(app, object.id)
             {
                 app.session.echo(error);
             }
         }
-        ui.small("Exact OCCT BRep data is preserved. Shaded viewport drawing and solid picking require the next integration gate.");
+        ui.small("Shaded display and whole-solid picks are disposable OCCT proxies. Wire edges use X-ray overlay; mixed-scene depth and stable face picking remain future gates.");
     }
     transform_panel(app, ui);
     crate::feature_history::panel(app, ui);
@@ -334,6 +305,35 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
             offset,
         )
     });
+    // Compare the cached BRep proxy against native mesh hits using the same
+    // orthographic barycentric depth calculation. Mesh wins an exact tie.
+    let brep_hit = app.ui.brep_preview.as_ref().and_then(|cache| {
+        let state = app.session.state().ok()?;
+        if !cache.current(state.uid, state.revision) {
+            return None;
+        }
+        let document = app.session.doc().ok()?;
+        let solid = document.exact_breps.iter().find(|o| o.id == cache.object_id)?;
+        if !solid.visible || document.layer(&solid.layer).is_some_and(|l| !l.visible() || l.locked) {
+            return None;
+        }
+        cache.pick_depth(camera, app.ui.center3d, app.ui.scale3d, offset)
+            .map(|depth| (solid.id, depth))
+    });
+    if let Some((id, depth)) = brep_hit
+        && picked.is_none_or(|mesh| depth > mesh.depth + 1e-9)
+    {
+        let handle = cadcraft_doc::Handle(id);
+        let mut selection = if toggle { app.session.selection() } else { Vec::new() };
+        if toggle && selection.contains(&handle) {
+            selection.retain(|current| *current != handle);
+        } else {
+            selection.push(handle);
+        }
+        app.session.set_selection(selection);
+        clear_picked_mesh_face(app);
+        return;
+    }
     if let Some(hit) = picked {
         let handle = cadcraft_doc::Handle(hit.object_id);
         let mut selection = if toggle { app.session.selection() } else { Vec::new() };
@@ -507,25 +507,17 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         }
     }
-    // BRep wires are loaded explicitly from OCCT and tied to source revision.
-    // No persistent conversion and no claim of occlusion-correct shading.
+    // OCCT triangulation is a derived, bounded, revision-scoped display proxy.
+    // One painter Mesh batches shaded triangles; edges are a cheap X-ray overlay.
     if let Some(cache) = &app.ui.brep_preview
-        && app.session.state().is_ok_and(|st| st.uid == cache.document_uid && st.revision == cache.source_revision)
+        && app.session.state().is_ok_and(|st| cache.current(st.uid, st.revision))
         && let Ok(d) = app.session.doc()
         && let Some(object) = d.exact_breps.iter().find(|o| o.id == cache.object_id)
         && object.visible
         && d.layer(&object.layer).is_none_or(|l| l.visible())
     {
-        let color = if selected_ids.contains(&cadcraft_doc::Handle(object.id)) {
-            egui::Color32::from_rgb(255, 130, 40)
-        } else {
-            egui::Color32::from_rgb(160, 220, 250)
-        };
-        for chain in &cache.edge_chains {
-            for pair in chain.windows(2) {
-                line(pair[0], pair[1], color);
-            }
-        }
+        let frame = cadcraft_geom::camera::OrthoFrame { yaw, pitch };
+        cache.paint(&painter, rect, frame, app.ui.center3d, scale, selected_ids.contains(&cadcraft_doc::Handle(object.id)));
     }
     if preview_limited {
         painter.text(
@@ -1085,5 +1077,64 @@ mod mesh_ui_tests {
         assert_ne!(app.session.state().unwrap().uid, first_uid);
         app.ui.mesh_face_revision = Some(app.session.state().unwrap().revision);
         assert!(!picked_face_is_current(&app, id));
+    }
+}
+
+#[cfg(test)]
+mod brep_selection_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn solid_preview(app: &mut CadApp, id: u64) {
+        use cadcraft_doc::organization::ExactBrepObject;
+        use std::sync::Arc;
+
+        app.session.doc_mut().unwrap().exact_breps.push(ExactBrepObject {
+            id,
+            name: "Fixture".into(),
+            layer: "0".into(),
+            visible: true,
+            brep: Arc::new("fixture-only, never written".into()),
+            volume: 1.,
+            faces: 1,
+            edges: 3,
+        });
+        let state = app.session.state().unwrap();
+        let proxy = json!({"mesh":{"exact":false,
+            "vertices":[[0.,0.,2.],[10.,0.,2.],[0.,10.,2.]],
+            "normals":[[0.,0.,1.],[0.,0.,1.],[0.,0.,1.]],
+            "indices":[0,1,2],"edge_chains":[]}});
+        app.ui.brep_preview = Some(BrepPreview::from_worker(&proxy, state.uid, state.revision, id).unwrap());
+    }
+
+    #[test]
+    fn shaded_solid_pick_is_reversible_and_does_not_change_document() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        solid_preview(&mut app, 28);
+        app.ui.orbit_yaw = 0.;
+        app.ui.orbit_pitch = -std::f64::consts::FRAC_PI_2;
+        app.ui.scale3d = 10.;
+        app.ui.center3d = cadcraft_geom::Vec3::ZERO;
+        let state = app.session.state().unwrap();
+        let uid = state.uid;
+        let revision = state.revision;
+        let viewport = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400., 400.));
+        let cursor = egui::pos2(220., 180.);
+        select_3d_at(&mut app, viewport, cursor, false);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(28)]);
+        select_3d_at(&mut app, viewport, cursor, true);
+        assert!(app.session.selection().is_empty());
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.state().unwrap().uid, uid);
+        assert_eq!(app.session.doc().unwrap().exact_breps.len(), 1);
+
+        // Visibility and stale revision must prevent picking a ghost solid.
+        app.session.doc_mut().unwrap().exact_breps[0].visible = false;
+        select_3d_at(&mut app, viewport, cursor, false);
+        assert!(app.session.selection().is_empty());
+        app.session.doc_mut().unwrap().exact_breps[0].visible = true;
+        app.ui.brep_preview.as_mut().unwrap().source_revision += 1;
+        select_3d_at(&mut app, viewport, cursor, false);
+        assert!(app.session.selection().is_empty());
     }
 }

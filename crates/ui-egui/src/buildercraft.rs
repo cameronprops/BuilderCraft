@@ -156,22 +156,97 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                     ui.label("Some boundary edges are ambiguous; repair these before hole filling.");
                 }
                 for (index, loop_data) in report.closed_loops.iter().enumerate().take(16) {
-                    if ui.button(format!("Try planar patch on loop {} ({} vertices)", index, loop_data.vertices.len())).clicked()
-                        && let Ok(state) = app.session.state()
-                    {
-                        let revision = state.revision;
-                        let _ = app.run(
-                            "mesh3d.edit",
-                            json!({
-                                "id":object.id,
-                                "edit":{
-                                    "kind":"fill_planar_hole",
-                                    "selected_revision":revision,
-                                    "loop_index":index
+                    egui::CollapsingHeader::new(format!("Hole loop {} ({} rim vertices)", index, loop_data.vertices.len()))
+                        .id_salt(("mesh_patch", object.id, index))
+                        .show(ui, |ui| {
+                            let mode_id = egui::Id::new(("mesh_patch_mode", object.id, index));
+                            let limit_id = egui::Id::new(("mesh_patch_limit", object.id, index));
+                            let axis_id = egui::Id::new(("mesh_patch_axis", object.id, index));
+                            let feedback_id = egui::Id::new(("mesh_patch_feedback", object.id, index));
+                            let mut selected_mode = ui.ctx().data_mut(|data| data.get_temp::<usize>(mode_id).unwrap_or(0));
+                            let mut max_displacement = ui.ctx().data_mut(|data| data.get_temp::<f64>(limit_id).unwrap_or(0.0));
+                            let mut axis = ui.ctx().data_mut(|data| data.get_temp::<[f64; 3]>(axis_id).unwrap_or([0.0, 0.0, 1.0]));
+                            let mut changed = false;
+                            egui::ComboBox::from_id_salt(("patch_mode_select", object.id, index))
+                                .selected_text(match selected_mode {
+                                    1 => "Planar: least-squares fit",
+                                    2 => "Planar: neighboring face direction",
+                                    3 => "Planar: specified normal",
+                                    _ => "Nonplanar: keep 3D rim",
+                                })
+                                .show_ui(ui, |ui| {
+                                    changed |= ui.selectable_value(&mut selected_mode, 0, "Nonplanar: keep 3D rim").changed();
+                                    changed |= ui.selectable_value(&mut selected_mode, 1, "Planar: least-squares fit").changed();
+                                    changed |= ui.selectable_value(&mut selected_mode, 2, "Planar: neighboring face direction").changed();
+                                    changed |= ui.selectable_value(&mut selected_mode, 3, "Planar: specified normal").changed();
+                                });
+                            if selected_mode != 0 {
+                                ui.small("A completely planar patch requires moving the rim. Adjacent original faces will change.");
+                                ui.horizontal(|ui| {
+                                    ui.label("Max rim movement (document units):");
+                                    changed |= ui.add(egui::DragValue::new(&mut max_displacement).speed(0.01).range(0.0..=1.0e12)).changed();
+                                });
+                            }
+                            if selected_mode == 3 {
+                                ui.horizontal(|ui| {
+                                    ui.label("Plane normal X/Y/Z:");
+                                    for coordinate in &mut axis {
+                                        changed |= ui.add(egui::DragValue::new(coordinate).speed(0.1)).changed();
+                                    }
+                                });
+                            }
+                            ui.ctx().data_mut(|data| {
+                                data.insert_temp(mode_id, selected_mode);
+                                data.insert_temp(limit_id, max_displacement);
+                                data.insert_temp(axis_id, axis);
+                                if changed { data.remove::<String>(feedback_id); }
+                            });
+                            let mode = match selected_mode {
+                                1 => json!({"mode":"planar_best_fit","max_displacement":max_displacement}),
+                                2 => json!({"mode":"planar_average_normal","max_displacement":max_displacement}),
+                                3 => json!({"mode":"planar_direction","max_displacement":max_displacement,
+                                    "normal":{"x":axis[0],"y":axis[1],"z":axis[2]}}),
+                                _ => json!({"mode":"surface"}),
+                            };
+                            ui.horizontal(|ui| {
+                                if ui.button("Preview and measure").clicked()
+                                    && let Ok(state) = app.session.state()
+                                {
+                                    let revision = state.revision;
+                                    let outcome = app.run("mesh3d.fill_preview", json!({
+                                        "id":object.id, "selected_revision":revision, "loop_index":index, "mode":mode
+                                    }));
+                                    let message = match outcome {
+                                        Ok(value) => format!(
+                                            "Patch preview: {} triangles, RMS {:.5}, max {:.5}, {} rim vertices moved. No model changes.",
+                                            value["new_face_indices"].as_array().map_or(0, Vec::len),
+                                            value["plane"]["rms_boundary_deviation"].as_f64().unwrap_or(0.0),
+                                            value["plane"]["max_boundary_deviation"].as_f64().unwrap_or(0.0),
+                                            value["moved_vertices"].as_array().map_or(0, Vec::len)
+                                        ),
+                                        Err(error) => format!("Preview rejected: {error}"),
+                                    };
+                                    ui.ctx().data_mut(|data| data.insert_temp(feedback_id, message));
                                 }
-                            }),
-                        );
-                    }
+                                if ui.button("Apply patch").clicked()
+                                    && let Ok(state) = app.session.state()
+                                {
+                                    let revision = state.revision;
+                                    let outcome = app.run("mesh3d.edit", json!({
+                                        "id":object.id,
+                                        "edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":index,"mode":mode}
+                                    }));
+                                    let message = match outcome {
+                                        Ok(_) => "Patch committed. Undo restores the original mesh.".to_owned(),
+                                        Err(error) => format!("Patch rejected: {error}"),
+                                    };
+                                    ui.ctx().data_mut(|data| data.insert_temp(feedback_id, message));
+                                }
+                            });
+                            if let Some(message) = ui.ctx().data_mut(|data| data.get_temp::<String>(feedback_id)) {
+                                ui.small(message);
+                            }
+                        });
                 }
             }
         });

@@ -20,6 +20,8 @@ thiserror = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 miniz_oxide = "0.8"
+stl_io = "0.11.0" # MIT
+tobj = { version = "4.0.5", default-features = false, features = ["use_f64"] } # MIT
 
 [dev-dependencies]
 gltf = { version = "1.4", default-features = false }

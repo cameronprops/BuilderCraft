@@ -1,0 +1,323 @@
+{
+  "schema_version": 2,
+  "note": "Living review of every repository proposed to Worldwright as of 2026-10-09. Evaluation pending is not dependency inclusion. Candidate integrated unverified is source on a draft branch, not shipped.",
+  "candidates": [
+    {
+      "repository": "georust/robust",
+      "url": "https://github.com/georust/robust",
+      "declared_license": "MIT OR Apache-2.0",
+      "status": "candidate_integrated_unverified",
+      "placement": "crates/geom",
+      "rationale": "Adaptive robust orientation predicates; new guarded wrappers/tests, no replacement of intersect until comparison fixtures pass",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "hmeyer/stl_io",
+      "url": "https://github.com/hmeyer/stl_io",
+      "declared_license": "MIT",
+      "status": "candidate_integrated_unverified",
+      "placement": "crates/io",
+      "rationale": "STL parser/writer adapter over Worldwright TriangleMesh; source has no units/materials; requires runner tests",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "Twinklebear/tobj",
+      "url": "https://github.com/Twinklebear/tobj",
+      "declared_license": "MIT",
+      "status": "candidate_integrated_unverified",
+      "placement": "crates/io",
+      "rationale": "f64 OBJ parsing; models remain separate, unsupported UV/material/normal data reported; requires runner tests",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "georust/rstar",
+      "url": "https://github.com/georust/rstar",
+      "declared_license": "MIT OR Apache-2.0",
+      "status": "already_used_main",
+      "placement": "crates/engine",
+      "rationale": "Already used in cadcraft-engine for R-tree picking and snapping; do not duplicate",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": true
+      }
+    },
+    {
+      "repository": "mattatz/curvo",
+      "url": "https://github.com/mattatz/curvo",
+      "declared_license": "MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/geom",
+      "rationale": "Compare NURBS parameterizations, knots/weights, seam tolerances and loft/sweep results with existing exact rational curve/surface types before adapting",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "YATSKOVSKYI/cadcore",
+      "url": "https://github.com/YATSKOVSKYI/cadcore",
+      "declared_license": "MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/kernel",
+      "rationale": "Promising pure-Rust B-Rep and STEP AP203; evaluate topology invariants, degenerate/boolean acceptance and independent STEP roundtrip corpus",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "georust/geo-index",
+      "url": "https://github.com/georust/geo-index",
+      "declared_license": "MIT OR Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "crates/kernel",
+      "rationale": "Packed immutable index may suit revision-keyed scene snapshots; benchmark against existing rstar before adding",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "zakarumych/egui-snarl",
+      "url": "https://github.com/zakarumych/egui-snarl",
+      "declared_license": "MIT OR Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "crates/ui-egui",
+      "rationale": "Matches egui 0.36 for OrbWeaver canvas; integrate only once in-flight OrbWeaver graph executor is merged and typed pins stable",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "Stoeoef/spade",
+      "url": "https://github.com/Stoeoef/spade",
+      "declared_license": "MIT OR Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "crates/geom",
+      "rationale": "Constrained triangulation candidate after polygon/topology numerical tests, avoid replacement of existing procedural meshing until tested",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "georust/geo",
+      "url": "https://github.com/georust/geo",
+      "declared_license": "MIT OR Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "crates/geom",
+      "rationale": "2D polygon/GIS algorithms, avoid competing region engines; add only for validated missing operation",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "gadomski/las-rs",
+      "url": "https://github.com/gadomski/las-rs",
+      "declared_license": "MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/io",
+      "rationale": "LAS point-cloud adapter belongs to Scan milestone; LAZ optional compression pulls Apache-only laz-rs, disable for strict MIT-only distribution",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "Auburn/FastNoiseLite",
+      "url": "https://github.com/Auburn/FastNoiseLite",
+      "declared_license": "MIT",
+      "status": "candidate_integrated_unverified",
+      "placement": "crates/kernel",
+      "rationale": "Shared deterministic 3D field sample operation and fixtures added under buildercraft-kernel; no terrain UI or verified runner results yet",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "linebender/vello",
+      "url": "https://github.com/linebender/vello",
+      "declared_license": "Apache-2.0 OR MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/ui-egui",
+      "rationale": "2D high-performance vector compositor; compare render quality/perf vs already-used tiny-skia before adding GPU complexity",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "zeux/meshoptimizer",
+      "url": "https://github.com/zeux/meshoptimizer",
+      "declared_license": "MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/io",
+      "rationale": "C++ mesh optimization for GLB/Unreal; isolate FFI behind adapter and source geometry provenance, prioritize later",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "jpcy/xatlas",
+      "url": "https://github.com/jpcy/xatlas",
+      "declared_license": "MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/io",
+      "rationale": "C++ UV atlas generation; optional FFI adapter later, not core Rust kernel",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "ricosjp/truck",
+      "url": "https://github.com/ricosjp/truck",
+      "declared_license": "Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "none",
+      "rationale": "Apache-2.0 allowed; evaluate modular CAD topology and geometric ops head-to-head against Curvo and Worldwright exact geometry before choosing a canonical implementation",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "dimforge/parry",
+      "url": "https://github.com/dimforge/parry",
+      "declared_license": "Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "none",
+      "rationale": "Apache-2.0 allowed; benchmark f64 collision/proximity against existing mesh queries, especially degenerate and tolerances",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "linebender/kurbo",
+      "url": "https://github.com/linebender/kurbo",
+      "declared_license": "Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "crates/geom",
+      "rationale": "Apache-2.0 allowed; compare 2D Bézier path calculations against Worldwright's existing drafting math before adding",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "mkeeter/fidget",
+      "url": "https://github.com/mkeeter/fidget",
+      "declared_license": "MPL-2.0",
+      "status": "evaluation_pending",
+      "placement": "crates/kernel",
+      "rationale": "Experimental implicit-surface SDF/FRep evaluation and meshing, separate representation from exact B-Rep; adhere to MPL source/modified-file obligations and upstream contribution guidance",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "RustedBytes/point-formats",
+      "url": "https://github.com/RustedBytes/point-formats",
+      "declared_license": "MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/io",
+      "rationale": "Optional point-format interchange adapter; evaluate file corpus and maintenance before inclusion",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "telecos/lib3mf_rust",
+      "url": "https://github.com/telecos/lib3mf_rust",
+      "declared_license": "MIT",
+      "status": "evaluation_pending",
+      "placement": "crates/io",
+      "rationale": "Potential 3MF fabrication interchange; very small upstream, verify spec fidelity and dependencies",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    }
+  ],
+  "policy": {
+    "license_policy": "Allow legally compatible open-source code, including MIT, Apache-2.0, MPL-2.0 and dual-licensed crates; review GPL/LGPL/linking and redistribution obligations individually before adoption.",
+    "technical_policy": "Evaluate every shortlisted upstream. Prefer objectively better correctness/performance after fixtures and benchmarks; one implementation per mathematical operation, with adapters rather than parallel kernels.",
+    "attribution": "Keep upstream licenses/notices and source references; audit complete dependency graph and upstream license changes.",
+    "gates": [
+      "acceptance_fixtures",
+      "memory_cancellation",
+      "cross_platform_rust_1_95",
+      "API_and_OrbWeaver_shared_interface_when_relevant",
+      "workspace_CI",
+      "separate_import_export_fidelity"
+    ]
+  },
+  "review_process": {
+    "order": [
+      "Existing implementation and source comparison",
+      "Minimal adapter or isolated experimental integration",
+      "Accept/reject via accuracy fixtures and performance benchmarks",
+      "Native CI on Linux/Windows/macOS",
+      "Promote to canonical shared service only after passing"
+    ],
+    "decision_threshold": "No redundant engine, failing license obligation, loss of precision/identity or unbounded memory; keep candidate on experiment branch otherwise"
+  }
+}

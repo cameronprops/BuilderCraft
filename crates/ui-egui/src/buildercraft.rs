@@ -28,6 +28,7 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
                     }
                 }
             });
+            crate::hardware_profile::menu(app, ui);
             if ui.button("Search commands  Ctrl/Cmd+K").clicked() {
                 app.start("ui.command.search");
             }
@@ -331,7 +332,7 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
     let offset = cadcraft_geom::Vec2::new(f64::from(pointer.x - rect.center().x), f64::from(rect.center().y - pointer.y));
     let camera = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
     let picked = app.session.doc().ok().and_then(|d| {
-        crate::mesh_picking::pick_visible_mesh_face(
+        crate::mesh_picking::pick_visible_mesh_face_with_budget(
             d.mesh3d
                 .iter()
                 .filter(|o| o.visible && d.layer(&o.layer).is_none_or(|layer| layer.visible() && !layer.locked))
@@ -340,6 +341,7 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
             app.ui.center3d,
             app.ui.scale3d,
             offset,
+            app.machine_profile.tuning.viewport_faces,
         )
     });
     if let Some(hit) = picked {
@@ -495,7 +497,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
         }
         // The face budget applies to the whole visible mesh scene, matching
         // mesh_picking exactly. No hidden face should remain interactive.
-        let mut mesh_faces_remaining = crate::mesh_picking::MAX_VIEWPORT_FACES;
+        let mut mesh_faces_remaining = app.machine_profile.tuning.viewport_faces;
         for object in &d.mesh3d {
             if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible()) {
                 continue;

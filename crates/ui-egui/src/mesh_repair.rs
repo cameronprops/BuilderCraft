@@ -144,6 +144,8 @@ pub fn bar(app: &mut CadApp, ui: &mut egui::Ui) {
             ui.strong("MESH REPAIR");
             ui.weak("METROLOGY WORKSPACE");
             ui.separator();
+            crate::hardware_profile::menu(app, ui);
+            ui.separator();
             if ui.button("Open").clicked() {
                 app.start("ui.open");
             }

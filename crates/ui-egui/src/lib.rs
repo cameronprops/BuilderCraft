@@ -17,6 +17,7 @@ pub mod control;
 pub mod dialogs;
 mod feature_history;
 pub mod gizmo;
+pub mod hardware_profile;
 pub mod gpu;
 pub mod icons;
 pub mod layers;
@@ -176,6 +177,9 @@ pub struct CadApp {
     pub ui: UiState,
     pub services: Services,
     pub canvas: canvas::CanvasState,
+    /// First-run hardware tuning is a user preference, never document content.
+    pub machine_profile: hardware_profile::Profile,
+    gpu_canvas_target: Option<gpu::GpuTarget>,
     pub cmd: cmdline::CmdLine,
     pub status: Option<(String, f64)>,
     pub integrated_titlebar: bool,
@@ -196,6 +200,8 @@ impl CadApp {
             ui: UiState::default(),
             services,
             canvas: canvas::CanvasState::default(),
+            machine_profile: hardware_profile::Profile::safe_default(),
+            gpu_canvas_target: None,
             cmd: cmdline::CmdLine::default(),
             status: None,
             integrated_titlebar: false,
@@ -213,7 +219,43 @@ impl CadApp {
     /// Draw the canvas on the GPU with the app's wgpu render state (eframe's
     /// `CreationContext::wgpu_render_state`). Without it the canvas draws on the CPU.
     pub fn set_wgpu(&mut self, rs: &egui_wgpu::RenderState) {
-        self.canvas.gpu = Some(gpu::install(rs));
+        self.gpu_canvas_target = Some(gpu::install(rs));
+        self.apply_canvas_route();
+    }
+
+    /// Called on the desktop's first launch after wgpu initialization,
+    /// then checked against the saved hardware signature on future launches.
+    pub fn configure_machine(&mut self, stored: Option<&str>, rs: Option<&egui_wgpu::RenderState>) {
+        self.machine_profile = hardware_profile::Profile::initialize(hardware_profile::Hardware::detect(rs), stored);
+        self.apply_canvas_route();
+    }
+
+    pub fn set_power_mode(&mut self, mode: hardware_profile::PowerMode) {
+        self.machine_profile.mode(mode);
+        self.apply_canvas_route();
+    }
+
+    pub fn reprofile_machine(&mut self) {
+        let gpu = self.machine_profile.hardware.graphics.clone();
+        let mode = self.machine_profile.mode;
+        let mut hw = hardware_profile::Hardware::detect(None);
+        hw.graphics = gpu;
+        self.machine_profile = hardware_profile::Profile::initialize(hw, None);
+        self.machine_profile.mode(mode);
+        self.apply_canvas_route();
+    }
+
+    /// Route only workloads for which a GPU implementation already exists.
+    /// The 2D canvas has a real wgpu path; topology and 3D inspection do not.
+    pub fn apply_canvas_route(&mut self) {
+        let primitives = self.canvas.list.as_ref().map_or(0, |list| list.prims.len());
+        self.canvas.gpu = if self.machine_profile.route(hardware_profile::Operation::Canvas2d { primitives })
+            == hardware_profile::Compute::Gpu
+        {
+            self.gpu_canvas_target
+        } else {
+            None
+        };
     }
 
     pub fn with_control(mut self, rx: Receiver<ControlRequest>) -> Self {
@@ -290,6 +332,7 @@ impl CadApp {
             theme::apply(ctx);
             self.styled = true;
         }
+        self.apply_canvas_route();
         self.drain_control(ctx);
         if !self.synthetic.is_empty() {
             ctx.request_repaint();

@@ -209,6 +209,25 @@ mod tests {
         assert!(s.doc().unwrap().mesh3d[0].mesh.vertices.iter().all(|p| p.z == 0.));
     }
     #[test]
+    fn transformed_mesh_survives_native_file_roundtrip() {
+        let mut s = Session::new();
+        let source = create_mesh(&mut s, 0.);
+        let base = create_surface(&mut s, 0.);
+        let target = create_surface(&mut s, 5.);
+        let edited = s.execute("mesh3d.flow_along_srf",&json!({
+            "id":source,"base_id":base,"target_id":target,"copy":true
+        })).unwrap();
+        let transformed_id = edited["id"].as_u64().unwrap();
+        let expected = s.doc().unwrap().mesh3d[1].mesh.clone();
+        let bytes = cadcraft_io::write(s.doc().unwrap(), "modeling-roundtrip.bcraft").unwrap();
+        let reopened = cadcraft_io::read(&bytes, "modeling-roundtrip.bcraft").unwrap();
+        assert_eq!(reopened.mesh3d.len(), 2);
+        assert_eq!(reopened.mesh3d[1].id, transformed_id);
+        assert_eq!(reopened.mesh3d[1].mesh.as_ref(), expected.as_ref());
+        assert!(reopened.mesh3d[1].mesh.vertices.iter().all(|p| (p.z - 5.).abs() < 1e-6));
+    }
+
+    #[test]
     fn invalid_geometry_and_stale_revision_do_not_edit_document() {
         let mut s = Session::new();
         let source = create_mesh(&mut s, 3.);

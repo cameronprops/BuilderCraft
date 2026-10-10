@@ -29,17 +29,17 @@ fn copy_and_revision(s: &Session, p: &Value, allowed: &[&str]) -> Result<bool> {
     }
     let copy = p.get("copy").map(|v| v.as_bool().ok_or_else(|| invalid("copy must be boolean"))).transpose()?.unwrap_or(false);
     let selected_revision = p.get("selected_revision").map(|v| v.as_u64().ok_or_else(|| invalid("selected_revision must be numeric"))).transpose()?;
-    if let Some(rev) = selected_revision {
-        if rev != s.state()?.revision {
-            return Err(invalid("selected geometry revision is stale"));
-        }
+    if let Some(rev) = selected_revision
+        && rev != s.state()?.revision
+    {
+        return Err(invalid("selected geometry revision is stale"));
     }
     Ok(copy)
 }
-fn mesh<'a>(s: &'a Session, id: u64) -> Result<&'a PolygonGeometryObject> {
+fn mesh(s: &Session, id: u64) -> Result<&PolygonGeometryObject> {
     s.doc()?.mesh3d.iter().find(|x| x.id == id).ok_or_else(|| invalid("source polygon object does not exist"))
 }
-fn nurbs<'a>(s: &'a Session, id: u64) -> Result<&'a cadcraft_geom::nurbs3d::Surface> {
+fn nurbs(s: &Session, id: u64) -> Result<&cadcraft_geom::nurbs3d::Surface> {
     let object = s.doc()?.geometry3d.iter().find(|x| x.id == id).ok_or_else(|| invalid("target NURBS object does not exist"))?;
     match &object.shape {
         Shape::Surface(surface) => Ok(surface.as_ref()),

@@ -57,7 +57,19 @@ pub enum ExactBoolean {
 }
 
 #[derive(Debug)]
-pub struct BrepSolid(Solid);
+// A bounded exact-construction certificate, never guessed from mass/bounds alone.
+// Equal bounding boxes and volume are NOT sufficient to prove arbitrary BRep equality.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct AxisAlignedBox {
+    min: [f64; 3],
+    max: [f64; 3],
+}
+
+#[derive(Debug)]
+pub struct BrepSolid {
+    solid: Solid,
+    primitive: Option<AxisAlignedBox>,
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct SolidStatistics {
@@ -69,9 +81,9 @@ pub struct SolidStatistics {
 impl BrepSolid {
     pub fn statistics(&self) -> SolidStatistics {
         SolidStatistics {
-            volume: self.0.volume(),
-            faces: self.0.iter_face().count(),
-            edges: self.0.iter_edge().count(),
+            volume: self.solid.volume(),
+            faces: self.solid.iter_face().count(),
+            edges: self.solid.iter_edge().count(),
         }
     }
 }
@@ -101,7 +113,13 @@ impl CadrumBrepCandidate {
         {
             return Err(BrepError::InvalidBoxBounds);
         }
-        Ok(BrepSolid(Solid::cube(lower, upper)))
+        Ok(BrepSolid {
+            solid: Solid::cube(lower, upper),
+            primitive: Some(AxisAlignedBox {
+                min: lower.to_array(),
+                max: upper.to_array(),
+            }),
+        })
     }
 
     /// Supports empty, single or split multi-body results without inventing
@@ -112,17 +130,32 @@ impl CadrumBrepCandidate {
         first: &BrepSolid,
         second: &BrepSolid,
     ) -> Result<Vec<BrepSolid>, BrepError> {
+        // CellsBuilder currently fails on coincident copies of a shape. Handle
+        // analytically proven identity before entering native C++ to avoid
+        // creating duplicate operands. A face area or volume match alone must
+        // never trigger this path for arbitrary topology.
+        let same_operand = std::ptr::eq(first, second)
+            || (first.primitive.is_some() && first.primitive == second.primitive);
+        if same_operand {
+            return match operation {
+                ExactBoolean::Union | ExactBoolean::Intersection => Ok(vec![BrepSolid {
+                    solid: first.solid.clone(),
+                    primitive: first.primitive,
+                }]),
+                ExactBoolean::Difference => Ok(Vec::new()),
+            };
+        }
         let pieces = match operation {
-            ExactBoolean::Union => (&first.0 + &second.0).build_vec()?,
-            ExactBoolean::Difference => (&first.0 - &second.0).build_vec()?,
-            ExactBoolean::Intersection => (&first.0 * &second.0).build_vec()?,
+            ExactBoolean::Union => (&first.solid + &second.solid).build_vec()?,
+            ExactBoolean::Difference => (&first.solid - &second.solid).build_vec()?,
+            ExactBoolean::Intersection => (&first.solid * &second.solid).build_vec()?,
         };
-        Ok(pieces.into_iter().map(BrepSolid).collect())
+        Ok(pieces.into_iter().map(|solid| BrepSolid { solid, primitive: None }).collect())
     }
 
     pub fn write_native_brep(&self, solids: &[BrepSolid]) -> Result<Vec<u8>, BrepError> {
         let mut bytes = Vec::new();
-        Solid::write_brep(solids.iter().map(|shape| &shape.0), &mut bytes)?;
+        Solid::write_brep(solids.iter().map(|shape| &shape.solid), &mut bytes)?;
         if bytes.is_empty() || bytes.len() > Self::MAX_BREP_BYTES {
             return Err(BrepError::InvalidBinaryPayload);
         }
@@ -134,7 +167,7 @@ impl CadrumBrepCandidate {
             return Err(BrepError::InvalidBinaryPayload);
         }
         let solids = Solid::read_brep(&mut Cursor::new(bytes))?;
-        Ok(solids.into_iter().map(BrepSolid).collect())
+        Ok(solids.into_iter().map(|solid| BrepSolid { solid, primitive: None }).collect())
     }
 }
 
@@ -184,6 +217,45 @@ mod tests {
         assert_eq!(restored.len(), 1);
         assert_eq!(restored[0].statistics().faces, 6);
         assert!((restored[0].statistics().volume - 1.0).abs() < 1e-8);
+    }
+
+    #[test]
+    fn identical_handle_boolean_uses_proven_identity_not_native_cellsbuilder() {
+        let kernel = candidate();
+        let a = kernel.box_from_corners(DVec3::ZERO, DVec3::splat(2.0)).unwrap();
+        for (op, expected_count, expected_volume) in [
+            (ExactBoolean::Union, 1, 8.0),
+            (ExactBoolean::Intersection, 1, 8.0),
+            (ExactBoolean::Difference, 0, 0.0),
+        ] {
+            let result = kernel.boolean(op, &a, &a).unwrap();
+            assert_eq!(result.len(), expected_count);
+            let total: f64 = result.iter().map(|s| s.statistics().volume).sum();
+            assert!((total - expected_volume).abs() < 1e-8);
+        }
+    }
+
+    #[test]
+    fn separate_identical_box_constructions_are_idempotent() {
+        let kernel = candidate();
+        let a = kernel.box_from_corners(DVec3::new(-1.0, -2.0, 0.0), DVec3::new(2.0, 1.0, 4.0)).unwrap();
+        let duplicate = kernel.box_from_corners(DVec3::new(-1.0, -2.0, 0.0), DVec3::new(2.0, 1.0, 4.0)).unwrap();
+        for op in [ExactBoolean::Union, ExactBoolean::Intersection] {
+            let result = kernel.boolean(op, &a, &duplicate).unwrap();
+            assert_eq!(result.len(), 1);
+            assert!((result[0].statistics().volume - 36.0).abs() < 1e-8);
+        }
+        assert!(kernel.boolean(ExactBoolean::Difference, &a, &duplicate).unwrap().is_empty());
+    }
+
+    #[test]
+    fn same_volume_different_location_must_not_use_identity_shortcut() {
+        let kernel = candidate();
+        let a = kernel.box_from_corners(DVec3::ZERO, DVec3::splat(2.0)).unwrap();
+        let b = kernel.box_from_corners(DVec3::ONE, DVec3::splat(3.0)).unwrap();
+        let common = kernel.boolean(ExactBoolean::Intersection, &a, &b).unwrap();
+        assert_eq!(common.len(), 1);
+        assert!((common[0].statistics().volume - 1.0).abs() < 1e-8);
     }
 
     #[test]

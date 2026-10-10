@@ -31,3 +31,35 @@ jobs:
         run: cargo test --locked -p buildercraft-kernel -p orbweaver -p cadcraft-engine
       - name: Strict Rust lints for the modeled command surfaces
         run: cargo clippy --locked -p buildercraft-kernel -p orbweaver -p cadcraft-engine --all-targets -- -D warnings
+
+  exact-brep-integration:
+    name: ${{ matrix.os }} exact OCCT BRep + native CAD document
+    if: github.head_ref == 'feature/brep-document-native-integration'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - name: Linux native linker dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y pkg-config build-essential libxkbcommon-dev libwayland-dev libegl1-mesa-dev
+      - name: Build isolated OCCT BRep worker
+        run: cargo build --manifest-path evaluations/cadrum/Cargo.toml --bin worldwright-brep-worker
+      - name: Test actual worker and exact BRep golden fixtures
+        run: cargo test --manifest-path evaluations/cadrum/Cargo.toml --all-targets -- --test-threads=1
+      - name: Native document create, Boolean, STEP, preview, persistence and undo
+        shell: bash
+        run: |
+          suffix=""
+          if [ "${{ runner.os }}" = "Windows" ]; then suffix=".exe"; fi
+          export WORLDWRIGHT_BREP_WORKER="$GITHUB_WORKSPACE/evaluations/cadrum/target/debug/worldwright-brep-worker${suffix}"
+          test -f "$WORLDWRIGHT_BREP_WORKER"
+          cargo test --locked -p cadcraft-engine exact_worker_document_undo_and_roundtrip_when_worker_is_installed -- --nocapture
+      - name: Strict native CAD engine and document Clippy
+        run: cargo clippy --locked -p cadcraft-engine -p cadcraft-io --all-targets -- -D warnings

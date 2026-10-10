@@ -2,8 +2,8 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_triangulate,
-    polygon_mesh_validate, polygon_mesh_vertex_fans, MeshDecimateOptions, mesh_quadric_decimate,
+    MeshDecimateOptions, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate, polygon_mesh_boundary_loops,
+    polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -265,13 +265,11 @@ fn preview_decimate(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(invalid("interactive decimation preview limited to 20000 triangles"));
     }
     let before_count = triangulation.mesh.triangles.len();
-    let result = mesh_quadric_decimate(&triangulation.mesh, MeshDecimateOptions {
-        target_faces,
-        max_quadric_error,
-        max_normal_change_degrees,
-        preserve_boundary,
-        preserve_creases_above_degrees,
-    }).map_err(|e| invalid(&e.to_string()))?;
+    let result = mesh_quadric_decimate(
+        &triangulation.mesh,
+        MeshDecimateOptions { target_faces, max_quadric_error, max_normal_change_degrees, preserve_boundary, preserve_creases_above_degrees },
+    )
+    .map_err(|e| invalid(&e.to_string()))?;
     Ok(json!({
         "id": object_id,
         "source_revision": current_revision,
@@ -316,14 +314,14 @@ mod tests {
         use buildercraft_kernel::{TriangleMesh, polygon_mesh_from_triangles};
         let source = TriangleMesh {
             vertices: vec![
-                Vec3::new(0.0, 0.0, 1.0), Vec3::new(0.0, 0.0, -1.0),
-                Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, -1.0, 0.0),
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
             ],
-            triangles: vec![
-                [0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2],
-                [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5],
-            ],
+            triangles: vec![[0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2], [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5]],
         };
         let polygon = polygon_mesh_from_triangles(&source);
         assert!(polygon.is_ok());
@@ -339,19 +337,28 @@ mod tests {
                     assert!(revision.is_ok());
                     let original = s.doc().map(|d| d.mesh3d[0].mesh.clone());
                     if let (Ok(revision), Ok(original)) = (revision, original) {
-                        let preview = s.execute("mesh3d.preview_decimate", &json!({
-                            "id":id, "target_faces":6, "selected_revision":revision,
-                            "max_normal_change_degrees":85.0
-                        }));
+                        let preview = s.execute(
+                            "mesh3d.preview_decimate",
+                            &json!({
+                                "id":id, "target_faces":6, "selected_revision":revision,
+                                "max_normal_change_degrees":85.0
+                            }),
+                        );
                         assert!(preview.is_ok());
                         if let Ok(preview) = preview {
                             assert_eq!(preview["removed_faces"], 2);
                             assert_eq!(preview["triangles"].as_array().map(Vec::len), Some(6));
                             assert_eq!(preview["source_revision"], revision);
                         }
-                        assert!(s.execute("mesh3d.preview_decimate", &json!({
-                            "id":id, "target_faces":6, "selected_revision":revision + 1
-                        })).is_err());
+                        assert!(
+                            s.execute(
+                                "mesh3d.preview_decimate",
+                                &json!({
+                                    "id":id, "target_faces":6, "selected_revision":revision + 1
+                                })
+                            )
+                            .is_err()
+                        );
                         assert!(s.state().is_ok_and(|state| state.revision == revision));
                         assert!(s.doc().is_ok_and(|d| d.mesh3d[0].mesh == original));
                     }

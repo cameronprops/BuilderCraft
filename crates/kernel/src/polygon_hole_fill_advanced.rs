@@ -47,11 +47,7 @@ fn len(v: Vec3) -> f64 {
 
 fn unit(v: Vec3) -> Result<Vec3> {
     let n = len(v);
-    if !n.is_finite() || n <= 1e-14 {
-        Err(KernelError::Invalid("degenerate plane direction"))
-    } else {
-        Ok(v * (1.0 / n))
-    }
+    if !n.is_finite() || n <= 1e-14 { Err(KernelError::Invalid("degenerate plane direction")) } else { Ok(v * (1.0 / n)) }
 }
 
 fn covariance_normal(points: &[Vec3], center: Vec3) -> Result<Vec3> {
@@ -109,10 +105,7 @@ fn covariance_normal(points: &[Vec3], center: Vec3) -> Result<Vec3> {
     }
     let mut order = [0_usize, 1, 2];
     order.sort_by(|&i, &j| a[i][i].total_cmp(&a[j][j]));
-    if !a[order[2]][order[2]].is_finite()
-        || a[order[2]][order[2]] <= 0.0
-        || a[order[1]][order[1]] <= 1e-12 * a[order[2]][order[2]]
-    {
+    if !a[order[2]][order[2]].is_finite() || a[order[2]][order[2]] <= 0.0 || a[order[1]][order[1]] <= 1e-12 * a[order[2]][order[2]] {
         return Err(KernelError::Invalid("collinear boundary cannot define a plane"));
     }
     unit(Vec3::new(v[0][order[0]], v[1][order[0]], v[2][order[0]]))
@@ -136,8 +129,7 @@ fn segments_cross(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2], epsilon: f
     let y = cross2(a, b, d);
     let z = cross2(c, d, a);
     let w = cross2(c, d, b);
-    ((x > epsilon && y < -epsilon) || (x < -epsilon && y > epsilon))
-        && ((z > epsilon && w < -epsilon) || (z < -epsilon && w > epsilon))
+    ((x > epsilon && y < -epsilon) || (x < -epsilon && y > epsilon)) && ((z > epsilon && w < -epsilon) || (z < -epsilon && w > epsilon))
 }
 
 fn triangulate_loop(points: &[[f64; 2]], eps: f64) -> Result<Vec<[usize; 3]>> {
@@ -160,11 +152,13 @@ fn triangulate_loop(points: &[[f64; 2]], eps: f64) -> Result<Vec<[usize; 3]>> {
             }
         }
     }
-    let area = (0..n).map(|i| {
-        let a = points[i];
-        let b = points[(i + 1) % n];
-        a[0] * b[1] - a[1] * b[0]
-    }).sum::<f64>();
+    let area = (0..n)
+        .map(|i| {
+            let a = points[i];
+            let b = points[(i + 1) % n];
+            a[0] * b[1] - a[1] * b[0]
+        })
+        .sum::<f64>();
     if area <= eps {
         return Err(KernelError::Invalid("collapsed or reversed projected hole"));
     }
@@ -179,8 +173,9 @@ fn triangulate_loop(points: &[[f64; 2]], eps: f64) -> Result<Vec<[usize; 3]>> {
             if cross2(points[a], points[b], points[c]) <= eps {
                 continue;
             }
-            if remaining.iter().any(|&other| other != a && other != b && other != c
-                && strict_in_triangle(points[other], points[a], points[b], points[c], eps))
+            if remaining
+                .iter()
+                .any(|&other| other != a && other != b && other != c && strict_in_triangle(points[other], points[a], points[b], points[c], eps))
             {
                 continue;
             }
@@ -332,20 +327,27 @@ mod tests {
     fn ring() -> PolygonMesh {
         PolygonMesh {
             vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(4., 0., 0.),
-                Vec3::new(4., 4., 0.), Vec3::new(0., 4., 0.),
-                Vec3::new(1., 1., 0.), Vec3::new(3., 1., 0.),
-                Vec3::new(3., 3., 0.), Vec3::new(1., 3., 0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(4., 4., 0.),
+                Vec3::new(0., 4., 0.),
+                Vec3::new(1., 1., 0.),
+                Vec3::new(3., 1., 0.),
+                Vec3::new(3., 3., 0.),
+                Vec3::new(1., 3., 0.),
             ],
             faces: vec![
-                PolygonFace::Quad([0, 1, 5, 4]), PolygonFace::Quad([1, 2, 6, 5]),
-                PolygonFace::Quad([2, 3, 7, 6]), PolygonFace::Quad([3, 0, 4, 7]),
+                PolygonFace::Quad([0, 1, 5, 4]),
+                PolygonFace::Quad([1, 2, 6, 5]),
+                PolygonFace::Quad([2, 3, 7, 6]),
+                PolygonFace::Quad([3, 0, 4, 7]),
             ],
         }
     }
 
     fn inner(mesh: &PolygonMesh) -> u32 {
-        polygon_mesh_boundary_loops(mesh).ok()
+        polygon_mesh_boundary_loops(mesh)
+            .ok()
             .and_then(|r| r.closed_loops.iter().position(|l| l.vertices.iter().all(|&v| v >= 4)))
             .and_then(|i| u32::try_from(i).ok())
             .unwrap_or(u32::MAX)
@@ -403,13 +405,15 @@ mod tests {
         let mut source = ring();
         source.vertices[4].z = 0.2;
         let inside = inner(&source);
-        assert!(polygon_mesh_fill_hole_advanced(&source, 0, 0, inside,
-            PolygonPatchMode::PlanarBestFit { max_displacement: 0.001 }).is_err());
-        assert!(polygon_mesh_fill_hole_advanced(&source, 0, 0, if inside == 0 { 1 } else { 0 },
-            PolygonPatchMode::Surface).is_err());
-        assert_eq!(polygon_mesh_fill_hole_advanced(&source, 5, 4, inside, PolygonPatchMode::Surface),
-            Err(KernelError::Conflict { expected: 4, actual: 5 }));
-        assert!(polygon_mesh_fill_hole_advanced(&source, 0, 0, inside,
-            PolygonPatchMode::PlanarDirection { normal: Vec3::ZERO, max_displacement: 1. }).is_err());
+        assert!(polygon_mesh_fill_hole_advanced(&source, 0, 0, inside, PolygonPatchMode::PlanarBestFit { max_displacement: 0.001 }).is_err());
+        assert!(polygon_mesh_fill_hole_advanced(&source, 0, 0, if inside == 0 { 1 } else { 0 }, PolygonPatchMode::Surface).is_err());
+        assert_eq!(
+            polygon_mesh_fill_hole_advanced(&source, 5, 4, inside, PolygonPatchMode::Surface),
+            Err(KernelError::Conflict { expected: 4, actual: 5 })
+        );
+        assert!(
+            polygon_mesh_fill_hole_advanced(&source, 0, 0, inside, PolygonPatchMode::PlanarDirection { normal: Vec3::ZERO, max_displacement: 1. })
+                .is_err()
+        );
     }
 }

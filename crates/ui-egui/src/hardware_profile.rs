@@ -73,14 +73,11 @@ fn parse_first_integer(output: &[u8]) -> Option<u64> {
 #[cfg(target_os = "linux")]
 fn usable_memory() -> Option<u64> {
     let report = std::fs::read_to_string("/proc/meminfo").ok()?;
-    let kib = report.lines().find_map(|line| {
-        line.strip_prefix("MemTotal:").and_then(|rest| rest.split_whitespace().next()).and_then(|n| n.parse::<u64>().ok())
-    })?;
+    let kib = report
+        .lines()
+        .find_map(|line| line.strip_prefix("MemTotal:").and_then(|rest| rest.split_whitespace().next()).and_then(|n| n.parse::<u64>().ok()))?;
     let physical = kib.checked_mul(1024)?;
-    let cgroup = std::fs::read_to_string("/sys/fs/cgroup/memory.max")
-        .ok()
-        .and_then(|line| line.trim().parse::<u64>().ok())
-        .filter(|n| *n > 0);
+    let cgroup = std::fs::read_to_string("/sys/fs/cgroup/memory.max").ok().and_then(|line| line.trim().parse::<u64>().ok()).filter(|n| *n > 0);
     Some(cgroup.map_or(physical, |limit| physical.min(limit)))
 }
 
@@ -177,8 +174,11 @@ pub enum Compute {
 impl Profile {
     pub fn safe_default() -> Self {
         let hardware = Hardware {
-            os: std::env::consts::OS.into(), arch: std::env::consts::ARCH.into(),
-            available_cpu_threads: 1, usable_memory_bytes: None, graphics: Graphics::unavailable(),
+            os: std::env::consts::OS.into(),
+            arch: std::env::consts::ARCH.into(),
+            available_cpu_threads: 1,
+            usable_memory_bytes: None,
+            graphics: Graphics::unavailable(),
         };
         let tuning = Tuning::for_machine(&hardware, PowerMode::Auto);
         Self { schema_version: SCHEMA_VERSION, hardware, mode: PowerMode::Auto, tuning }
@@ -238,10 +238,9 @@ pub fn menu(app: &mut crate::CadApp, ui: &mut egui::Ui) {
         }
         ui.weak(if hw.graphics.canvas_device { "GPU canvas available" } else { "CPU canvas fallback" });
         ui.separator();
-        for (label, mode) in [
-            ("Auto", PowerMode::Auto), ("Economy", PowerMode::Economy),
-            ("Balanced", PowerMode::Balanced), ("Performance", PowerMode::Performance),
-        ] {
+        for (label, mode) in
+            [("Auto", PowerMode::Auto), ("Economy", PowerMode::Economy), ("Balanced", PowerMode::Balanced), ("Performance", PowerMode::Performance)]
+        {
             if ui.selectable_label(app.machine_profile.mode == mode, label).clicked() {
                 app.set_power_mode(mode);
                 ui.close();
@@ -252,8 +251,11 @@ pub fn menu(app: &mut crate::CadApp, ui: &mut egui::Ui) {
             app.reprofile_machine();
             ui.close();
         }
-        ui.weak(format!("{} preview faces · {} MiB stream cap",
-            app.machine_profile.tuning.viewport_faces, app.machine_profile.tuning.streaming_budget_bytes / MIB));
+        ui.weak(format!(
+            "{} preview faces · {} MiB stream cap",
+            app.machine_profile.tuning.viewport_faces,
+            app.machine_profile.tuning.streaming_budget_bytes / MIB
+        ));
     });
 }
 
@@ -263,11 +265,15 @@ mod tests {
 
     fn hw(cpus: usize, mem_gib: u64, gpu: bool) -> Hardware {
         Hardware {
-            os: "test-os".into(), arch: "test-arch".into(), available_cpu_threads: cpus,
+            os: "test-os".into(),
+            arch: "test-arch".into(),
+            available_cpu_threads: cpus,
             usable_memory_bytes: Some(mem_gib * 1024 * MIB),
             graphics: if gpu {
                 Graphics { canvas_device: true, max_texture_2d: 8192, max_storage_binding_bytes: 65536, compute_capable: true }
-            } else { Graphics::unavailable() },
+            } else {
+                Graphics::unavailable()
+            },
         }
     }
 

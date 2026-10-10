@@ -17,8 +17,8 @@ pub mod control;
 pub mod dialogs;
 mod feature_history;
 pub mod gizmo;
-pub mod hardware_profile;
 pub mod gpu;
+pub mod hardware_profile;
 pub mod icons;
 pub mod layers;
 pub mod menus;
@@ -249,9 +249,7 @@ impl CadApp {
     /// The 2D canvas has a real wgpu path; topology and 3D inspection do not.
     pub fn apply_canvas_route(&mut self) {
         let primitives = self.canvas.list.as_ref().map_or(0, |list| list.prims.len());
-        self.canvas.gpu = if self.machine_profile.route(hardware_profile::Operation::Canvas2d { primitives })
-            == hardware_profile::Compute::Gpu
-        {
+        self.canvas.gpu = if self.machine_profile.route(hardware_profile::Operation::Canvas2d { primitives }) == hardware_profile::Compute::Gpu {
             self.gpu_canvas_target
         } else {
             None

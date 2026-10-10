@@ -1,0 +1,27 @@
+name: OpenSCAD bridge Rust format
+on:
+  push:
+    branches:
+      - feature/openscad-explicit-cli-bridge
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt
+      - run: cargo fmt --all
+      - name: Commit only OpenSCAD CLI formatting
+        run: |
+          git add apps/cadcraft-cli/src/main.rs apps/cadcraft-cli/src/openscad_bridge.rs
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'style(openscad): format opt-in CLI bridge'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

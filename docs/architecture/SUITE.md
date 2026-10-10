@@ -2,6 +2,22 @@
 
 Decision date: 2026-10-07. This is the accepted product direction. App separation, new interchange and show systems described here are planned; the currently running alpha is the CADCraft-derived CAD desktop only.
 
+## Unified creative shell (UX direction under review)
+
+The four app/module boundaries below define **independent capabilities,
+deployments and tests**, not a requirement that makers leave one visible
+application when switching disciplines. A future shared Worldwright desktop
+shell can host 2D authoring, CAD, OrbWeaver, Scan, Fabrication, Terrain and
+Show workspaces over the same revisioned project and global command line.
+Changing a workspace must not alter authoritative design data, and mixed
+user-defined palettes must reuse registered shared operations.
+
+See [UNIFIED_WORKSPACE_EXPERIENCE.md](UNIFIED_WORKSPACE_EXPERIENCE.md)
+for the proposed user experience, accessibility requirements, command/menu
+consistency, persistent 2D documents and optional specialized Linux desktop.
+That document is **an architectural proposal**, not an implemented alpha
+capability; current kernel validation and integration gates remain in force.
+
 ## Four independent apps, shared contracts
 
 | App (working designation) | Owns | Must also work independently |

@@ -66,16 +66,34 @@ Cargo, and installing tools there once does not guarantee their availability
 in other chats, environments or future sessions. Report unexecuted tests
 as unverified rather than passing.
 
-### GitHub billing
+### GitHub Actions: free public-repository CI
 
-**No GitHub Actions jobs are required** to use either option above. The
-Worldwright workflows are manually dispatched rather than triggered by
-normal pushes or pull requests. Opening the local Dev Container does not
-run GitHub Actions.
+Worldwright is public. GitHub's **standard GitHub-hosted runners** on public
+repositories are free for Actions compute, including standard Ubuntu,
+Windows and macOS runners. The owner's explicit authorization allows native
+validation to run automatically after pushes and pull requests. Normal
+GitHub-hosted runners compile actual Rust code with the pinned toolchain,
+without requiring a compiler in ChatGPT's temporary environment.
 
-GitHub Codespaces can use the same `.devcontainer` configuration but
-Codespaces has **separate compute/storage billing**, even with Actions
-disabled. Use a local container to avoid hosted build charges.
+Use `ubuntu-24.04`, `windows-latest`, and `macos-latest` standard runner
+labels. Require formatting, compile, tests and lint checks before treating a
+PR as validated. The workflows must not silently modify sources; changes to
+fix failing checks should be reviewed and committed by developers.
+
+**Cost boundary:** larger/GPU runners are chargeable even for public projects;
+do not configure them. Codespaces also has separate billing. Free standard
+runner compute does not guarantee unlimited artifact/cache storage: avoid
+unnecessary uploads and monitor storage allowances. If the repository ever
+becomes private, reassess usage and disable automatic jobs until billing is
+explicitly approved. Keep least-privilege read-only CI permissions, timeouts
+and redundant-run cancellation. No automatic release publication or merges.
+
+Public pricing reference:
+https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job
+
+The native CI workflow is `.github/workflows/worldwright-native-ci.yml`.
+Its status and run logs, not file existence, are the source of truth for
+passed tests. Local Dev Containers remain useful for manual GUI smoke tests.
 
 ### Validation gate
 

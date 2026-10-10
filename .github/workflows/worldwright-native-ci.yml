@@ -36,10 +36,8 @@ jobs:
         run: bash tools/check-worldwright-rust.sh
       - name: Validate shared cross-domain dependency register
         run: python3 tools/check_cross_domain_dependencies.py
-      - name: Test shared 3D geometry and command engine
-        run: cargo test --locked -p cadcraft-geom -p cadcraft-engine -p buildercraft-kernel
-      - name: Check Rust formatting
-        run: cargo fmt --all -- --check
+      - name: Run Worldwright kernel, document, CAD and OrbWeaver gates
+        run: bash tools/verify-worldwright-kernel.sh
       - name: Test full Rust workspace
         run: cargo test --locked --workspace
       - name: Build native CAD and CLI

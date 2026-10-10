@@ -36,7 +36,7 @@ pub fn read(bytes: &[u8], name: &str) -> Result<Drawing> {
         return dxf_read::read(&dxf);
     }
     match ext(name).as_str() {
-        "bcraft" => project::read(bytes),
+        "dftba" | "bcraft" => project::read(bytes),
         "dxf" | "" => dxf_read::read(bytes),
         e if bytes.len() > 4 => dxf_read::read(bytes).map_err(|_| IoError::Unsupported(e.to_string())),
         e => Err(IoError::Unsupported(e.to_string())),
@@ -45,11 +45,11 @@ pub fn read(bytes: &[u8], name: &str) -> Result<Drawing> {
 
 /// Write a drawing in the format chosen by the name's extension.
 pub fn write(d: &Drawing, name: &str) -> Result<Vec<u8>> {
-    if !d.geometry3d.is_empty() && ext(name) != "bcraft" {
-        return Err(IoError::Format("3D geometry export is not implemented for this format; save a .bcraft project to preserve the model".into()));
+    if (!d.geometry3d.is_empty() || !d.mesh3d.is_empty()) && !matches!(ext(name).as_str(), "dftba" | "bcraft") {
+        return Err(IoError::Format("3D geometry export is not implemented for this format; save a .dftba project to preserve the model".into()));
     }
     match ext(name).as_str() {
-        "bcraft" => project::write(d),
+        "dftba" | "bcraft" => project::write(d),
         "dxf" | "" => Ok(dxf_write::write(d).into_bytes()),
         "dwg" => cadcraft_dwg::dxf_to_dwg(dxf_write::write(d).as_bytes()).map_err(IoError::Format),
         "svg" => Ok(svg::export(d, &Space::Model).into_bytes()),

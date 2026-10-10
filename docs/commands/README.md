@@ -39,3 +39,16 @@ Move, Rotate3D, Scale and Mirror now have partial native acceptance evidence thr
 Scale1D and Scale2D have partial native numeric API coverage through the same
 service. Arbitrary explicit directions/planes and zero-factor flattening are
 implemented; interactive CPlane/reference input and other options remain pending.
+
+## Dependency-first CAD/Graph pairing
+
+All Rhino command, Grasshopper, Kangaroo and Rhino manual reference entries
+have provisional dependency-group coverage in
+[`docs/dependencies/reference-index.json`](../dependencies/reference-index.json).
+The group DAG and shared CAD/OrbWeaver operation pair plan are in
+[`docs/dependencies/tool-groups.json`](../dependencies/tool-groups.json).
+These are **not** per-command reviewed dependencies and do not change
+Rhino command parity statuses. New paired primitives must share one kernel
+algorithm, typed ports, modifier semantics, and independent CAD/Graph
+acceptance cases before a reference is marked implemented.
+

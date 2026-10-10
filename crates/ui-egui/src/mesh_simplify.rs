@@ -249,6 +249,27 @@ mod tests {
     }
 
     #[test]
+    fn derived_preview_is_not_saved_in_ui_preferences() {
+        let mut ui = crate::UiState::default();
+        ui.mesh_simplify_preview = Some(Preview {
+            document_uid: 6,
+            source_revision: 10,
+            object_id: 9,
+            mesh: TriangleMesh {
+                vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)],
+                triangles: vec![[0, 1, 2]],
+            },
+            wire_edges: vec![[0, 1], [0, 2], [1, 2]],
+            removed_faces: 2,
+            target_reached: true,
+        });
+        let settings = serde_json::to_value(&ui);
+        assert!(settings.is_ok_and(|json| json.get("meshSimplifyPreview").is_none()));
+        assert!(ui.mesh_simplify_preview.as_ref().is_some_and(|p| p.matches(6, 10, 9)));
+        assert!(!ui.mesh_simplify_preview.as_ref().is_some_and(|p| p.matches(6, 11, 9)));
+    }
+
+    #[test]
     fn preview_requires_matching_revision_and_valid_triangles() {
         let response = json!({
             "id":9, "source_revision":10, "removed_faces":2,

@@ -33,6 +33,18 @@ const TOOLBAR: &[&[(Icon, &str, &str)]] = &[
     &[(Icon::Help, "ui.dialog.about", "Help")],
 ];
 
+const MODEL_TOOLBAR: &[&[(Icon, &str, &str)]] = &[
+    &[(Icon::New, "new", "New document"), (Icon::Open, "open", "Open document"), (Icon::Save, "qsave", "Save document")],
+    &[(Icon::Undo, "undo", "Undo"), (Icon::Redo, "redo", "Redo")],
+    &[(Icon::Spline, "ui.buildercraft.drawcurve", "Draw control curve"), (Icon::Region, "ui.buildercraft.surface", "New control surface")],
+    &[
+        (Icon::ZoomExtents, "ui.buildercraft.fit", "Fit 3D geometry"),
+        (Icon::Properties, "ui.toggle.palettes", "Toggle inspector"),
+        (Icon::Layers, "ui.dialog.layers", "Layers"),
+    ],
+    &[(Icon::Help, "ui.dialog.commands", "Command reference")],
+];
+
 /// Title row (with the integrated macOS title bar) and the Tool Bar.
 pub fn title_and_toolbar(app: &mut CadApp, ui: &mut egui::Ui) {
     let t = Tokens::get();
@@ -42,8 +54,8 @@ pub fn title_and_toolbar(app: &mut CadApp, ui: &mut egui::Ui) {
         let r = ui.max_rect();
         if title_h > 0.0 {
             let title = match app.session.state() {
-                Ok(st) if !app.ui.start_tab => format!("BuilderCraft      {}{}", st.title, if st.title.contains('.') { "" } else { ".dwg" }),
-                _ => "BuilderCraft      Start".into(),
+                Ok(st) if !app.ui.start_tab => format!("Worldwright      {}", st.title),
+                _ => "Worldwright      Start".into(),
             };
             ui.painter().text(
                 pos2(r.center().x, r.top() + title_h / 2.0 + 1.0),
@@ -68,7 +80,7 @@ pub fn title_and_toolbar(app: &mut CadApp, ui: &mut egui::Ui) {
             let mut x = r.left() + if app.integrated_titlebar { 120.0 } else { 12.0 };
             let size = 26.0;
             let mut clicked = None;
-            for group in TOOLBAR {
+            for group in if app.ui.buildercraft_workspace && app.ui.view3d { MODEL_TOOLBAR } else { TOOLBAR } {
                 for (icon, cmd, tip) in group.iter() {
                     let br = Rect::from_min_size(pos2(x, row.center().y - size / 2.0), vec2(size, size));
                     let resp = ui.interact(br, ui.id().with(("tb", *cmd)), Sense::click());

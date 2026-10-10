@@ -242,10 +242,10 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             if ui.button("Validate native topology").clicked() {
                 let _ = app.run("brep.inspect", json!({"id": object.id}));
             }
-            if ui.button("Load exact BRep wire preview").clicked() {
-                if let Err(error) = load_exact_brep_wires(app, object.id) {
-                    app.session.echo(error);
-                }
+            if ui.button("Load exact BRep wire preview").clicked()
+                && let Err(error) = load_exact_brep_wires(app, object.id)
+            {
+                app.session.echo(error);
             }
         }
         ui.small("Exact OCCT BRep data is preserved. Shaded viewport drawing and solid picking require the next integration gate.");

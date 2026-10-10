@@ -92,6 +92,9 @@ pub fn controls(app: &mut CadApp, ui: &mut egui::Ui) {
     }
 }
 pub fn interact(app: &mut CadApp, ui: &egui::Ui, rect: egui::Rect, response: &egui::Response) -> bool {
+    if app.ui.command_search.open {
+        return active(app);
+    }
     if !active(app) {
         return false;
     }

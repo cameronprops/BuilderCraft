@@ -213,3 +213,14 @@ work for a project containing 2D and 3D documents? Which Figma-like
 2D illustration capabilities beyond existing drafting are required?
 These require design experiments and user testing; the invariants above
 do not depend on resolving them yet.
+
+## Implemented alpha workbench slice (2026-10-10)
+
+The native CAD desktop now has registered Modeling/Drafting/Focus workspace
+commands, one custom saved layout, bounded versioned desktop preferences,
+resizable side panels, a bottom command line, compact modeling toolbar and
+keyboard command search over the engine/UI registries. Switching layouts does
+not create a document transaction. Preferences exclude geometry, selection,
+camera and transient drafting state. This does not implement the broader
+cross-domain shell, mixed custom palettes or free docking proposed above.
+See `docs/ALPHA_SMOKE_TEST.md` for acceptance and remaining work.

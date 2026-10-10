@@ -10,6 +10,12 @@ pub const MENUS: &[&str] = &["File", "Edit", "View", "Insert", "Format", "Tools"
 
 /// UI-only commands: (id, label, menu path, shortcut).
 pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
+    ("ui.command.search", "Search commands", &["Tools", "Search Commands"], Some("Cmd+K")),
+    ("ui.workspace.modeling", "Modeling workspace", &["Window", "Workspace", "Modeling"], None),
+    ("ui.workspace.drafting", "Drafting workspace", &["Window", "Workspace", "Drafting"], None),
+    ("ui.workspace.focus", "Focus workspace", &["Window", "Workspace", "Focus"], None),
+    ("ui.workspace.save", "Save custom layout", &["Window", "Workspace", "Save Custom Layout"], None),
+    ("ui.workspace.restore", "Restore custom layout", &["Window", "Workspace", "Restore Custom Layout"], None),
     ("ui.buildercraft.top", "Top", &["View", "3D", "Top"], None),
     ("ui.buildercraft.front", "Front", &["View", "3D", "Front"], None),
     ("ui.buildercraft.right", "Right", &["View", "3D", "Right"], None),
@@ -55,6 +61,13 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
     };
     let no_path = params.is_null() || (params.get("path").is_none() && params.get("data").is_none());
     let r = match id {
+        "ui.command.search" => {
+            app.ui.command_search = Default::default();
+            app.ui.command_search.open = true;
+            app.ui.command_search.focus = true;
+            Ok(Value::Null)
+        }
+        id if id.starts_with("ui.workspace.") => crate::workbench::command(app, id),
         "ui.buildercraft.top" | "ui.buildercraft.front" | "ui.buildercraft.right" | "ui.buildercraft.iso" | "ui.buildercraft.fit" => {
             crate::buildercraft::camera_command(app, id)
         }
@@ -293,6 +306,13 @@ pub fn shortcuts(app: &mut CadApp, ctx: &egui::Context) {
     use egui::{Key, KeyboardShortcut, Modifiers};
     let sc = |m: Modifiers, k: Key| KeyboardShortcut::new(m, k);
     let cmd = Modifiers::COMMAND;
+    if ctx.input_mut(|i| i.consume_shortcut(&sc(cmd, Key::K))) {
+        app.start("ui.command.search");
+    }
+    if app.ui.command_search.open {
+        crate::workbench::shortcuts(app, ctx);
+        return;
+    }
     let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
     let pairs: &[(KeyboardShortcut, &str)] = &[
         (sc(cmd_shift, Key::Z), "redo"),

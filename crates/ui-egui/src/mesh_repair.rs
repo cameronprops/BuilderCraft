@@ -180,11 +180,11 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
 }
 
 pub fn project_panel(app: &mut CadApp, ui: &mut egui::Ui) {
-    egui::SidePanel::left("ww_mesh_repair_tree")
-        .default_width(230.)
+    egui::Panel::left("ww_mesh_repair_tree")
+        .default_size(230.)
         .resizable(true)
         .frame(egui::Frame::NONE.fill(PANEL).inner_margin(egui::Margin::same(10)))
-        .show_inside(ui, |ui| {
+        .show(ui, |ui| {
             ui.colored_label(ACCENT, "PROJECT EXPLORER");
             ui.separator();
             ui.strong("Measured meshes");
@@ -222,11 +222,11 @@ pub fn project_panel(app: &mut CadApp, ui: &mut egui::Ui) {
 }
 
 pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
-    egui::SidePanel::right("ww_mesh_repair_tools")
-        .default_width(285.)
+    egui::Panel::right("ww_mesh_repair_tools")
+        .default_size(285.)
         .resizable(true)
         .frame(egui::Frame::NONE.fill(PANEL).inner_margin(egui::Margin::same(10)))
-        .show_inside(ui, |ui| {
+        .show(ui, |ui| {
             ui.colored_label(ACCENT, "SURFACE TOOLS");
             ui.separator();
             let selected = selected_mesh_id(app);

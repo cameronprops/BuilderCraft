@@ -309,11 +309,13 @@ fn call_worker(request: &Value) -> Result<Value> {
         stdout.take(MAX_RESPONSE_BYTES + 1).read_to_end(&mut output)?;
         Ok(output)
     });
-    let wrote = input.write_all(&payload);
-    drop(input);
+    // Worker initialization itself may hang before reading stdin. Put the
+    // writer on a separate thread so our deadline also bounds a full pipe.
+    let writer = std::thread::spawn(move || -> std::io::Result<()> {
+        input.write_all(&payload)
+    });
     let deadline = Instant::now() + Duration::from_secs(30);
     let finished = (|| -> Result<std::process::ExitStatus> {
-        if let Err(e) = wrote { return Err(fail(format!("BRep worker input failed: {e}"))); }
         loop {
             match child.try_wait() {
                 Ok(Some(status)) => return Ok(status),
@@ -324,9 +326,12 @@ fn call_worker(request: &Value) -> Result<Value> {
         }
     })();
     if finished.is_err() { let _=child.kill(); let _=child.wait(); }
+    let wrote = writer.join().map_err(|_| fail("worker input writer panicked"))?
+        .map_err(|e| fail(format!("writing BRep worker input: {e}")))?;
     let output = reader.join().map_err(|_| fail("worker output reader panicked"))?
         .map_err(|e| fail(format!("reading BRep worker output: {e}")))?;
     let status=finished?;
+    let _ = wrote;
     if !status.success() { return Err(fail(format!("exact BRep worker terminated ({status})"))); }
     if output.len() as u64 > MAX_RESPONSE_BYTES { return Err(fail("BRep worker response exceeds 16 MiB")); }
     let reply: Value = serde_json::from_slice(&output)

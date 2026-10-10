@@ -1,0 +1,31 @@
+//! Transaction-friendly polygon editing shared by the scene and future UI/API adapters.
+//! Edits are applied to a new mesh; the scene owns revision, undo and budgets.
+
+use crate::{PolygonMesh, Result, polygon_mesh_add_triangle_from_edge, polygon_mesh_delete_faces, polygon_mesh_fill_hole};
+use serde::{Deserialize, Serialize};
+
+/// User-facing picks must carry the revision at which they were made.
+/// The scene revision is the authoritative revision; stale picks are rejected.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PolygonSceneEdit {
+    DeleteFaces { selected_revision: u64, selected_faces: Vec<u32> },
+    AddTriangleFromEdge { selected_revision: u64, edge_vertices: [u32; 2], point_vertex: u32 },
+    FillPlanarHole { selected_revision: u64, loop_index: u32 },
+}
+
+/// Pure edit adapter: no document mutation and no hidden triangulation.
+/// Callers must publish the result using a budgeted scene transaction.
+pub fn apply_polygon_scene_edit(source: &PolygonMesh, current_revision: u64, edit: &PolygonSceneEdit) -> Result<PolygonMesh> {
+    match edit {
+        PolygonSceneEdit::DeleteFaces { selected_revision, selected_faces } => {
+            polygon_mesh_delete_faces(source, current_revision, *selected_revision, selected_faces).map(|result| result.mesh)
+        }
+        PolygonSceneEdit::AddTriangleFromEdge { selected_revision, edge_vertices, point_vertex } => {
+            polygon_mesh_add_triangle_from_edge(source, current_revision, *selected_revision, *edge_vertices, *point_vertex).map(|result| result.mesh)
+        }
+        PolygonSceneEdit::FillPlanarHole { selected_revision, loop_index } => {
+            polygon_mesh_fill_hole(source, current_revision, *selected_revision, *loop_index).map(|result| result.mesh)
+        }
+    }
+}

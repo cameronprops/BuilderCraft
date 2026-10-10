@@ -13,3 +13,23 @@ Reference metadata comes from Grasshopper Docs machine-readable feeds. Its repos
 Reference descriptions are retained as catalog metadata under the publisher's express feed-processing permission; native implementation code must be original or verified open source.
 
 Known omissions and the required basic typed-parameter review queue are recorded in [GAP_REVIEW.md](GAP_REVIEW.md). The source feed excludes common parameter containers such as Point and Curve. Do not describe the 817 rows as all installed Grasshopper blocks.
+
+## Paired native engine development
+
+The **OrbWeaver** graph engine is now authored in
+`crates/orbweaver`, and the first fifteen typed, shared CAD/Graph operation
+pairs are in `crates/kernel/src/shared_tools.rs` and
+`docs/dependencies/tool-groups.json`. Several have selected
+Grasshopper 1 public-index analogs, including Flatten/Graft/Simplify Tree, but the port lists, matching behavior
+and exact GH reference parity remain unverified. The original 817/110
+catalog rows are **not** automatically marked working by these wrappers.
+A new `docs/dependencies/reference-index.json` indexes all source rows
+by provisional dependency groups. Build/update with
+`python3 tools/build_dependency_index.py --write`.
+
+
+The initial tree functionality has **strict branch-path matching**, plus
+flatten, graft, simplify, and an explicit shortest/longest/cross-reference
+matching modifier. The public Grasshopper component entries are not promoted
+to working status until actual compiled behavior, ports, defaults, and list/tree
+semantics are compared with versioned reference fixtures.

@@ -4,7 +4,7 @@ Accepted direction: CAD for themed entertainment professionals, 2026-10-07. This
 
 ## Current baseline
 
-One CADCraft-derived executable with initial rational 3D curves/control surfaces, numerical control editing, named assemblies/components/bodies, native `.bcraft` v1, undoable commands and local command API. Inherited drafting exists; full Rhino equivalence is unverified. Separate Scan/Graph/Show apps, integrated Scan workflows, metrology and console exporters are not implemented. Shared kernel mesh/polygon validation, topology, welding, cleanup and bounded hole-fill subsets already exist; these are not a complete user-facing Scan application. Inherited drafting constraints also exist and must be reused where suitable for mechanical sketch workflows. Native bounded GLB export and saved/unsaved local scene feeds now exist; the optional Unreal adapter is source-only and awaits host validation.
+One CADCraft-derived executable with initial rational 3D curves/control surfaces, numerical control editing, named assemblies/components/bodies, native `.bcraft` v1, undoable commands and local command API. Inherited drafting exists; full Rhino equivalence is unverified. Separate Scan/Graph/Show apps, mesh repair/metrology and console exporters are not implemented. Native bounded GLB export and saved/unsaved local scene feeds now exist; the optional Unreal adapter is source-only and awaits host validation.
 
 ## Sequence and completion gates
 
@@ -141,22 +141,72 @@ undo/redo, resource limits and project persistence apply. Exact rational curves
 and control surfaces only; reference picking and other representations remain
 pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
 
-## Viewport gizmo increment
 
-World-axis move handles, rotation rings and uniform scale handles use the shared
-exact transform matrices for display previews and `geometry3d.transform` for a
-single release transaction. Escape and stale document, selection, camera or
-viewport changes discard the preview. The pivot is the selected control-hull
-center. Exact curves/control surfaces only; local frames, snapping, reference
-picking and mesh/Brep handles remain pending. Pointer-event, numerical, preview/cancellation and undo tests passed. The full
-workspace passed 483 tests and all six local quality checks on Rust 1.95.0.
+## OrbWeaver and dependency-first paired tools (source authored, validation pending)
 
-## Viewport selection increment
+Worldwright's native Grasshopper-style graph core is now called **OrbWeaver**
+(working name, after orb-weaving spiders). It will run
+inside CAD and headlessly/independently through the same underlying kernel.
+A separate visual canvas and executable remain later deliverables.
 
-Implemented: shared bounded preview-wire visitor, toolkit-independent
-pixel/depth hit math, non-mutating `geometry3d.pick` and transient
-`geometry3d.select`, used by click/Shift-click in the CAD viewport. Selected
-wires highlight orange. Selection respects object/layer visibility and locked
-layers; gizmo drags and camera drags do not select. Surface interiors, exact
-intersections, subobjects, windows and snapping remain pending. Numerical/API, pointer-event and rendered viewport checks passed. The final source passed 490 tests and all six `cargo xtask ci` checks on Rust
-1.95.0, including WebAssembly. Failed sampling is reported rather than skipped.
+The group-level prerequisite DAG is `../dependencies/tool-groups.json` and
+the preliminary reference mapping is
+`../dependencies/reference-index.json`. All 1,072 Rhino commands, 817
+Grasshopper entries, 110 Kangaroo entries and 2,357 manual topics are accounted
+for, but initial classification is heuristic and 2,347 references remain
+unclassified. **No per-command or per-component verified dependency hierarchy
+or conformance claim is inferred from these labels.**
+
+Fifteen CAD/Graph pairs now route point, vector, polyline and native data-tree functions through
+one typed kernel dispatcher (`crates/kernel/src/shared_tools.rs`). The newly
+authored `crates/orbweaver` evaluator supports typed ports, literal/linked
+values, versioned serializable graphs, dependency scheduling, cycle/type
+checks, graph limits and atomic error propagation. The CAD/API command
+adapter in `crates/engine/src/cmd/worldwright_tools.rs` uses those same
+validated implementations. Vector length is an additional base primitive,
+reused by normalize. The interpolation fraction, division count and division
+spacing are named modifier ports.
+
+These code paths and tests are **not compiled or run yet**; the current
+environment lacks Cargo. Native graph data-tree structure operations are authored
+with strict branch paths, explicit matching policies, flatten, graft and simplify.
+A component canvas, exact Grasshopper implicit
+path matching, preview/bake, solver, expressions and exact reference GH port
+matching are not implemented. Do not promote any public catalog entry to working parity without
+a local compilation/test and reference conformance fixture.
+
+The next dependency-respecting build steps are: versioned geometry reference
+ports and their typed graph bindings, graph persistence in `.dftba`, preview/bake
+transactions, exact curve operations paired in CAD/OrbWeaver, then surface,
+intersection/solid and physics forms. Each algorithm is implemented once,
+and CAD options / OrbWeaver settings are modifiers or thin adapters.
+
+### OrbWeaver native data-tree operation increment
+
+The Rust graph crate is now `crates/orbweaver` (package `orbweaver`,
+public nodes `orbweaver.*`). The dependency map now contains **46** registered
+kernel operations, of which **15** have shared CAD/OrbWeaver typed ports.
+The five new `kernel.tree.*` paired operations validate canonical branch paths,
+flatten, graft, simplify and match with explicit Shortest, Longest and
+CrossReference modifiers. The existing OrbWeaver DAG can link tagged tree
+values through these nodes. A headless `paired_tree` example checks that
+CAD and graph entry points invoke one dispatcher. Grasshopper tree-path
+matching, graph UI and
+`.dftba` graph persistence are still future work; the new tests remain
+unexecuted until Rust/Cargo is available locally. No hosted CI is invoked.
+
+## History-driven mechanical modeling track
+
+The optional scoped feature-history foundation now has a machine-readable
+[60-item dependency catalog](../dependencies/feature-history.json):
+eight source-authored, **uncompiled** infrastructure contracts and 52 planned
+sketch, dimension, solid, assembly and fabrication operations. Histories can
+belong to a document, a component/body node or a reusable block definition,
+without imposing a timeline on direct CAD modeling.
+
+The initial code stores stable step IDs, typed local parameters, chronological
+dependencies, suppression, rollback, revision-checked edits and CAD undo.
+It evaluates already-implemented shared kernel operations and saves recipes
+inside `.dftba`. An **initial 3D workspace timeline panel** now exposes enable, inspect, reorder, suppression, rollback and editing of basic local values. This is **not** a full visual feature-authoring or functioning sketch-to-solid mechanical modeler. Next: stable versioned geometry
+references, dimension expressions, constraint-driven sketch profiles and
+shared extrude/revolve/hole/fillet kernels, then previews and UI/bake.

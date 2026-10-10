@@ -9,6 +9,7 @@
 mod constraint;
 mod entity;
 mod extents;
+mod feature_history;
 mod header;
 pub mod kernel;
 pub mod library;
@@ -75,6 +76,10 @@ pub struct Drawing {
     pub organization: organization::Organization,
     pub production: buildercraft_kernel::ProductionModel,
     pub geometry3d: Vec<organization::GeometryObject>,
+    /// Native editable triangle/quad geometry, independent from exact NURBS.
+    pub mesh3d: Vec<organization::PolygonGeometryObject>,
+    /// Optional ordered feature histories, independent per document, component, or block.
+    pub feature_timelines: Vec<buildercraft_kernel::FeatureTimeline>,
 }
 
 impl Default for Drawing {
@@ -124,6 +129,8 @@ impl Drawing {
             organization: organization::Organization::default(),
             production: buildercraft_kernel::ProductionModel::default(),
             geometry3d: Vec::new(),
+            mesh3d: Vec::new(),
+            feature_timelines: Vec::new(),
         }
     }
 

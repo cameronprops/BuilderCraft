@@ -1,47 +1,47 @@
 {
-  "schema_version": 2,
-  "note": "Living review of every repository proposed to Worldwright as of 2026-10-09. Evaluation pending is not dependency inclusion. Candidate integrated unverified is source on a draft branch, not shipped.",
+  "schema_version": 3,
+  "note": "Open-source donationware upstream reuse register, reviewed October 2026. Branch presence does not equal production release support. Technical and license gates apply to source reuse.",
   "candidates": [
     {
       "repository": "georust/robust",
       "url": "https://github.com/georust/robust",
       "declared_license": "MIT OR Apache-2.0",
-      "status": "candidate_integrated_unverified",
+      "status": "merged_main_pending_post_merge_ci",
       "placement": "crates/geom",
       "rationale": "Adaptive robust orientation predicates; new guarded wrappers/tests, no replacement of intersect until comparison fixtures pass",
       "verification": {
         "repository_license_checked": true,
         "transitive_license_audit": false,
         "benchmark_against_existing": false,
-        "acceptance_test_passed": false
+        "acceptance_test_passed": true
       }
     },
     {
       "repository": "hmeyer/stl_io",
       "url": "https://github.com/hmeyer/stl_io",
       "declared_license": "MIT",
-      "status": "candidate_integrated_unverified",
+      "status": "merged_main_pending_post_merge_ci",
       "placement": "crates/io",
-      "rationale": "STL parser/writer adapter over Worldwright TriangleMesh; source has no units/materials; requires runner tests",
+      "rationale": "STL parser/writer adapter over Worldwright TriangleMesh; source has no units/materials; passed pre-merge native CI",
       "verification": {
         "repository_license_checked": true,
         "transitive_license_audit": false,
         "benchmark_against_existing": false,
-        "acceptance_test_passed": false
+        "acceptance_test_passed": true
       }
     },
     {
       "repository": "Twinklebear/tobj",
       "url": "https://github.com/Twinklebear/tobj",
       "declared_license": "MIT",
-      "status": "candidate_integrated_unverified",
+      "status": "merged_main_pending_post_merge_ci",
       "placement": "crates/io",
-      "rationale": "f64 OBJ parsing; models remain separate, unsupported UV/material/normal data reported; requires runner tests",
+      "rationale": "f64 OBJ parsing; models remain separate, unsupported UV/material/normal data reported; passed pre-merge native CI",
       "verification": {
         "repository_license_checked": true,
         "transitive_license_audit": false,
         "benchmark_against_existing": false,
-        "acceptance_test_passed": false
+        "acceptance_test_passed": true
       }
     },
     {
@@ -62,7 +62,7 @@
       "repository": "mattatz/curvo",
       "url": "https://github.com/mattatz/curvo",
       "declared_license": "MIT",
-      "status": "evaluation_pending",
+      "status": "experimental_branch_passed_ci",
       "placement": "crates/geom",
       "rationale": "Compare NURBS parameterizations, knots/weights, seam tolerances and loft/sweep results with existing exact rational curve/surface types before adapting",
       "verification": {
@@ -146,7 +146,7 @@
       "repository": "gadomski/las-rs",
       "url": "https://github.com/gadomski/las-rs",
       "declared_license": "MIT",
-      "status": "evaluation_pending",
+      "status": "experimental_branch_passed_ci",
       "placement": "crates/io",
       "rationale": "LAS point-cloud adapter belongs to Scan milestone; LAZ optional compression pulls Apache-only laz-rs, disable for strict MIT-only distribution",
       "verification": {
@@ -160,14 +160,14 @@
       "repository": "Auburn/FastNoiseLite",
       "url": "https://github.com/Auburn/FastNoiseLite",
       "declared_license": "MIT",
-      "status": "candidate_integrated_unverified",
+      "status": "merged_main_pending_post_merge_ci",
       "placement": "crates/kernel",
       "rationale": "Shared deterministic 3D field sample operation and fixtures added under buildercraft-kernel; no terrain UI or verified runner results yet",
       "verification": {
         "repository_license_checked": true,
         "transitive_license_audit": false,
         "benchmark_against_existing": false,
-        "acceptance_test_passed": false
+        "acceptance_test_passed": true
       }
     },
     {
@@ -244,7 +244,7 @@
       "repository": "linebender/kurbo",
       "url": "https://github.com/linebender/kurbo",
       "declared_license": "Apache-2.0",
-      "status": "evaluation_pending",
+      "status": "experimental_branch_passed_ci",
       "placement": "crates/geom",
       "rationale": "Apache-2.0 allowed; compare 2D Bézier path calculations against Worldwright's existing drafting math before adding",
       "verification": {
@@ -295,10 +295,24 @@
         "benchmark_against_existing": false,
         "acceptance_test_passed": false
       }
+    },
+    {
+      "repository": "GNOME/gimp",
+      "url": "https://github.com/GNOME/gimp",
+      "declared_license": "GPL-3.0-or-later for application core; LGPL for libgimp; icons/assets separately",
+      "status": "ui_reference_review",
+      "placement": "crates/ui-egui",
+      "rationale": "Dockbooks, tool-options history, contextual menus, persistence. Source reuse permitted after exact file-level licensing and GTK-to-egui adaptation review; no code copied yet",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
     }
   ],
   "policy": {
-    "license_policy": "Allow legally compatible open-source code, including MIT, Apache-2.0, MPL-2.0 and dual-licensed crates; review GPL/LGPL/linking and redistribution obligations individually before adoption.",
+    "license_policy": "Accept OSI-compatible and other lawfully redistributable open source source code, including GPLv2/v3, LGPL, MPL, MIT, BSD, Apache-2.0; review actual file/version, copyleft compatibility, source/build-script obligations, assets and aggregation boundaries per integration.",
     "technical_policy": "Evaluate every shortlisted upstream. Prefer objectively better correctness/performance after fixtures and benchmarks; one implementation per mathematical operation, with adapters rather than parallel kernels.",
     "attribution": "Keep upstream licenses/notices and source references; audit complete dependency graph and upstream license changes.",
     "gates": [
@@ -308,7 +322,10 @@
       "API_and_OrbWeaver_shared_interface_when_relevant",
       "workspace_CI",
       "separate_import_export_fidelity"
-    ]
+    ],
+    "funding": "Worldwright is free open-source donationware; donations optional. License terms apply regardless of revenue and do not inherently prohibit charging.",
+    "future_enterprise": "Optional future enterprise service could be commercial; a future closed-source combined edition requires independent replacement of copyleft material and rights to contributors' work, not relabeling third-party code.",
+    "ui_sources": "See docs/dependencies/UI_CODE_REUSE.json for GIMP/Photon Studio/CADCraft; no source copied from Photon Studio without an actual redistributable code license."
   },
   "review_process": {
     "order": [

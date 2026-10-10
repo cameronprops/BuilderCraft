@@ -2,6 +2,19 @@
 
 ## Worldwright toolchain and environment policy
 
+**License policy:** Worldwright is intended as free, donation-supported open
+source. GPL, LGPL, MPL, MIT, Apache and other legally compatible open-source
+components may be evaluated. Do not copy source without verified file-level
+licenses, upstream revision and preserved notice obligations. GPL-linked
+combined distributions may need GPL source and packaging even if the original
+Rust files remain MIT OR Apache-2.0; commercial sale is not inherently forbidden.
+See `docs/architecture/COPYLEFT_AND_DONATIONWARE.md` and
+`docs/dependencies/UI_CODE_REUSE.json`. Run
+`python3 tools/check_ui_reuse_manifest.py` before source-reuse changes.
+Photon Studio's free desktop binary is a UI behavior reference only pending
+an actual source grant; a third-party Photon Studio website license does not
+license the editor. Preserve original CADCraft upstream licenses.
+
 - The native product is **Worldwright**. Legacy `BuilderCraft` and
   `CADCraft` names remain in repository/crate paths until migration.
 - `rust-toolchain.toml` pins **Rust 1.95.0**; use the checked-in

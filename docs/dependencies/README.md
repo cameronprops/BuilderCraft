@@ -6,6 +6,13 @@ product name; trademark clearance has not been performed.
 
 ## Source registers
 
+UI source provenance and copy permissions are now tracked by
+[`UI_CODE_REUSE.json`](UI_CODE_REUSE.json) and checked with
+`python3 tools/check_ui_reuse_manifest.py`. See the
+[open-source donationware and copyleft policy](../architecture/COPYLEFT_AND_DONATIONWARE.md)
+before importing GPL/LGPL/MPL code or asset packs. The broad upstream
+candidate evaluation is in [`OPEN_SOURCE_REUSE_CANDIDATES.json`](OPEN_SOURCE_REUSE_CANDIDATES.json).
+
 | File | Meaning |
 |---|---|
 | `tool-groups.json` | Reviewed **group-level** dependency DAG, build tiers, modifier-first operation pair plan and provisional classification rules |

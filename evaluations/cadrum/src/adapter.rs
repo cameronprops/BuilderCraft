@@ -13,6 +13,7 @@ pub struct AbsoluteTolerance(f64);
 pub enum BrepError {
     InvalidTolerance,
     InvalidBoxBounds,
+    InvalidPrimitive,
     InvalidBinaryPayload,
     Backend(String),
 }
@@ -22,6 +23,7 @@ impl fmt::Display for BrepError {
         match self {
             Self::InvalidTolerance => write!(f, "absolute modeling tolerance must be finite and positive"),
             Self::InvalidBoxBounds => write!(f, "box coordinates must be finite with extents larger than the tolerance"),
+            Self::InvalidPrimitive => write!(f, "primitive radius, length or other parameters are invalid for the modeling tolerance"),
             Self::InvalidBinaryPayload => write!(f, "binary BRep input is empty or exceeds the probe budget"),
             Self::Backend(message) => write!(f, "exact BRep candidate operation failed: {message}"),
         }
@@ -119,6 +121,42 @@ impl CadrumBrepCandidate {
                 max: upper.to_array(),
             }),
         })
+    }
+
+    pub fn cylinder(&self, radius: f64, height: DVec3) -> Result<BrepSolid, BrepError> {
+        if !radius.is_finite() || radius <= self.absolute.value()
+            || !height.is_finite() || !height.length().is_finite() || height.length() <= self.absolute.value()
+        {
+            return Err(BrepError::InvalidPrimitive);
+        }
+        Ok(BrepSolid { solid: Solid::cylinder(radius, height), primitive: None })
+    }
+
+    pub fn sphere(&self, radius: f64) -> Result<BrepSolid, BrepError> {
+        if !radius.is_finite() || radius <= self.absolute.value() {
+            return Err(BrepError::InvalidPrimitive);
+        }
+        Ok(BrepSolid { solid: Solid::sphere(radius), primitive: None })
+    }
+
+    pub fn write_step(&self, solids: &[BrepSolid]) -> Result<Vec<u8>, BrepError> {
+        if solids.is_empty() {
+            return Err(BrepError::InvalidBinaryPayload);
+        }
+        let mut bytes = Vec::new();
+        Solid::write_step(solids.iter().map(|shape| &shape.solid), &mut bytes)?;
+        if bytes.is_empty() || bytes.len() > Self::MAX_BREP_BYTES {
+            return Err(BrepError::InvalidBinaryPayload);
+        }
+        Ok(bytes)
+    }
+
+    pub fn read_step(&self, bytes: &[u8]) -> Result<Vec<BrepSolid>, BrepError> {
+        if bytes.is_empty() || bytes.len() > Self::MAX_BREP_BYTES {
+            return Err(BrepError::InvalidBinaryPayload);
+        }
+        let solids = Solid::read_step(&mut Cursor::new(bytes))?;
+        Ok(solids.into_iter().map(|solid| BrepSolid { solid, primitive: None }).collect())
     }
 
     /// Supports empty, single or split multi-body results without inventing

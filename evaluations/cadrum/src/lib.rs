@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 pub mod adapter;
+pub mod worker_protocol;
 
 #[cfg(test)]
 mod tests {

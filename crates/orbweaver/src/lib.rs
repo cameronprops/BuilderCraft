@@ -16,6 +16,8 @@ use buildercraft_kernel::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+pub mod editor;
+
 pub const GRAPH_SCHEMA_VERSION: u32 = 1;
 pub const MAX_GRAPH_NODES: usize = 512;
 pub const MAX_GRAPH_CONNECTIONS: usize = 4096;

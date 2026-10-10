@@ -10,9 +10,9 @@ workspace = true
 
 [dependencies]
 buildercraft-kernel = { workspace = true }
+cadcraft-geom = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-cadcraft-geom = { workspace = true }
 serde_json = { workspace = true }

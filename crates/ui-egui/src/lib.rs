@@ -10,10 +10,10 @@
 
 pub mod about;
 pub mod buildercraft;
-pub mod command_palette;
 pub mod canvas;
 pub mod chrome;
 pub mod cmdline;
+pub mod command_palette;
 pub mod control;
 pub mod dialogs;
 mod feature_history;

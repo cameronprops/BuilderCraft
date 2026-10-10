@@ -290,6 +290,9 @@ impl EditorDocument {
                     progress = true;
                 }
             }
+            if completed.len() == ids.len() {
+                break;
+            }
             if !progress {
                 return Err(EditorError::Cycle);
             }

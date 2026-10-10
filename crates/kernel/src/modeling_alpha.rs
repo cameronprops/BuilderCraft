@@ -189,6 +189,68 @@ pub fn pushpull_quad(face: &[Vec3], distance: f64) -> Result<PolygonMesh> {
     polygon_mesh_validate(&mesh)?;
     Ok(mesh)
 }
+
+/// Extrude a picked, connected triangle/quad face of an existing *closed*
+/// orientable polygon mesh. The original cap is replaced by a translated cap
+/// and a ring of quad walls. Native neighboring polygons retain their IDs.
+/// Caller owns transaction, object identity, undo and revision enforcement.
+///
+/// This is topology-aware face extrusion, not arbitrary BRep boolean pushpull.
+/// Tessellated convexity, collision and watertightness checks remain mandatory.
+pub fn pushpull_mesh_face(mesh: &PolygonMesh, face_index: usize, distance: f64) -> Result<PolygonMesh> {
+    polygon_mesh_validate(mesh)?;
+    if !distance.is_finite() || distance.abs() < 1e-9 || distance.abs() > 1e9 {
+        return Err(KernelError::Invalid("pushpull face distance"));
+    }
+    let face = mesh.faces.get(face_index).ok_or(KernelError::Invalid("pushpull face index"))?;
+    let corners = face.indices();
+    let first = mesh.vertices[corners[0] as usize];
+    let normal = unit((mesh.vertices[corners[1] as usize]-first).cross(mesh.vertices[corners[2] as usize]-first))?;
+    let base_length = (mesh.vertices[corners[1] as usize]-first).len().max((mesh.vertices[corners[2] as usize]-first).len());
+    for &id in &corners {
+        let p = mesh.vertices[id as usize];
+        if (p-first).dot(normal).abs() > 1e-8*base_length {
+            return Err(KernelError::Invalid("pushpull selected face must be planar"));
+        }
+    }
+    let topology=crate::polygon_mesh_topology(mesh)?;
+    if !topology.boundary_edges.is_empty() || !topology.non_manifold_edges.is_empty() || !topology.inconsistent_winding_edges.is_empty() {
+        return Err(KernelError::Invalid("pushpull requires a closed manifold mesh"));
+    }
+    if topology.face_neighbors.get(face_index).is_none_or(|neighbors| neighbors.iter().any(Option::is_none)) {
+        return Err(KernelError::Invalid("pushpull selected face must be connected"));
+    }
+    if mesh.vertices.len()+corners.len() > 100_000 || mesh.faces.len()+corners.len() > 100_000 { return Err(KernelError::Budget); }
+    // Reject through-body collapse of the swept cap. This conservative
+    // restriction is not an exact self-intersection solver.
+    if distance < 0.0 {
+        let minimum_inside = mesh.vertices.iter().enumerate().filter(|(i,_)| !corners.iter().any(|id| *id as usize == *i))
+            .map(|(_,v)| (first-*v).dot(normal)).filter(|d| *d > 1e-9).fold(f64::INFINITY, f64::min);
+        if minimum_inside.is_finite() && -distance >= minimum_inside - 1e-8 {
+            return Err(KernelError::Invalid("pushpull would cross the opposite mesh"));
+        }
+    }
+    let base=u32::try_from(mesh.vertices.len()).map_err(|_| KernelError::Budget)?;
+    let mut next=mesh.clone();
+    for id in &corners { next.vertices.push(check(mesh.vertices[*id as usize]+normal*distance)?); }
+    let new: Vec<u32> = (0..corners.len()).map(|i| base+u32::try_from(i).unwrap_or(0)).collect();
+    next.faces[face_index]=match new.as_slice() {
+        [a,b,c] => PolygonFace::Triangle([*a,*b,*c]),
+        [a,b,c,d] => PolygonFace::Quad([*a,*b,*c,*d]),
+        _ => return Err(KernelError::Invalid("face must have 3 or 4 corners")),
+    };
+    for i in 0..corners.len() {
+        let j=(i+1)%corners.len();
+        next.faces.push(PolygonFace::Quad([corners[i],corners[j],new[j],new[i]]));
+    }
+    polygon_mesh_validate(&next)?;
+    let after=crate::polygon_mesh_topology(&next)?;
+    if !after.boundary_edges.is_empty() || !after.non_manifold_edges.is_empty() || !after.inconsistent_winding_edges.is_empty() {
+        return Err(KernelError::Invalid("pushpull result is not a watertight orientable mesh"));
+    }
+    Ok(next)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,6 +288,22 @@ mod tests {
         assert_eq!(pushpull_quad(&square(),-3.).unwrap().faces.len(),6);
         assert!(pushpull_quad(&square(),0.).is_err());
         assert!(pushpull_quad(&[p(0.,0.,0.),p(1.,0.,0.),p(1.,1.,2.),p(0.,1.,0.)],1.).is_err());
+    }
+    #[test]
+    fn connected_face_pushpull_extends_closed_solid_and_preserves_original() {
+        let cube=pushpull_quad(&square(),2.).unwrap();
+        let old=cube.clone();
+        let extended=pushpull_mesh_face(&cube,1,3.).unwrap();
+        assert_eq!(extended.vertices.len(),12);
+        assert_eq!(extended.faces.len(),10);
+        assert_eq!(cube,old);
+        let t=crate::polygon_mesh_topology(&extended).unwrap();
+        assert!(t.boundary_edges.is_empty());
+        assert!(t.non_manifold_edges.is_empty());
+        assert!(t.inconsistent_winding_edges.is_empty());
+        assert!(pushpull_mesh_face(&cube,99,1.).is_err());
+        assert!(pushpull_mesh_face(&cube,1,0.).is_err());
+        assert!(pushpull_mesh_face(&cube,1,-3.).is_err());
     }
     #[test]
     fn allocations_reject_excess() {

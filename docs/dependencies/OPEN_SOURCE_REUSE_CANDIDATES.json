@@ -309,6 +309,62 @@
         "benchmark_against_existing": false,
         "acceptance_test_passed": false
       }
+    },
+    {
+      "repository": "OrcaSlicer/OrcaSlicer",
+      "url": "https://github.com/OrcaSlicer/OrcaSlicer",
+      "declared_license": "AGPL-3.0; optional non-free Bambu network plugin excluded",
+      "status": "reviewed_external_adapter_candidate",
+      "placement": "apps/cad -> optional local fabrication process; no kernel dependency",
+      "rationale": "Orca FDM CLI and printable workflow, 3MF/STL interchange, segmentation/connector behavior reference. Its Windows Netfabb Fix Model is not portable; do not vendor whole C++/CGAL app or claim native mesh repair/slicing.",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "larsbrubaker/manifold-rust",
+      "url": "https://github.com/larsbrubaker/manifold-rust",
+      "declared_license": "Apache-2.0",
+      "status": "evaluation_pending",
+      "placement": "crates/kernel shared mesh Boolean adapter candidate",
+      "rationale": "Rust 0.16.0 mesh booleans, repair/orientation and optional deterministic parallelism; compare resource, cancellation, self-intersecting and non-manifold fixtures to existing mesh tools. Never substitute a mesh Boolean for exact BRep.",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "larsbrubaker/clipper2-rust",
+      "url": "https://github.com/larsbrubaker/clipper2-rust",
+      "declared_license": "BSL-1.0",
+      "status": "evaluation_pending",
+      "placement": "crates/geom 2D polygon clipping and offset candidate",
+      "rationale": "Shared 2D polygon union/difference/offset for CNC contour/pocket, laser kerf and FDM planar operations; benchmark against existing polygon ops, verify scaling and overflow, no duplicate 2D engine.",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "pr0m1th3as/OpenCAMStudio",
+      "url": "https://github.com/pr0m1th3as/OpenCAMStudio",
+      "declared_license": "GPL-3.0-only",
+      "status": "reviewed_candidate_no_integration",
+      "placement": "future fabrication CNC workspace",
+      "rationale": "Rust 2.5D CNC CAM DXF/DWG to pocket/profile, simulation and G-code reference; novel small project, real post/tool safety and geometry regression testing required before code adoption.",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
     }
   ],
   "policy": {

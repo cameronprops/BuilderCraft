@@ -1,6 +1,7 @@
 //! Oriented path array via WorldWright's shared RailFrame service.
 //! No separate rotation/arc-length implementation is permitted in this file.
-use crate::{KernelError, Result, rail_frames, MAX_RAIL_POINTS, MAX_RAIL_STATIONS};
+use crate::{KernelError, Result, MAX_RAIL_POINTS, MAX_RAIL_STATIONS};
+use crate::rail_frames::rail_frames as sample_rail;
 use cadcraft_geom::Vec3;
 
 const MAX_SEED: usize = 1024;
@@ -17,7 +18,7 @@ pub fn array_path_oriented(seed:&[Vec3],path:&[Vec3],count:usize,guide_up:Vec3,a
         seed.iter().any(|p| !p.is_finite() || p.x.abs().max(p.y.abs()).max(p.z.abs())>LIMIT) {
         return Err(KernelError::Invalid("invalid oriented-array input"));
     }
-    let frames=rail_frames(path,count.max(2),guide_up)?;
+    let frames=sample_rail(path,count.max(2),guide_up)?;
     let first=frames[0];
     let mut out=Vec::new();
     out.try_reserve_exact(count).map_err(|_|KernelError::Budget)?;

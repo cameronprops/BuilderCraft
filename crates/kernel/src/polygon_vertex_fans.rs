@@ -53,10 +53,7 @@ pub fn polygon_mesh_vertex_fans(mesh: &PolygonMesh) -> Result<PolygonVertexFanRe
     }
 
     let boundary: BTreeSet<u32> = topology.boundary_edges.iter().copied().collect();
-    let invalid_edges: BTreeSet<u32> = topology.non_manifold_edges.iter()
-        .chain(topology.inconsistent_winding_edges.iter())
-        .copied()
-        .collect();
+    let invalid_edges: BTreeSet<u32> = topology.non_manifold_edges.iter().chain(topology.inconsistent_winding_edges.iter()).copied().collect();
     let mut vertices = Vec::new();
     let mut isolated_vertices = Vec::new();
     let mut non_manifold_vertices = Vec::new();
@@ -103,10 +100,9 @@ pub fn polygon_mesh_vertex_fans(mesh: &PolygonMesh) -> Result<PolygonVertexFanRe
         }
         face_fans.sort();
         let incident_edges: Vec<u32> = edge_ids.iter().copied().collect();
-        let boundary_edges: Vec<u32> = edge_ids.iter().filter(|id| boundary.contains(id)).copied().collect();
-        let is_manifold = face_fans.len() == 1
-            && (boundary_edges.is_empty() || boundary_edges.len() == 2)
-            && !edge_ids.iter().any(|id| invalid_edges.contains(id));
+        let boundary_edges: Vec<u32> = edge_ids.iter().filter(|id| boundary.contains(*id)).copied().collect();
+        let is_manifold =
+            face_fans.len() == 1 && (boundary_edges.is_empty() || boundary_edges.len() == 2) && !edge_ids.iter().any(|id| invalid_edges.contains(id));
         if !is_manifold {
             non_manifold_vertices.push(vertex);
         }
@@ -151,10 +147,7 @@ mod tests {
 
     #[test]
     fn bow_tie_detected_even_when_no_edge_is_non_manifold() {
-        let mesh = PolygonMesh {
-            vertices: points(),
-            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])],
-        };
+        let mesh = PolygonMesh { vertices: points(), faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])] };
         let report = polygon_mesh_vertex_fans(&mesh);
         assert!(report.is_ok_and(|r| r.non_manifold_vertices == vec![0]
             && r.vertices[0].face_fans == vec![vec![0], vec![1]]
@@ -165,9 +158,12 @@ mod tests {
     fn connected_quads_preserve_native_faces_and_shared_vertex_fans() {
         let mesh = PolygonMesh {
             vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.),
-                Vec3::new(1., 1., 0.), Vec3::new(0., 1., 0.),
-                Vec3::new(2., 0., 0.), Vec3::new(2., 1., 0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(1., 0., 0.),
+                Vec3::new(1., 1., 0.),
+                Vec3::new(0., 1., 0.),
+                Vec3::new(2., 0., 0.),
+                Vec3::new(2., 1., 0.),
             ],
             faces: vec![PolygonFace::Quad([0, 1, 2, 3]), PolygonFace::Quad([1, 4, 5, 2])],
         };
@@ -183,8 +179,10 @@ mod tests {
         let mesh = PolygonMesh {
             vertices: points(),
             faces: vec![
-                PolygonFace::Triangle([0, 2, 1]), PolygonFace::Triangle([0, 1, 5]),
-                PolygonFace::Triangle([1, 2, 5]), PolygonFace::Triangle([2, 0, 5]),
+                PolygonFace::Triangle([0, 2, 1]),
+                PolygonFace::Triangle([0, 1, 5]),
+                PolygonFace::Triangle([1, 2, 5]),
+                PolygonFace::Triangle([2, 0, 5]),
             ],
         };
         let r = polygon_mesh_vertex_fans(&mesh);
@@ -194,46 +192,37 @@ mod tests {
 
     #[test]
     fn shared_edge_wrong_winding_marks_its_vertices_invalid() {
-        let mesh = PolygonMesh {
-            vertices: points(),
-            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([1, 2, 5])],
-        };
+        let mesh = PolygonMesh { vertices: points(), faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([1, 2, 5])] };
         let r = polygon_mesh_vertex_fans(&mesh);
-        assert!(r.is_ok_and(|r| r.non_manifold_vertices.contains(&1)
-            && r.non_manifold_vertices.contains(&2)
-            && !r.non_manifold_vertices.contains(&0)));
+        assert!(
+            r.is_ok_and(|r| r.non_manifold_vertices.contains(&1) && r.non_manifold_vertices.contains(&2) && !r.non_manifold_vertices.contains(&0))
+        );
     }
 
     #[test]
     fn three_faces_on_one_edge_marks_both_endpoints_invalid() {
         let mesh = PolygonMesh {
             vertices: points(),
-            faces: vec![
-                PolygonFace::Triangle([0, 1, 2]),
-                PolygonFace::Triangle([1, 0, 3]),
-                PolygonFace::Triangle([0, 1, 5]),
-            ],
+            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([1, 0, 3]), PolygonFace::Triangle([0, 1, 5])],
         };
         let r = polygon_mesh_vertex_fans(&mesh);
-        assert!(r.is_ok_and(|r| r.non_manifold_vertices.contains(&0)
-            && r.non_manifold_vertices.contains(&1)));
+        assert!(r.is_ok_and(|r| r.non_manifold_vertices.contains(&0) && r.non_manifold_vertices.contains(&1)));
     }
 
     #[test]
     fn empty_mesh_is_supported_and_bad_indices_are_rejected() {
         let empty = PolygonMesh { vertices: vec![], faces: vec![] };
-        assert!(polygon_mesh_vertex_fans(&empty).is_ok_and(|r| r.vertices.is_empty()
-            && r.non_manifold_vertices.is_empty() && r.isolated_vertices.is_empty()));
+        assert!(
+            polygon_mesh_vertex_fans(&empty)
+                .is_ok_and(|r| r.vertices.is_empty() && r.non_manifold_vertices.is_empty() && r.isolated_vertices.is_empty())
+        );
         let invalid = PolygonMesh { vertices: points(), faces: vec![PolygonFace::Triangle([0, 1, 99])] };
         assert!(polygon_mesh_vertex_fans(&invalid).is_err());
     }
 
     #[test]
     fn deterministic_and_non_destructive() {
-        let mesh = PolygonMesh {
-            vertices: points(),
-            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])],
-        };
+        let mesh = PolygonMesh { vertices: points(), faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])] };
         let original = mesh.clone();
         assert_eq!(polygon_mesh_vertex_fans(&mesh), polygon_mesh_vertex_fans(&mesh));
         assert_eq!(mesh, original);

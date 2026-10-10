@@ -2,8 +2,8 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    PolygonMesh, PolygonSceneEdit, PolygonPatchMode, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_fill_hole_advanced, polygon_mesh_topology, polygon_mesh_triangulate,
-    polygon_mesh_validate, polygon_mesh_vertex_fans,
+    PolygonMesh, PolygonPatchMode, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_fill_hole_advanced,
+    polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -219,20 +219,22 @@ fn topology(s: &mut Session, p: &Value) -> Result<Value> {
 /// Revision must be checked again when the caller commits through mesh3d.edit.
 fn fill_preview(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
-    let loop_index = p.get("loop_index").and_then(Value::as_u64)
+    let loop_index = p
+        .get("loop_index")
+        .and_then(Value::as_u64)
         .and_then(|index| u32::try_from(index).ok())
         .ok_or_else(|| invalid("valid loop_index required"))?;
-    let mode: PolygonPatchMode = serde_json::from_value(
-        p.get("mode").cloned().ok_or_else(|| invalid("patch mode required"))?
-    ).map_err(|e| invalid(&e.to_string()))?;
+    let mode: PolygonPatchMode =
+        serde_json::from_value(p.get("mode").cloned().ok_or_else(|| invalid("patch mode required"))?).map_err(|e| invalid(&e.to_string()))?;
     let revision = s.state()?.revision;
-    let picked_revision = p.get("selected_revision")
+    let picked_revision = p
+        .get("selected_revision")
         .map(|value| value.as_u64().ok_or_else(|| invalid("selected_revision must be a revision number")))
-        .transpose()?.unwrap_or(revision);
+        .transpose()?
+        .unwrap_or(revision);
     let source = &selected(s, object_id)?.mesh;
     validate_size(source)?;
-    let candidate = polygon_mesh_fill_hole_advanced(source, revision, picked_revision, loop_index, mode)
-        .map_err(|e| invalid(&e.to_string()))?;
+    let candidate = polygon_mesh_fill_hole_advanced(source, revision, picked_revision, loop_index, mode).map_err(|e| invalid(&e.to_string()))?;
     validate_size(&candidate.mesh)?;
     let rendered = polygon_mesh_triangulate(&candidate.mesh).map_err(|e| invalid(&e.to_string()))?;
     Ok(json!({
@@ -473,23 +475,34 @@ mod tests {
         let id = s.execute("mesh3d.create", &json!({"name":"Nonplanar scanned rim","mesh":source})).unwrap()["id"].as_u64().unwrap();
         let revision = s.state().unwrap().revision;
         let boundary = s.execute("mesh3d.boundaries", &json!({"id":id})).unwrap();
-        let index = boundary["report"]["closed_loops"].as_array().unwrap().iter()
-            .position(|l| l["vertices"].as_array().is_some_and(|ids| ids.iter().all(|id| id.as_u64().is_some_and(|v| v >= 4)))).unwrap();
+        let index = boundary["report"]["closed_loops"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|l| l["vertices"].as_array().is_some_and(|ids| ids.iter().all(|id| id.as_u64().is_some_and(|v| v >= 4))))
+            .unwrap();
         let before = s.doc().unwrap().mesh3d[0].mesh.clone();
         let mode = json!({"mode":"planar_best_fit","max_displacement":0.3});
-        let preview = s.execute("mesh3d.fill_preview", &json!({
-            "id":id, "loop_index":index, "selected_revision":revision, "mode":mode
-        })).unwrap();
+        let preview = s
+            .execute(
+                "mesh3d.fill_preview",
+                &json!({
+                    "id":id, "loop_index":index, "selected_revision":revision, "mode":mode
+                }),
+            )
+            .unwrap();
         assert!(preview["moved_vertices"].as_array().unwrap().len() > 0);
         assert_eq!(s.state().unwrap().revision, revision);
         assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
-        s.execute("mesh3d.edit", &json!({
-            "id":id, "edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":index,"mode":mode}
-        })).unwrap();
+        s.execute(
+            "mesh3d.edit",
+            &json!({
+                "id":id, "edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":index,"mode":mode}
+            }),
+        )
+        .unwrap();
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.faces.len(), 6);
         s.undo().unwrap();
         assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
     }
-
-
 }

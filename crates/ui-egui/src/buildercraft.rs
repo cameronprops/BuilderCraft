@@ -370,42 +370,42 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     if repair {
         crate::mesh_repair::viewport_toolbar(app, ui);
     } else {
-    ui.horizontal_wrapped(|ui| {
-        ui.label("Orthographic 3D").on_hover_text("Click to select; Shift-click to toggle; drag to orbit; Shift-drag to pan; scroll to zoom");
-        if ui.button("Draw control curve").clicked() {
-            let _ = app.run("ui.buildercraft.drawcurve", json!({}));
-        }
-        if ui.button("New control surface").clicked() {
-            let _ = new_surface(app);
-        }
-        if ui.button("New editable mesh").clicked() {
-            let _ = new_mesh_sample(app);
-        }
-    });
-    ui.horizontal_wrapped(|ui| {
-        for (label, id) in [
-            ("Top", "ui.buildercraft.top"),
-            ("Front", "ui.buildercraft.front"),
-            ("Right", "ui.buildercraft.right"),
-            ("Isometric", "ui.buildercraft.iso"),
-            ("Fit", "ui.buildercraft.fit"),
-        ] {
-            if ui.button(label).clicked() {
-                let _ = app.run(id, json!({}));
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Orthographic 3D").on_hover_text("Click to select; Shift-click to toggle; drag to orbit; Shift-drag to pan; scroll to zoom");
+            if ui.button("Draw control curve").clicked() {
+                let _ = app.run("ui.buildercraft.drawcurve", json!({}));
             }
-        }
-        if let (Some(object_id), Some(picked_revision)) = (app.ui.mesh_face_object_id, app.ui.mesh_face_revision) {
-            let fresh = picked_face_is_current(app, object_id);
-            ui.label(if fresh { format!("Mesh {object_id} · face {}", app.ui.mesh_face_index) } else { "Mesh face selection is stale".into() });
-            if ui.add_enabled(fresh, egui::Button::new("Delete picked face")).clicked() {
-                let _ = delete_mesh_face(app, object_id, picked_revision, app.ui.mesh_face_index);
+            if ui.button("New control surface").clicked() {
+                let _ = new_surface(app);
             }
+            if ui.button("New editable mesh").clicked() {
+                let _ = new_mesh_sample(app);
+            }
+        });
+        ui.horizontal_wrapped(|ui| {
+            for (label, id) in [
+                ("Top", "ui.buildercraft.top"),
+                ("Front", "ui.buildercraft.front"),
+                ("Right", "ui.buildercraft.right"),
+                ("Isometric", "ui.buildercraft.iso"),
+                ("Fit", "ui.buildercraft.fit"),
+            ] {
+                if ui.button(label).clicked() {
+                    let _ = app.run(id, json!({}));
+                }
+            }
+            if let (Some(object_id), Some(picked_revision)) = (app.ui.mesh_face_object_id, app.ui.mesh_face_revision) {
+                let fresh = picked_face_is_current(app, object_id);
+                ui.label(if fresh { format!("Mesh {object_id} · face {}", app.ui.mesh_face_index) } else { "Mesh face selection is stale".into() });
+                if ui.add_enabled(fresh, egui::Button::new("Delete picked face")).clicked() {
+                    let _ = delete_mesh_face(app, object_id, picked_revision, app.ui.mesh_face_index);
+                }
+            }
+        });
+        crate::point_input::controls(app, ui);
+        if !crate::point_input::active(app) {
+            crate::gizmo::controls(app, ui);
         }
-    });
-    crate::point_input::controls(app, ui);
-    if !crate::point_input::active(app) {
-        crate::gizmo::controls(app, ui);
-    }
     }
     let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     let rect = rect.intersect(ui.clip_rect());
@@ -508,7 +508,11 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             let picked = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
             let color = if repair {
                 if picked { crate::mesh_repair::PICK } else { crate::mesh_repair::MESH }
-            } else if picked { egui::Color32::from_rgb(255, 200, 75) } else { egui::Color32::from_rgb(110, 230, 180) };
+            } else if picked {
+                egui::Color32::from_rgb(255, 200, 75)
+            } else {
+                egui::Color32::from_rgb(110, 230, 180)
+            };
             let selected_face_is_current = picked_face_is_current(app, object.id);
             for (face_index, face) in object.mesh.faces.iter().take(visible_faces).enumerate() {
                 let highlighted = selected_face_is_current && app.ui.mesh_face_index as usize == face_index;
@@ -559,8 +563,12 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             egui::Color32::YELLOW,
         );
     }
-    if !repair { crate::point_input::draw(app, ui, rect, project); }
-    if !point_input && !repair { crate::cmdline::keyboard(app, ui.ctx()); }
+    if !repair {
+        crate::point_input::draw(app, ui, rect, project);
+    }
+    if !point_input && !repair {
+        crate::cmdline::keyboard(app, ui.ctx());
+    }
 }
 
 /// Picking is a shared engine query; failed or over-budget queries preserve selection.

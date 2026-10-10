@@ -344,18 +344,30 @@ impl CadApp {
             mesh_repair::status_bar(self, ui);
         } else {
             chrome::title_and_toolbar(self, ui);
-            if self.ui.in_window_menu { menus::menu_bar(self, ui); }
-            if self.ui.show_status_bar { chrome::status_bar(self, ui); }
+            if self.ui.in_window_menu {
+                menus::menu_bar(self, ui);
+            }
+            if self.ui.show_status_bar {
+                chrome::status_bar(self, ui);
+            }
         }
-        if self.ui.show_file_tabs { chrome::file_tabs(self, ui); }
+        if self.ui.show_file_tabs {
+            chrome::file_tabs(self, ui);
+        }
         let has_doc = !self.session.docs.is_empty() && !self.ui.start_tab;
         if has_doc && self.ui.mesh_repair.active {
             mesh_repair::project_panel(self, ui);
             mesh_repair::tool_panel(self, ui);
         } else {
-            if has_doc && self.ui.buildercraft_workspace && self.ui.show_command_line { buildercraft::command_panel(self, ui); }
-            if has_doc && self.ui.show_toolsets { palettes::toolsets(self, ui); }
-            if has_doc && self.ui.show_palettes { palettes::right_palettes(self, ui); }
+            if has_doc && self.ui.buildercraft_workspace && self.ui.show_command_line {
+                buildercraft::command_panel(self, ui);
+            }
+            if has_doc && self.ui.show_toolsets {
+                palettes::toolsets(self, ui);
+            }
+            if has_doc && self.ui.show_palettes {
+                palettes::right_palettes(self, ui);
+            }
         }
         let canvas_color = if self.ui.mesh_repair.active { mesh_repair::VIEWPORT } else { t.canvas };
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(canvas_color)).show(ui, |ui| {

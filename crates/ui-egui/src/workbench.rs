@@ -108,10 +108,16 @@ pub fn command(app: &mut CadApp, id: &str) -> Result<Value, String> {
         "ui.workspace.modeling" => Layout::default().apply(app)?,
         "ui.workspace.drafting" => Layout { view3d: false, ..Default::default() }.apply(app)?,
         "ui.workspace.mesh_repair" => Layout {
-            mesh_repair: true, view3d: true, tools: false, inspector: false,
-            command_line: false, left_width: 230., right_width: 285.,
+            mesh_repair: true,
+            view3d: true,
+            tools: false,
+            inspector: false,
+            command_line: false,
+            left_width: 230.,
+            right_width: 285.,
             ..Default::default()
-        }.apply(app)?,
+        }
+        .apply(app)?,
         "ui.workspace.focus" => Layout { tools: false, inspector: false, toolbar: false, ..Layout::capture(app) }.apply(app)?,
         _ => return Err(format!("Unknown workspace command: {id}")),
     }

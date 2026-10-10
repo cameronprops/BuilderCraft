@@ -103,7 +103,8 @@ pub fn inspect(app: &mut CadApp, id: u64) -> Result<(), String> {
     let invalid_edges = topology["edge_diagnostics"]["non_manifold_edges"].as_array().map_or(0, Vec::len)
         + topology["edge_diagnostics"]["inconsistent_winding_edges"].as_array().map_or(0, Vec::len);
     let now = app.session.state().map_err(|e| e.to_string())?;
-    if uid != now.uid || revision != now.revision
+    if uid != now.uid
+        || revision != now.revision
         || topology["source_revision"].as_u64() != Some(revision)
         || boundaries["source_revision"].as_u64() != Some(revision)
     {
@@ -113,8 +114,13 @@ pub fn inspect(app: &mut CadApp, id: u64) -> Result<(), String> {
     let marked = crate::buildercraft::inspect_mesh(app, id)?;
     debug_assert_eq!(marked, selected);
     app.ui.mesh_repair.inspection = Some(Inspection {
-        object_id: id, document_uid: uid, revision, bad_vertices: selected,
-        boundary_loops: loops, open_boundaries: open, invalid_edges,
+        object_id: id,
+        document_uid: uid,
+        revision,
+        bad_vertices: selected,
+        boundary_loops: loops,
+        open_boundaries: open,
+        invalid_edges,
     });
     Ok(())
 }
@@ -131,42 +137,46 @@ fn run_edit(app: &mut CadApp, id: u64, action: Value) -> Result<(), String> {
 
 /// Floating at the top of the app instead of the CAD command toolbar.
 pub fn bar(app: &mut CadApp, ui: &mut egui::Ui) {
-    egui::Panel::top("ww_mesh_repair_bar")
-        .frame(egui::Frame::NONE.fill(PANEL_DEEP).inner_margin(egui::Margin::symmetric(12, 8)))
-        .show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.colored_label(ACCENT, egui::RichText::new("WORLDWRIGHT").strong());
-                ui.separator();
-                ui.strong("MESH REPAIR");
-                ui.weak("METROLOGY WORKSPACE");
-                ui.separator();
-                if ui.button("Open").clicked() { app.start("ui.open"); }
-                if ui.button("Save").clicked() { let _ = app.run("qsave", Value::Null); }
-                if ui.button("Undo").clicked() { let _ = app.run("undo", json!({})); }
-                if ui.button("Redo").clicked() { let _ = app.run("redo", json!({})); }
-                ui.separator();
-                if ui.button("Return to CAD").clicked() {
-                    app.start("ui.workspace.modeling");
-                }
-            });
+    egui::Panel::top("ww_mesh_repair_bar").frame(egui::Frame::NONE.fill(PANEL_DEEP).inner_margin(egui::Margin::symmetric(12, 8))).show(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            ui.colored_label(ACCENT, egui::RichText::new("WORLDWRIGHT").strong());
+            ui.separator();
+            ui.strong("MESH REPAIR");
+            ui.weak("METROLOGY WORKSPACE");
+            ui.separator();
+            if ui.button("Open").clicked() {
+                app.start("ui.open");
+            }
+            if ui.button("Save").clicked() {
+                let _ = app.run("qsave", Value::Null);
+            }
+            if ui.button("Undo").clicked() {
+                let _ = app.run("undo", json!({}));
+            }
+            if ui.button("Redo").clicked() {
+                let _ = app.run("redo", json!({}));
+            }
+            ui.separator();
+            if ui.button("Return to CAD").clicked() {
+                app.start("ui.workspace.modeling");
+            }
         });
+    });
 }
 
 pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
-    egui::Panel::top("ww_mesh_repair_workspace")
-        .frame(egui::Frame::NONE.fill(PANEL).inner_margin(egui::Margin::symmetric(12, 5)))
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.colored_label(ACCENT, "SCAN / SURFACE");
-                ui.separator();
-                ui.label("1  Project");
-                ui.label("  →  2  Select");
-                ui.label("  →  3  Repair");
-                ui.label("  →  4  Verify");
-                ui.separator();
-                ui.label(if app.ui.mesh_repair.selecting { "SPACE · Selection active" } else { "SPACE · Navigation active" });
-            });
+    egui::Panel::top("ww_mesh_repair_workspace").frame(egui::Frame::NONE.fill(PANEL).inner_margin(egui::Margin::symmetric(12, 5))).show(ui, |ui| {
+        ui.horizontal(|ui| {
+            ui.colored_label(ACCENT, "SCAN / SURFACE");
+            ui.separator();
+            ui.label("1  Project");
+            ui.label("  →  2  Select");
+            ui.label("  →  3  Repair");
+            ui.label("  →  4  Verify");
+            ui.separator();
+            ui.label(if app.ui.mesh_repair.selecting { "SPACE · Selection active" } else { "SPACE · Navigation active" });
         });
+    });
 }
 
 pub fn project_panel(app: &mut CadApp, ui: &mut egui::Ui) {
@@ -179,7 +189,9 @@ pub fn project_panel(app: &mut CadApp, ui: &mut egui::Ui) {
             ui.separator();
             ui.strong("Measured meshes");
             let meshes = app.session.doc().map(|d| d.mesh3d.clone()).unwrap_or_default();
-            if meshes.is_empty() { ui.weak("No mesh objects. Open a model or add an editable mesh."); }
+            if meshes.is_empty() {
+                ui.weak("No mesh objects. Open a model or add an editable mesh.");
+            }
             for mesh in meshes {
                 let chosen = app.session.selection().contains(&cadcraft_doc::Handle(mesh.id));
                 ui.horizontal(|ui| {
@@ -199,7 +211,9 @@ pub fn project_panel(app: &mut CadApp, ui: &mut egui::Ui) {
             ui.separator();
             ui.colored_label(ACCENT, "REFERENCE / NOMINAL");
             let models = app.session.doc().map(|d| d.geometry3d.iter().map(|g| g.name.clone()).take(32).collect::<Vec<_>>()).unwrap_or_default();
-            for name in models { ui.weak(name); }
+            for name in models {
+                ui.weak(name);
+            }
             ui.separator();
             if ui.button("Add sample mesh").clicked() {
                 let _ = crate::buildercraft::new_mesh_sample(app);
@@ -222,7 +236,9 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 return;
             };
             if ui.button("Inspect mesh  [I]").clicked() {
-                if let Err(err) = inspect(app, id) { app.set_status(err); }
+                if let Err(err) = inspect(app, id) {
+                    app.set_status(err);
+                }
             }
             if let Some(record) = app.ui.mesh_repair.inspection.as_ref().filter(|r| r.object_id == id && current(app, r)) {
                 ui.separator();
@@ -239,12 +255,15 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
             let state = app.session.state().ok();
             let current_revision = state.map(|s| s.revision);
             if let (Some(object), Some(revision)) = (app.ui.mesh_face_object_id, app.ui.mesh_face_revision)
-                && object == id && Some(revision) == current_revision
+                && object == id
+                && Some(revision) == current_revision
             {
                 ui.label(format!("Picked face: {}", app.ui.mesh_face_index));
                 if ui.button("Delete picked face").clicked() {
                     let operation = json!({"kind":"delete_faces","selected_revision":revision,"selected_faces":[app.ui.mesh_face_index]});
-                    if let Err(err) = run_edit(app, id, operation) { app.set_status(err); }
+                    if let Err(err) = run_edit(app, id, operation) {
+                        app.set_status(err);
+                    }
                 }
             }
             ui.horizontal(|ui| {
@@ -255,7 +274,9 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 && let Some(revision) = current_revision
             {
                 let operation = json!({"kind":"fill_planar_hole","selected_revision":revision,"loop_index":app.ui.mesh_repair.hole_index});
-                if let Err(err) = run_edit(app, id, operation) { app.set_status(err); }
+                if let Err(err) = run_edit(app, id, operation) {
+                    app.set_status(err);
+                }
             }
             ui.separator();
             ui.strong("QUAD STRIP CUT");
@@ -276,7 +297,9 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                     "kind":"split_quad_strip","selected_revision":revision,
                     "edge_vertices":app.ui.mesh_repair.edge,"fraction":app.ui.mesh_repair.fraction
                 });
-                if let Err(err) = run_edit(app, id, operation) { app.set_status(err); }
+                if let Err(err) = run_edit(app, id, operation) {
+                    app.set_status(err);
+                }
             }
             ui.separator();
             ui.weak("Deviation maps, alignment and datum systems will use shared metrology kernels.");
@@ -292,22 +315,34 @@ pub fn viewport_toolbar(app: &mut CadApp, ui: &mut egui::Ui) {
         ui.colored_label(ACCENT, egui::RichText::new("SURFACE VIEW").strong());
         ui.separator();
         let selecting = app.ui.mesh_repair.selecting;
-        if ui.selectable_label(!selecting, "Navigate  [SPACE]").clicked() { app.ui.mesh_repair.selecting = false; }
-        if ui.selectable_label(selecting, "Select  [SPACE]").clicked() { app.ui.mesh_repair.selecting = true; }
+        if ui.selectable_label(!selecting, "Navigate  [SPACE]").clicked() {
+            app.ui.mesh_repair.selecting = false;
+        }
+        if ui.selectable_label(selecting, "Select  [SPACE]").clicked() {
+            app.ui.mesh_repair.selecting = true;
+        }
         ui.separator();
-        if ui.button("Fit  [F]").clicked() { let _ = app.run("ui.buildercraft.fit", Value::Null); }
-        if ui.button("Top").clicked() { let _ = app.run("ui.buildercraft.top", Value::Null); }
-        if ui.button("Iso").clicked() { let _ = app.run("ui.buildercraft.iso", Value::Null); }
-        if ui.button("Inspect  [I]").clicked() && let Some(id) = selected_mesh_id(app) {
+        if ui.button("Fit  [F]").clicked() {
+            let _ = app.run("ui.buildercraft.fit", Value::Null);
+        }
+        if ui.button("Top").clicked() {
+            let _ = app.run("ui.buildercraft.top", Value::Null);
+        }
+        if ui.button("Iso").clicked() {
+            let _ = app.run("ui.buildercraft.iso", Value::Null);
+        }
+        if ui.button("Inspect  [I]").clicked()
+            && let Some(id) = selected_mesh_id(app)
+        {
             let _ = inspect(app, id);
         }
     });
 }
 
 pub fn status_bar(app: &mut CadApp, ui: &mut egui::Ui) {
-    egui::Panel::bottom("ww_mesh_repair_status")
-        .frame(egui::Frame::NONE.fill(PANEL_DEEP).inner_margin(egui::Margin::symmetric(12, 5)))
-        .show(ui, |ui| {
+    egui::Panel::bottom("ww_mesh_repair_status").frame(egui::Frame::NONE.fill(PANEL_DEEP).inner_margin(egui::Margin::symmetric(12, 5))).show(
+        ui,
+        |ui| {
             ui.horizontal(|ui| {
                 ui.colored_label(ACCENT, if app.ui.mesh_repair.selecting { "SELECTION" } else { "NAVIGATION" });
                 ui.separator();
@@ -317,23 +352,21 @@ pub fn status_bar(app: &mut CadApp, ui: &mut egui::Ui) {
                     ui.label(message);
                 }
             });
-        });
+        },
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cadcraft_geom::Vec3;
     use buildercraft_kernel::{PolygonFace, PolygonMesh};
+    use cadcraft_geom::Vec3;
 
     fn fixture() -> (CadApp, u64) {
         let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
         let mesh = PolygonMesh {
-            vertices: vec![
-                Vec3::new(0.,0.,0.), Vec3::new(2.,0.,0.), Vec3::new(0.,2.,0.),
-                Vec3::new(-2.,0.,0.), Vec3::new(0.,-2.,0.),
-            ],
-            faces: vec![PolygonFace::Triangle([0,1,2]), PolygonFace::Triangle([0,3,4])],
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(0., 2., 0.), Vec3::new(-2., 0., 0.), Vec3::new(0., -2., 0.)],
+            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])],
         };
         let id = app.run("mesh3d.create", json!({"name":"Pinched scan", "mesh":mesh})).unwrap()["id"].as_u64().unwrap();
         app.session.set_selection(vec![cadcraft_doc::Handle(id)]);

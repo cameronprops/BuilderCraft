@@ -75,52 +75,49 @@ impl OrbCanvas {
     /// A node removal or connection is never accepted in the visual graph
     /// unless the same operation succeeded in the authoritative domain graph.
     pub fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new("OrbWeaver · Native Alpha")
-            .open(open)
-            .default_size(vec2(920.0, 610.0))
-            .show(ctx, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button("Add Point Midpoint").clicked() {
-                        self.add_node("orbweaver.point.midpoint", pos2(80.0, 120.0));
-                    }
-                    if ui.button("Add Distance").clicked() {
-                        self.add_node("orbweaver.point.distance", pos2(380.0, 120.0));
-                    }
-                    if ui.button("Evaluate").clicked() {
-                        match self.semantic.evaluate() {
-                            Ok(output) => self.message = format!(
-                                "Evaluated {} nodes; {} output values", output.evaluated_node_count, output.values.len()
-                            ),
-                            Err(e) => self.message = format!("Evaluation: {e}"),
+        egui::Window::new("OrbWeaver · Native Alpha").open(open).default_size(vec2(920.0, 610.0)).show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("Add Point Midpoint").clicked() {
+                    self.add_node("orbweaver.point.midpoint", pos2(80.0, 120.0));
+                }
+                if ui.button("Add Distance").clicked() {
+                    self.add_node("orbweaver.point.distance", pos2(380.0, 120.0));
+                }
+                if ui.button("Evaluate").clicked() {
+                    match self.semantic.evaluate() {
+                        Ok(output) => {
+                            self.message = format!("Evaluated {} nodes; {} output values", output.evaluated_node_count, output.values.len())
                         }
+                        Err(e) => self.message = format!("Evaluation: {e}"),
                     }
-                    if ui.button("Copy Graph JSON").clicked() {
-                        match serde_json::to_string_pretty(&self.semantic) {
-                            Ok(json) => {
-                                ui.ctx().copy_text(json);
-                                self.message = "Copied the graph and layout JSON to clipboard".into();
-                            }
-                            Err(e) => self.message = format!("Serialization: {e}"),
+                }
+                if ui.button("Copy Graph JSON").clicked() {
+                    match serde_json::to_string_pretty(&self.semantic) {
+                        Ok(json) => {
+                            ui.ctx().copy_text(json);
+                            self.message = "Copied the graph and layout JSON to clipboard".into();
                         }
-                    }
-                });
-                ui.label("Drag nodes and typed wires; right-click empty canvas to add a node, or right-click a node to delete it.");
-                ui.label(&self.message);
-                ui.separator();
-                let mut viewer = CanvasViewer { editor: &mut self.semantic, message: &mut self.message };
-                SnarlWidget::new().id(Id::new("orbweaver_native_canvas")).show(&mut self.visual, &mut viewer, ui);
-
-                // Presentation positions are copied into independent editor metadata.
-                // There is no evaluation or document revision change on drag.
-                for (_, visual_node) in self.visual.nodes_ids_data() {
-                    let position = NodePosition { x: visual_node.pos.x, y: visual_node.pos.y };
-                    if self.semantic.positions.get(&visual_node.value.graph_id) != Some(&position) {
-                        if let Err(e) = self.semantic.move_node(visual_node.value.graph_id, position) {
-                            self.message = format!("Node move rejected: {e}");
-                        }
+                        Err(e) => self.message = format!("Serialization: {e}"),
                     }
                 }
             });
+            ui.label("Drag nodes and typed wires; right-click empty canvas to add a node, or right-click a node to delete it.");
+            ui.label(&self.message);
+            ui.separator();
+            let mut viewer = CanvasViewer { editor: &mut self.semantic, message: &mut self.message };
+            SnarlWidget::new().id(Id::new("orbweaver_native_canvas")).show(&mut self.visual, &mut viewer, ui);
+
+            // Presentation positions are copied into independent editor metadata.
+            // There is no evaluation or document revision change on drag.
+            for (_, visual_node) in self.visual.nodes_ids_data() {
+                let position = NodePosition { x: visual_node.pos.x, y: visual_node.pos.y };
+                if self.semantic.positions.get(&visual_node.value.graph_id) != Some(&position) {
+                    if let Err(e) = self.semantic.move_node(visual_node.value.graph_id, position) {
+                        self.message = format!("Node move rejected: {e}");
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -173,18 +170,20 @@ impl SnarlViewer<CanvasNode> for CanvasViewer<'_> {
         if !pin.remotes.is_empty() {
             ui.weak("linked");
         } else {
-            let original = self.editor.graph.nodes.iter().find(|node| node.id == id)
-                .and_then(|node| node.inputs.get(name)).cloned();
+            let original = self.editor.graph.nodes.iter().find(|node| node.id == id).and_then(|node| node.inputs.get(name)).cloned();
             if let Some(InputBinding::Constant { mut value }) = original {
                 let changed = match &mut value {
                     ToolValue::Number(n) => ui.add(egui::DragValue::new(n).speed(0.1)).changed(),
                     ToolValue::Count(n) => ui.add(egui::DragValue::new(n).speed(1).range(1..=100_000)).changed(),
-                    ToolValue::Point(v) | ToolValue::Vector(v) => ui.horizontal(|ui| {
-                        let x = ui.add(egui::DragValue::new(&mut v.x).speed(0.1).max_decimals(2)).changed();
-                        let y = ui.add(egui::DragValue::new(&mut v.y).speed(0.1).max_decimals(2)).changed();
-                        let z = ui.add(egui::DragValue::new(&mut v.z).speed(0.1).max_decimals(2)).changed();
-                        x || y || z
-                    }).inner,
+                    ToolValue::Point(v) | ToolValue::Vector(v) => {
+                        ui.horizontal(|ui| {
+                            let x = ui.add(egui::DragValue::new(&mut v.x).speed(0.1).max_decimals(2)).changed();
+                            let y = ui.add(egui::DragValue::new(&mut v.y).speed(0.1).max_decimals(2)).changed();
+                            let z = ui.add(egui::DragValue::new(&mut v.z).speed(0.1).max_decimals(2)).changed();
+                            x || y || z
+                        })
+                        .inner
+                    }
                     _ => {
                         ui.weak(format!("{kind:?} (editable via API)"));
                         false

@@ -3,7 +3,7 @@
 use super::*;
 use buildercraft_kernel::{
     PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_triangulate,
-    polygon_mesh_validate, polygon_mesh_vertex_fans,
+    polygon_mesh_validate, polygon_mesh_vertex_fans, polygon_mesh_fill_hole,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -25,6 +25,9 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|split_edge|split_quad_strip,selected_revision,...}}"),
         CommandSpec::new("mesh3d.list", "List Native Polygon Meshes", list).noundo(),
         CommandSpec::new("mesh3d.boundaries", "Inspect Polygon Boundaries", boundaries).params("{id}").noundo(),
+        CommandSpec::new("mesh3d.hole_preview", "Preview Planar Hole Patch", hole_preview)
+            .params("{id,loop_index,selected_revision}")
+            .noundo(),
         CommandSpec::new("mesh3d.topology", "Inspect Polygon Vertex Fans", topology).params("{id,include_all_vertices?:false}").noundo(),
         CommandSpec::new("mesh3d.preview", "Preview Triangulated Polygon Mesh", preview).params("{id}").noundo(),
         CommandSpec::new("mesh3d.set", "Set Polygon Mesh Metadata", set).params("{id,name?,visible?}"),
@@ -171,6 +174,33 @@ fn edit(s: &mut Session, p: &Value) -> Result<Value> {
     target.mesh = Arc::new(edited);
     Ok(json!({"id":object_id,"kind":"polygonMesh"}))
 }
+/// Dry-run the authoritative validated hole-fill kernel. No document mutation.
+fn hole_preview(s: &mut Session, p: &Value) -> Result<Value> {
+    let object_id = id(p)?;
+    let revision = s.state()?.revision;
+    let selected_revision = p.get("selected_revision").and_then(Value::as_u64).ok_or_else(|| invalid("selected_revision required"))?;
+    let loop_index = p.get("loop_index").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok())
+        .ok_or_else(|| invalid("loop_index required"))?;
+    let source = &selected(s, object_id)?.mesh;
+    validate_size(source)?;
+    let patch = polygon_mesh_fill_hole(source, revision, selected_revision, loop_index).map_err(|e| invalid(&e.to_string()))?;
+    validate_size(&patch.mesh)?;
+    let new_triangles: Vec<[u32; 3]> = patch.new_face_indices.iter().map(|&i| {
+        match patch.mesh.faces.get(i as usize) {
+            Some(buildercraft_kernel::PolygonFace::Triangle(t)) => Ok(*t),
+            _ => Err(invalid("invalid kernel hole patch")),
+        }
+    }).collect::<Result<Vec<_>>>()?;
+    Ok(json!({
+        "id":object_id,
+        "source_revision":revision,
+        "loop_index":loop_index,
+        "boundary_vertices":patch.boundary_vertices,
+        "new_triangles":new_triangles,
+        "new_face_indices":patch.new_face_indices
+    }))
+}
+
 fn boundaries(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
     let report = polygon_mesh_boundary_loops(&selected(s, object_id)?.mesh).map_err(|e| invalid(&e.to_string()))?;
@@ -456,5 +486,38 @@ mod tests {
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh, after);
         s.execute("undo", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), before.as_ref());
+    }
+
+    #[test]
+    fn hole_preview_is_read_only_revision_bound_and_matches_commit() {
+        let mut s = Session::new();
+        let ring = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0.,0.,0.), Vec3::new(4.,0.,0.), Vec3::new(4.,4.,0.), Vec3::new(0.,4.,0.),
+                Vec3::new(1.,1.,0.), Vec3::new(3.,1.,0.), Vec3::new(3.,3.,0.), Vec3::new(1.,3.,0.),
+            ],
+            faces: vec![
+                buildercraft_kernel::PolygonFace::Quad([0,1,5,4]), buildercraft_kernel::PolygonFace::Quad([1,2,6,5]),
+                buildercraft_kernel::PolygonFace::Quad([2,3,7,6]), buildercraft_kernel::PolygonFace::Quad([3,0,4,7]),
+            ],
+        };
+        let id = s.execute("mesh3d.create", &json!({"name":"Open ring","mesh":ring})).unwrap()["id"].as_u64().unwrap();
+        let r = s.execute("mesh3d.boundaries", &json!({"id":id})).unwrap();
+        let ix = r["report"]["closed_loops"].as_array().unwrap().iter()
+            .position(|v| v["vertices"].as_array().unwrap().iter().all(|n| n.as_u64().unwrap()>=4)).unwrap() as u32;
+        let rev = s.state().unwrap().revision;
+        let before = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let preview = s.execute("mesh3d.hole_preview", &json!({"id":id,"loop_index":ix,"selected_revision":rev})).unwrap();
+        assert_eq!(preview["new_triangles"].as_array().unwrap().len(), 2);
+        assert_eq!(s.state().unwrap().revision, rev);
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh, before);
+        assert!(s.execute("mesh3d.hole_preview", &json!({"id":id,"loop_index":ix,"selected_revision":rev-1})).is_err());
+        s.execute("mesh3d.edit", &json!({"id":id,"edit":{"kind":"fill_planar_hole","selected_revision":rev,"loop_index":ix}})).unwrap();
+        let added: Vec<[u32;3]> = s.doc().unwrap().mesh3d[0].mesh.faces[4..].iter().filter_map(|f| {
+            if let buildercraft_kernel::PolygonFace::Triangle(t) = f { Some(*t) } else { None }
+        }).collect();
+        assert_eq!(serde_json::to_value(added).unwrap(),preview["new_triangles"]);
+        s.execute("undo",&json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(),before.as_ref());
     }
 }

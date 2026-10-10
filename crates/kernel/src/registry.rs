@@ -185,6 +185,14 @@ pub const OPERATIONS: &[OperationDescriptor] = &[
         status: OperationStatus::Implemented,
     },
     OperationDescriptor {
+        id: "kernel.polygon.fill_hole_curvature",
+        label: "Curvature-Guided Interior Hole Reconstruction",
+        category: "mesh",
+        inputs: &["polygon_mesh", "revision", "picked_revision", "loop_index", "refinement_levels", "smoothing_iterations", "tangent_weight", "max_interior_offset"],
+        outputs: &["polygon_mesh", "revision", "boundary_vertices", "new_face_indices", "plane", "moved_vertices"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.polygon.boundary_loops",
         label: "Find Polygon Boundary Loops",
         category: "mesh",

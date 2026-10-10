@@ -1,11 +1,11 @@
 //! Versioned alpha project envelope: supported DXF drawing plus model organization.
 use crate::{IoError, Result, dxf_read, dxf_write};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use cadcraft_doc::{
     Drawing,
     organization::{NodeKind, Organization},
 };
 use serde::{Deserialize, Serialize};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 #[derive(Serialize, Deserialize)]
 struct Project {
     version: u32,
@@ -53,9 +53,14 @@ fn validate_breps(objects: &[cadcraft_doc::organization::ExactBrepObject]) -> Re
     }
     let mut total = 0usize;
     for o in objects {
-        if o.id == u64::MAX || o.name.trim().is_empty() || o.name.len() > 256
-            || o.layer.len() > 256 || !o.volume.is_finite() || o.volume <= 0.0
-            || o.faces == 0 || o.edges == 0
+        if o.id == u64::MAX
+            || o.name.trim().is_empty()
+            || o.name.len() > 256
+            || o.layer.len() > 256
+            || !o.volume.is_finite()
+            || o.volume <= 0.0
+            || o.faces == 0
+            || o.edges == 0
         {
             return Err(IoError::Format("invalid exact BRep object metadata".into()));
         }
@@ -82,7 +87,12 @@ pub fn write(d: &Drawing) -> Result<Vec<u8>> {
     validate_breps(&d.exact_breps)?;
     let mut organization = d.organization.clone();
     for node in &mut organization.nodes {
-        node.entities.retain(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0) || d.exact_breps.iter().any(|o| o.id == h.0));
+        node.entities.retain(|h| {
+            d.entity(*h).is_some()
+                || d.geometry3d.iter().any(|o| o.id == h.0)
+                || d.mesh3d.iter().any(|o| o.id == h.0)
+                || d.exact_breps.iter().any(|o| o.id == h.0)
+        });
     }
     serde_json::to_vec(&Project {
         version: 1,
@@ -104,7 +114,9 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
     if p.version != 1 {
         return Err(IoError::Format("unsupported BuilderCraft project version".into()));
     }
-    if p.organization.nodes.len() > 100_000 || p.geometry3d.len().checked_add(p.mesh3d.len()).and_then(|n| n.checked_add(p.exact_breps.len())).is_none_or(|n| n > 4096) {
+    if p.organization.nodes.len() > 100_000
+        || p.geometry3d.len().checked_add(p.mesh3d.len()).and_then(|n| n.checked_add(p.exact_breps.len())).is_none_or(|n| n > 4096)
+    {
         return Err(IoError::Format("too many model items".into()));
     }
     validate_polygons(&p.mesh3d)?;
@@ -120,7 +132,12 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
             return Err(IoError::Format("only bodies can own entities".into()));
         }
         for h in &n.entities {
-            if (d.entity(*h).is_none() && !p.geometry3d.iter().any(|o| o.id == h.0) && !p.mesh3d.iter().any(|o| o.id == h.0) && !p.exact_breps.iter().any(|o| o.id == h.0)) || !owned.insert(*h) {
+            if (d.entity(*h).is_none()
+                && !p.geometry3d.iter().any(|o| o.id == h.0)
+                && !p.mesh3d.iter().any(|o| o.id == h.0)
+                && !p.exact_breps.iter().any(|o| o.id == h.0))
+                || !owned.insert(*h)
+            {
                 return Err(IoError::Format("invalid or multiply-owned body entity".into()));
             }
         }
@@ -398,8 +415,16 @@ mod exact_brep_tests {
     use std::sync::Arc;
 
     fn sample(id: u64) -> ExactBrepObject {
-        ExactBrepObject { id, name: "Exact block".into(), layer: "0".into(), visible: true,
-            brep: Arc::new("QUJDRA==".into()), volume: 8.0, faces: 6, edges: 12 }
+        ExactBrepObject {
+            id,
+            name: "Exact block".into(),
+            layer: "0".into(),
+            visible: true,
+            brep: Arc::new("QUJDRA==".into()),
+            volume: 8.0,
+            faces: 6,
+            edges: 12,
+        }
     }
 
     #[test]

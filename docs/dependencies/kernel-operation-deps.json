@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 54,
-    "explicit_dependencies_mapped": 36,
+    "total": 57,
+    "explicit_dependencies_mapped": 39,
     "pending_source_review": 18,
-    "paired": 22
+    "paired": 25
   },
   "entries": [
     {
@@ -526,6 +526,39 @@
       ],
       "dependency_basis": "source_inspected_or_dataflow",
       "registry_category": "solid",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.project.mesh",
+      "group": "geometry.intersections",
+      "depends_on": [
+        "kernel.polygon.triangulate",
+        "kernel.vector.dot"
+      ],
+      "registry_category": "intersection",
+      "dependency_basis": "source_inspected_or_dataflow",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.project.nurbs",
+      "group": "geometry.intersections",
+      "depends_on": [
+        "kernel.geometry.tessellate",
+        "kernel.vector.dot"
+      ],
+      "registry_category": "intersection",
+      "dependency_basis": "source_inspected_or_dataflow",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.surface.flow_nurbs",
+      "group": "geometry.surface",
+      "depends_on": [
+        "kernel.vector.cross",
+        "kernel.vector.dot"
+      ],
+      "registry_category": "surface",
+      "dependency_basis": "source_inspected_or_dataflow",
       "paired_cad_graph": true
     }
   ]

@@ -31,13 +31,19 @@ pub fn specs() -> Vec<CommandSpec> {
             .noundo(),
         CommandSpec::new("worldwright.pipe", "Pipe: Swept Circular Mesh", pipe)
             .params("{inputs:{rail,up,start_radius,end_radius,wall,stations,sides,flat_caps}}")
-            .alias(&["pipe"]).enabled(always).noundo(),
+            .alias(&["pipe"])
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.sweep1", "Sweep1: Single Rail Mesh", sweep1)
             .params("{inputs:{rail,up,profile,stations,closed_profile}}")
-            .alias(&["sweep1"]).enabled(always).noundo(),
+            .alias(&["sweep1"])
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.sweep2", "Sweep2: Two Rail Mesh", sweep2)
             .params("{inputs:{rail_a,rail_b,section,stations}}")
-            .alias(&["sweep2"]).enabled(always).noundo(),
+            .alias(&["sweep2"])
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.project", "Project Geometry to Plane", project)
             .params("{inputs:{geometry,origin,normal,direction}}")
             .enabled(always)

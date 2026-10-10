@@ -1,7 +1,7 @@
 //! Oriented path array via WorldWright's shared RailFrame service.
 //! No separate rotation/arc-length implementation is permitted in this file.
-use crate::{KernelError, Result, MAX_RAIL_POINTS, MAX_RAIL_STATIONS};
 use crate::rail_frames::rail_frames as sample_rail;
+use crate::{KernelError, MAX_RAIL_POINTS, MAX_RAIL_STATIONS, Result};
 use cadcraft_geom::Vec3;
 
 const MAX_SEED: usize = 1024;
@@ -9,33 +9,40 @@ const MAX_ITEMS: usize = 65_536;
 const LIMIT: f64 = 1e12;
 
 /// Position and rotate copies using the same frame solver as Pipe and Sweep.
-pub fn array_path_oriented(seed:&[Vec3],path:&[Vec3],count:usize,guide_up:Vec3,anchor:Vec3)->Result<Vec<Vec<Vec3>>> {
-    if seed.is_empty() || seed.len()>MAX_SEED || path.len()>MAX_RAIL_POINTS || count==0 || count>MAX_RAIL_STATIONS
-        || seed.len().checked_mul(count).is_none_or(|n|n>MAX_ITEMS) {
+pub fn array_path_oriented(seed: &[Vec3], path: &[Vec3], count: usize, guide_up: Vec3, anchor: Vec3) -> Result<Vec<Vec<Vec3>>> {
+    if seed.is_empty()
+        || seed.len() > MAX_SEED
+        || path.len() > MAX_RAIL_POINTS
+        || count == 0
+        || count > MAX_RAIL_STATIONS
+        || seed.len().checked_mul(count).is_none_or(|n| n > MAX_ITEMS)
+    {
         return Err(KernelError::Budget);
     }
-    if !anchor.is_finite() || anchor.x.abs().max(anchor.y.abs()).max(anchor.z.abs())>LIMIT ||
-        seed.iter().any(|p| !p.is_finite() || p.x.abs().max(p.y.abs()).max(p.z.abs())>LIMIT) {
+    if !anchor.is_finite()
+        || anchor.x.abs().max(anchor.y.abs()).max(anchor.z.abs()) > LIMIT
+        || seed.iter().any(|p| !p.is_finite() || p.x.abs().max(p.y.abs()).max(p.z.abs()) > LIMIT)
+    {
         return Err(KernelError::Invalid("invalid oriented-array input"));
     }
-    let frames=sample_rail(path,count.max(2),guide_up)?;
-    let first=frames[0];
-    let mut out=Vec::new();
-    out.try_reserve_exact(count).map_err(|_|KernelError::Budget)?;
-    for (i,frame) in frames.into_iter().take(count).enumerate() {
-        if i==0 {
+    let frames = sample_rail(path, count.max(2), guide_up)?;
+    let first = frames[0];
+    let mut out = Vec::new();
+    out.try_reserve_exact(count).map_err(|_| KernelError::Budget)?;
+    for (i, frame) in frames.into_iter().take(count).enumerate() {
+        if i == 0 {
             out.push(seed.to_vec());
             continue;
         }
-        let mut copy=Vec::new();
-        copy.try_reserve_exact(seed.len()).map_err(|_|KernelError::Budget)?;
+        let mut copy = Vec::new();
+        copy.try_reserve_exact(seed.len()).map_err(|_| KernelError::Budget)?;
         for &point in seed {
-            let d=point-anchor;
-            let x=d.dot(first.tangent);
-            let y=d.dot(first.side);
-            let z=d.dot(first.up);
-            let mapped=anchor+(frame.origin-path[0])+frame.tangent*x+frame.side*y+frame.up*z;
-            if !mapped.is_finite() || mapped.x.abs().max(mapped.y.abs()).max(mapped.z.abs())>LIMIT {
+            let d = point - anchor;
+            let x = d.dot(first.tangent);
+            let y = d.dot(first.side);
+            let z = d.dot(first.up);
+            let mapped = anchor + (frame.origin - path[0]) + frame.tangent * x + frame.side * y + frame.up * z;
+            if !mapped.is_finite() || mapped.x.abs().max(mapped.y.abs()).max(mapped.z.abs()) > LIMIT {
                 return Err(KernelError::Invalid("array mapping overflow"));
             }
             copy.push(mapped);

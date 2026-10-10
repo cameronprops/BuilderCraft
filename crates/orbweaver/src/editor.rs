@@ -126,13 +126,13 @@ impl EditorDocument {
         if !position.valid() {
             return Err(EditorError::Position);
         }
-        self.transact(|draft| {
-            if !draft.graph.nodes.iter().any(|n| n.id == id) {
-                return Err(EditorError::Node(id));
-            }
-            draft.positions.insert(id, position);
-            Ok(())
-        })
+        if !self.graph.nodes.iter().any(|n| n.id == id) {
+            return Err(EditorError::Node(id));
+        }
+        // Presentation-only mutation: once preconditions pass there is no
+        // graph/evaluator change, so avoid cloning all graph literals per drag.
+        self.positions.insert(id, position);
+        Ok(())
     }
 
     pub fn set_literal(&mut self, id: u64, port: &str, value: ToolValue) -> Result<()> {

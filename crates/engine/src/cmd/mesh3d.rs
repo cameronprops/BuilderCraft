@@ -2,8 +2,8 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_triangulate,
-    polygon_mesh_validate, polygon_mesh_vertex_fans,
+    MeshDecimateOptions, PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, mesh_quadric_decimate, polygon_mesh_boundary_loops,
+    polygon_mesh_topology, polygon_mesh_triangulate, polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -27,6 +27,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.boundaries", "Inspect Polygon Boundaries", boundaries).params("{id}").noundo(),
         CommandSpec::new("mesh3d.topology", "Inspect Polygon Vertex Fans", topology).params("{id,include_all_vertices?:false}").noundo(),
         CommandSpec::new("mesh3d.preview", "Preview Triangulated Polygon Mesh", preview).params("{id}").noundo(),
+        CommandSpec::new("mesh3d.preview_decimate", "Preview Reduced Triangle Mesh", preview_decimate)
+            .params("{id,target_faces,max_quadric_error?,max_normal_change_degrees?,preserve_boundary?,preserve_creases_above_degrees?,selected_revision?}").noundo(),
         CommandSpec::new("mesh3d.set", "Set Polygon Mesh Metadata", set).params("{id,name?,visible?}"),
     ]
 }
@@ -224,6 +226,63 @@ fn preview(s: &mut Session, p: &Value) -> Result<Value> {
         "source_face_indices": preview.source_face_indices,
     }))
 }
+/// Read-only manufacturing / display proxy. Native source triangles and
+/// authored quads are untouched, and any preview is tied to source revision.
+/// Result face IDs are *not* interchangeable with source polygon IDs.
+fn preview_decimate(s: &mut Session, p: &Value) -> Result<Value> {
+    let object_id = id(p)?;
+    let current_revision = s.state()?.revision;
+    if let Some(requested) = p.get("selected_revision") {
+        let revision = requested.as_u64().ok_or_else(|| invalid("selected_revision must be u64"))?;
+        if revision != current_revision {
+            return Err(invalid("mesh preview selection is stale"));
+        }
+    }
+    let target_faces = p.get("target_faces").and_then(Value::as_u64).ok_or_else(|| invalid("target_faces required"))?;
+    let target_faces = usize::try_from(target_faces).map_err(|_| invalid("target_faces out of range"))?;
+    let max_quadric_error = p
+        .get("max_quadric_error")
+        .map(|value| value.as_f64().ok_or_else(|| invalid("max_quadric_error must be numeric")))
+        .transpose()?
+        .unwrap_or(1e12);
+    let max_normal_change_degrees = p
+        .get("max_normal_change_degrees")
+        .map(|value| value.as_f64().ok_or_else(|| invalid("max_normal_change_degrees must be numeric")))
+        .transpose()?
+        .unwrap_or(80.0);
+    let preserve_boundary = p
+        .get("preserve_boundary")
+        .map(|value| value.as_bool().ok_or_else(|| invalid("preserve_boundary must be boolean")))
+        .transpose()?
+        .unwrap_or(true);
+    let preserve_creases_above_degrees = p
+        .get("preserve_creases_above_degrees")
+        .map(|value| value.as_f64().ok_or_else(|| invalid("preserve_creases_above_degrees must be numeric")))
+        .transpose()?;
+    let source = &selected(s, object_id)?.mesh;
+    let triangulation = polygon_mesh_triangulate(source).map_err(|e| invalid(&e.to_string()))?;
+    if triangulation.mesh.triangles.len() > 20_000 {
+        return Err(invalid("interactive decimation preview limited to 20000 triangles"));
+    }
+    let before_count = triangulation.mesh.triangles.len();
+    let result = mesh_quadric_decimate(
+        &triangulation.mesh,
+        MeshDecimateOptions { target_faces, max_quadric_error, max_normal_change_degrees, preserve_boundary, preserve_creases_above_degrees },
+    )
+    .map_err(|e| invalid(&e.to_string()))?;
+    Ok(json!({
+        "id": object_id,
+        "source_revision": current_revision,
+        "derived_triangle_mesh": true,
+        "original_face_count": before_count,
+        "removed_faces": result.removed_faces,
+        "target_reached": result.target_reached,
+        "vertices": result.mesh.vertices,
+        "triangles": result.mesh.triangles,
+        "old_to_new_vertices": result.old_to_new,
+    }))
+}
+
 fn set(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
     let name = p
@@ -249,6 +308,64 @@ mod tests {
     use super::*;
     use buildercraft_kernel::{PolygonFace, PolygonMesh};
     use cadcraft_geom::Vec3;
+
+    #[test]
+    fn decimation_preview_is_read_only_and_revision_bound() {
+        use buildercraft_kernel::{TriangleMesh, polygon_mesh_from_triangles};
+        let source = TriangleMesh {
+            vertices: vec![
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
+            ],
+            triangles: vec![[0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2], [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5]],
+        };
+        let polygon = polygon_mesh_from_triangles(&source);
+        assert!(polygon.is_ok());
+        let mut s = Session::new();
+        if let Ok(polygon) = polygon {
+            let created = s.execute("mesh3d.create", &json!({"name":"Octa","mesh":polygon}));
+            assert!(created.is_ok());
+            if let Ok(created) = created {
+                let id = created["id"].as_u64();
+                assert!(id.is_some());
+                if let Some(id) = id {
+                    let revision = s.state().map(|state| state.revision);
+                    assert!(revision.is_ok());
+                    let original = s.doc().map(|d| d.mesh3d[0].mesh.clone());
+                    if let (Ok(revision), Ok(original)) = (revision, original) {
+                        let preview = s.execute(
+                            "mesh3d.preview_decimate",
+                            &json!({
+                                "id":id, "target_faces":6, "selected_revision":revision,
+                                "max_normal_change_degrees":85.0
+                            }),
+                        );
+                        assert!(preview.is_ok());
+                        if let Ok(preview) = preview {
+                            assert_eq!(preview["removed_faces"], 2);
+                            assert_eq!(preview["triangles"].as_array().map(Vec::len), Some(6));
+                            assert_eq!(preview["source_revision"], revision);
+                        }
+                        assert!(
+                            s.execute(
+                                "mesh3d.preview_decimate",
+                                &json!({
+                                    "id":id, "target_faces":6, "selected_revision":revision + 1
+                                })
+                            )
+                            .is_err()
+                        );
+                        assert!(s.state().is_ok_and(|state| state.revision == revision));
+                        assert!(s.doc().is_ok_and(|d| d.mesh3d[0].mesh == original));
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn persistent_face_pushpull_is_undoable_and_revision_checked() {

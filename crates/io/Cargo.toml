@@ -19,6 +19,7 @@ cadcraft-render = { workspace = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
+base64 = "0.22"
 miniz_oxide = "0.8"
 las = { version = "0.11.1", default-features = false } # MIT; LAZ decompression not enabled
 stl_io = "0.11.0" # MIT

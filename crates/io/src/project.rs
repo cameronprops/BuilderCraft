@@ -1,5 +1,6 @@
 //! Versioned alpha project envelope: supported DXF drawing plus model organization.
 use crate::{IoError, Result, dxf_read, dxf_write};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use cadcraft_doc::{
     Drawing,
     organization::{NodeKind, Organization},
@@ -14,6 +15,8 @@ struct Project {
     geometry3d: Vec<cadcraft_doc::organization::GeometryObject>,
     #[serde(default)]
     mesh3d: Vec<cadcraft_doc::organization::PolygonGeometryObject>,
+    #[serde(default)]
+    exact_breps: Vec<cadcraft_doc::organization::ExactBrepObject>,
     #[serde(default)]
     production: buildercraft_kernel::ProductionModel,
     #[serde(default)]
@@ -41,13 +44,55 @@ fn validate_polygons(objects: &[cadcraft_doc::organization::PolygonGeometryObjec
     Ok(())
 }
 
+/// Enforce a strict total native topology payload budget and never trust
+/// arbitrary Base64 or serialized statistics as a validated OCCT shape.
+/// Topological authenticity is rechecked through brep.inspect in the worker.
+fn validate_breps(objects: &[cadcraft_doc::organization::ExactBrepObject]) -> Result<()> {
+    if objects.len() > 4096 {
+        return Err(IoError::Format("too many exact BRep objects".into()));
+    }
+    let mut total = 0usize;
+    for o in objects {
+        if o.id == u64::MAX
+            || o.name.trim().is_empty()
+            || o.name.len() > 256
+            || o.layer.len() > 256
+            || !o.volume.is_finite()
+            || o.volume <= 0.0
+            || o.faces == 0
+            || o.edges == 0
+        {
+            return Err(IoError::Format("invalid exact BRep object metadata".into()));
+        }
+        // The allocation and aggregate budget are checked before decoding.
+        if o.brep.len() > 6 * 1024 * 1024 {
+            return Err(IoError::Format("encoded BRep exceeds per-object budget".into()));
+        }
+        let bytes = STANDARD.decode(o.brep.as_bytes()).map_err(|_| IoError::Format("invalid exact BRep Base64".into()))?;
+        if bytes.is_empty() || bytes.len() > 4 * 1024 * 1024 {
+            return Err(IoError::Format("exact BRep binary exceeds 4 MiB".into()));
+        }
+        total = total.checked_add(bytes.len()).ok_or_else(|| IoError::Format("BRep size overflow".into()))?;
+        if total > 64 * 1024 * 1024 {
+            return Err(IoError::Format("aggregate BRep budget exceeds 64 MiB".into()));
+        }
+    }
+    Ok(())
+}
+
 pub fn write(d: &Drawing) -> Result<Vec<u8>> {
     d.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
     d.validate_feature_histories().map_err(|e| IoError::Format(e.to_string()))?;
     validate_polygons(&d.mesh3d)?;
+    validate_breps(&d.exact_breps)?;
     let mut organization = d.organization.clone();
     for node in &mut organization.nodes {
-        node.entities.retain(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0));
+        node.entities.retain(|h| {
+            d.entity(*h).is_some()
+                || d.geometry3d.iter().any(|o| o.id == h.0)
+                || d.mesh3d.iter().any(|o| o.id == h.0)
+                || d.exact_breps.iter().any(|o| o.id == h.0)
+        });
     }
     serde_json::to_vec(&Project {
         version: 1,
@@ -55,6 +100,7 @@ pub fn write(d: &Drawing) -> Result<Vec<u8>> {
         organization,
         geometry3d: d.geometry3d.clone(),
         mesh3d: d.mesh3d.clone(),
+        exact_breps: d.exact_breps.clone(),
         production: d.production.clone(),
         feature_timelines: d.feature_timelines.clone(),
     })
@@ -68,10 +114,13 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
     if p.version != 1 {
         return Err(IoError::Format("unsupported BuilderCraft project version".into()));
     }
-    if p.organization.nodes.len() > 100_000 || p.geometry3d.len().checked_add(p.mesh3d.len()).is_none_or(|n| n > 4096) {
+    if p.organization.nodes.len() > 100_000
+        || p.geometry3d.len().checked_add(p.mesh3d.len()).and_then(|n| n.checked_add(p.exact_breps.len())).is_none_or(|n| n > 4096)
+    {
         return Err(IoError::Format("too many model items".into()));
     }
     validate_polygons(&p.mesh3d)?;
+    validate_breps(&p.exact_breps)?;
     let mut d = dxf_read::read(p.drawing_dxf.as_bytes())?;
     let mut ids = std::collections::HashSet::new();
     let mut owned = std::collections::HashSet::new();
@@ -83,7 +132,12 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
             return Err(IoError::Format("only bodies can own entities".into()));
         }
         for h in &n.entities {
-            if (d.entity(*h).is_none() && !p.geometry3d.iter().any(|o| o.id == h.0) && !p.mesh3d.iter().any(|o| o.id == h.0)) || !owned.insert(*h) {
+            if (d.entity(*h).is_none()
+                && !p.geometry3d.iter().any(|o| o.id == h.0)
+                && !p.mesh3d.iter().any(|o| o.id == h.0)
+                && !p.exact_breps.iter().any(|o| o.id == h.0))
+                || !owned.insert(*h)
+            {
                 return Err(IoError::Format("invalid or multiply-owned body entity".into()));
             }
         }
@@ -125,6 +179,12 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
         }
         d.bump_handseed(cadcraft_doc::Handle(object.id));
     }
+    for object in &p.exact_breps {
+        if d.entity(cadcraft_doc::Handle(object.id)).is_some() || !ids.insert(object.id) {
+            return Err(IoError::Format("invalid or duplicate exact BRep object identity".into()));
+        }
+        d.bump_handseed(cadcraft_doc::Handle(object.id));
+    }
     p.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
     d.feature_timelines = p.feature_timelines;
     d.organization = p.organization;
@@ -132,6 +192,7 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
     d.production = p.production;
     d.geometry3d = p.geometry3d;
     d.mesh3d = p.mesh3d;
+    d.exact_breps = p.exact_breps;
     Ok(d)
 }
 #[cfg(test)]
@@ -344,5 +405,52 @@ mod tests {
 
         old["feature_timelines"] = serde_json::to_value(&invalid.feature_timelines).unwrap();
         assert!(read(&serde_json::to_vec(&old).unwrap()).is_err());
+    }
+}
+
+#[cfg(test)]
+mod exact_brep_tests {
+    use super::*;
+    use cadcraft_doc::organization::ExactBrepObject;
+    use std::sync::Arc;
+
+    fn sample(id: u64) -> ExactBrepObject {
+        ExactBrepObject {
+            id,
+            name: "Exact block".into(),
+            layer: "0".into(),
+            visible: true,
+            brep: Arc::new("QUJDRA==".into()),
+            volume: 8.0,
+            faces: 6,
+            edges: 12,
+        }
+    }
+
+    #[test]
+    fn exact_brep_roundtrip_and_legacy_default() {
+        let mut d = Drawing::new_metric();
+        d.exact_breps.push(sample(1001));
+        let reopened = read(&write(&d).unwrap()).unwrap();
+        assert_eq!(reopened.exact_breps, d.exact_breps);
+        assert!(reopened.handseed > 1001);
+        let mut project: serde_json::Value = serde_json::from_slice(&write(&d).unwrap()).unwrap();
+        project.as_object_mut().unwrap().remove("exact_breps");
+        assert!(read(&serde_json::to_vec(&project).unwrap()).unwrap().exact_breps.is_empty());
+    }
+
+    #[test]
+    fn malformed_or_colliding_brep_is_rejected_atomically() {
+        let mut d = Drawing::default();
+        d.exact_breps.push(sample(1002));
+        let original = write(&d).unwrap();
+        let mut corrupted: serde_json::Value = serde_json::from_slice(&original).unwrap();
+        corrupted["exact_breps"][0]["brep"] = serde_json::json!("%%%");
+        assert!(read(&serde_json::to_vec(&corrupted).unwrap()).is_err());
+        corrupted = serde_json::from_slice(&original).unwrap();
+        corrupted["exact_breps"][0]["volume"] = serde_json::json!(-1.0);
+        assert!(read(&serde_json::to_vec(&corrupted).unwrap()).is_err());
+        d.exact_breps.push(sample(1002));
+        assert!(read(&write(&d).unwrap()).is_err());
     }
 }

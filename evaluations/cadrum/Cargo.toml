@@ -1,0 +1,15 @@
+[package]
+name = "worldwright-cadrum-brep-evaluation"
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Isolated until license, tolerances, topology history and native distribution pass.
+[workspace]
+
+[dependencies]
+cadrum = { version = "=0.8.20", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"

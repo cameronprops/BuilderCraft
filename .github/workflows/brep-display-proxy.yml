@@ -1,0 +1,37 @@
+name: WorldWright BRep exact-to-display proxy
+on:
+  push:
+    branches:
+      - feature/brep-worker-display-proxy
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worldwright-brep-display-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  display-acceptance:
+    name: ${{ matrix.os }} exact BRep shaded-preview mesh
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - name: Linux native linker requirements
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y pkg-config build-essential
+      - name: Normalize source for early integration test
+        run: cargo fmt --manifest-path evaluations/cadrum/Cargo.toml --all
+      - name: Test exact BRep and separated shaded display proxy
+        run: cargo test --manifest-path evaluations/cadrum/Cargo.toml --all-targets -- --test-threads=1
+      - name: Strict formatting and Clippy lint
+        run: cargo clippy --manifest-path evaluations/cadrum/Cargo.toml --all-targets -- -D warnings

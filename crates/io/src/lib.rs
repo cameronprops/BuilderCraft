@@ -47,7 +47,7 @@ pub fn read(bytes: &[u8], name: &str) -> Result<Drawing> {
 
 /// Write a drawing in the format chosen by the name's extension.
 pub fn write(d: &Drawing, name: &str) -> Result<Vec<u8>> {
-    if (!d.geometry3d.is_empty() || !d.mesh3d.is_empty()) && !matches!(ext(name).as_str(), "dftba" | "bcraft") {
+    if (!d.geometry3d.is_empty() || !d.mesh3d.is_empty() || !d.exact_breps.is_empty()) && !matches!(ext(name).as_str(), "dftba" | "bcraft") {
         return Err(IoError::Format("3D geometry export is not implemented for this format; save a .dftba project to preserve the model".into()));
     }
     match ext(name).as_str() {
@@ -63,6 +63,9 @@ pub fn write(d: &Drawing, name: &str) -> Result<Vec<u8>> {
 
 /// Render a space to PNG, fitted to its extents.
 pub fn png(d: &Drawing, space: &Space, width: u32, height: u32) -> Result<Vec<u8>> {
+    if !d.exact_breps.is_empty() {
+        return Err(IoError::Format("2D PNG cannot represent exact BRep solids".into()));
+    }
     let list = cadcraft_render::build(d, space, &cadcraft_render::Options::default());
     let view = cadcraft_render::raster::View::fit(&list.bounds, width, height, 0.05);
     cadcraft_render::raster::render_png(&list, &view, &cadcraft_render::raster::RasterOptions::default())

@@ -309,7 +309,8 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
     // orthographic barycentric depth calculation. Mesh wins an exact tie.
     let brep_hit = app.session.state().ok().and_then(|state| {
         let document = app.session.doc().ok()?;
-        app.ui.brep_previews
+        app.ui
+            .brep_previews
             .iter()
             .filter(|preview| preview.current(state.uid, state.revision))
             .filter_map(|preview| {
@@ -522,14 +523,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             }
             Some((cache, selected_ids.contains(&cadcraft_doc::Handle(solid.id))))
         });
-        crate::brep_display::paint_previews(
-            sources,
-            &painter,
-            rect,
-            cadcraft_geom::camera::OrthoFrame { yaw, pitch },
-            app.ui.center3d,
-            scale,
-        );
+        crate::brep_display::paint_previews(sources, &painter, rect, cadcraft_geom::camera::OrthoFrame { yaw, pitch }, app.ui.center3d, scale);
     }
     if preview_limited {
         painter.text(
@@ -1116,7 +1110,8 @@ mod brep_selection_tests {
             "vertices":[[0.,0.,2.],[10.,0.,2.],[0.,10.,2.]],
             "normals":[[0.,0.,1.],[0.,0.,1.],[0.,0.,1.]],
             "indices":[0,1,2],"edge_chains":[]}});
-        crate::brep_display::insert_preview(&mut app.ui.brep_previews, BrepPreview::from_worker(&proxy, state.uid, state.revision, id).unwrap()).unwrap();
+        crate::brep_display::insert_preview(&mut app.ui.brep_previews, BrepPreview::from_worker(&proxy, state.uid, state.revision, id).unwrap())
+            .unwrap();
     }
 
     #[test]
@@ -1174,5 +1169,4 @@ mod brep_selection_tests {
         assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(28)]);
         assert_eq!(app.session.state().unwrap().revision, revision);
     }
-
 }

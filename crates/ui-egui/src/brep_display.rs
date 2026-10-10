@@ -158,10 +158,15 @@ pub fn paint_previews<'a>(
     let mut triangles: Vec<(f64, usize, [u32; 3])> = Vec::new();
     let mut wires: Vec<(&BrepPreview, bool)> = Vec::new();
     for (preview, selected) in previews {
-        let positions: Vec<_> = preview.mesh.vertices.iter().map(|p| {
-            let q = frame.project(*p, center);
-            egui::pos2(rect.center().x + (q.x * scale) as f32, rect.center().y - (q.y * scale) as f32)
-        }).collect();
+        let positions: Vec<_> = preview
+            .mesh
+            .vertices
+            .iter()
+            .map(|p| {
+                let q = frame.project(*p, center);
+                egui::pos2(rect.center().x + (q.x * scale) as f32, rect.center().y - (q.y * scale) as f32)
+            })
+            .collect();
         if positions.iter().any(|p| !p.is_finite()) {
             continue;
         }
@@ -204,7 +209,6 @@ pub fn paint_previews<'a>(
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -275,12 +279,16 @@ mod tests {
         let ctx = egui::Context::default();
         let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
             let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(300., 300.));
-            paint_previews(previews.iter().map(|p| (p, false)), ui.painter(), rect,
-                OrthoFrame { yaw: 0., pitch: -std::f64::consts::FRAC_PI_2 }, Vec3::ZERO, 10.);
+            paint_previews(
+                previews.iter().map(|p| (p, false)),
+                ui.painter(),
+                rect,
+                OrthoFrame { yaw: 0., pitch: -std::f64::consts::FRAC_PI_2 },
+                Vec3::ZERO,
+                10.,
+            );
         });
-        let meshes: Vec<_> = output.shapes.iter().filter_map(|shape| {
-            if let egui::Shape::Mesh(m) = &shape.shape { Some(m) } else { None }
-        }).collect();
+        let meshes: Vec<_> = output.shapes.iter().filter_map(|shape| if let egui::Shape::Mesh(m) = &shape.shape { Some(m) } else { None }).collect();
         assert_eq!(meshes.len(), 1);
         assert_eq!(meshes[0].vertices.len(), 6, "triangles must share projected vertices");
         assert_eq!(meshes[0].indices.len(), 6);
@@ -310,5 +318,4 @@ mod tests {
         assert_eq!(previews.len(), 1);
         assert_eq!(previews[0].object_id, 8);
     }
-
 }

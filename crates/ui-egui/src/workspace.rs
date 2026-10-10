@@ -125,6 +125,21 @@ mod tests {
     }
 
     #[test]
+    fn menu_actions_and_command_line_share_the_same_workspace_state() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), Services::default());
+        let rev = app.session.state().unwrap().revision;
+        app.cmd.history.push("line".into());
+        app.run("ui.workspace.drafting", serde_json::Value::Null).unwrap();
+        assert_eq!(active(&app.ui), Workspace::Drafting);
+        app.cmdline("ui.workspace.modeling");
+        assert_eq!(active(&app.ui), Workspace::Modeling);
+        app.start("ui.workspace.back");
+        assert_eq!(active(&app.ui), Workspace::Drafting);
+        assert_eq!(app.session.state().unwrap().revision, rev);
+        assert_eq!(app.cmd.history, vec!["line"]);
+    }
+
+    #[test]
     fn active_session_revision_and_selection_do_not_change_on_switch() {
         let mut app = CadApp::new(cadcraft_engine::Session::new(), Services::default());
         let before = app.session.state().unwrap();
@@ -135,7 +150,7 @@ mod tests {
         let after = app.session.state().unwrap();
         assert_eq!(before.uid, after.uid);
         assert_eq!(before.revision, after.revision);
-        assert_eq!(app.session.selection(), selection.as_slice());
+        assert_eq!(app.session.selection(), selection);
         assert_eq!(app.cmd.history, history);
     }
 }

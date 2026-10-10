@@ -386,6 +386,59 @@ mod tests {
     use cadcraft_geom::Vec3;
 
     #[test]
+    fn simplified_mesh_bake_is_undoable_and_preserves_source_by_default() {
+        use buildercraft_kernel::{TriangleMesh, polygon_mesh_from_triangles};
+        let tri = TriangleMesh {
+            vertices: vec![
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
+            ],
+            triangles: vec![[0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2], [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5]],
+        };
+        let mesh = polygon_mesh_from_triangles(&tri).unwrap();
+        let mut session = Session::new();
+        let source_id = session.execute("mesh3d.create", &json!({"name":"Octa","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
+        let source = session.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = session.state().unwrap().revision;
+        assert!(session.execute("mesh3d.simplify", &json!({"id":source_id,"target_faces":6,"selected_revision":revision+1})).is_err());
+        assert!(session.execute("mesh3d.simplify", &json!({"id":source_id,"target_faces":8})).is_err());
+        assert!(session.execute("mesh3d.simplify", &json!({"id":source_id,"target_faces":6,"mode":"replace","name":"Invalid"})).is_err());
+        assert_eq!(session.state().unwrap().revision, revision);
+        assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
+
+        let preview = session.execute("mesh3d.preview_decimate", &json!({"id":source_id,"target_faces":6,"selected_revision":revision,"max_normal_change_degrees":85.0})).unwrap();
+        let output = session.execute("mesh3d.simplify", &json!({
+            "id":source_id,"target_faces":6,"selected_revision":revision,
+            "max_normal_change_degrees":85.0
+        })).unwrap();
+        let baked_id = output["id"].as_u64().unwrap();
+        assert_ne!(baked_id, source_id);
+        assert_eq!(output["removed_faces"], preview["removed_faces"]);
+        assert_eq!(output["result_faces"], 6);
+        assert_eq!(session.doc().unwrap().mesh3d.len(), 2);
+        assert_eq!(session.doc().unwrap().mesh3d[0].mesh, source);
+        assert_eq!(session.doc().unwrap().mesh3d[1].mesh.faces.len(), 6);
+        session.execute("undo", &json!({})).unwrap();
+        assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
+        assert_eq!(session.doc().unwrap().mesh3d[0].mesh, source);
+
+        let replacement_revision = session.state().unwrap().revision;
+        let replaced = session.execute("mesh3d.simplify", &json!({
+            "id":source_id,"target_faces":6,"mode":"replace",
+            "selected_revision":replacement_revision,"max_normal_change_degrees":85.0
+        })).unwrap();
+        assert_eq!(replaced["id"], source_id);
+        assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
+        assert_eq!(session.doc().unwrap().mesh3d[0].mesh.faces.len(), 6);
+        session.execute("undo", &json!({})).unwrap();
+        assert_eq!(session.doc().unwrap().mesh3d[0].mesh, source);
+    }
+
+    #[test]
     fn decimation_preview_is_read_only_and_revision_bound() {
         use buildercraft_kernel::{TriangleMesh, polygon_mesh_from_triangles};
         let source = TriangleMesh {

@@ -678,6 +678,59 @@
       "tree_item_broadcast": false
     },
     {
+      "kernel_operation": "kernel.pipe.mesh",
+      "group": "geometry.surface",
+      "cad_command": "worldwright.pipe",
+      "orbweaver_node": "orbweaver.pipe.mesh",
+      "reference_inventory_id": null,
+      "reference_name": "Pipe",
+      "relation": "mesh_alpha_not_exact_brep",
+      "modifiers": [
+        "up",
+        "start_radius",
+        "end_radius",
+        "wall",
+        "stations",
+        "sides",
+        "flat_caps"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.sweep1.mesh",
+      "group": "geometry.surface",
+      "cad_command": "worldwright.sweep1",
+      "orbweaver_node": "orbweaver.sweep1.mesh",
+      "reference_inventory_id": null,
+      "reference_name": "Sweep1",
+      "relation": "mesh_alpha_not_exact_brep",
+      "modifiers": [
+        "up",
+        "profile",
+        "stations",
+        "closed_profile"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.sweep2.mesh",
+      "group": "geometry.surface",
+      "cad_command": "worldwright.sweep2",
+      "orbweaver_node": "orbweaver.sweep2.mesh",
+      "reference_inventory_id": null,
+      "reference_name": "Sweep2",
+      "relation": "mesh_alpha_not_exact_brep",
+      "modifiers": [
+        "rail_b",
+        "section",
+        "stations"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
       "kernel_operation": "kernel.tree.validate",
       "group": "graph.list_tree",
       "cad_command": "worldwright.tree.validate",

@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 58,
-    "explicit_dependencies_mapped": 40,
+    "total": 62,
+    "explicit_dependencies_mapped": 44,
     "pending_source_review": 18,
-    "paired": 26
+    "paired": 29
   },
   "entries": [
     {
@@ -572,6 +572,51 @@
       "dependency_basis": "source_inspected_or_dataflow",
       "registry_category": "transform",
       "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.rail.frames",
+      "group": "geometry.transforms",
+      "depends_on": [
+        "kernel.polyline.divide_count",
+        "kernel.vector.cross",
+        "kernel.vector.dot"
+      ],
+      "registry_category": "transform",
+      "paired_cad_graph": false,
+      "dependency_basis": "source_inspected_or_dataflow"
+    },
+    {
+      "id": "kernel.pipe.mesh",
+      "group": "geometry.surface",
+      "depends_on": [
+        "kernel.rail.frames",
+        "kernel.polygon.validate"
+      ],
+      "registry_category": "surface",
+      "paired_cad_graph": true,
+      "dependency_basis": "source_inspected_or_dataflow"
+    },
+    {
+      "id": "kernel.sweep1.mesh",
+      "group": "geometry.surface",
+      "depends_on": [
+        "kernel.rail.frames",
+        "kernel.polygon.validate"
+      ],
+      "registry_category": "surface",
+      "paired_cad_graph": true,
+      "dependency_basis": "source_inspected_or_dataflow"
+    },
+    {
+      "id": "kernel.sweep2.mesh",
+      "group": "geometry.surface",
+      "depends_on": [
+        "kernel.rail.frames",
+        "kernel.polygon.validate"
+      ],
+      "registry_category": "surface",
+      "paired_cad_graph": true,
+      "dependency_basis": "source_inspected_or_dataflow"
     }
   ]
 }

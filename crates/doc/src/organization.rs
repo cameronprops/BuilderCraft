@@ -31,3 +31,14 @@ pub struct GeometryObject {
     pub shape: Shape,
 }
 pub use buildercraft_kernel::ExactShape as Shape;
+
+/// Persistent native triangle/quad object. Distinct from NURBS exact shapes:
+/// polygon face identity survives round-trips and edits copy on write.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PolygonGeometryObject {
+    pub id: u64,
+    pub name: String,
+    pub layer: String,
+    pub visible: bool,
+    pub mesh: std::sync::Arc<buildercraft_kernel::PolygonMesh>,
+}

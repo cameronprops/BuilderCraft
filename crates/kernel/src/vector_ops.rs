@@ -1,20 +1,22 @@
 //! Checked vector operations. Arithmetic is delegated to cadcraft-geom::Vec3.
 //! All angles are in radians; input vectors are in drawing coordinates.
 use crate::{KernelError, Result};
-use cadcraft_geom::{Vec3, EPS};
+use cadcraft_geom::{EPS, Vec3};
 
 fn checked_vector(v: Vec3) -> Result<Vec3> {
-    if v.is_finite() && [v.x, v.y, v.z].iter().all(|n| n.abs() <= 1e12) {
-        Ok(v)
-    } else {
-        Err(KernelError::Invalid("vector coordinate"))
-    }
+    if v.is_finite() && [v.x, v.y, v.z].iter().all(|n| n.abs() <= 1e12) { Ok(v) } else { Err(KernelError::Invalid("vector coordinate")) }
+}
+
+/// Vector amplitude. Zero is valid for measurement; unitization rejects zero.
+pub fn vector_length(v: Vec3) -> Result<f64> {
+    let v = checked_vector(v)?;
+    let amplitude = v.x.hypot(v.y).hypot(v.z);
+    if amplitude.is_finite() { Ok(amplitude) } else { Err(KernelError::Invalid("vector amplitude overflow")) }
 }
 
 /// Unit vector. Rejects zero and near-zero inputs instead of returning zero.
 pub fn vector_normalize(v: Vec3) -> Result<Vec3> {
-    let v = checked_vector(v)?;
-    let length = v.x.hypot(v.y).hypot(v.z);
+    let length = vector_length(v)?;
     if length <= EPS {
         return Err(KernelError::Invalid("zero-length vector"));
     }
@@ -49,6 +51,13 @@ mod tests {
 
     fn near(a: f64, b: f64) -> bool {
         (a - b).abs() < 1e-12
+    }
+
+    #[test]
+    fn length_can_measure_zero_and_reuses_unitization_validation() {
+        assert_eq!(vector_length(Vec3::ZERO), Ok(0.));
+        assert_eq!(vector_length(Vec3::new(3., 4., 12.)), Ok(13.));
+        assert!(vector_length(Vec3::new(f64::NAN, 0., 0.)).is_err());
     }
 
     #[test]

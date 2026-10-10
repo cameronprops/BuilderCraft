@@ -24,3 +24,37 @@ on the development branch. Repository administrators should disable Actions
 at repository settings if *all* workflows (including alpha and release) must
 be prevented from running automatically. Build/test locally with Rust when
 available; do not claim unexecuted tests passed.
+
+## Native Worldwright project file
+
+**.dftba** is the preferred Worldwright project extension. This is a
+file-name/format routing change, not a change to the version-1 JSON payload
+schema. Existing `.bcraft` projects remain readable and writable as legacy
+aliases. Save As in the Worldwright workspace proposes `.dftba`, and desktop
+open filters accept both extensions. Opening an old `.bcraft` file and using
+Save retains its existing path; use Save As to migrate its filename to
+`.dftba`. Do not claim backwards compatibility with future file schema
+changes until separate migration tests exist.
+
+Both extensions are project containers; generic DXF/DWG/SVG/PDF export cannot
+silently discard 3D geometry or mesh objects.
+
+## OrbWeaver graph identity
+
+**OrbWeaver** is the working name for Worldwright's open-source Grasshopper-style
+parametric graph engine, after orb-weaving spiders. The native graph
+engine is independently usable and intended to appear embedded in the CAD
+workspace; it executes shared kernel operations with direct CAD commands.
+OrbWeaver now supports native data-tree structure operations and explicit
+matching for identical branch paths; Grasshopper-equivalent tree semantics,
+a graphical canvas and a standalone GUI executable remain in development.
+The data-tree foundations (validate, flatten, graft, simplify and list match)
+are shared by both CAD and OrbWeaver; implicit Grasshopper path matching,
+a graphical node canvas and .dftba graph persistence are still pending.
+The dependency-first tool hierarchy and mapping register live under
+`docs/dependencies/`. Native Worldwright files remain `.dftba`.
+
+The package name is `orbweaver`, Rust import name `orbweaver`, and native
+component namespace `orbweaver.*`. Previous unreleased Calisoga names are
+replaced in source; no migration promise is made for external consumers of
+unreleased internal IDs. Existing Worldwright project files remain `.dftba`.

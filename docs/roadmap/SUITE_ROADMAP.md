@@ -41,11 +41,20 @@ Implemented: dependency-light `buildercraft-kernel`, immutable shared exact geom
 
 ## Next concrete tasks
 
-1. Tessellate exact curves/surfaces into bounded preview resources, preserving exact source and revision.
-2. Export a massing scene to GLB with the semantic manifest; validate units, identity and hierarchy in an engine import fixture.
-3. Add the shared typed graph evaluator and persistent parameters/data trees, then embed its component canvas inside CAD.
-4. Implement original native constraint goals and bounded iterative relaxation for Kangaroo-style form-finding; verify convergence, anchors, units and cancellation.
-5. Reuse reviewed StructureGraph recipes through these shared geometry/graph services.
+CAD-first alpha dependency order, reviewed against source on 2026-10-09:
+
+1. Close the viewport selection loop with the existing transactional gizmo.
+2. Add construction-plane point input and endpoint snapping; use it for interactive curve creation and transform reference input.
+3. Add shared exact surface construction (extrude/loft/revolve) through CAD/API and the upcoming node evaluator.
+4. Add the shared typed graph evaluator and persistent parameters/data trees, then embed the OrbWeaver component canvas inside CAD.
+5. Extend the inherited drafting constraint service into mechanical sketches and feature-history blocks through the same geometry operations; bounded relaxation/form-finding follows the graph contracts.
+
+Preview tessellation, GLB export and the local visualization feed are already
+implemented. Unreal host acceptance remains outstanding and does not block CAD
+interaction work. Scan/Show expansion remains deferred under the CAD-first
+priority. Robust trimming/topology/solids depend on curves, surfaces and
+intersections; additional standalone transform names do not close those gaps.
+See `CAD_ALPHA_DEPENDENCIES.json` for the machine-readable sequence.
 
 The native solver is required; a licensed-host adapter cannot substitute for it.
 
@@ -131,3 +140,73 @@ service and numeric UI, with optional first-edge uniform scaling. Existing copy,
 undo/redo, resource limits and project persistence apply. Exact rational curves
 and control surfaces only; reference picking and other representations remain
 pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
+
+
+## OrbWeaver and dependency-first paired tools (source authored, validation pending)
+
+Worldwright's native Grasshopper-style graph core is now called **OrbWeaver**
+(working name, after orb-weaving spiders). It will run
+inside CAD and headlessly/independently through the same underlying kernel.
+A separate visual canvas and executable remain later deliverables.
+
+The group-level prerequisite DAG is `../dependencies/tool-groups.json` and
+the preliminary reference mapping is
+`../dependencies/reference-index.json`. All 1,072 Rhino commands, 817
+Grasshopper entries, 110 Kangaroo entries and 2,357 manual topics are accounted
+for, but initial classification is heuristic and 2,347 references remain
+unclassified. **No per-command or per-component verified dependency hierarchy
+or conformance claim is inferred from these labels.**
+
+Fifteen CAD/Graph pairs now route point, vector, polyline and native data-tree functions through
+one typed kernel dispatcher (`crates/kernel/src/shared_tools.rs`). The newly
+authored `crates/orbweaver` evaluator supports typed ports, literal/linked
+values, versioned serializable graphs, dependency scheduling, cycle/type
+checks, graph limits and atomic error propagation. The CAD/API command
+adapter in `crates/engine/src/cmd/worldwright_tools.rs` uses those same
+validated implementations. Vector length is an additional base primitive,
+reused by normalize. The interpolation fraction, division count and division
+spacing are named modifier ports.
+
+These code paths and tests are **not compiled or run yet**; the current
+environment lacks Cargo. Native graph data-tree structure operations are authored
+with strict branch paths, explicit matching policies, flatten, graft and simplify.
+A component canvas, exact Grasshopper implicit
+path matching, preview/bake, solver, expressions and exact reference GH port
+matching are not implemented. Do not promote any public catalog entry to working parity without
+a local compilation/test and reference conformance fixture.
+
+The next dependency-respecting build steps are: versioned geometry reference
+ports and their typed graph bindings, graph persistence in `.dftba`, preview/bake
+transactions, exact curve operations paired in CAD/OrbWeaver, then surface,
+intersection/solid and physics forms. Each algorithm is implemented once,
+and CAD options / OrbWeaver settings are modifiers or thin adapters.
+
+### OrbWeaver native data-tree operation increment
+
+The Rust graph crate is now `crates/orbweaver` (package `orbweaver`,
+public nodes `orbweaver.*`). The dependency map now contains **46** registered
+kernel operations, of which **15** have shared CAD/OrbWeaver typed ports.
+The five new `kernel.tree.*` paired operations validate canonical branch paths,
+flatten, graft, simplify and match with explicit Shortest, Longest and
+CrossReference modifiers. The existing OrbWeaver DAG can link tagged tree
+values through these nodes. A headless `paired_tree` example checks that
+CAD and graph entry points invoke one dispatcher. Grasshopper tree-path
+matching, graph UI and
+`.dftba` graph persistence are still future work; the new tests remain
+unexecuted until Rust/Cargo is available locally. No hosted CI is invoked.
+
+## History-driven mechanical modeling track
+
+The optional scoped feature-history foundation now has a machine-readable
+[60-item dependency catalog](../dependencies/feature-history.json):
+eight source-authored, **uncompiled** infrastructure contracts and 52 planned
+sketch, dimension, solid, assembly and fabrication operations. Histories can
+belong to a document, a component/body node or a reusable block definition,
+without imposing a timeline on direct CAD modeling.
+
+The initial code stores stable step IDs, typed local parameters, chronological
+dependencies, suppression, rollback, revision-checked edits and CAD undo.
+It evaluates already-implemented shared kernel operations and saves recipes
+inside `.dftba`. An **initial 3D workspace timeline panel** now exposes enable, inspect, reorder, suppression, rollback and editing of basic local values. This is **not** a full visual feature-authoring or functioning sketch-to-solid mechanical modeler. Next: stable versioned geometry
+references, dimension expressions, constraint-driven sketch profiles and
+shared extrude/revolve/hole/fillet kernels, then previews and UI/bake.

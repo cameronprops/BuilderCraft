@@ -1,0 +1,504 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-10-09",
+  "scope": "Shared Worldwright kernel services reused by CAD, OrbWeaver, metrology inspired by PolyWorks/GOM, Design X-style reverse engineering, and fabrication. Behavior references do not convey implementation source or licenses.",
+  "statuses": {
+    "implemented_source": "Existing source found; runtime validation and parity must be evidenced independently",
+    "partial_source": "Some reusable source exists, not complete for this operation",
+    "authored_uncompiled": "Source authored on this branch, Rust validation pending",
+    "planned": "A dependency contract, not working code"
+  },
+  "principles": [
+    "One math implementation, thin interfaces; adapters own workflows rather than duplicate solvers",
+    "One canonical geometry representation plus typed variants, immutable shared data and bounded copy-on-write",
+    "All metrology measurements carry units, datum/frame, tolerance, source revision, confidence, and provenance",
+    "Use source-revision keyed bounded 3D spatial caches; do not confuse drafting 2D R-tree with 3D nearest-neighbor search",
+    "Memory budgets, cancellation, deterministic tie-breaks, finite inputs and stable ID mappings are acceptance gates",
+    "Never bundle or rely on proprietary PolyWorks/GOM/Design X runtime code in the native core",
+    "Do not mark planned consumers as integrated until that adapter has actual runtime tests"
+  ],
+  "next_validated_sequence": [
+    "geometry.construction_plane",
+    "geometry.screen_ray",
+    "geometry.object_snap",
+    "geometry.spatial_index_3d",
+    "geometry.closest_point_triangle",
+    "geometry.closest_point_mesh",
+    "metrology.normal_estimation",
+    "metrology.correspondence",
+    "metrology.rigid_best_fit",
+    "metrology.icp",
+    "metrology.surface_deviation"
+  ],
+  "operations": [
+    {
+      "id": "math.vector3",
+      "tier": 0,
+      "requires": [],
+      "status": "implemented_source",
+      "source": "crates/geom/src/vec.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "geometry.units_frames",
+      "tier": 0,
+      "requires": [],
+      "status": "partial_source",
+      "source": "crates/kernel/src/scene.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "geometry.tolerance",
+      "tier": 0,
+      "requires": [],
+      "status": "partial_source",
+      "source": "crates/geom/src/lib.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "scene.identity_revision",
+      "tier": 0,
+      "requires": [],
+      "status": "implemented_source",
+      "source": "crates/kernel/src/scene.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "geometry.curve_evaluation",
+      "tier": 1,
+      "requires": [
+        "math.vector3"
+      ],
+      "status": "implemented_source",
+      "source": "crates/geom/src/nurbs3d.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "geometry.point_cloud",
+      "tier": 1,
+      "requires": [
+        "math.vector3"
+      ],
+      "status": "implemented_source",
+      "source": "crates/kernel/src/geometry.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "geometry.construction_plane",
+      "tier": 1,
+      "requires": [
+        "math.vector3",
+        "geometry.tolerance"
+      ],
+      "status": "authored_uncompiled",
+      "source": "crates/geom/src/snap3d.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "geometry.transform",
+      "tier": 2,
+      "requires": [
+        "math.vector3",
+        "geometry.units_frames"
+      ],
+      "status": "implemented_source",
+      "source": "crates/kernel/src/transform.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "geometry.screen_ray",
+      "tier": 2,
+      "requires": [
+        "geometry.construction_plane"
+      ],
+      "status": "authored_uncompiled",
+      "source": "crates/geom/src/snap3d.rs",
+      "consumers": [
+        "cad",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "geometry.spatial_index_2d",
+      "tier": 2,
+      "requires": [
+        "math.vector3"
+      ],
+      "status": "implemented_source",
+      "source": "crates/engine/src/spatial.rs",
+      "consumers": [
+        "cad"
+      ]
+    },
+    {
+      "id": "geometry.object_snap",
+      "tier": 3,
+      "requires": [
+        "geometry.curve_evaluation",
+        "geometry.screen_ray"
+      ],
+      "status": "authored_uncompiled",
+      "source": "crates/engine/src/cmd/snap3d.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "geometry.mesh_topology",
+      "tier": 3,
+      "requires": [
+        "math.vector3"
+      ],
+      "status": "partial_source",
+      "source": "crates/kernel/src/mesh_edges.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "geometry.spatial_index_3d",
+      "tier": 3,
+      "requires": [
+        "geometry.point_cloud",
+        "scene.identity_revision"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "geometry.mesh_normals",
+      "tier": 4,
+      "requires": [
+        "geometry.mesh_topology"
+      ],
+      "status": "partial_source",
+      "source": "crates/kernel/src/mesh_analysis.rs",
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "geometry.closest_point_triangle",
+      "tier": 4,
+      "requires": [
+        "geometry.mesh_topology",
+        "geometry.tolerance"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "geometry.closest_point_mesh",
+      "tier": 5,
+      "requires": [
+        "geometry.closest_point_triangle",
+        "geometry.spatial_index_3d"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "geometry.closest_point_nurbs",
+      "tier": 5,
+      "requires": [
+        "geometry.curve_evaluation",
+        "geometry.tolerance"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "cad",
+        "orbweaver",
+        "metrology",
+        "reverse_engineering"
+      ]
+    },
+    {
+      "id": "metrology.normal_estimation",
+      "tier": 5,
+      "requires": [
+        "geometry.spatial_index_3d",
+        "geometry.tolerance"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "metrology.datum_fit",
+      "tier": 5,
+      "requires": [
+        "geometry.construction_plane",
+        "geometry.spatial_index_3d"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "metrology.correspondence",
+      "tier": 6,
+      "requires": [
+        "geometry.closest_point_mesh",
+        "metrology.normal_estimation"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "metrology.rigid_best_fit",
+      "tier": 7,
+      "requires": [
+        "metrology.correspondence",
+        "geometry.transform",
+        "geometry.tolerance"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "metrology.surface_deviation",
+      "tier": 7,
+      "requires": [
+        "geometry.closest_point_mesh",
+        "geometry.closest_point_nurbs"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "metrology.region_group",
+      "tier": 7,
+      "requires": [
+        "metrology.normal_estimation",
+        "scene.identity_revision"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "metrology.primitive_fit",
+      "tier": 7,
+      "requires": [
+        "metrology.datum_fit",
+        "geometry.tolerance"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "metrology.icp",
+      "tier": 8,
+      "requires": [
+        "metrology.rigid_best_fit",
+        "metrology.correspondence"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "reverse_engineering.nurbs_fit",
+      "tier": 8,
+      "requires": [
+        "metrology.normal_estimation",
+        "geometry.closest_point_nurbs",
+        "metrology.primitive_fit"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "reverse_engineering",
+        "cad",
+        "orbweaver",
+        "metrology"
+      ]
+    },
+    {
+      "id": "fabrication.thickness",
+      "tier": 8,
+      "requires": [
+        "geometry.closest_point_mesh",
+        "geometry.mesh_normals"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "fabrication",
+        "cad",
+        "orbweaver",
+        "metrology"
+      ]
+    },
+    {
+      "id": "metrology.inspection_report",
+      "tier": 8,
+      "requires": [
+        "metrology.surface_deviation",
+        "scene.identity_revision",
+        "geometry.units_frames"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "cad",
+        "fabrication"
+      ]
+    },
+    {
+      "id": "metrology.scan_to_cad",
+      "tier": 9,
+      "requires": [
+        "metrology.icp",
+        "metrology.datum_fit",
+        "metrology.surface_deviation"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "metrology",
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    },
+    {
+      "id": "reverse_engineering.feature_rebuild",
+      "tier": 9,
+      "requires": [
+        "reverse_engineering.nurbs_fit",
+        "metrology.primitive_fit",
+        "scene.identity_revision"
+      ],
+      "status": "planned",
+      "source": null,
+      "consumers": [
+        "reverse_engineering",
+        "cad",
+        "orbweaver"
+      ]
+    }
+  ]
+}

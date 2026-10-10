@@ -1,0 +1,141 @@
+{
+  "review_date": "2026-10-09",
+  "priority": "CAD-first working vertical slices; all interfaces reuse shared operations",
+  "nodes": [
+    {
+      "id": "shared_exact_geometry",
+      "level": "L1-L4",
+      "status": "partial",
+      "scope": "exact curves/control surfaces, documents, transactions, persistence"
+    },
+    {
+      "id": "viewport_transforms",
+      "level": "L4",
+      "status": "partial",
+      "depends_on": [
+        "shared_exact_geometry"
+      ],
+      "scope": "numeric transforms and world-axis gizmo"
+    },
+    {
+      "id": "viewport_selection",
+      "level": "L2-L4",
+      "status": "partial",
+      "depends_on": [
+        "shared_exact_geometry",
+        "viewport_transforms"
+      ],
+      "commands": [
+        "geometry3d.pick",
+        "geometry3d.select"
+      ],
+      "scope": "sampled wires, click/toggle, layer visibility/locking",
+      "implementation": [
+        "crates/geom/src/picking.rs",
+        "crates/kernel/src/wireframe.rs",
+        "crates/engine/src/cmd/picking3d.rs",
+        "crates/ui-egui/src/buildercraft.rs"
+      ],
+      "evidence": [
+        "WirePick numeric fixtures",
+        "kernel pre-emission work rejection",
+        "API visibility/locking, overlap order, surface wires, selection and undo preservation",
+        "egui pointer click/toggle/camera-drag/gizmo-drag fixtures",
+        "rendered viewport inspection",
+        "490 workspace tests and all six cargo xtask ci gates passed on Rust 1.95.0",
+        "NURBS sample failure propagates instead of returning a partial hit"
+      ]
+    },
+    {
+      "id": "point_input_snapping",
+      "level": "L2-L4",
+      "status": "planned",
+      "depends_on": [
+        "viewport_selection"
+      ],
+      "scope": "construction plane, endpoints, interactive point input"
+    },
+    {
+      "id": "surface_construction",
+      "level": "L1-L4",
+      "status": "planned",
+      "depends_on": [
+        "shared_exact_geometry",
+        "point_input_snapping"
+      ],
+      "scope": "shared extrude/loft/revolve contracts"
+    },
+    {
+      "id": "orbweaver_evaluator_canvas",
+      "level": "L5",
+      "status": "planned",
+      "depends_on": [
+        "shared_exact_geometry"
+      ],
+      "scope": "typed ports, data trees, pure evaluation, preview and transactional bake"
+    },
+    {
+      "id": "sketch_feature_history",
+      "level": "L5-L6",
+      "status": "planned",
+      "depends_on": [
+        "surface_construction",
+        "orbweaver_evaluator_canvas"
+      ],
+      "scope": "constraints and editable feature blocks"
+    },
+    {
+      "id": "trimmed_topology_solids",
+      "level": "L2-L3",
+      "status": "planned",
+      "depends_on": [
+        "surface_construction"
+      ],
+      "scope": "intersections, trim/join, watertight topology before booleans"
+    },
+    {
+      "id": "native_format_migration",
+      "level": "L4",
+      "status": "planned",
+      "depends_on": [
+        "shared_exact_geometry"
+      ],
+      "scope": ".dftba native save/reopen with .bcraft compatibility; subsequent graph/history schema migration"
+    },
+    {
+      "id": "cross_domain_metrology_foundation",
+      "level": "L2-L6",
+      "status": "planned",
+      "depends_on": [
+        "point_input_snapping",
+        "shared_exact_geometry"
+      ],
+      "scope": "One reusable Rust geometry service for CAD, OrbWeaver, metrology and reverse engineering. Prerequisites: bounded 3D spatial index, closest-point queries, source-revision references, normals, datum frames and calibration/tolerance policy. See cross-domain register.",
+      "implementation": [
+        "docs/roadmap/CROSS_DOMAIN_KERNEL_DEPENDENCIES.json"
+      ],
+      "evidence": []
+    }
+  ],
+  "existing_reuse": [
+    {
+      "id": "mesh_polygon_foundation",
+      "scope": "kernel validation, topology, welding, cleanup and hole-fill subsets; not integrated Scan UI",
+      "source": "crates/kernel/src/registry.rs"
+    },
+    {
+      "id": "drafting_constraints",
+      "scope": "inherited constraints crate and engine constraint commands; not full mechanical feature history",
+      "source": "crates/constraints/src/lib.rs"
+    }
+  ],
+  "schema_version": 1,
+  "release_gates": [
+    "native build and UI acceptance",
+    "save/reopen and import/export fidelity",
+    "graph persistence and transactional bake",
+    "aggregate memory/undo/cache and cancellation measurements",
+    "cross-platform native builds; Haiku remains separately unvalidated"
+  ],
+  "cross_domain_reuse_registry": "docs/roadmap/CROSS_DOMAIN_KERNEL_DEPENDENCIES.json"
+}

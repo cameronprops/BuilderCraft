@@ -15,10 +15,13 @@ pub mod chrome;
 pub mod cmdline;
 pub mod control;
 pub mod dialogs;
+mod feature_history;
+pub mod gizmo;
 pub mod gpu;
 pub mod icons;
 pub mod layers;
 pub mod menus;
+pub mod mesh_picking;
 pub mod palettes;
 pub mod parametric;
 pub mod quick;
@@ -56,6 +59,15 @@ pub struct UiState {
     pub history_lines: usize,
     pub buildercraft_workspace: bool,
     pub model_name: String,
+    /// Index of the polygon face selected for numeric mesh edit commands.
+    pub mesh_face_index: u32,
+    /// Last viewport-picked mesh identity and its source document revision.
+    pub mesh_face_object_id: Option<u64>,
+    pub mesh_face_document_uid: Option<u64>,
+    pub mesh_face_revision: Option<u64>,
+    /// Transient gizmo drag state must not be serialized with UI preferences.
+    #[serde(skip)]
+    pub gizmo: gizmo::Gizmo,
     pub view3d: bool,
     pub orbit_yaw: f64,
     pub orbit_pitch: f64,
@@ -95,6 +107,11 @@ impl Default for UiState {
             history_lines: 3,
             buildercraft_workspace: true,
             model_name: "Body".into(),
+            mesh_face_index: 0,
+            mesh_face_object_id: None,
+            mesh_face_document_uid: None,
+            mesh_face_revision: None,
+            gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,
             orbit_pitch: -(1.0_f64 / 3.0_f64.sqrt()).asin(),

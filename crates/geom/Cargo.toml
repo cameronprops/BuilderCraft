@@ -10,3 +10,4 @@ workspace = true
 
 [dependencies]
 serde = { workspace = true }
+robust = { version = "1.2.0" } # MIT OR Apache-2.0; choose MIT option

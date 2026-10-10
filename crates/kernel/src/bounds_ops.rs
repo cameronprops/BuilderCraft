@@ -21,11 +21,7 @@ impl Bounds3 {
 
     /// Axis-aligned box midpoint, not the mass centroid of the geometry.
     pub fn center(self) -> Vec3 {
-        Vec3::new(
-            self.min.x * 0.5 + self.max.x * 0.5,
-            self.min.y * 0.5 + self.max.y * 0.5,
-            self.min.z * 0.5 + self.max.z * 0.5,
-        )
+        Vec3::new(self.min.x * 0.5 + self.max.x * 0.5, self.min.y * 0.5 + self.max.y * 0.5, self.min.z * 0.5 + self.max.z * 0.5)
     }
 }
 
@@ -63,10 +59,7 @@ mod tests {
     fn encloses_three_dimensional_points() {
         let points = [Vec3::new(-2.0, 5.0, 3.0), Vec3::new(6.0, -1.0, 7.0), Vec3::new(2.0, 3.0, -5.0)];
         let box3 = bounds_from_points(&points);
-        assert_eq!(box3, Ok(Bounds3 {
-            min: Vec3::new(-2.0, -1.0, -5.0),
-            max: Vec3::new(6.0, 5.0, 7.0),
-        }));
+        assert_eq!(box3, Ok(Bounds3 { min: Vec3::new(-2.0, -1.0, -5.0), max: Vec3::new(6.0, 5.0, 7.0) }));
         if let Ok(b) = box3 {
             assert_eq!(b.dimensions(), Vec3::new(8.0, 6.0, 12.0));
             assert_eq!(b.center(), Vec3::new(2.0, 2.0, 1.0));

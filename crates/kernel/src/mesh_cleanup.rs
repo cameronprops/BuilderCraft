@@ -1,7 +1,7 @@
 //! Read-only and copy-on-write triangle mesh cleanup utilities.
 //! Face duplicates use identical vertex indices regardless of winding;
 //! coincident but unwelded coordinates are NOT considered equal.
-use crate::{KernelError, Result, TriangleMesh, mesh_degenerate_faces, mesh_edge_report, MeshEdgeReport};
+use crate::{KernelError, MeshEdgeReport, Result, TriangleMesh, mesh_degenerate_faces, mesh_edge_report};
 use std::collections::BTreeMap;
 
 const MAX_VERTICES: usize = 1_000_000;
@@ -11,8 +11,7 @@ fn validate(mesh: &TriangleMesh) -> Result<()> {
     if mesh.vertices.len() > MAX_VERTICES || mesh.triangles.len() > MAX_FACES {
         return Err(KernelError::Budget);
     }
-    if mesh.vertices.iter().any(|p| !p.is_finite()
-        || [p.x, p.y, p.z].iter().any(|v| v.abs() > 1e12)) {
+    if mesh.vertices.iter().any(|p| !p.is_finite() || [p.x, p.y, p.z].iter().any(|v| v.abs() > 1e12)) {
         return Err(KernelError::Invalid("mesh coordinate"));
     }
     if mesh.triangles.iter().flatten().any(|&i| i as usize >= mesh.vertices.len()) {
@@ -92,11 +91,7 @@ pub fn mesh_remove_unused_vertices(mesh: &TriangleMesh) -> Result<CompactMeshRes
         }
         triangles.push(remapped);
     }
-    Ok(CompactMeshResult {
-        mesh: TriangleMesh { vertices, triangles },
-        old_to_new,
-        removed_vertex_indices,
-    })
+    Ok(CompactMeshResult { mesh: TriangleMesh { vertices, triangles }, old_to_new, removed_vertex_indices })
 }
 
 /// Combined diagnostic report on indexed topology and face quality.
@@ -127,7 +122,7 @@ pub fn mesh_validation_report(mesh: &TriangleMesh, relative_area_tolerance: f64)
     } else {
         mesh_degenerate_faces(mesh, relative_area_tolerance)?
     };
-    let repeated_indices = mesh.triangles.iter().any(|&[a,b,c]| a == b || b == c || a == c);
+    let repeated_indices = mesh.triangles.iter().any(|&[a, b, c]| a == b || b == c || a == c);
     let edge_report = if repeated_indices { None } else { Some(mesh_edge_report(mesh)?) };
     Ok(MeshValidationReport {
         vertex_count: mesh.vertices.len(),
@@ -146,16 +141,15 @@ mod tests {
 
     fn sample() -> TriangleMesh {
         TriangleMesh {
-            vertices: vec![Vec3::ZERO, Vec3::new(1.0,0.0,0.0),
-                Vec3::new(0.0,1.0,0.0), Vec3::Z, Vec3::new(8.0,8.0,8.0)],
-            triangles: vec![[0,1,2], [1,2,0], [2,1,0], [0,1,3]],
+            vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0), Vec3::Z, Vec3::new(8.0, 8.0, 8.0)],
+            triangles: vec![[0, 1, 2], [1, 2, 0], [2, 1, 0], [0, 1, 3]],
         }
     }
 
     #[test]
     fn detects_reversed_and_rotated_duplicates() {
         let r = mesh_duplicate_faces(&sample());
-        assert!(r.is_ok_and(|r| r.duplicates == vec![[1,0], [2,0]]));
+        assert!(r.is_ok_and(|r| r.duplicates == vec![[1, 0], [2, 0]]));
     }
 
     #[test]
@@ -165,7 +159,7 @@ mod tests {
         let result = mesh_remove_unused_vertices(&original);
         assert!(result.is_ok_and(|r| {
             r.removed_vertex_indices == vec![4]
-                && r.old_to_new == vec![Some(0),Some(1),Some(2),Some(3),None]
+                && r.old_to_new == vec![Some(0), Some(1), Some(2), Some(3), None]
                 && r.mesh.vertices.len() == 4
                 && r.mesh.triangles == before.triangles
         }));
@@ -174,24 +168,18 @@ mod tests {
 
     #[test]
     fn reports_face_and_topology_issues_after_weld() {
-        let mesh = TriangleMesh {
-            vertices: vec![Vec3::ZERO, Vec3::new(1.0,0.0,0.0), Vec3::new(0.0,1.0,0.0)],
-            triangles: vec![[0,1,2], [0,2,1]],
-        };
+        let mesh =
+            TriangleMesh { vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)], triangles: vec![[0, 1, 2], [0, 2, 1]] };
         let r = mesh_validation_report(&mesh, 0.0);
-        assert!(r.is_ok_and(|r| r.duplicate_faces.duplicates == vec![[1,0]]
+        assert!(r.is_ok_and(|r| r.duplicate_faces.duplicates == vec![[1, 0]]
             && r.degenerate_face_indices.is_empty()
             && r.edge_report.is_some_and(|e| e.boundary_edges.is_empty())));
     }
 
     #[test]
     fn repeated_index_faces_remain_diagnosable() {
-        let mesh = TriangleMesh {
-            vertices: vec![Vec3::ZERO, Vec3::Z],
-            triangles: vec![[0,0,1]],
-        };
-        assert!(mesh_validation_report(&mesh, 0.0)
-            .is_ok_and(|r| r.degenerate_face_indices == vec![0] && r.edge_report.is_none()));
+        let mesh = TriangleMesh { vertices: vec![Vec3::ZERO, Vec3::Z], triangles: vec![[0, 0, 1]] };
+        assert!(mesh_validation_report(&mesh, 0.0).is_ok_and(|r| r.degenerate_face_indices == vec![0] && r.edge_report.is_none()));
     }
 
     #[test]
@@ -199,7 +187,7 @@ mod tests {
         let empty = TriangleMesh { vertices: vec![], triangles: vec![] };
         assert!(mesh_validation_report(&empty, 0.0).is_ok());
         assert!(mesh_remove_unused_vertices(&empty).is_ok());
-        let invalid = TriangleMesh { vertices: vec![Vec3::ZERO], triangles: vec![[0,1,0]] };
+        let invalid = TriangleMesh { vertices: vec![Vec3::ZERO], triangles: vec![[0, 1, 0]] };
         assert!(mesh_duplicate_faces(&invalid).is_err());
         assert!(mesh_validation_report(&empty, f64::NAN).is_err());
     }

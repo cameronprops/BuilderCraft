@@ -1348,3 +1348,64 @@ mod mesh_ui_tests {
         assert!(!picked_face_is_current(&app, id));
     }
 }
+
+#[cfg(test)]
+mod patch_preview_tests {
+    use super::*;
+
+    #[test]
+    fn compact_patch_preview_preserves_only_new_faces_and_rejects_stale_results() {
+        let p = |x: f64, y: f64, z: f64| json!({"x":x,"y":y,"z":z});
+        let result = json!({
+            "id": 25,
+            "source_revision": 9,
+            "vertices": [p(0.,0.,0.), p(1.,0.,0.), p(1.,1.,0.), p(0.,1.,0.), p(0.5,0.5,0.2)],
+            "triangles": [[0,1,2],[0,2,3],[0,1,4],[1,2,4]],
+            "source_face_indices": [0, 0, 6, 7],
+            "new_face_indices": [6, 7]
+        });
+        let cache = MeshPatchPreview::from_reply(100, 9, 25, &result);
+        assert!(cache.is_ok(), "{cache:?}");
+        if let Ok(cache) = cache {
+            assert_eq!(cache.document_uid, 100);
+            assert_eq!(cache.source_revision, 9);
+            assert_eq!(cache.triangles.len(), 2);
+            assert_eq!(cache.vertices.len(), 4);
+            assert_eq!(cache.triangles, vec![[0, 1, 2], [1, 3, 2]]);
+        }
+        assert!(MeshPatchPreview::from_reply(100, 8, 25, &result).is_err());
+        assert!(MeshPatchPreview::from_reply(100, 9, 26, &result).is_err());
+        let mut bad = result;
+        bad["triangles"][3][2] = json!(100_000);
+        assert!(MeshPatchPreview::from_reply(100, 9, 25, &bad).is_err());
+    }
+
+    #[test]
+    fn xray_triangle_is_drawn_without_changing_cached_mesh_geometry() {
+        let cache = MeshPatchPreview {
+            document_uid: 1,
+            source_revision: 2,
+            object_id: 3,
+            vertices: vec![
+                cadcraft_geom::Vec3::new(0., 0., 0.),
+                cadcraft_geom::Vec3::new(2., 0., 0.),
+                cadcraft_geom::Vec3::new(1., 2., 0.),
+            ],
+            triangles: vec![[0, 1, 2]],
+        };
+        let original = cache.vertices.clone();
+        let ctx = egui::Context::default();
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(300., 300.))),
+            ..Default::default()
+        };
+        let mut frame = ctx.run_ui(input, |ui| {
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(260., 260.), egui::Sense::hover());
+            let painter = ui.painter_at(rect);
+            draw_mesh_patch_preview(&painter, |p| egui::pos2(30. + (p.x * 30.) as f32, 50. + (p.y * 30.) as f32), &cache);
+        });
+        assert!(!frame.shapes.is_empty());
+        frame.textures_delta.clear();
+        assert_eq!(cache.vertices, original);
+    }
+}

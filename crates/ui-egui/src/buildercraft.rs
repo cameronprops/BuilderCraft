@@ -196,6 +196,9 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
     if !breps.is_empty() {
         ui.separator();
         ui.heading("Exact BRep solids");
+        if ui.button("Clear shaded previews").clicked() {
+            app.ui.brep_previews.clear();
+        }
         for object in breps {
             let selected = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
             if ui.selectable_label(selected, format!("Solid: {}", object.name)).clicked() {

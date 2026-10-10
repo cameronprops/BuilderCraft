@@ -149,7 +149,6 @@ mod tests {
     }
 }
 
-
 /// Return normalized-domain rational B-spline basis and its exact first
 /// derivative. The derivative is analytic in every knot span. At a repeated
 /// knot it takes the span selected by the regular evaluator, so consumers
@@ -316,10 +315,8 @@ mod analytic_derivative_tests {
 
     #[test]
     fn analytic_curve_derivative_agrees_with_symmetric_difference() {
-        let mut c = Curve::from_control(
-            vec![Vec3::new(-2., 1., 0.), Vec3::new(1., 3., 1.), Vec3::new(3., -1., 4.), Vec3::new(5., 0., 2.)],
-            3,
-        ).unwrap();
+        let mut c =
+            Curve::from_control(vec![Vec3::new(-2., 1., 0.), Vec3::new(1., 3., 1.), Vec3::new(3., -1., 4.), Vec3::new(5., 0., 2.)], 3).unwrap();
         c.weights = vec![1.0, 0.55, 1.8, 0.9];
         let delta = 1e-6;
         for t in [0.11, 0.3, 0.61, 0.87] {
@@ -330,12 +327,8 @@ mod analytic_derivative_tests {
 
     #[test]
     fn bilinear_surface_has_exact_partials_and_normal() {
-        let row = |y| Curve {
-            degree: 1,
-            control: vec![Vec3::new(0., y, 0.), Vec3::new(10., y, 5.)],
-            weights: vec![1., 1.],
-            knots: uniform_knots(2, 1),
-        };
+        let row =
+            |y| Curve { degree: 1, control: vec![Vec3::new(0., y, 0.), Vec3::new(10., y, 5.)], weights: vec![1., 1.], knots: uniform_knots(2, 1) };
         let surface = Surface { rows: vec![row(0.), row(10.)], degree_v: 1, knots_v: uniform_knots(2, 1) };
         for u in [0.0, 0.3, 1.0] {
             for v in [0.0, 0.6, 1.0] {
@@ -351,12 +344,8 @@ mod analytic_derivative_tests {
 
     #[test]
     fn singular_surface_reports_undefined_normal_not_zero() {
-        let row = |y| Curve {
-            degree: 1,
-            control: vec![Vec3::new(0., y, 0.), Vec3::new(0., y, 0.)],
-            weights: vec![1., 1.],
-            knots: uniform_knots(2, 1),
-        };
+        let row =
+            |y| Curve { degree: 1, control: vec![Vec3::new(0., y, 0.), Vec3::new(0., y, 0.)], weights: vec![1., 1.], knots: uniform_knots(2, 1) };
         let surface = Surface { rows: vec![row(0.), row(1.)], degree_v: 1, knots_v: uniform_knots(2, 1) };
         assert!(surface.derivatives(0.5, 0.5).is_some());
         assert!(surface.normal(0.5, 0.5).is_none());

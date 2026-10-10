@@ -721,6 +721,24 @@
       ],
       "graph_tree_parity": "not_verified",
       "tree_item_broadcast": false
+    },
+    {
+      "kernel_operation": "kernel.mesh.decimate",
+      "group": "geometry.mesh_topology",
+      "cad_command": "worldwright.mesh.decimate",
+      "orbweaver_node": "orbweaver.mesh.decimate",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "native_shared_qem_partial",
+      "modifiers": [
+        "target_faces",
+        "max_error",
+        "normal_degrees",
+        "preserve_boundary",
+        "crease_degrees"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
     }
   ],
   "tool_layers": [

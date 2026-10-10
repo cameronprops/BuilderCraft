@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 47,
-    "explicit_dependencies_mapped": 29,
+    "total": 54,
+    "explicit_dependencies_mapped": 36,
     "pending_source_review": 18,
-    "paired": 15
+    "paired": 22
   },
   "entries": [
     {
@@ -453,6 +453,79 @@
       ],
       "dependency_basis": "source_inspected_or_dataflow",
       "registry_category": "graph",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.array.linear",
+      "group": "geometry.transforms",
+      "depends_on": [
+        "kernel.geometry.transform_exact"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "transform",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.array.rectangular",
+      "group": "geometry.transforms",
+      "depends_on": [
+        "kernel.geometry.transform_exact"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "transform",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.array.polar",
+      "group": "geometry.transforms",
+      "depends_on": [
+        "kernel.geometry.transform_exact"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "transform",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.array.path",
+      "group": "geometry.transforms",
+      "depends_on": [
+        "kernel.polyline.divide_count"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "transform",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.project.plane",
+      "group": "geometry.intersections",
+      "depends_on": [
+        "kernel.vector.dot",
+        "kernel.vector.normalize"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "intersection",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.surface.flow_patch",
+      "group": "geometry.surface",
+      "depends_on": [
+        "kernel.vector.cross",
+        "kernel.vector.dot"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "surface",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.solid.pushpull_quad",
+      "group": "geometry.solid",
+      "depends_on": [
+        "kernel.polygon.validate",
+        "kernel.vector.cross"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "solid",
       "paired_cad_graph": true
     }
   ]

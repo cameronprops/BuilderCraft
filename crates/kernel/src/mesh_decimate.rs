@@ -504,8 +504,7 @@ pub fn mesh_quadric_decimate(mesh: &TriangleMesh, options: MeshDecimateOptions) 
     }
     let output = TriangleMesh { vertices, triangles };
     let edges = mesh_edge_report(&output)?;
-    if !output.triangles.is_empty() && !polygon_mesh_vertex_fans(&polygon_mesh_from_triangles(&output)?)?.non_manifold_vertices.is_empty()
-    {
+    if !output.triangles.is_empty() && !polygon_mesh_vertex_fans(&polygon_mesh_from_triangles(&output)?)?.non_manifold_vertices.is_empty() {
         return Err(KernelError::Invalid("decimation pinches vertex fans"));
     }
     if !edges.non_manifold_edges.is_empty()
@@ -600,11 +599,7 @@ mod tests {
     #[test]
     fn rejects_pinched_vertex_even_when_edges_are_manifold() {
         let m = TriangleMesh {
-            vertices: vec![
-                Vec3::ZERO,
-                Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, -1.0, 0.0),
-            ],
+            vertices: vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0), Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, -1.0, 0.0)],
             triangles: vec![[0, 1, 2], [0, 3, 4]],
         };
         let edges = mesh_edge_report(&m);

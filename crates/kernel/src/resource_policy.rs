@@ -74,11 +74,7 @@ impl ResourceLimits {
     pub fn from_sample(sample: MemorySample) -> Result<Self> {
         let mut cap = MAX_BUDGET;
         let mut observed = false;
-        for (value, divisor) in [
-            (sample.physical_total_bytes, 8),
-            (sample.physical_available_bytes, 3),
-            (sample.process_remaining_bytes, 3),
-        ] {
+        for (value, divisor) in [(sample.physical_total_bytes, 8), (sample.physical_available_bytes, 3), (sample.process_remaining_bytes, 3)] {
             if let Some(value) = value {
                 observed = true;
                 cap = cap.min(value / divisor);
@@ -231,9 +227,10 @@ mod tests {
         assert_eq!(plan.gpu_bytes, 0);
         assert_eq!(plan.background_jobs, 0);
         assert_eq!(
-            [ResourceClass::Geometry, ResourceClass::Undo, ResourceClass::Preview,
-             ResourceClass::JobScratch, ResourceClass::Transfer]
-                .iter().map(|c| plan.quota(*c)).sum::<usize>(),
+            [ResourceClass::Geometry, ResourceClass::Undo, ResourceClass::Preview, ResourceClass::JobScratch, ResourceClass::Transfer]
+                .iter()
+                .map(|c| plan.quota(*c))
+                .sum::<usize>(),
             plan.ram_bytes
         );
     }
@@ -257,10 +254,7 @@ mod tests {
 
     #[test]
     fn low_available_memory_blocks_new_work() {
-        assert_eq!(
-            ResourceLimits::from_sample(sample(8 * 1024, 12, 8)),
-            Err(KernelError::Budget)
-        );
+        assert_eq!(ResourceLimits::from_sample(sample(8 * 1024, 12, 8)), Err(KernelError::Budget));
     }
 
     #[test]

@@ -29,6 +29,15 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{inputs:{geometry,path,count,up,anchor}}")
             .enabled(always)
             .noundo(),
+        CommandSpec::new("worldwright.pipe", "Pipe: Swept Circular Mesh", pipe)
+            .params("{inputs:{rail,up,start_radius,end_radius,wall,stations,sides,flat_caps}}")
+            .alias(&["pipe"]).enabled(always).noundo(),
+        CommandSpec::new("worldwright.sweep1", "Sweep1: Single Rail Mesh", sweep1)
+            .params("{inputs:{rail,up,profile,stations,closed_profile}}")
+            .alias(&["sweep1"]).enabled(always).noundo(),
+        CommandSpec::new("worldwright.sweep2", "Sweep2: Two Rail Mesh", sweep2)
+            .params("{inputs:{rail_a,rail_b,section,stations}}")
+            .alias(&["sweep2"]).enabled(always).noundo(),
         CommandSpec::new("worldwright.project", "Project Geometry to Plane", project)
             .params("{inputs:{geometry,origin,normal,direction}}")
             .enabled(always)
@@ -106,6 +115,9 @@ paired_command!(array_rectangular, "kernel.array.rectangular");
 paired_command!(array_polar, "kernel.array.polar");
 paired_command!(array_path, "kernel.array.path");
 paired_command!(array_path_oriented, "kernel.array.path_oriented");
+paired_command!(pipe, "kernel.pipe.mesh");
+paired_command!(sweep1, "kernel.sweep1.mesh");
+paired_command!(sweep2, "kernel.sweep2.mesh");
 paired_command!(project, "kernel.project.plane");
 paired_command!(flow_along_srf, "kernel.surface.flow_patch");
 paired_command!(pushpull, "kernel.solid.pushpull_quad");
@@ -291,7 +303,7 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(26));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(29));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

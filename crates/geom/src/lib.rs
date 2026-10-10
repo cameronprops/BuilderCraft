@@ -7,6 +7,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+mod best_fit_plane;
 mod bounds;
 pub mod camera;
 pub mod closest3d;
@@ -21,6 +22,7 @@ pub mod snap3d;
 mod spline;
 mod vec;
 
+pub use best_fit_plane::{BestFitPlane, best_fit_plane};
 pub use bounds::Bounds2;
 pub use curve::{Arc, Circle, Ellipse, Line, PolyVertex, Polyline, Segment, arc_to_bulge, bulge_to_arc, point_in_polygon, shoelace};
 pub use intersect::{circle_circle, intersect_ext, intersect_segments, line_circle, line_line, line_line_infinite};

@@ -15,6 +15,8 @@ pub struct Layout {
     pub toolbar: bool,
     pub command_line: bool,
     pub view3d: bool,
+    /// Restore the specialized metrology workspace independently of CAD.
+    pub mesh_repair: bool,
 }
 impl Default for Layout {
     fn default() -> Self {
@@ -28,6 +30,7 @@ impl Default for Layout {
             toolbar: true,
             command_line: true,
             view3d: true,
+            mesh_repair: false,
         }
     }
 }
@@ -39,6 +42,7 @@ impl Layout {
             toolbar: app.ui.show_toolbar,
             command_line: app.ui.show_command_line,
             view3d: app.ui.view3d,
+            mesh_repair: app.ui.mesh_repair.active,
             ..app.ui.layout.clone()
         }
     }
@@ -62,6 +66,7 @@ impl Layout {
         app.ui.view3d = layout.view3d;
         app.ui.toolset_tab = if layout.view3d { "Modeling" } else { "Drafting" }.into();
         app.ui.buildercraft_workspace = true;
+        crate::mesh_repair::set_active(app, layout.mesh_repair);
         app.ui.layout = layout;
         app.ui.layout_dirty = true;
         Ok(())
@@ -102,6 +107,17 @@ pub fn command(app: &mut CadApp, id: &str) -> Result<Value, String> {
         }
         "ui.workspace.modeling" => Layout::default().apply(app)?,
         "ui.workspace.drafting" => Layout { view3d: false, ..Default::default() }.apply(app)?,
+        "ui.workspace.mesh_repair" => Layout {
+            mesh_repair: true,
+            view3d: true,
+            tools: false,
+            inspector: false,
+            command_line: false,
+            left_width: 230.,
+            right_width: 285.,
+            ..Default::default()
+        }
+        .apply(app)?,
         "ui.workspace.focus" => Layout { tools: false, inspector: false, toolbar: false, ..Layout::capture(app) }.apply(app)?,
         _ => return Err(format!("Unknown workspace command: {id}")),
     }

@@ -66,10 +66,9 @@ pub fn project_onto_mesh(points: &[Vec3], target: &PolygonMesh, direction: Vec3)
         let mut best = None;
         for &[i, j, k] in &triangles.triangles {
             if let Some((t, _)) = ray_triangle(*p, d, triangles.vertices[i as usize], triangles.vertices[j as usize], triangles.vertices[k as usize])
+                && best.is_none_or(|prev: f64| t.abs() < prev.abs())
             {
-                if best.is_none_or(|prev: f64| t.abs() < prev.abs()) {
-                    best = Some(t);
-                }
+                best = Some(t);
             }
         }
         let t = best.ok_or(KernelError::Invalid("projection ray missed target mesh"))?;
@@ -197,17 +196,17 @@ pub fn project_onto_nurbs(points: &[Vec3], surface: &Surface, direction: Vec3) -
         let mut best: Option<(f64, f64, f64)> = None;
         for j in 0..GRID {
             for i in 0..GRID {
-                let n = (j * (GRID + 1) + i) as usize;
+                let n = j * (GRID + 1) + i;
                 for (ids, uvs) in [
                     ([n, n + 1, n + GRID + 2], [(i as f64, j as f64), ((i + 1) as f64, j as f64), ((i + 1) as f64, (j + 1) as f64)]),
                     ([n, n + GRID + 2, n + GRID + 1], [(i as f64, j as f64), ((i + 1) as f64, (j + 1) as f64), (i as f64, (j + 1) as f64)]),
                 ] {
-                    if let Some((distance, bary)) = ray_triangle(point, d, samples[ids[0]], samples[ids[1]], samples[ids[2]]) {
-                        if best.is_none_or(|(old, _, _)| distance.abs() < old.abs()) {
-                            let u = bary.iter().enumerate().map(|(k, w)| w * uvs[k].0).sum::<f64>() / GRID as f64;
-                            let v = bary.iter().enumerate().map(|(k, w)| w * uvs[k].1).sum::<f64>() / GRID as f64;
-                            best = Some((distance, u, v));
-                        }
+                    if let Some((distance, bary)) = ray_triangle(point, d, samples[ids[0]], samples[ids[1]], samples[ids[2]])
+                        && best.is_none_or(|(old, _, _)| distance.abs() < old.abs())
+                    {
+                        let u = bary.iter().enumerate().map(|(k, w)| w * uvs[k].0).sum::<f64>() / GRID as f64;
+                        let v = bary.iter().enumerate().map(|(k, w)| w * uvs[k].1).sum::<f64>() / GRID as f64;
+                        best = Some((distance, u, v));
                     }
                 }
             }

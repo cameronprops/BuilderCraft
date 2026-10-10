@@ -258,9 +258,16 @@ pub fn polygon_mesh_fill_hole_advanced(
         PolygonPatchMode::Surface => (covariance_normal(&points, center)?, None),
         PolygonPatchMode::CurvatureSmooth { refinement_levels, smoothing_iterations, tangent_weight, max_interior_offset } => {
             return crate::polygon_mesh_fill_hole_curvature(
-                mesh, revision, picked_revision, loop_index, refinement_levels, smoothing_iterations, tangent_weight, max_interior_offset
+                mesh,
+                revision,
+                picked_revision,
+                loop_index,
+                refinement_levels,
+                smoothing_iterations,
+                tangent_weight,
+                max_interior_offset,
             );
-        },
+        }
         PolygonPatchMode::PlanarBestFit { max_displacement } => (covariance_normal(&points, center)?, Some(max_displacement)),
         PolygonPatchMode::PlanarAverageNormal { max_displacement } => (unit(mean_face_normal)?, Some(max_displacement)),
         PolygonPatchMode::PlanarDirection { normal, max_displacement } => (unit(normal)?, Some(max_displacement)),

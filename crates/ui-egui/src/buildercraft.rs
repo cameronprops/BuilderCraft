@@ -3,6 +3,53 @@ use crate::CadApp;
 use cadcraft_doc::organization::{ModelNode, NodeKind};
 use serde_json::json;
 
+
+/// Explicit revision/document-bound *derived* BRep wires. Never serialized in
+/// the document or promoted into exact topology, IDs, trimming or surfaces.
+#[derive(Clone, Debug)]
+pub struct BrepPreview {
+    pub document_uid: u64,
+    pub source_revision: u64,
+    pub object_id: u64,
+    pub edge_chains: Vec<Vec<cadcraft_geom::Vec3>>,
+}
+
+fn load_exact_brep_wires(app: &mut CadApp, id: u64) -> Result<(), String> {
+    let state = app.session.state().map_err(|e| e.to_string())?;
+    let (document_uid, revision) = (state.uid, state.revision);
+    let reply = app.run(
+        "brep.preview",
+        json!({"id":id,"linear_deflection":0.15,"angular_deflection":0.4}),
+    )?;
+    let lines = reply["mesh"]["edge_chains"].as_array()
+        .ok_or("exact BRep preview has no wire chains")?;
+    let mut chains = Vec::new();
+    let mut points = 0usize;
+    for line in lines {
+        let source = line.as_array().ok_or("invalid BRep wire chain")?;
+        points = points.checked_add(source.len()).ok_or("BRep preview point overflow")?;
+        if points > 50_000 { return Err("BRep display proxy point budget exceeded".into()); }
+        let mut chain = Vec::with_capacity(source.len());
+        for point in source {
+            let values = point.as_array().filter(|v| v.len() == 3)
+                .ok_or("invalid BRep preview 3D point")?;
+            let get = |index: usize| -> Result<f64,String> {
+                values[index].as_f64().filter(|v| v.is_finite())
+                    .ok_or_else(|| "non-finite BRep preview coordinate".into())
+            };
+            chain.push(cadcraft_geom::Vec3::new(get(0)?,get(1)?,get(2)?));
+        }
+        if chain.len() >= 2 { chains.push(chain); }
+    }
+    if app.session.state().is_err_or(|st| st.uid != document_uid || st.revision != revision) {
+        return Err("BRep source changed while generating preview".into());
+    }
+    app.ui.brep_preview = Some(BrepPreview {
+        document_uid, source_revision:revision, object_id:id, edge_chains:chains,
+    });
+    Ok(())
+}
+
 pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
     egui::Panel::top("buildercraft_workspace").exact_size(28.0).show(ui, |ui| {
         ui.horizontal(|ui| {
@@ -199,6 +246,11 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             }
             if ui.button("Validate native topology").clicked() {
                 let _ = app.run("brep.inspect", json!({"id": object.id}));
+            }
+            if ui.button("Load exact BRep wire preview").clicked() {
+                if let Err(error) = load_exact_brep_wires(app, object.id) {
+                    app.session.echo(error);
+                }
             }
         }
         ui.small("Exact OCCT BRep data is preserved. Shaded viewport drawing and solid picking require the next integration gate.");
@@ -457,6 +509,26 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                     let b = object.mesh.vertices[corners[(side + 1) % corners.len()] as usize];
                     painter.line_segment([project(a), project(b)], stroke);
                 }
+            }
+        }
+    }
+    // BRep wires are loaded explicitly from OCCT and tied to source revision.
+    // No persistent conversion and no claim of occlusion-correct shading.
+    if let Some(cache) = &app.ui.brep_preview
+        && app.session.state().is_ok_and(|st| st.uid == cache.document_uid && st.revision == cache.source_revision)
+        && let Ok(d) = app.session.doc()
+        && let Some(object) = d.exact_breps.iter().find(|o| o.id == cache.object_id)
+        && object.visible
+        && d.layer(&object.layer).is_none_or(|l| l.visible())
+    {
+        let color = if selected_ids.contains(&cadcraft_doc::Handle(object.id)) {
+            egui::Color32::from_rgb(255, 130, 40)
+        } else {
+            egui::Color32::from_rgb(160, 220, 250)
+        };
+        for chain in &cache.edge_chains {
+            for pair in chain.windows(2) {
+                line(pair[0], pair[1], color);
             }
         }
     }

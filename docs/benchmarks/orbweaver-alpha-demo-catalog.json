@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "status": "specification_only_not_executable",
+  "canonical_tracking_issue": "https://github.com/cameronprops/BuilderCraft/issues/26",
+  "version": "2026-10-09",
+  "runner": {
+    "graph_schema": "orbweaver.Graph",
+    "format": "worldwright-orbweb-v1",
+    "deterministic_seed": 1939,
+    "limits": {
+      "peak_retained_megabytes": 512,
+      "recompute_ms_reference": null
+    },
+    "reference_benchmark_machine": "record_on_first_compiled_alpha",
+    "all_gates": [
+      "opens_from_ui",
+      "validates_graph",
+      "evaluates_headless",
+      "renders_preview",
+      "supports_bake_and_undo",
+      "reopens_with_same_inputs",
+      "no_unexpected_deletions",
+      "validates_geometry_and_tree_outputs",
+      "runtime_and_memory_recorded"
+    ]
+  },
+  "demos": [
+    {
+      "id": "basketweaver-lite",
+      "name": "BasketWeaver Lite",
+      "source_type": "original",
+      "status": "pending",
+      "required_components": [
+        "numeric_slider",
+        "profile_section",
+        "array_polar",
+        "array_path_oriented",
+        "weave_interleave",
+        "mesh_join",
+        "rim_profile",
+        "preview_bake"
+      ],
+      "inputs": [
+        "width",
+        "depth",
+        "height",
+        "rung_count",
+        "strand_thickness",
+        "rim_enabled",
+        "bottom_enabled"
+      ],
+      "outputs": [
+        "basket",
+        "rim",
+        "bottom"
+      ],
+      "gates": [
+        "circular_and_rectangular",
+        "positive_wall",
+        "watertight_when_capped",
+        "deterministic_seed",
+        "undo_bake",
+        "baseline_fast_recompute"
+      ]
+    },
+    {
+      "id": "basketweaver-full-datadam",
+      "name": "BasketWeaver Full + Data Dam",
+      "source_type": "user_original_generator",
+      "status": "pending_user_source_import_and_port",
+      "required_components": [
+        "data_tree",
+        "graft",
+        "flatten",
+        "match",
+        "data_dam",
+        "conditional_release",
+        "memoization",
+        "weave_interleave",
+        "profile_sweep",
+        "mesh_join",
+        "mesh_boolean",
+        "history"
+      ],
+      "inputs": [
+        "shape",
+        "width",
+        "depth",
+        "height",
+        "style",
+        "weave_pitch",
+        "seed",
+        "dam_release",
+        "rim_style",
+        "lid_style",
+        "handle_style",
+        "material_thickness",
+        "joint_tolerance"
+      ],
+      "outputs": [
+        "basket",
+        "rim",
+        "bottom",
+        "lid",
+        "handle",
+        "print_states",
+        "validation_report"
+      ],
+      "gates": [
+        "data_dam_blocks_until_release",
+        "manual_release_updates_only_dirty_subgraph",
+        "cached_tree_branches_preserved",
+        "deterministic_across_reopen",
+        "printable_watertight_parts",
+        "headless_memory_and_latency_bench",
+        "undo_redo_bake",
+        "compare_to_lite"
+      ]
+    },
+    {
+      "id": "primer-point-attractor",
+      "name": "Primer Sample 1: Point Attractor Array",
+      "source_type": "independent_recreation_from_published_example",
+      "reference": "https://modelab.gitbooks.io/grasshopper-primer/content/appendix/A-2/1_gh-files.html",
+      "reference_example": "1.3.2.1_attractor definition.gh",
+      "status": "pending",
+      "required_components": [
+        "range",
+        "cross_reference",
+        "distance",
+        "remap",
+        "graph_mapper",
+        "transform_scale",
+        "array_grid",
+        "preview_bake"
+      ],
+      "inputs": [
+        "seed_geometry",
+        "attractor_point",
+        "spacing",
+        "falloff"
+      ],
+      "outputs": [
+        "graded_array",
+        "distance_field"
+      ],
+      "gates": [
+        "near_attractor_greater_response",
+        "stable_tree_order",
+        "bounding_box_within_expected_bounds"
+      ]
+    },
+    {
+      "id": "primer-weaving-data-trees",
+      "name": "Primer Sample 2: Weaving Data Trees",
+      "source_type": "independent_recreation_from_published_example",
+      "reference": "https://modelab.gitbooks.io/grasshopper-primer/content/appendix/A-2/1_gh-files.html",
+      "reference_example": "1.5.3.6_weaving definition.gh",
+      "status": "pending",
+      "required_components": [
+        "data_tree",
+        "graft",
+        "flatten",
+        "simplify",
+        "weave",
+        "dispatch",
+        "shift_list",
+        "preview_bake"
+      ],
+      "inputs": [
+        "branch_patterns",
+        "strand_count",
+        "weave_depth"
+      ],
+      "outputs": [
+        "woven_branches",
+        "branch_debug_view"
+      ],
+      "gates": [
+        "original_path_identity_preserved",
+        "empty_branches_preserved",
+        "matching_shortest_longest_cross_reference",
+        "stable_tree_output"
+      ]
+    },
+    {
+      "id": "primer-surface-morph",
+      "name": "Primer Sample 3: Surface Morph",
+      "source_type": "independent_recreation_from_published_example",
+      "reference": "https://modelab.gitbooks.io/grasshopper-primer/content/appendix/A-2/1_gh-files.html",
+      "reference_example": "1.5.1.3_morphing definition.gh",
+      "status": "pending",
+      "required_components": [
+        "domain2",
+        "isotrim",
+        "surface_uv",
+        "morph",
+        "grid",
+        "reparameterize",
+        "preview_bake"
+      ],
+      "inputs": [
+        "base_surface",
+        "target_surface",
+        "panel_count_u",
+        "panel_count_v"
+      ],
+      "outputs": [
+        "morphed_panels",
+        "panel_tree"
+      ],
+      "gates": [
+        "surface_domain_handling",
+        "seam_orientation",
+        "trim_rejection_or_support_explicit",
+        "no_normal_flip"
+      ]
+    },
+    {
+      "id": "wallabee-tree-builder",
+      "name": "Wallabee Tree Builder",
+      "source_type": "original_kangaroo_style_behavioral_reference",
+      "status": "pending",
+      "required_components": [
+        "growth_branching",
+        "particle_solver",
+        "length_constraint",
+        "collision_goal",
+        "gravity_or_tropism",
+        "attractors",
+        "iteration_gate",
+        "reset_and_pause",
+        "preview_bake"
+      ],
+      "inputs": [
+        "seed",
+        "trunk_origin",
+        "branch_levels",
+        "growth_step",
+        "gravity",
+        "light_attractors",
+        "obstacles",
+        "iterations",
+        "pause",
+        "reset"
+      ],
+      "outputs": [
+        "tree_branches",
+        "solver_metrics",
+        "skeleton",
+        "optional_tube_geometry"
+      ],
+      "gates": [
+        "determinism",
+        "stable_solver_energy_or_residual",
+        "bounded_growth",
+        "pause_reset_resume",
+        "branch_collision",
+        "cancel_safe_no_partial_commit"
+      ]
+    },
+    {
+      "id": "engagement-ring",
+      "name": "Parametric Engagement Ring Designer",
+      "source_type": "original",
+      "status": "pending",
+      "required_components": [
+        "numeric_slider",
+        "nurbs_circle",
+        "sweep1",
+        "pipe",
+        "array_polar",
+        "brep_boolean",
+        "cap",
+        "solid_validate",
+        "history",
+        "material_preview",
+        "preview_bake"
+      ],
+      "inputs": [
+        "ring_size",
+        "band_width",
+        "band_thickness",
+        "profile_style",
+        "stone_dimensions",
+        "stone_cut",
+        "setting_type",
+        "prong_count",
+        "seat_depth",
+        "tolerance"
+      ],
+      "outputs": [
+        "band_solid",
+        "stone_proxy",
+        "setting_solid",
+        "prongs",
+        "print_export_mesh",
+        "manuf_report"
+      ],
+      "gates": [
+        "target_ring_inner_diameter",
+        "closed_manifold_setting",
+        "minimum_wall",
+        "prong_symmetry",
+        "stone_clearance",
+        "undo_history",
+        "export_with_units"
+      ]
+    }
+  ]
+}

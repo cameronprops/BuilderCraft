@@ -1,0 +1,15 @@
+name: Worldwright Rhino parity and OrbWeaver demo manifest
+on:
+  push:
+    branches: [planning/rhino-object-parity-and-orbweaver-alpha-demos]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-spec:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate all seven demo contracts and geometry parity coverage
+        run: python3 tools/check_alpha_demo_catalog.py

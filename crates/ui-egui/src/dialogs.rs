@@ -19,6 +19,7 @@ pub fn show(app: &mut CadApp, ctx: &egui::Context) {
         "dsettings" => dsettings(app, ctx, &mut open),
         "about" => about(ctx, &mut open),
         "commands" => commands(app, ctx, &mut open),
+        "orbweaver" => app.orb_canvas.show(ctx, &mut open),
         "blocks" => blocks(app, ctx, &mut open),
         _ => open = false,
     }

@@ -16,10 +16,23 @@ pub enum PowerMode {
     Performance,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdapterClass {
+    Cpu,
+    Integrated,
+    Discrete,
+    Virtual,
+    Other,
+    Unavailable,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Graphics {
     /// A wgpu device was created successfully for this session.
     pub canvas_device: bool,
+    pub adapter_name: String,
+    pub adapter_class: AdapterClass,
     pub max_texture_2d: u32,
     pub max_storage_binding_bytes: u32,
     /// Device reports compute limits; this does NOT mean GPU mesh repair exists.
@@ -28,14 +41,31 @@ pub struct Graphics {
 
 impl Graphics {
     pub fn unavailable() -> Self {
-        Self { canvas_device: false, max_texture_2d: 0, max_storage_binding_bytes: 0, compute_capable: false }
+        Self {
+            canvas_device: false,
+            adapter_name: String::new(),
+            adapter_class: AdapterClass::Unavailable,
+            max_texture_2d: 0,
+            max_storage_binding_bytes: 0,
+            compute_capable: false,
+        }
     }
 
     pub fn probe(render: Option<&egui_wgpu::RenderState>) -> Self {
         let Some(render) = render else { return Self::unavailable() };
         let limits = render.device.limits();
+        let info = render.adapter.get_info();
+        let adapter_class = match info.device_type {
+            wgpu::DeviceType::Cpu => AdapterClass::Cpu,
+            wgpu::DeviceType::IntegratedGpu => AdapterClass::Integrated,
+            wgpu::DeviceType::DiscreteGpu => AdapterClass::Discrete,
+            wgpu::DeviceType::VirtualGpu => AdapterClass::Virtual,
+            wgpu::DeviceType::Other => AdapterClass::Other,
+        };
         Self {
             canvas_device: true,
+            adapter_name: info.name,
+            adapter_class,
             max_texture_2d: limits.max_texture_dimension_2d,
             max_storage_binding_bytes: limits.max_storage_buffer_binding_size,
             compute_capable: limits.max_compute_workgroups_per_dimension > 0 && limits.max_compute_workgroup_size_x > 0,
@@ -133,11 +163,17 @@ impl Tuning {
         } else {
             15_000
         };
+        let gpu_base = match machine.graphics.adapter_class {
+            AdapterClass::Discrete => 512,
+            AdapterClass::Integrated => 1_500,
+            AdapterClass::Virtual | AdapterClass::Other => 3_000,
+            AdapterClass::Cpu | AdapterClass::Unavailable => usize::MAX,
+        };
         let (worker_scale, faces_scale, budget_scale, gpu_threshold) = match mode {
-            PowerMode::Economy => (1, 2, 2, usize::MAX),
-            PowerMode::Balanced => (1, 1, 1, 1_500),
-            PowerMode::Performance => (1, 1, 1, 384),
-            PowerMode::Auto => (1, 1, 1, if memory < 2 * 1024 * MIB { 3_000 } else { 800 }),
+            PowerMode::Economy => (2, 2, 2, usize::MAX),
+            PowerMode::Balanced => (1, 1, 1, gpu_base.saturating_mul(2)),
+            PowerMode::Performance => (1, 1, 1, gpu_base / 2),
+            PowerMode::Auto => (1, 1, 1, if memory < 2 * 1024 * MIB { gpu_base.saturating_mul(6) } else { gpu_base }),
         };
         Self {
             cpu_worker_limit: (workers / worker_scale).max(1),
@@ -212,6 +248,7 @@ impl Profile {
     pub fn route(&self, operation: Operation) -> Compute {
         if let Operation::Canvas2d { primitives } = operation
             && self.hardware.graphics.canvas_device
+            && !matches!(self.hardware.graphics.adapter_class, AdapterClass::Cpu | AdapterClass::Unavailable)
             && primitives >= self.tuning.gpu_canvas_min_primitives
         {
             Compute::Gpu
@@ -236,7 +273,11 @@ pub fn menu(app: &mut crate::CadApp, ui: &mut egui::Ui) {
         } else {
             ui.weak("Memory size unknown (conservative profile)");
         }
-        ui.weak(if hw.graphics.canvas_device { "GPU canvas available" } else { "CPU canvas fallback" });
+        if hw.graphics.canvas_device {
+            ui.weak(format!("Renderer: {} ({:?})", hw.graphics.adapter_name, hw.graphics.adapter_class));
+        } else {
+            ui.weak("CPU canvas fallback");
+        }
         ui.separator();
         for (label, mode) in
             [("Auto", PowerMode::Auto), ("Economy", PowerMode::Economy), ("Balanced", PowerMode::Balanced), ("Performance", PowerMode::Performance)]
@@ -270,7 +311,14 @@ mod tests {
             available_cpu_threads: cpus,
             usable_memory_bytes: Some(mem_gib * 1024 * MIB),
             graphics: if gpu {
-                Graphics { canvas_device: true, max_texture_2d: 8192, max_storage_binding_bytes: 65536, compute_capable: true }
+                Graphics {
+                    canvas_device: true,
+                    adapter_name: "Synthetic discrete GPU".into(),
+                    adapter_class: AdapterClass::Discrete,
+                    max_texture_2d: 8192,
+                    max_storage_binding_bytes: 65536,
+                    compute_capable: true,
+                }
             } else {
                 Graphics::unavailable()
             },
@@ -292,14 +340,14 @@ mod tests {
     fn mode_overrides_and_gpu_canvas_threshold_are_applied() {
         let mut profile = Profile::initialize(hw(12, 32, true), None);
         assert_eq!(profile.tuning.viewport_faces, crate::mesh_picking::MAX_VIEWPORT_FACES);
-        assert_eq!(profile.route(Operation::Canvas2d { primitives: 799 }), Compute::Cpu);
-        assert_eq!(profile.route(Operation::Canvas2d { primitives: 800 }), Compute::Gpu);
+        assert_eq!(profile.route(Operation::Canvas2d { primitives: 511 }), Compute::Cpu);
+        assert_eq!(profile.route(Operation::Canvas2d { primitives: 512 }), Compute::Gpu);
         assert_eq!(profile.route(Operation::MeshTopology), Compute::Cpu);
         profile.mode(PowerMode::Economy);
         assert_eq!(profile.route(Operation::Canvas2d { primitives: 1_000_000 }), Compute::Cpu);
         assert!(profile.tuning.viewport_faces < 15_000);
         profile.mode(PowerMode::Performance);
-        assert_eq!(profile.route(Operation::Canvas2d { primitives: 384 }), Compute::Gpu);
+        assert_eq!(profile.route(Operation::Canvas2d { primitives: 256 }), Compute::Gpu);
     }
 
     #[test]
@@ -326,5 +374,18 @@ mod tests {
         assert!(repaired.tuning.streaming_budget_bytes >= 16 * MIB);
         assert_eq!(parse_first_integer(b" 17179869184 \n"), Some(17_179_869_184));
         assert_eq!(parse_first_integer(b"unknown"), None);
+    }
+    #[test]
+    fn software_adapter_is_never_scheduled_as_gpu_accelerator() {
+        let mut cpu_adapter = hw(6, 8, true);
+        cpu_adapter.graphics.adapter_class = AdapterClass::Cpu;
+        cpu_adapter.graphics.adapter_name = "Software renderer".into();
+        let profile = Profile::initialize(cpu_adapter, None);
+        assert_eq!(profile.route(Operation::Canvas2d { primitives: usize::MAX }), Compute::Cpu);
+        let mut integrated = hw(6, 8, true);
+        integrated.graphics.adapter_class = AdapterClass::Integrated;
+        let profile = Profile::initialize(integrated, None);
+        assert_eq!(profile.route(Operation::Canvas2d { primitives: 1499 }), Compute::Cpu);
+        assert_eq!(profile.route(Operation::Canvas2d { primitives: 1500 }), Compute::Gpu);
     }
 }

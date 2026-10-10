@@ -1,0 +1,29 @@
+name: Worldwright document surface edit formatting
+on:
+  push:
+    branches:
+      - feature/modeling-document-surface-edit
+permissions:
+  contents: write
+jobs:
+  rustfmt:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt
+      - name: Format Rust
+        run: cargo fmt --all
+      - name: Commit native document surface formatting
+        shell: bash
+        run: |
+          git add crates/engine/src/cmd/mesh_surface.rs crates/engine/src/cmd/mod.rs
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'style(modeling): format document surface editing'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

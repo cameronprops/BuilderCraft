@@ -82,6 +82,33 @@ mod tests {
     }
 
     #[test]
+    fn through_hole_boolean_has_trimmed_solid_and_expected_volume() -> Result<(), cadrum::Error> {
+        // Drill a circular through-hole through a cuboid. This specifically
+        // exercises an interior trim wire rather than only planar overlap.
+        let stock = Solid::cube(DVec3::new(-5.0, -5.0, 0.0), DVec3::new(5.0, 5.0, 10.0));
+        let drill = Solid::cylinder(2.0, DVec3::Z * 14.0)
+            .translate(DVec3::Z * -2.0);
+        let drilled = (&stock - &drill).build()?;
+        let expected = 1000.0 - std::f64::consts::PI * 4.0 * 10.0;
+        near("drilled stock volume", drilled.volume(), expected, 1e-6);
+        assert!(face_count(&drilled) >= 7, "hole sidewall/trim topology missing");
+        Ok(())
+    }
+
+    #[test]
+    fn step_roundtrip_preserves_exact_closed_solid_volume() -> Result<(), cadrum::Error> {
+        let original = Solid::cube(DVec3::new(-2.0, 0.0, 0.0), DVec3::new(3.0, 4.0, 6.0));
+        let mut data = Vec::new();
+        Solid::write_step([&original], &mut data)?;
+        assert!(data.len() > 100, "empty or implausible STEP output");
+        let decoded = Solid::read_step(&mut std::io::Cursor::new(data))?;
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(face_count(&decoded[0]), 6);
+        near("STEP volume roundtrip", decoded[0].volume(), original.volume(), 1e-7);
+        Ok(())
+    }
+
+    #[test]
     fn native_brep_binary_roundtrip_preserves_volume() -> Result<(), cadrum::Error> {
         let input = Solid::cube(DVec3::new(-4.0, 2.0, 0.5), DVec3::new(1.0, 4.0, 3.5));
         let mut data = Vec::new();

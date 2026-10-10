@@ -33,27 +33,28 @@ Until run and recorded on each platform these are **not verified**.
 
 1. Open the app to a usable blank 2D page. Create a line, polyline, circle
    and dimension through keyboard commands and palette buttons.
-2. Open the Command Palette with Cmd/Ctrl+K. Search by ID/alias, navigate with arrow keys, submit with Enter, dismiss with Escape, and verify Window-menu access.\n3. Select with mouse, toggle snap/grid/ortho, inspect precise properties,
+2. Open the Command Palette with Cmd/Ctrl+K. Search by ID/alias, navigate with arrow keys, submit with Enter, dismiss with Escape, and verify Window-menu access.
+3. Select with mouse, toggle snap/grid/ortho, inspect precise properties,
    change a layer, hide/show, and verify contextual right-click actions.
-3. Undo, redo, copy, move, rotate, scale and delete; confirm exact geometry
+4. Undo, redo, copy, move, rotate, scale and delete; confirm exact geometry
    and the selection remain correct, including after zoom/pan.
-4. Switch **2D Drawing -> 3D Modeling -> Back** via top bar, Window menu,
+5. Switch **2D Drawing -> 3D Modeling -> Back** via top bar, Window menu,
    typed `ui.workspace.*` commands and Alt shortcuts. Verify no source
    geometry, revision, selection or history changes merely from switching.
-5. Create/edit an exact NURBS curve, surface and polygon mesh; orbit, pan,
+6. Create/edit an exact NURBS curve, surface and polygon mesh; orbit, pan,
    zoom, select, pick mesh faces and use gizmo controls. Test degeneracies.
-6. Save native `.dftba`, close and reopen; check object IDs, units,
+7. Save native `.dftba`, close and reopen; check object IDs, units,
    hierarchy, material assignments (when supported), and available history.
    Open an older `.bcraft` and check compatibility.
-7. Import and export one actually supported fixture per format. Check
+8. Import and export one actually supported fixture per format. Check
    geometric fidelity, coordinate systems, materials and unsupported fields.
    STL/OBJ/LAS adapters don't count as desktop import until wired through
    document transactions and file dialogs.
-8. Run OrbWeaver over the **same** geometry operation as the CAD command;
+9. Run OrbWeaver over the **same** geometry operation as the CAD command;
    edit an input, recompute and verify deterministic output and undo.
-9. Inspect the UI with keyboard only, high text zoom, reduced motion,
+10. Inspect the UI with keyboard only, high text zoom, reduced motion,
    focus visibility, and obvious Cancel/Back paths. Verify no modal traps.
-10. Relaunch on each claimed host (Windows, macOS, Linux), repeat save/reopen,
+11. Relaunch on each claimed host (Windows, macOS, Linux), repeat save/reopen,
     and record screenshots, crashes and platform-specific input issues.
 
 ## Next command groups to close alpha gaps

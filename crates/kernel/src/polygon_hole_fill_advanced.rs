@@ -63,11 +63,9 @@ fn covariance_normal(points: &[Vec3], center: Vec3) -> Result<Vec3> {
             }
         }
     }
-    for i in 0..3 {
-        for j in 0..i {
-            a[i][j] = a[j][i];
-        }
-    }
+    a[1][0] = a[0][1];
+    a[2][0] = a[0][2];
+    a[2][1] = a[1][2];
     let mut v = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
     for _ in 0..48 {
         let mut p = 0;
@@ -137,7 +135,7 @@ fn segments_cross(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2], epsilon: f
 
 fn triangulate_loop(points: &[[f64; 2]], eps: f64) -> Result<Vec<[usize; 3]>> {
     let n = points.len();
-    if n < 3 || n > MAX_LOOP {
+    if !(3..=MAX_LOOP).contains(&n) {
         return Err(KernelError::Invalid("unsupported hole boundary size"));
     }
     for i in 0..n {

@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "source": "Rhino 8 behavior references; original implementation only",
+  "status": "acceptance_requirements_not_full_parity",
+  "geometry_types": [
+    {
+      "id": "point",
+      "behavior": [
+        "precision_and_units",
+        "snapping",
+        "grips_and_point_selection",
+        "group_and_layer_assignment",
+        "transform_and_undo"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "line",
+      "behavior": [
+        "start_end_transform",
+        "closest_point",
+        "projection_pull",
+        "intersection_and_trim",
+        "layer_group_select"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "polyline",
+      "behavior": [
+        "open_closed_and_zero_length",
+        "arc_bulge_segments",
+        "self_intersections",
+        "join_extend_offset",
+        "vertex_edit_and_mesh_boundary"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "curve",
+      "behavior": [
+        "polycurve_segments",
+        "continuity_g0_g1_g2",
+        "domain_and_orientation",
+        "closed_vs_periodic",
+        "offset_split_join_rebuild_fit"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "spline",
+      "behavior": [
+        "control_vs_interpolated",
+        "weights_knots_and_degrees",
+        "multiplicity_and_discontinuity",
+        "endpoint_interpolation",
+        "arc_length_accuracy"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "nurbs_curve",
+      "behavior": [
+        "rational_quarter_circle",
+        "periodicity_and_seam",
+        "knot_insert_remove",
+        "degree_raise_reduction",
+        "surface_projection",
+        "trim_and_offset"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "nurbs_surface",
+      "behavior": [
+        "untrimmed_and_trimmed_uv_domains",
+        "curvature_and_normals",
+        "seams_and_singularities",
+        "isocurve_and_control_point_edit",
+        "surface_morph_and_closest_uv"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "polysurface",
+      "behavior": [
+        "face_join_and_explode",
+        "edge_shared_topology",
+        "naked_edge_detection",
+        "orientation_flip_and_heal",
+        "closed_vs_open",
+        "trim_loops"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "brep",
+      "behavior": [
+        "edge_wire_face_shell_solid_identity",
+        "inner_hole_and_trim_coedge",
+        "manifold_and_geometric_consistency",
+        "tolerance_policy",
+        "boolean_union_intersection_difference_split",
+        "cap_and_heal",
+        "step_roundtrip",
+        "topology_preserving_remesh"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "mesh",
+      "behavior": [
+        "tri_quad_ngon",
+        "weld_and_unweld",
+        "normal_orientation",
+        "holes_and_cap",
+        "face_grouping",
+        "watertight_and_manifold",
+        "boolean_mesh_vs_exact_capability_labels",
+        "mesh_to_nurbs_per_face_vs_fit"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "groups",
+      "behavior": [
+        "create_group_ungroup",
+        "add_remove_members",
+        "nested_membership_consistency",
+        "group_selection",
+        "undo_and_save_reload",
+        "objects_survive_dissolve"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    },
+    {
+      "id": "layers",
+      "behavior": [
+        "create_rename_delete",
+        "hierarchical_sublayers",
+        "visibility_and_lock",
+        "color_material_and_reference",
+        "move_to_layer",
+        "per_object_lock_inheritance",
+        "save_reopen_and_undo"
+      ],
+      "status": "audit_pending",
+      "implementation_paths": [],
+      "acceptance_tests": [],
+      "cli_command_ids": [],
+      "orbweaver_nodes": []
+    }
+  ],
+  "system_gates": [
+    "no_document_corruption_on_invalid_geometry",
+    "native_kernel_shared_with_orbweaver",
+    "undo_redo",
+    "headless_cli",
+    "file_roundtrip",
+    "unit_tolerance_scope",
+    "geometry_revision_and_identity",
+    "linux_macos_windows",
+    "haiku_capability_reported"
+  ]
+}

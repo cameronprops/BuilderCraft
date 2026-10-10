@@ -1,0 +1,31 @@
+name: Worldwright UI source provenance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/dependencies/UI_CODE_REUSE.json"
+      - "tools/check_ui_reuse_manifest.py"
+      - "tools/tests/test_ui_reuse_manifest.py"
+      - ".github/workflows/worldwright-ui-source-provenance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/dependencies/UI_CODE_REUSE.json"
+      - "tools/check_ui_reuse_manifest.py"
+      - "tools/tests/test_ui_reuse_manifest.py"
+      - ".github/workflows/worldwright-ui-source-provenance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ui-source-compliance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate UI source provenance and open-source reuse boundaries
+        run: python3 tools/check_ui_reuse_manifest.py
+      - name: Test GPL and unlicensed-source guardrails
+        run: python3 -m unittest discover -s tools/tests -p 'test_ui_reuse_manifest.py'

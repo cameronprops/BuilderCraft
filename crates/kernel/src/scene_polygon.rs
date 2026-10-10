@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// User-facing picks must carry the revision at which they were made.
 /// The scene revision is the authoritative revision; stale picks are rejected.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PolygonSceneEdit {
     DeleteFaces { selected_revision: u64, selected_faces: Vec<u32> },

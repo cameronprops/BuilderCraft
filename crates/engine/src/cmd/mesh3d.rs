@@ -2,7 +2,8 @@
 //! edits, source topology diagnostics and non-destructive preview triangulation.
 use super::*;
 use buildercraft_kernel::{
-    PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_triangulate, polygon_mesh_validate,
+    PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_triangulate,
+    polygon_mesh_validate, polygon_mesh_vertex_fans,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
 use cadcraft_geom::Vec3;
@@ -21,9 +22,10 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face)
             .params("{id,face_index,distance,selected_revision?}"),
         CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
-            .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole,selected_revision,...}}"),
+            .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|split_edge|split_quad_strip,selected_revision,...}}"),
         CommandSpec::new("mesh3d.list", "List Native Polygon Meshes", list).noundo(),
         CommandSpec::new("mesh3d.boundaries", "Inspect Polygon Boundaries", boundaries).params("{id}").noundo(),
+        CommandSpec::new("mesh3d.topology", "Inspect Polygon Vertex Fans", topology).params("{id,include_all_vertices?:false}").noundo(),
         CommandSpec::new("mesh3d.preview", "Preview Triangulated Polygon Mesh", preview).params("{id}").noundo(),
         CommandSpec::new("mesh3d.set", "Set Polygon Mesh Metadata", set).params("{id,name?,visible?}"),
     ]
@@ -178,6 +180,38 @@ fn boundaries(s: &mut Session, p: &Value) -> Result<Value> {
         "report": report,
     }))
 }
+
+/// Inspect non-manifold face fans, isolated vertices and defective shared edges
+/// without changing the polygon object or the document revision. The returned
+/// vertex IDs are revision-bound selection candidates for UI/Scan/OrbWeaver.
+fn topology(s: &mut Session, p: &Value) -> Result<Value> {
+    let object_id = id(p)?;
+    let include_all = p
+        .get("include_all_vertices")
+        .map(|v| v.as_bool().ok_or_else(|| invalid("include_all_vertices must be boolean")))
+        .transpose()?
+        .unwrap_or(false);
+    let mesh = &selected(s, object_id)?.mesh;
+    validate_size(mesh)?;
+    let mut vertex_report = polygon_mesh_vertex_fans(mesh).map_err(|e| invalid(&e.to_string()))?;
+    let edge_report = polygon_mesh_topology(mesh).map_err(|e| invalid(&e.to_string()))?;
+    let bad_vertices = vertex_report.non_manifold_vertices.clone();
+    if !include_all {
+        vertex_report.vertices.retain(|vertex| !vertex.is_manifold);
+    }
+    Ok(json!({
+        "id": object_id,
+        "source_revision": s.state()?.revision,
+        "selected_vertices": bad_vertices,
+        "vertex_fans": vertex_report,
+        "edge_diagnostics": {
+            "non_manifold_edges": edge_report.non_manifold_edges,
+            "inconsistent_winding_edges": edge_report.inconsistent_winding_edges,
+            "boundary_edges": edge_report.boundary_edges,
+        },
+    }))
+}
+
 fn preview(s: &mut Session, p: &Value) -> Result<Value> {
     let object_id = id(p)?;
     let polygon = &selected(s, object_id)?.mesh;
@@ -355,5 +389,72 @@ mod tests {
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.faces.len(), 3);
         s.undo().unwrap();
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), original.as_ref());
+    }
+
+    #[test]
+    fn topology_query_selects_bow_tie_without_modifying_document() {
+        let mut s = Session::new();
+        let source = PolygonMesh {
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(0., 2., 0.), Vec3::new(-2., 0., 0.), Vec3::new(0., -2., 0.)],
+            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])],
+        };
+        let id = s.execute("mesh3d.create", &json!({"name":"Pinched source", "mesh":source})).unwrap()["id"].as_u64().unwrap();
+        let original = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = s.state().unwrap().revision;
+        let report = s.execute("mesh3d.topology", &json!({"id":id})).unwrap();
+        assert_eq!(report["source_revision"], revision);
+        assert_eq!(report["selected_vertices"], json!([0]));
+        assert_eq!(report["vertex_fans"]["vertices"].as_array().unwrap().len(), 1);
+        let all = s.execute("mesh3d.topology", &json!({"id":id, "include_all_vertices":true})).unwrap();
+        assert_eq!(all["vertex_fans"]["vertices"].as_array().unwrap().len(), 5);
+        assert_eq!(s.state().unwrap().revision, revision);
+        assert!(Arc::ptr_eq(&original, &s.doc().unwrap().mesh3d[0].mesh));
+    }
+
+    #[test]
+    fn split_edge_document_edit_is_undoable_and_rejects_stale_pick() {
+        let mut s = Session::new();
+        let source = PolygonMesh {
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(1., 1., 0.)],
+            faces: vec![PolygonFace::Triangle([0, 1, 2])],
+        };
+        let id = s.execute("mesh3d.create", &json!({"name":"Split source", "mesh":source})).unwrap()["id"].as_u64().unwrap();
+        let original = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = s.state().unwrap().revision;
+        let args = json!({"id":id, "edit":{"kind":"split_edge", "selected_revision":revision, "edge_vertices":[0,1], "fraction":0.5}});
+        assert!(s.execute("mesh3d.edit", &args).is_ok());
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.vertices.len(), 4);
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.faces.len(), 2);
+        let after = s.doc().unwrap().mesh3d[0].mesh.clone();
+        assert!(s.execute("mesh3d.edit", &args).is_err());
+        assert!(Arc::ptr_eq(&after, &s.doc().unwrap().mesh3d[0].mesh));
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), original.as_ref());
+    }
+
+    #[test]
+    fn quad_strip_subdivision_document_edit_undo_and_file_roundtrip() {
+        let mut s = Session::new();
+        let quad = PolygonMesh {
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(2., 2., 0.), Vec3::new(0., 2., 0.)],
+            faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
+        };
+        let id = s.execute("mesh3d.create", &json!({"name":"Subdivide quads","mesh":quad})).unwrap()["id"].as_u64().unwrap();
+        let before = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = s.state().unwrap().revision;
+        let args = json!({"id":id,"edit":{"kind":"split_quad_strip","selected_revision":revision,"edge_vertices":[0,1],"fraction":0.5}});
+        s.execute("mesh3d.edit", &args).unwrap();
+        let after = s.doc().unwrap().mesh3d[0].mesh.clone();
+        assert_eq!(after.faces.len(), 2);
+        assert_eq!(after.vertices.len(), 6);
+        assert!(after.faces.iter().all(|f| matches!(f, PolygonFace::Quad(_))));
+        let saved = cadcraft_io::write(s.doc().unwrap(), "quad-strip.dftba").unwrap();
+        let reopened = cadcraft_io::read(&saved, "quad-strip.dftba").unwrap();
+        assert_eq!(reopened.mesh3d[0].id, id);
+        assert_eq!(reopened.mesh3d[0].mesh.as_ref(), after.as_ref());
+        assert!(s.execute("mesh3d.edit", &args).is_err(), "stale pick must be rejected");
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh, after);
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), before.as_ref());
     }
 }

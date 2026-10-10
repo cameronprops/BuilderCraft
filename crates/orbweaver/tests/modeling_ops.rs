@@ -5,7 +5,6 @@ use cadcraft_geom::{
     nurbs3d::{Curve, Surface, uniform_knots},
 };
 use orbweaver::{GRAPH_SCHEMA_VERSION, Graph, InputBinding, Node, evaluate};
-use std::collections::BTreeMap;
 
 fn p(x: f64, y: f64, z: f64) -> Vec3 {
     Vec3::new(x, y, z)

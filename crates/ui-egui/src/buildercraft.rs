@@ -13,7 +13,11 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
                     crate::workspace::activate(&mut app.ui, target);
                 }
             }
-            if ui.add_enabled(app.ui.previous_workspace.is_some(), egui::Button::new("Back")).on_hover_text("Return to the previous workspace (Alt+Left)").clicked() {
+            if ui
+                .add_enabled(app.ui.previous_workspace.is_some(), egui::Button::new("Back"))
+                .on_hover_text("Return to the previous workspace (Alt+Left)")
+                .clicked()
+            {
                 crate::workspace::back(&mut app.ui);
             }
             ui.weak("Alt+1: 2D · Alt+2: 3D");

@@ -4,6 +4,7 @@
 mod annotate;
 mod blocks;
 mod buildercraft;
+mod brep3d;
 mod closest3d;
 pub mod constraints;
 mod draw;
@@ -163,6 +164,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(picking3d::specs());
         v.extend(snap3d::specs());
         v.extend(mesh3d::specs());
+        v.extend(brep3d::specs());
         v.extend(mesh_surface::specs());
         v.extend(feature_history::specs());
         v.extend(worldwright_tools::specs());

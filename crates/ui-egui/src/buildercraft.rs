@@ -134,9 +134,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                 if ui.button("Inspect topology").on_hover_text("Highlight non-manifold mesh vertices in the viewport").clicked() {
                     let _ = inspect_mesh(app, object.id);
                 }
-                if app.ui.mesh_defects.as_ref().is_some_and(|overlay| overlay.object_id == object.id)
-                    && ui.button("Clear highlights").clicked()
-                {
+                if app.ui.mesh_defects.as_ref().is_some_and(|overlay| overlay.object_id == object.id) && ui.button("Clear highlights").clicked() {
                     app.ui.mesh_defects = None;
                 }
             });
@@ -230,7 +228,6 @@ fn show_node(app: &mut CadApp, ui: &mut egui::Ui, nodes: &[ModelNode], node: &Mo
         }
     });
 }
-
 
 /// Non-persistent, revision-bound overlay. Vertex indices are transient; neither
 /// the geometry nor the document selection is modified by inspection.
@@ -1091,7 +1088,6 @@ mod mesh_ui_tests {
     }
 }
 
-
 #[cfg(test)]
 mod topology_overlay_tests {
     use super::*;
@@ -1101,10 +1097,7 @@ mod topology_overlay_tests {
     fn fixture() -> (CadApp, u64) {
         let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
         let mesh = PolygonMesh {
-            vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(0., 2., 0.),
-                Vec3::new(-2., 0., 0.), Vec3::new(0., -2., 0.),
-            ],
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(0., 2., 0.), Vec3::new(-2., 0., 0.), Vec3::new(0., -2., 0.)],
             faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])],
         };
         let id = app.run("mesh3d.create", json!({"name":"Pinched surface", "mesh":mesh})).unwrap()["id"].as_u64().unwrap();
@@ -1145,8 +1138,12 @@ mod topology_overlay_tests {
     fn overlay_only_highlights_vertices_in_drawn_faces() {
         let mesh = PolygonMesh {
             vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.), Vec3::new(0., 1., 0.),
-                Vec3::new(4., 0., 0.), Vec3::new(5., 0., 0.), Vec3::new(4., 1., 0.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(1., 0., 0.),
+                Vec3::new(0., 1., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(5., 0., 0.),
+                Vec3::new(4., 1., 0.),
             ],
             faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([3, 4, 5])],
         };

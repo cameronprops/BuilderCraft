@@ -198,3 +198,7 @@ still needs its own acceptance tests, though it will reuse this one kernel.
 The mesh repair UI now exposes these modes, numerical direction/limit inputs,
 a read-only diagnostic preview and an Apply Patch action. A ghosted 3D patch
 overlay and curvature-controlled interior triangulation remain later steps.
+
+## Curvature-guided fill increment (pending native CI)
+
+The `curvature_smooth` mode reuses shared hole triangulation, adds 1-3 centroid-only refinement levels, and applies up to 64 fixed-rim harmonic height relaxation passes guided by adjacent source face normals. Required controls: `refinement_levels`, `smoothing_iterations`, `tangent_weight`, and `max_interior_offset` in document units. No original boundary vertices or boundary edges move or split, preventing T-joints. Invalid settings, topology or excess relief are rejected. This is approximate mesh reconstruction, not mathematically exact G1/C1 continuity, BRep surfacing or global self-intersection certification. `mesh3d.fill_preview`, `mesh3d.edit`, and the mesh repair panel use the same kernel. `interior_vertices_added` is available in the headless preview. OrbWeaver node integration and shaded preview overlay remain separate acceptance tasks.

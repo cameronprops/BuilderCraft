@@ -64,6 +64,10 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("worldwright.tree.graft", "Graft Data Tree", tree_graft).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.simplify", "Simplify Data Tree", tree_simplify).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.match", "Match Two Data Trees", tree_match).enabled(always).noundo(),
+        CommandSpec::new("worldwright.mesh.decimate", "Simplify Derived Mesh Using QEM", mesh_decimate)
+            .params("{inputs:{geometry,target_faces,max_error,normal_degrees,preserve_boundary,crease_degrees}}")
+            .enabled(always)
+            .noundo(),
     ]
 }
 
@@ -122,6 +126,7 @@ paired_command!(tree_flatten, "kernel.tree.flatten");
 paired_command!(tree_graft, "kernel.tree.graft");
 paired_command!(tree_simplify, "kernel.tree.simplify");
 paired_command!(tree_match, "kernel.tree.match");
+paired_command!(mesh_decimate, "kernel.mesh.decimate");
 
 #[cfg(test)]
 mod tests {

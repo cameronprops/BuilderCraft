@@ -432,6 +432,11 @@ mod tests {
         session.execute("undo", &json!({})).unwrap();
         assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
         assert_eq!(session.doc().unwrap().mesh3d[0].mesh, source);
+        session.execute("redo", &json!({})).unwrap();
+        assert_eq!(session.doc().unwrap().mesh3d.len(), 2);
+        assert_eq!(session.doc().unwrap().mesh3d[1].mesh.faces.len(), 6);
+        session.execute("undo", &json!({})).unwrap();
+        assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
 
         let replacement_revision = session.state().unwrap().revision;
         let replaced = session
@@ -445,6 +450,10 @@ mod tests {
             .unwrap();
         assert_eq!(replaced["id"], source_id);
         assert_eq!(session.doc().unwrap().mesh3d.len(), 1);
+        assert_eq!(session.doc().unwrap().mesh3d[0].mesh.faces.len(), 6);
+        session.execute("undo", &json!({})).unwrap();
+        assert_eq!(session.doc().unwrap().mesh3d[0].mesh, source);
+        session.execute("redo", &json!({})).unwrap();
         assert_eq!(session.doc().unwrap().mesh3d[0].mesh.faces.len(), 6);
         session.execute("undo", &json!({})).unwrap();
         assert_eq!(session.doc().unwrap().mesh3d[0].mesh, source);

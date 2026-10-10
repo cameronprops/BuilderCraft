@@ -19,6 +19,7 @@ native CI **after** the desktop and CLI binaries have been compiled.
 | A06 | Switch between 2D and 3D without altering revision, selection or command history | egui workspace command and serialization unit/integration tests | Testable UI-state invariant |
 | A07 | Shared mesh-scene operations and OrbWeaver graph executor work | Existing kernel mesh_scene and OrbWeaver Rust tests | Kernel integration, not GUI parity |
 | A08 | Same code compiles and tests on three native operating systems | Existing GitHub native CI matrix | Portability; runtime GUI still untested |
+| A09 | Command palette searches actual engine/UI registries with bounded results, stable ranking and no synthetic commands | Run `cargo test --locked -p cadcraft-ui-egui command_palette::tests` | Search logic gate; keyboard/mouse acceptance remains manual |
 
 The executable gate is **fail-closed**: scripts use `set -euo pipefail`,
 parse returned JSON, require nonempty artifacts, and reject unsupported
@@ -32,7 +33,7 @@ Until run and recorded on each platform these are **not verified**.
 
 1. Open the app to a usable blank 2D page. Create a line, polyline, circle
    and dimension through keyboard commands and palette buttons.
-2. Select with mouse, toggle snap/grid/ortho, inspect precise properties,
+2. Open the Command Palette with Cmd/Ctrl+K. Search by ID/alias, navigate with arrow keys, submit with Enter, dismiss with Escape, and verify Window-menu access.\n3. Select with mouse, toggle snap/grid/ortho, inspect precise properties,
    change a layer, hide/show, and verify contextual right-click actions.
 3. Undo, redo, copy, move, rotate, scale and delete; confirm exact geometry
    and the selection remain correct, including after zoom/pan.

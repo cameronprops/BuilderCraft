@@ -396,13 +396,24 @@ mod tests {
         assert_eq!(s.doc().unwrap().exact_breps.len(), 3);
         let cut = s.execute("brep.boolean", &json!({"name":"Cut","left_id":id_a,"right_id":id_b,"operation":"difference"})).unwrap();
         assert_eq!(cut["count"], 1);
+        let checked = s.execute("brep.inspect", &json!({"id":id_a})).unwrap();
+        assert_eq!(checked["faces"], 6);
+        assert!((checked["volume"].as_f64().unwrap() - 8.0).abs() < 1e-8);
+        let proxy = s.execute("brep.preview", &json!({"id":id_a,"linear_deflection":0.1,"angular_deflection":0.4})).unwrap();
+        assert_eq!(proxy["display_only"], true);
+        assert_eq!(proxy["mesh"]["exact"], false);
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 4);
+        let step = s.execute("brep.to_step", &json!({"ids":[id_a]})).unwrap();
+        assert_eq!(step["exact"], true);
+        let imported = s.execute("brep.from_step", &json!({"name":"STEP roundtrip","step":step["step"]})).unwrap();
+        assert_eq!(imported["count"], 1);
         let exported = cadcraft_io::write(s.doc().unwrap(), "solid.dftba").unwrap();
         let reopened = cadcraft_io::read(&exported, "solid.dftba").unwrap();
         assert_eq!(reopened.exact_breps, s.doc().unwrap().exact_breps);
         assert!(cadcraft_io::write(&reopened, "solid.dxf").is_err());
         s.execute("undo", &json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().exact_breps.len(), 3);
-        s.execute("redo", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().exact_breps.len(), 4);
+        s.execute("redo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 5);
     }
 }

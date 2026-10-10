@@ -152,6 +152,33 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         });
     }
+    // Exact trimmed solids remain separate from their disposable viewport proxies.
+    // Until the shaded renderer has a stable revision-aware topology pick map,
+    // expose safe document inspection without implying geometric subobject edits.
+    let breps = app.session.doc().map(|d| d.exact_breps.clone()).unwrap_or_default();
+    if !breps.is_empty() {
+        ui.separator();
+        ui.heading("Exact BRep solids");
+        for object in breps {
+            let selected = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
+            if ui.selectable_label(selected, format!("Solid: {}", object.name)).clicked() {
+                app.session.set_selection(vec![cadcraft_doc::Handle(object.id)]);
+            }
+            ui.label(format!("{:.6} volume units³ | {} faces | {} edges", object.volume, object.faces, object.edges));
+            let mut title = object.name.clone();
+            if ui.text_edit_singleline(&mut title).lost_focus() && title != object.name {
+                let _ = app.run("brep.set", json!({"id": object.id, "name": title}));
+            }
+            let mut visible = object.visible;
+            if ui.checkbox(&mut visible, "Visible").changed() {
+                let _ = app.run("brep.set", json!({"id": object.id, "visible": visible}));
+            }
+            if ui.button("Validate native topology").clicked() {
+                let _ = app.run("brep.inspect", json!({"id": object.id}));
+            }
+        }
+        ui.small("Exact OCCT BRep data is preserved. Shaded viewport drawing and solid picking require the next integration gate.");
+    }
     transform_panel(app, ui);
     crate::feature_history::panel(app, ui);
     ui.separator();

@@ -1,0 +1,24 @@
+site_name: WorldWright Manual
+site_description: Versioned, offline-first user and developer manual for the WorldWright open-source CAD suite
+site_url: ""
+repo_url: https://github.com/cameronprops/BuilderCraft
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+nav:
+  - Start here: manual/index.md
+  - User manual:
+    - Navigate and view: manual/viewports.md
+    - Select and transform: manual/selection.md
+    - Scene, layers, blocks and groups: manual/scene-organization.md
+    - Display and materials: manual/display-materials.md
+    - Reference artwork: manual/references.md
+    - Alpha test walkthrough: manual/alpha-acceptance.md
+  - Development:
+    - Interaction delivery map: roadmap/ALPHA_INTERACTION.md
+    - Core geometry delivery: roadmap/IMMEDIATE_MODELING_OPENSCAD_AND_ALPHA_UI.md
+    - Commands: commands/README.md
+    - API: BUILDERCRAFT_API.md
+    - License and donationware: architecture/COPYLEFT_AND_DONATIONWARE.md
+theme:
+  name: mkdocs

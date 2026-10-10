@@ -13,7 +13,7 @@ fn load_exact_brep_preview(app: &mut CadApp, id: u64) -> Result<(), String> {
     if !app.session.state().is_ok_and(|st| preview.current(st.uid, st.revision)) {
         return Err("BRep source changed while generating shaded preview".into());
     }
-    app.ui.brep_preview = Some(preview);
+    crate::brep_display::insert_preview(&mut app.ui.brep_previews, preview)?;
     Ok(())
 }
 pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
@@ -213,13 +213,13 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             if ui.button("Validate native topology").clicked() {
                 let _ = app.run("brep.inspect", json!({"id": object.id}));
             }
-            if ui.button("Load shaded BRep preview").clicked()
+            if ui.button("Load shaded solid").clicked()
                 && let Err(error) = load_exact_brep_preview(app, object.id)
             {
                 app.session.echo(error);
             }
         }
-        ui.small("Shaded display and whole-solid picks are disposable OCCT proxies. Wire edges use X-ray overlay; mixed-scene depth and stable face picking remain future gates.");
+        ui.small("Load multiple solids into a bounded shaded scene. Derived OCCT proxies support whole-solid picks; a GPU depth buffer and stable face IDs remain future gates.");
     }
     transform_panel(app, ui);
     crate::feature_history::panel(app, ui);
@@ -307,17 +307,21 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
     });
     // Compare the cached BRep proxy against native mesh hits using the same
     // orthographic barycentric depth calculation. Mesh wins an exact tie.
-    let brep_hit = app.ui.brep_preview.as_ref().and_then(|cache| {
-        let state = app.session.state().ok()?;
-        if !cache.current(state.uid, state.revision) {
-            return None;
-        }
+    let brep_hit = app.session.state().ok().and_then(|state| {
         let document = app.session.doc().ok()?;
-        let solid = document.exact_breps.iter().find(|o| o.id == cache.object_id)?;
-        if !solid.visible || document.layer(&solid.layer).is_some_and(|l| !l.visible() || l.locked) {
-            return None;
-        }
-        cache.pick_depth(camera, app.ui.center3d, app.ui.scale3d, offset).map(|depth| (solid.id, depth))
+        app.ui.brep_previews
+            .iter()
+            .filter(|preview| preview.current(state.uid, state.revision))
+            .filter_map(|preview| {
+                let solid = document.exact_breps.iter().find(|o| o.id == preview.object_id)?;
+                if !solid.visible || document.layer(&solid.layer).is_some_and(|l| !l.visible() || l.locked) {
+                    return None;
+                }
+                preview.pick_depth(camera, app.ui.center3d, app.ui.scale3d, offset).map(|depth| (solid.id, depth))
+            })
+            // Stable object IDs break coplanar ties. A native mesh still wins
+            // exact same-depth ties in the existing branch below.
+            .max_by(|a, b| a.1.total_cmp(&b.1).then_with(|| b.0.cmp(&a.0)))
     });
     if let Some((id, depth)) = brep_hit
         && picked.is_none_or(|mesh| depth > mesh.depth + 1e-9)
@@ -506,17 +510,26 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         }
     }
-    // OCCT triangulation is a derived, bounded, revision-scoped display proxy.
-    // One painter Mesh batches shaded triangles; edges are a cheap X-ray overlay.
-    if let Some(cache) = &app.ui.brep_preview
-        && app.session.state().is_ok_and(|st| cache.current(st.uid, st.revision))
+    // Multiple exact solids share one index-buffered shaded draw call.
+    // Their display triangles remain strictly transient and revision scoped.
+    if let Ok(state) = app.session.state()
         && let Ok(d) = app.session.doc()
-        && let Some(object) = d.exact_breps.iter().find(|o| o.id == cache.object_id)
-        && object.visible
-        && d.layer(&object.layer).is_none_or(|l| l.visible())
     {
-        let frame = cadcraft_geom::camera::OrthoFrame { yaw, pitch };
-        cache.paint(&painter, rect, frame, app.ui.center3d, scale, selected_ids.contains(&cadcraft_doc::Handle(object.id)));
+        let sources = app.ui.brep_previews.iter().filter(|cache| cache.current(state.uid, state.revision)).filter_map(|cache| {
+            let solid = d.exact_breps.iter().find(|o| o.id == cache.object_id)?;
+            if !solid.visible || d.layer(&solid.layer).is_some_and(|l| !l.visible()) {
+                return None;
+            }
+            Some((cache, selected_ids.contains(&cadcraft_doc::Handle(solid.id))))
+        });
+        crate::brep_display::paint_previews(
+            sources,
+            &painter,
+            rect,
+            cadcraft_geom::camera::OrthoFrame { yaw, pitch },
+            app.ui.center3d,
+            scale,
+        );
     }
     if preview_limited {
         painter.text(
@@ -1084,7 +1097,7 @@ mod brep_selection_tests {
     use super::*;
     use serde_json::json;
 
-    fn solid_preview(app: &mut CadApp, id: u64) {
+    fn solid_preview(app: &mut CadApp, id: u64, height: f64) {
         use cadcraft_doc::organization::ExactBrepObject;
         use std::sync::Arc;
 
@@ -1103,13 +1116,13 @@ mod brep_selection_tests {
             "vertices":[[0.,0.,2.],[10.,0.,2.],[0.,10.,2.]],
             "normals":[[0.,0.,1.],[0.,0.,1.],[0.,0.,1.]],
             "indices":[0,1,2],"edge_chains":[]}});
-        app.ui.brep_preview = Some(BrepPreview::from_worker(&proxy, state.uid, state.revision, id).unwrap());
+        crate::brep_display::insert_preview(&mut app.ui.brep_previews, BrepPreview::from_worker(&proxy, state.uid, state.revision, id).unwrap()).unwrap();
     }
 
     #[test]
     fn shaded_solid_pick_is_reversible_and_does_not_change_document() {
         let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
-        solid_preview(&mut app, 28);
+        solid_preview(&mut app, 28, 2.);
         app.ui.orbit_yaw = 0.;
         app.ui.orbit_pitch = -std::f64::consts::FRAC_PI_2;
         app.ui.scale3d = 10.;
@@ -1132,8 +1145,34 @@ mod brep_selection_tests {
         select_3d_at(&mut app, viewport, cursor, false);
         assert!(app.session.selection().is_empty());
         app.session.doc_mut().unwrap().exact_breps[0].visible = true;
-        app.ui.brep_preview.as_mut().unwrap().source_revision += 1;
+        let mut proxy = proxy;
+        for vertex in proxy["mesh"]["vertices"].as_array_mut().unwrap() {
+            vertex[2] = json!(height);
+        }
+        app.ui.brep_previews[0].source_revision += 1;
         select_3d_at(&mut app, viewport, cursor, false);
         assert!(app.session.selection().is_empty());
     }
+
+    #[test]
+    fn overlapping_solid_picks_choose_frontmost_and_respect_visibility() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        solid_preview(&mut app, 28, 2.);
+        solid_preview(&mut app, 29, 5.);
+        // Same projected footprint but 3 world units closer to the camera.
+        app.ui.orbit_yaw = 0.;
+        app.ui.orbit_pitch = -std::f64::consts::FRAC_PI_2;
+        app.ui.scale3d = 10.;
+        app.ui.center3d = cadcraft_geom::Vec3::ZERO;
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400., 400.));
+        let cursor = egui::pos2(220., 180.);
+        let revision = app.session.state().unwrap().revision;
+        select_3d_at(&mut app, rect, cursor, false);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(29)]);
+        app.session.doc_mut().unwrap().exact_breps.iter_mut().find(|o| o.id == 29).unwrap().visible = false;
+        select_3d_at(&mut app, rect, cursor, false);
+        assert_eq!(app.session.selection(), vec![cadcraft_doc::Handle(28)]);
+        assert_eq!(app.session.state().unwrap().revision, revision);
+    }
+
 }

@@ -34,9 +34,18 @@ pub fn specs() -> Vec<CommandSpec> {
             .enabled(always)
             .noundo(),
         CommandSpec::new("worldwright.pushpull", "PushPull Planar Face", pushpull).params("{inputs:{face,distance}}").enabled(always).noundo(),
-        CommandSpec::new("worldwright.project.mesh", "Project Geometry Onto Polygon Mesh", project_mesh).params("{inputs:{geometry,target,direction}}").enabled(always).noundo(),
-        CommandSpec::new("worldwright.project.nurbs", "Project Geometry Onto Rational NURBS Surface", project_nurbs).params("{inputs:{geometry,target,direction}}").enabled(always).noundo(),
-        CommandSpec::new("worldwright.flow_along_nurbs", "Flow Geometry Between Rational NURBS Surfaces", flow_along_nurbs).params("{inputs:{geometry,base,target}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.project.mesh", "Project Geometry Onto Polygon Mesh", project_mesh)
+            .params("{inputs:{geometry,target,direction}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.project.nurbs", "Project Geometry Onto Rational NURBS Surface", project_nurbs)
+            .params("{inputs:{geometry,target,direction}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.flow_along_nurbs", "Flow Geometry Between Rational NURBS Surfaces", flow_along_nurbs)
+            .params("{inputs:{geometry,base,target}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")
             .enabled(always)

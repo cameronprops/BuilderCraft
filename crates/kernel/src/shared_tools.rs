@@ -312,19 +312,31 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         output: ToolType::Mesh,
     },
     SharedToolContract {
-        operation: "kernel.project.mesh", cad_command: "worldwright.project.mesh", orbweaver_node: "orbweaver.project.mesh",
-        dependency_group: "geometry.intersections", prerequisites: &["kernel.polygon.triangulate", "kernel.vector.dot"],
-        inputs: MESH_PROJECT, output: ToolType::Polyline,
+        operation: "kernel.project.mesh",
+        cad_command: "worldwright.project.mesh",
+        orbweaver_node: "orbweaver.project.mesh",
+        dependency_group: "geometry.intersections",
+        prerequisites: &["kernel.polygon.triangulate", "kernel.vector.dot"],
+        inputs: MESH_PROJECT,
+        output: ToolType::Polyline,
     },
     SharedToolContract {
-        operation: "kernel.project.nurbs", cad_command: "worldwright.project.nurbs", orbweaver_node: "orbweaver.project.nurbs",
-        dependency_group: "geometry.intersections", prerequisites: &["kernel.geometry.tessellate", "kernel.vector.dot"],
-        inputs: NURBS_PROJECT, output: ToolType::Polyline,
+        operation: "kernel.project.nurbs",
+        cad_command: "worldwright.project.nurbs",
+        orbweaver_node: "orbweaver.project.nurbs",
+        dependency_group: "geometry.intersections",
+        prerequisites: &["kernel.geometry.tessellate", "kernel.vector.dot"],
+        inputs: NURBS_PROJECT,
+        output: ToolType::Polyline,
     },
     SharedToolContract {
-        operation: "kernel.surface.flow_nurbs", cad_command: "worldwright.flow_along_nurbs", orbweaver_node: "orbweaver.surface.flow_nurbs",
-        dependency_group: "geometry.surface", prerequisites: &["kernel.vector.cross", "kernel.vector.dot"],
-        inputs: NURBS_FLOW, output: ToolType::Polyline,
+        operation: "kernel.surface.flow_nurbs",
+        cad_command: "worldwright.flow_along_nurbs",
+        orbweaver_node: "orbweaver.surface.flow_nurbs",
+        dependency_group: "geometry.surface",
+        prerequisites: &["kernel.vector.cross", "kernel.vector.dot"],
+        inputs: NURBS_FLOW,
+        output: ToolType::Polyline,
     },
     SharedToolContract {
         operation: "kernel.tree.validate",
@@ -458,8 +470,10 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
             }
         }
         ToolValue::Surface(surface) => {
-            if !surface.valid() { return Err(KernelError::Invalid("invalid rational surface input")); }
-            let count=surface.rows.iter().try_fold(0usize, |n,row| n.checked_add(row.control.len()).ok_or(KernelError::Budget))?;
+            if !surface.valid() {
+                return Err(KernelError::Invalid("invalid rational surface input"));
+            }
+            let count = surface.rows.iter().try_fold(0usize, |n, row| n.checked_add(row.control.len()).ok_or(KernelError::Budget))?;
             if count > MAX_TREE_ITEMS { Err(KernelError::Budget) } else { Ok(count) }
         }
         ToolValue::Mesh(mesh) => {
@@ -633,9 +647,21 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.solid.pushpull_quad" => {
             Ok(ToolValue::Mesh(crate::pushpull_quad(polyline(&request.inputs, "face")?, number(&request.inputs, "distance")?)?))
         }
-        "kernel.project.mesh" => Ok(ToolValue::Polyline(crate::project_onto_mesh(polyline(&request.inputs, "geometry")?, mesh(&request.inputs, "target")?, vector(&request.inputs, "direction")?)?)),
-        "kernel.project.nurbs" => Ok(ToolValue::Polyline(crate::project_onto_nurbs(polyline(&request.inputs, "geometry")?, surface(&request.inputs, "target")?, vector(&request.inputs, "direction")?)?)),
-        "kernel.surface.flow_nurbs" => Ok(ToolValue::Polyline(crate::flow_along_nurbs(polyline(&request.inputs, "geometry")?, surface(&request.inputs, "base")?, surface(&request.inputs, "target")?)?)),
+        "kernel.project.mesh" => Ok(ToolValue::Polyline(crate::project_onto_mesh(
+            polyline(&request.inputs, "geometry")?,
+            mesh(&request.inputs, "target")?,
+            vector(&request.inputs, "direction")?,
+        )?)),
+        "kernel.project.nurbs" => Ok(ToolValue::Polyline(crate::project_onto_nurbs(
+            polyline(&request.inputs, "geometry")?,
+            surface(&request.inputs, "target")?,
+            vector(&request.inputs, "direction")?,
+        )?)),
+        "kernel.surface.flow_nurbs" => Ok(ToolValue::Polyline(crate::flow_along_nurbs(
+            polyline(&request.inputs, "geometry")?,
+            surface(&request.inputs, "base")?,
+            surface(&request.inputs, "target")?,
+        )?)),
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.midpoint" => Ok(ToolValue::Point(point_midpoint(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.interpolate" => {

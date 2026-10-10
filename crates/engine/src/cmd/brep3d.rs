@@ -326,12 +326,11 @@ fn call_worker(request: &Value) -> Result<Value> {
         }
     })();
     if finished.is_err() { let _=child.kill(); let _=child.wait(); }
-    let wrote = writer.join().map_err(|_| fail("worker input writer panicked"))?
-        .map_err(|e| fail(format!("writing BRep worker input: {e}")))?;
+    let wrote = writer.join().map_err(|_| fail("worker input writer panicked"))?;
     let output = reader.join().map_err(|_| fail("worker output reader panicked"))?
         .map_err(|e| fail(format!("reading BRep worker output: {e}")))?;
     let status=finished?;
-    let _ = wrote;
+    wrote.map_err(|e| fail(format!("writing BRep worker input: {e}")))?;
     if !status.success() { return Err(fail(format!("exact BRep worker terminated ({status})"))); }
     if output.len() as u64 > MAX_RESPONSE_BYTES { return Err(fail("BRep worker response exceeds 16 MiB")); }
     let reply: Value = serde_json::from_slice(&output)

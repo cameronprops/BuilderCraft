@@ -163,15 +163,20 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                             let limit_id = egui::Id::new(("mesh_patch_limit", object.id, index));
                             let axis_id = egui::Id::new(("mesh_patch_axis", object.id, index));
                             let feedback_id = egui::Id::new(("mesh_patch_feedback", object.id, index));
+                            let settings_id = egui::Id::new(("mesh_curvature_settings", object.id, index));
                             let mut selected_mode = ui.ctx().data_mut(|data| data.get_temp::<usize>(mode_id).unwrap_or(0));
                             let mut max_displacement = ui.ctx().data_mut(|data| data.get_temp::<f64>(limit_id).unwrap_or(0.0));
                             let mut axis = ui.ctx().data_mut(|data| data.get_temp::<[f64; 3]>(axis_id).unwrap_or([0.0, 0.0, 1.0]));
+                            let mut curvature = ui.ctx().data_mut(|data| {
+                                data.get_temp::<(u8, u16, f64, f64)>(settings_id).unwrap_or((2, 16, 0.45, 0.5))
+                            });
                             let mut changed = false;
                             egui::ComboBox::from_id_salt(("patch_mode_select", object.id, index))
                                 .selected_text(match selected_mode {
                                     1 => "Planar: least-squares fit",
                                     2 => "Planar: neighboring face direction",
                                     3 => "Planar: specified normal",
+                                    4 => "Nonplanar: curvature blend",
                                     _ => "Nonplanar: keep 3D rim",
                                 })
                                 .show_ui(ui, |ui| {
@@ -179,8 +184,9 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                     changed |= ui.selectable_value(&mut selected_mode, 1, "Planar: least-squares fit").changed();
                                     changed |= ui.selectable_value(&mut selected_mode, 2, "Planar: neighboring face direction").changed();
                                     changed |= ui.selectable_value(&mut selected_mode, 3, "Planar: specified normal").changed();
+                                    changed |= ui.selectable_value(&mut selected_mode, 4, "Nonplanar: curvature blend").changed();
                                 });
-                            if selected_mode != 0 {
+                            if (1..=3).contains(&selected_mode) {
                                 ui.small("A completely planar patch requires moving the rim. Adjacent original faces will change.");
                                 ui.horizontal(|ui| {
                                     ui.label("Max rim movement (document units):");
@@ -195,7 +201,25 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                     }
                                 });
                             }
+                            if selected_mode == 4 {
+                                ui.small("Original rim stays fixed. Extra interior triangles approximate adjacent surface curvature.");
+                                ui.horizontal(|ui| {
+                                    ui.label("Refinement:");
+                                    changed |= ui.add(egui::DragValue::new(&mut curvature.0).range(1..=3)).changed();
+                                    ui.label("Relax steps:");
+                                    changed |= ui.add(egui::DragValue::new(&mut curvature.1).range(1..=64)).changed();
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Slope blend:");
+                                    changed |= ui.add(egui::Slider::new(&mut curvature.2, 0.0..=1.0)).changed();
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Max interior relief:");
+                                    changed |= ui.add(egui::DragValue::new(&mut curvature.3).range(0.0..=1.0e12).speed(0.01)).changed();
+                                });
+                            }
                             ui.ctx().data_mut(|data| {
+                                data.insert_temp(settings_id, curvature);
                                 data.insert_temp(mode_id, selected_mode);
                                 data.insert_temp(limit_id, max_displacement);
                                 data.insert_temp(axis_id, axis);
@@ -208,6 +232,9 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                 2 => json!({"mode":"planar_average_normal","max_displacement":max_displacement}),
                                 3 => json!({"mode":"planar_direction","max_displacement":max_displacement,
                                     "normal":{"x":axis[0],"y":axis[1],"z":axis[2]}}),
+                                4 => json!({"mode":"curvature_smooth", "refinement_levels":curvature.0,
+                                    "smoothing_iterations":curvature.1, "tangent_weight":curvature.2,
+                                    "max_interior_offset":curvature.3}),
                                 _ => json!({"mode":"surface"}),
                             };
                             ui.horizontal(|ui| {
@@ -223,8 +250,9 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                                     );
                                     let message = match outcome {
                                         Ok(value) => format!(
-                                            "Patch preview: {} triangles, RMS {:.5}, max {:.5}, {} rim vertices moved. No model changes.",
+                                            "Patch preview: {} triangles, {} interior vertices, RMS {:.5}, max {:.5}, {} rim vertices moved. No model changes.",
                                             value["new_face_indices"].as_array().map_or(0, Vec::len),
+                                            value["interior_vertices_added"].as_u64().unwrap_or(0),
                                             value["plane"]["rms_boundary_deviation"].as_f64().unwrap_or(0.0),
                                             value["plane"]["max_boundary_deviation"].as_f64().unwrap_or(0.0),
                                             value["moved_vertices"].as_array().map_or(0, Vec::len)

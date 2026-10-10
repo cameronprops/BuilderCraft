@@ -73,6 +73,9 @@ pub struct UiState {
     pub mesh_face_object_id: Option<u64>,
     pub mesh_face_document_uid: Option<u64>,
     pub mesh_face_revision: Option<u64>,
+    /// Last inspected polygon topology; session-specific viewport overlay only.
+    #[serde(skip)]
+    pub mesh_defects: Option<buildercraft::MeshDefectOverlay>,
     /// Transient gizmo drag state must not be serialized with UI preferences.
     #[serde(skip)]
     pub gizmo: gizmo::Gizmo,
@@ -129,6 +132,7 @@ impl Default for UiState {
             mesh_face_object_id: None,
             mesh_face_document_uid: None,
             mesh_face_revision: None,
+            mesh_defects: None,
             gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,

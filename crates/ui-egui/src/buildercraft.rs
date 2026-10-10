@@ -3,7 +3,6 @@ use crate::CadApp;
 use cadcraft_doc::organization::{ModelNode, NodeKind};
 use serde_json::json;
 
-
 /// Explicit revision/document-bound *derived* BRep wires. Never serialized in
 /// the document or promoted into exact topology, IDs, trimming or surfaces.
 #[derive(Clone, Debug)]
@@ -17,36 +16,32 @@ pub struct BrepPreview {
 fn load_exact_brep_wires(app: &mut CadApp, id: u64) -> Result<(), String> {
     let state = app.session.state().map_err(|e| e.to_string())?;
     let (document_uid, revision) = (state.uid, state.revision);
-    let reply = app.run(
-        "brep.preview",
-        json!({"id":id,"linear_deflection":0.15,"angular_deflection":0.4}),
-    )?;
-    let lines = reply["mesh"]["edge_chains"].as_array()
-        .ok_or("exact BRep preview has no wire chains")?;
+    let reply = app.run("brep.preview", json!({"id":id,"linear_deflection":0.15,"angular_deflection":0.4}))?;
+    let lines = reply["mesh"]["edge_chains"].as_array().ok_or("exact BRep preview has no wire chains")?;
     let mut chains = Vec::new();
     let mut points = 0usize;
     for line in lines {
         let source = line.as_array().ok_or("invalid BRep wire chain")?;
         points = points.checked_add(source.len()).ok_or("BRep preview point overflow")?;
-        if points > 50_000 { return Err("BRep display proxy point budget exceeded".into()); }
+        if points > 50_000 {
+            return Err("BRep display proxy point budget exceeded".into());
+        }
         let mut chain = Vec::with_capacity(source.len());
         for point in source {
-            let values = point.as_array().filter(|v| v.len() == 3)
-                .ok_or("invalid BRep preview 3D point")?;
-            let get = |index: usize| -> Result<f64,String> {
-                values[index].as_f64().filter(|v| v.is_finite())
-                    .ok_or_else(|| "non-finite BRep preview coordinate".into())
+            let values = point.as_array().filter(|v| v.len() == 3).ok_or("invalid BRep preview 3D point")?;
+            let get = |index: usize| -> Result<f64, String> {
+                values[index].as_f64().filter(|v| v.is_finite()).ok_or_else(|| "non-finite BRep preview coordinate".into())
             };
-            chain.push(cadcraft_geom::Vec3::new(get(0)?,get(1)?,get(2)?));
+            chain.push(cadcraft_geom::Vec3::new(get(0)?, get(1)?, get(2)?));
         }
-        if chain.len() >= 2 { chains.push(chain); }
+        if chain.len() >= 2 {
+            chains.push(chain);
+        }
     }
     if !app.session.state().is_ok_and(|st| st.uid == document_uid && st.revision == revision) {
         return Err("BRep source changed while generating preview".into());
     }
-    app.ui.brep_preview = Some(BrepPreview {
-        document_uid, source_revision:revision, object_id:id, edge_chains:chains,
-    });
+    app.ui.brep_preview = Some(BrepPreview { document_uid, source_revision: revision, object_id: id, edge_chains: chains });
     Ok(())
 }
 

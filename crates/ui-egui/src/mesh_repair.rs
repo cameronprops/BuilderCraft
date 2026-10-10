@@ -11,6 +11,17 @@ pub const VIEWPORT: Color32 = Color32::from_rgb(20, 29, 35);
 pub const ACCENT: Color32 = Color32::from_rgb(100, 205, 188);
 pub const MESH: Color32 = Color32::from_rgb(131, 150, 161);
 pub const PICK: Color32 = Color32::from_rgb(255, 179, 77);
+pub const PATCH: Color32 = Color32::from_rgb(100, 225, 185);
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HolePatchPreview {
+    pub object_id: u64,
+    pub uid: u64,
+    pub revision: u64,
+    pub loop_index: u32,
+    pub boundary_vertices: Vec<u32>,
+    pub triangles: Vec<[u32; 3]>,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inspection {
@@ -31,11 +42,13 @@ pub struct State {
     pub edge: [u32; 2],
     pub fraction: f64,
     pub hole_index: u32,
+    pub picking_hole: bool,
+    pub patch: Option<HolePatchPreview>,
     pub inspection: Option<Inspection>,
 }
 impl Default for State {
     fn default() -> Self {
-        Self { active: false, selecting: false, edge: [0, 1], fraction: 0.5, hole_index: 0, inspection: None }
+        Self { active: false, selecting: false, edge: [0, 1], fraction: 0.5, hole_index: 0, picking_hole: false, patch: None, inspection: None }
     }
 }
 
@@ -48,6 +61,8 @@ pub fn set_active(app: &mut CadApp, active: bool) {
         app.ui.gizmo = Default::default();
     }
     app.ui.mesh_repair.inspection = None;
+    app.ui.mesh_repair.picking_hole = false;
+    app.ui.mesh_repair.patch = None;
 }
 
 /// PolyWorks-style spacebar switch. The key is only consumed when the
@@ -67,6 +82,8 @@ pub fn shortcuts(app: &mut CadApp, ctx: &egui::Context) {
         app.ui.mesh_face_document_uid = None;
         app.ui.mesh_face_revision = None;
         app.ui.mesh_repair.selecting = false;
+        app.ui.mesh_repair.picking_hole = false;
+        app.ui.mesh_repair.patch = None;
     }
     if ctx.input_mut(|input| input.consume_key(Modifiers::NONE, Key::F)) {
         let _ = app.run("ui.buildercraft.fit", Value::Null);
@@ -99,7 +116,7 @@ pub fn inspect(app: &mut CadApp, id: u64) -> Result<(), String> {
     let boundaries = app.run("mesh3d.boundaries", json!({"id":id}))?;
     let selected = topology["selected_vertices"].as_array().ok_or("Topology response missing vertices")?.len();
     let loops = boundaries["report"]["closed_loops"].as_array().ok_or("Boundary response missing loops")?.len();
-    let open = boundaries["report"]["open_chains"].as_array().map_or(0, Vec::len);
+    let open = boundaries["report"]["unresolved_edges"].as_array().map_or(0, Vec::len);
     let invalid_edges = topology["edge_diagnostics"]["non_manifold_edges"].as_array().map_or(0, Vec::len)
         + topology["edge_diagnostics"]["inconsistent_winding_edges"].as_array().map_or(0, Vec::len);
     let now = app.session.state().map_err(|e| e.to_string())?;
@@ -125,9 +142,118 @@ pub fn inspect(app: &mut CadApp, id: u64) -> Result<(), String> {
     Ok(())
 }
 
+
+/// Distance-based screen-space pick on the kernel's oriented boundary loops.
+/// This is a UI projection query, not a second topology implementation.
+pub fn closest_hole_loop(
+    mesh: &buildercraft_kernel::PolygonMesh,
+    loops: &[Vec<u32>],
+    frame: cadcraft_geom::camera::OrthoFrame,
+    center: cadcraft_geom::Vec3,
+    scale: f64,
+    cursor: cadcraft_geom::Vec2,
+    radius: f64,
+) -> Option<u32> {
+    if !cursor.is_finite() || !center.is_finite() || !scale.is_finite() || scale <= 0.
+        || !radius.is_finite() || radius <= 0. {
+        return None;
+    }
+    let mut closest = radius * radius;
+    let mut selected = None;
+    for (loop_id, ids) in loops.iter().enumerate() {
+        if ids.len() < 3 || ids.len() > 256 { continue; }
+        for i in 0..ids.len() {
+            let (Some(&a), Some(&b)) =
+                (mesh.vertices.get(ids[i] as usize), mesh.vertices.get(ids[(i + 1) % ids.len()] as usize))
+            else { continue };
+            let a = frame.project(a, center) * scale;
+            let b = frame.project(b, center) * scale;
+            let ab = b - a;
+            if !a.is_finite() || !b.is_finite() { continue; }
+            let length = ab.dot(ab);
+            if length <= 1e-15 { continue; }
+            let t = ((cursor - a).dot(ab) / length).clamp(0., 1.);
+            let delta = cursor - (a + ab * t);
+            let d = delta.dot(delta);
+            if d < closest {
+                closest = d;
+                selected = u32::try_from(loop_id).ok();
+            }
+        }
+    }
+    selected
+}
+
+pub fn patch_is_current(app: &CadApp, patch: &HolePatchPreview) -> bool {
+    app.session.state().is_ok_and(|s| s.uid == patch.uid && s.revision == patch.revision)
+        && app.session.doc().is_ok_and(|doc| doc.mesh3d.iter().any(|m| m.id == patch.object_id))
+}
+
+/// Preview uses the exact same kernel operation as commit. Only patch
+/// indices are transferred to UI state, never an entire replacement mesh.
+pub fn preview_hole(app: &mut CadApp, id: u64, loop_index: u32) -> Result<(), String> {
+    let st = app.session.state().map_err(|e| e.to_string())?;
+    let uid = st.uid;
+    let revision = st.revision;
+    let response = app.run("mesh3d.hole_preview", json!({"id":id,"loop_index":loop_index,"selected_revision":revision}))?;
+    let raw = response["new_triangles"].as_array().ok_or("Missing patch triangles")?;
+    if raw.len() > 254 { return Err("Hole patch is too large".into()); }
+    let triangles = raw.iter().map(|face| serde_json::from_value::<[u32; 3]>(face.clone()).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let boundary_vertices = response["boundary_vertices"].as_array().ok_or("Missing boundary vertices")?
+        .iter().map(|id| id.as_u64().and_then(|id| u32::try_from(id).ok()).ok_or("Invalid boundary vertex"))
+        .collect::<Result<Vec<_>, _>>()?;
+    let now = app.session.state().map_err(|e| e.to_string())?;
+    if now.uid != uid || now.revision != revision || response["source_revision"].as_u64() != Some(revision) {
+        return Err("Hole preview became stale".into());
+    }
+    app.ui.mesh_repair.hole_index = loop_index;
+    app.ui.mesh_repair.patch = Some(HolePatchPreview { object_id:id, uid, revision, loop_index, boundary_vertices, triangles });
+    app.ui.mesh_repair.picking_hole = false;
+    app.set_status(format!("Validated hole {} preview, ready to commit", loop_index));
+    Ok(())
+}
+
+/// Consume the click while boundary picking is armed, so a missed edge
+/// cannot select an unrelated CAD face.
+pub fn pick_hole_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2) {
+    let Some(id) = selected_mesh_id(app) else {
+        app.set_status("Select a measured mesh first");
+        return;
+    };
+    let result = (|| -> Result<Option<u32>, String> {
+        let report = app.run("mesh3d.boundaries", json!({"id":id}))?;
+        let lists = report["report"]["closed_loops"].as_array().ok_or("Missing boundary loop list")?;
+        let loops: Vec<Vec<u32>> = lists.iter().map(|v| {
+            let vertices = v["vertices"].as_array().ok_or("Invalid loop")?;
+            vertices.iter().map(|v| v.as_u64().and_then(|i| u32::try_from(i).ok()).ok_or("Invalid vertex")).collect()
+        }).collect::<Result<_, _>>()?;
+        let doc = app.session.doc().map_err(|e| e.to_string())?;
+        let object = doc.mesh3d.iter().find(|o| o.id == id).ok_or("Missing selected mesh")?;
+        if !object.visible || doc.layer(&object.layer).is_some_and(|l| !l.visible() || l.locked) {
+            return Err("Cannot pick hidden or locked mesh".into());
+        }
+        if object.mesh.faces.len() > app.machine_profile.tuning.viewport_faces {
+            return Err("Mesh exceeds visible face budget, enter loop index manually".into());
+        }
+        let camera = cadcraft_geom::camera::OrthoFrame { yaw: app.ui.orbit_yaw, pitch: app.ui.orbit_pitch };
+        let cursor = cadcraft_geom::Vec2::new(f64::from(pointer.x - rect.center().x), f64::from(rect.center().y - pointer.y));
+        Ok(closest_hole_loop(&object.mesh, &loops, camera, app.ui.center3d, app.ui.scale3d, cursor, 10.))
+    })();
+    match result {
+        Ok(Some(loop_id)) => {
+            if let Err(error) = preview_hole(app, id, loop_id) { app.set_status(error); }
+        }
+        Ok(None) => app.set_status("Click within 10 pixels of a visible hole boundary"),
+        Err(error) => app.set_status(error),
+    }
+}
+
 fn run_edit(app: &mut CadApp, id: u64, action: Value) -> Result<(), String> {
     app.run("mesh3d.edit", json!({"id":id,"edit":action}))?;
     app.ui.mesh_repair.inspection = None;
+    app.ui.mesh_repair.patch = None;
+    app.ui.mesh_repair.picking_hole = false;
     app.ui.mesh_defects = None;
     app.ui.mesh_face_object_id = None;
     app.ui.mesh_face_document_uid = None;
@@ -200,6 +326,8 @@ pub fn project_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                     if ui.selectable_label(chosen, &mesh.name).clicked() {
                         app.session.set_selection(vec![cadcraft_doc::Handle(mesh.id)]);
                         app.ui.mesh_repair.inspection = None;
+                        app.ui.mesh_repair.patch = None;
+                        app.ui.mesh_repair.picking_hole = false;
                         app.ui.mesh_face_object_id = None;
                         app.ui.mesh_face_revision = None;
                         app.ui.mesh_face_document_uid = None;
@@ -268,17 +396,35 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                     }
                 }
             }
+            ui.strong("INTERACTIVE HOLE FILL");
+            ui.small("Select boundary, preview patch, commit or cancel.");
+            if ui.selectable_label(app.ui.mesh_repair.picking_hole, "Pick hole boundary in viewport").clicked() {
+                app.ui.mesh_repair.picking_hole = !app.ui.mesh_repair.picking_hole;
+                app.ui.mesh_repair.selecting = true;
+            }
             ui.horizontal(|ui| {
-                ui.label("Boundary loop");
+                ui.label("Loop");
                 ui.add(egui::DragValue::new(&mut app.ui.mesh_repair.hole_index).speed(1.));
-            });
-            if ui.button("Fill planar hole").clicked()
-                && let Some(revision) = current_revision
-            {
-                let operation = json!({"kind":"fill_planar_hole","selected_revision":revision,"loop_index":app.ui.mesh_repair.hole_index});
-                if let Err(err) = run_edit(app, id, operation) {
-                    app.set_status(err);
+                if ui.button("Preview").clicked() {
+                    let loop_index = app.ui.mesh_repair.hole_index;
+                    if let Err(err) = preview_hole(app, id, loop_index) { app.set_status(err); }
                 }
+            });
+            if let Some(patch) = app.ui.mesh_repair.patch.as_ref().filter(|p| p.object_id == id && patch_is_current(app, p)) {
+                ui.colored_label(PATCH, format!("{} triangles, {} boundary vertices", patch.triangles.len(), patch.boundary_vertices.len()));
+                let revision = patch.revision;
+                let loop_index = patch.loop_index;
+                if ui.button("Commit fill").clicked() {
+                    if let Err(err) = run_edit(app, id, json!({"kind":"fill_planar_hole","selected_revision":revision,"loop_index":loop_index})) {
+                        app.set_status(err);
+                    }
+                }
+            } else {
+                ui.weak("Preview a supported planar convex hole first.");
+            }
+            if ui.button("Cancel hole preview").clicked() {
+                app.ui.mesh_repair.patch = None;
+                app.ui.mesh_repair.picking_hole = false;
             }
             ui.separator();
             ui.strong("QUAD STRIP CUT");
@@ -308,7 +454,7 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
             ui.label("SPACE  Select / Navigate");
             ui.label("F  Fit model");
             ui.label("I  Inspect mesh");
-            ui.label("ESC  Clear face pick");
+            ui.label("ESC  Cancel hole tool / clear face");
         });
 }
 
@@ -322,6 +468,9 @@ pub fn viewport_toolbar(app: &mut CadApp, ui: &mut egui::Ui) {
         }
         if ui.selectable_label(selecting, "Select  [SPACE]").clicked() {
             app.ui.mesh_repair.selecting = true;
+        }
+        if app.ui.mesh_repair.picking_hole {
+            ui.colored_label(PATCH, "Click a hole boundary edge");
         }
         ui.separator();
         if ui.button("Fit  [F]").clicked() {
@@ -422,5 +571,58 @@ mod tests {
         assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.faces.len(), 1);
         app.run("undo", json!({})).unwrap();
         assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.as_ref(), original.as_ref());
+    }
+
+    #[test]
+    fn click_boundary_returns_nearest_inner_loop_or_none() {
+        let mesh = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0.,0.,0.), Vec3::new(4.,0.,0.), Vec3::new(4.,4.,0.), Vec3::new(0.,4.,0.),
+                Vec3::new(1.,1.,0.), Vec3::new(3.,1.,0.), Vec3::new(3.,3.,0.), Vec3::new(1.,3.,0.),
+            ],
+            faces: vec![
+                PolygonFace::Quad([0,1,5,4]), PolygonFace::Quad([1,2,6,5]),
+                PolygonFace::Quad([2,3,7,6]), PolygonFace::Quad([3,0,4,7]),
+            ],
+        };
+        let loops = buildercraft_kernel::polygon_mesh_boundary_loops(&mesh).unwrap()
+            .closed_loops.into_iter().map(|l| l.vertices).collect::<Vec<_>>();
+        let camera = cadcraft_geom::camera::OrthoFrame { yaw: 0., pitch: -std::f64::consts::FRAC_PI_2 };
+        let hit = closest_hole_loop(&mesh, &loops, camera, Vec3::ZERO, 100., cadcraft_geom::Vec2::new(200., 101.), 10.);
+        assert!(hit.is_some());
+        assert!(loops[hit.unwrap() as usize].iter().all(|v| *v >= 4));
+        assert!(closest_hole_loop(&mesh, &loops, camera, Vec3::ZERO, 100., cadcraft_geom::Vec2::new(220., 220.), 10.).is_none());
+    }
+
+    #[test]
+    fn hole_preview_is_nonmutating_and_undo_clears_patch() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let mesh = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0.,0.,0.), Vec3::new(4.,0.,0.), Vec3::new(4.,4.,0.), Vec3::new(0.,4.,0.),
+                Vec3::new(1.,1.,0.), Vec3::new(3.,1.,0.), Vec3::new(3.,3.,0.), Vec3::new(1.,3.,0.),
+            ],
+            faces: vec![
+                PolygonFace::Quad([0,1,5,4]), PolygonFace::Quad([1,2,6,5]),
+                PolygonFace::Quad([2,3,7,6]), PolygonFace::Quad([3,0,4,7]),
+            ],
+        };
+        let id = app.run("mesh3d.create", json!({"name":"Ring","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
+        let boundary = app.run("mesh3d.boundaries", json!({"id":id})).unwrap();
+        let index = boundary["report"]["closed_loops"].as_array().unwrap().iter().position(|loop_data|
+            loop_data["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap() >= 4)).unwrap() as u32;
+        let revision = app.session.state().unwrap().revision;
+        let old = app.session.doc().unwrap().mesh3d[0].mesh.clone();
+        preview_hole(&mut app, id, index).unwrap();
+        let patch = app.ui.mesh_repair.patch.clone().unwrap();
+        assert_eq!(patch.triangles.len(), 2);
+        assert!(patch_is_current(&app, &patch));
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh, old);
+        run_edit(&mut app, id, json!({"kind":"fill_planar_hole","selected_revision":revision,"loop_index":index})).unwrap();
+        assert!(app.ui.mesh_repair.patch.is_none());
+        assert!(!patch_is_current(&app, &patch));
+        app.run("undo", json!({})).unwrap();
+        assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.as_ref(), old.as_ref());
     }
 }

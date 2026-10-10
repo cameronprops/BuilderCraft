@@ -96,6 +96,7 @@ impl Hardware {
     }
 }
 
+#[cfg(any(test, target_os = "macos", target_os = "windows"))]
 fn parse_first_integer(output: &[u8]) -> Option<u64> {
     String::from_utf8_lossy(output).split_whitespace().find_map(|piece| piece.trim().parse::<u64>().ok()).filter(|n| *n > 0)
 }

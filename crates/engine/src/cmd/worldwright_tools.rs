@@ -26,7 +26,9 @@ pub fn specs() -> Vec<CommandSpec> {
             .noundo(),
         CommandSpec::new("worldwright.array.path", "Array Along Curve", array_path).params("{inputs:{geometry,path,count}}").enabled(always).noundo(),
         CommandSpec::new("worldwright.array.path_oriented", "Array Along Path With Tangent Alignment", array_path_oriented)
-            .params("{inputs:{geometry,path,count,up,anchor}}").enabled(always).noundo(),
+            .params("{inputs:{geometry,path,count,up,anchor}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.project", "Project Geometry to Plane", project)
             .params("{inputs:{geometry,origin,normal,direction}}")
             .enabled(always)

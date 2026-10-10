@@ -17,7 +17,8 @@ pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("mesh3d.create", "Create Native Polygon Mesh", create)
             .params("{name,mesh:{vertices:[{x,y,z},...],faces:[{triangle:[...]},{quad:[...]}]}}"),
-        CommandSpec::new("mesh3d.array", "Array Native Polygon Mesh Object", array_object).params("{id,mode:linear|rectangular|polar|path|path_oriented,...}"),
+        CommandSpec::new("mesh3d.array", "Array Native Polygon Mesh Object", array_object)
+            .params("{id,mode:linear|rectangular|polar|path|path_oriented,...}"),
         CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face)
             .params("{id,face_index,distance,selected_revision?}"),
         CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
@@ -108,7 +109,7 @@ fn array_object(s: &mut Session, p: &Value) -> Result<Value> {
         MeshArraySpec::Path { path, count } => buildercraft_kernel::array_path(&source.mesh.vertices, &path, count),
         MeshArraySpec::PathOriented { path, count, up, anchor } => {
             buildercraft_kernel::array_path_oriented(&source.mesh.vertices, &path, count, up, anchor)
-        },
+        }
     }
     .map_err(|e| invalid(&e.to_string()))?;
     if copies.len() < 2 {
@@ -259,29 +260,29 @@ mod tests {
 
     #[test]
     fn oriented_path_array_creates_rotated_document_copies_and_undo() {
-        let mut s=Session::new();
-        let points=vec![Vec3::ZERO,Vec3::new(1.,0.,0.),Vec3::new(1.,1.,0.),Vec3::new(0.,1.,0.)];
-        let cube=buildercraft_kernel::pushpull_quad(&points,1.).unwrap();
-        let id=s.execute("mesh3d.create",&json!({"name":"Seed","mesh":cube})).unwrap()["id"].as_u64().unwrap();
-        let input=json!({
+        let mut s = Session::new();
+        let points = vec![Vec3::ZERO, Vec3::new(1., 0., 0.), Vec3::new(1., 1., 0.), Vec3::new(0., 1., 0.)];
+        let cube = buildercraft_kernel::pushpull_quad(&points, 1.).unwrap();
+        let id = s.execute("mesh3d.create", &json!({"name":"Seed","mesh":cube})).unwrap()["id"].as_u64().unwrap();
+        let input = json!({
             "id":id,"mode":"path_oriented",
             "path":[Vec3::ZERO,Vec3::new(5.,0.,0.),Vec3::new(5.,5.,0.)],
             "count":3,"up":Vec3::Z,"anchor":Vec3::ZERO
         });
-        let created=s.execute("mesh3d.array",&input).unwrap();
-        assert_eq!(created["copy_count"],2);
-        let d=s.doc().unwrap();
-        assert_eq!(d.mesh3d.len(),3);
-        let copy=&d.mesh3d[1].mesh.vertices;
-        assert!((copy[0]-Vec3::new(5.,0.,0.)).len()<1e-9);
-        assert!((copy[1]-Vec3::new(5.,1.,0.)).len()<1e-9);
-        assert_eq!(d.mesh3d[0].mesh.vertices[1],Vec3::new(1.,0.,0.));
-        s.execute("undo",&json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().mesh3d.len(),1);
-        let mut invalid=input;
-        invalid["up"]=serde_json::to_value(Vec3::new(1.,0.,0.)).unwrap();
-        assert!(s.execute("mesh3d.array",&invalid).is_err());
-        assert_eq!(s.doc().unwrap().mesh3d.len(),1);
+        let created = s.execute("mesh3d.array", &input).unwrap();
+        assert_eq!(created["copy_count"], 2);
+        let d = s.doc().unwrap();
+        assert_eq!(d.mesh3d.len(), 3);
+        let copy = &d.mesh3d[1].mesh.vertices;
+        assert!((copy[0] - Vec3::new(5., 0., 0.)).len() < 1e-9);
+        assert!((copy[1] - Vec3::new(5., 1., 0.)).len() < 1e-9);
+        assert_eq!(d.mesh3d[0].mesh.vertices[1], Vec3::new(1., 0., 0.));
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d.len(), 1);
+        let mut invalid = input;
+        invalid["up"] = serde_json::to_value(Vec3::new(1., 0., 0.)).unwrap();
+        assert!(s.execute("mesh3d.array", &invalid).is_err());
+        assert_eq!(s.doc().unwrap().mesh3d.len(), 1);
     }
 
     fn ring() -> PolygonMesh {

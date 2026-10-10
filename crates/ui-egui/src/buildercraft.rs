@@ -13,28 +13,52 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
             if ui.selectable_value(&mut app.ui.view3d, false, "2D / Drafting").clicked() {
                 app.ui.toolset_tab = "Drafting".into();
             }
-            ui.selectable_value(&mut app.ui.buildercraft_workspace, true, "Modeling workspace");
-            ui.selectable_value(&mut app.ui.buildercraft_workspace, false, "CADCraft drafting workspace");
+            ui.menu_button("Workspace", |ui| {
+                for (label, id) in [
+                    ("Modeling", "ui.workspace.modeling"),
+                    ("Drafting", "ui.workspace.drafting"),
+                    ("Focus", "ui.workspace.focus"),
+                    ("Save custom layout", "ui.workspace.save"),
+                    ("Restore custom layout", "ui.workspace.restore"),
+                ] {
+                    if ui.button(label).clicked() {
+                        app.start(id);
+                        ui.close();
+                    }
+                }
+            });
+            if ui.button("Search commands  Ctrl/Cmd+K").clicked() {
+                app.start("ui.command.search");
+            }
+            ui.weak("ALPHA").on_hover_text("Exact solid booleans and the seven OrbWeaver demo graphs still require acceptance validation.");
         });
     });
 }
 pub fn command_panel(app: &mut CadApp, ui: &mut egui::Ui) {
-    egui::Panel::top("buildercraft_commands").exact_size(94.0).show(ui, |ui| {
-        let lines: Vec<_> = app.session.log.iter().rev().take(2).rev().cloned().collect();
-        for line in lines {
-            ui.monospace(line);
-        }
-        let prompt = app.session.current_prompt().map(|p| p.message).unwrap_or_else(|| "Command".into());
-        let mut submit = false;
-        ui.horizontal(|ui| {
-            ui.label(prompt);
-            let response = ui.add(egui::TextEdit::singleline(&mut app.cmd.buffer).desired_width(f32::INFINITY));
-            submit = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+    let panel = egui::Panel::bottom("buildercraft_commands")
+        .default_size(app.ui.layout.command_height)
+        .size_range(60.0..=180.0)
+        .resizable(true)
+        .show(ui, |ui| {
+            // Retain the allocated height even when the command log is empty.
+            // Otherwise content sizing immediately shrinks a restored layout.
+            ui.set_min_height(ui.available_height());
+            let lines: Vec<_> = app.session.log.iter().rev().take(2).rev().cloned().collect();
+            for line in lines {
+                ui.monospace(line);
+            }
+            let prompt = app.session.current_prompt().map(|p| p.message).unwrap_or_else(|| "Command".into());
+            let mut submit = false;
+            ui.horizontal(|ui| {
+                ui.label(prompt);
+                let response = ui.add(egui::TextEdit::singleline(&mut app.cmd.buffer).desired_width(f32::INFINITY));
+                submit = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            });
+            if submit {
+                crate::cmdline::submit(app);
+            }
         });
-        if submit {
-            crate::cmdline::submit(app);
-        }
-    });
+    app.ui.layout.command_height = panel.response.rect.height();
 }
 pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.heading("Model Browser");

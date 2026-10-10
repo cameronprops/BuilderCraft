@@ -83,13 +83,7 @@ mod tests {
 
     #[test]
     fn switches_modes_without_altering_pinned_ui_controls() {
-        let mut ui = UiState {
-            show_command_line: false,
-            show_palettes: false,
-            show_toolsets: false,
-            history_lines: 9,
-            ..UiState::default()
-        };
+        let mut ui = UiState { show_command_line: false, show_palettes: false, show_toolsets: false, history_lines: 9, ..UiState::default() };
         let old_center = ui.center3d;
         assert_eq!(active(&ui), Workspace::Modeling);
         assert!(activate(&mut ui, Workspace::Drafting));

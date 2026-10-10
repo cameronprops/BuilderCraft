@@ -11,7 +11,11 @@ mod bounds;
 pub mod camera;
 pub mod closest3d;
 mod curve;
+#[cfg(feature = "curvo-eval")]
+pub mod curvo_evaluation;
 mod intersect;
+#[cfg(feature = "kurbo-eval")]
+pub mod kurbo_evaluation;
 mod mat;
 pub mod nurbs3d;
 pub mod picking;

@@ -76,6 +76,18 @@ pub fn pick_visible_mesh_face<'a>(
     scale: f64,
     cursor: Vec2,
 ) -> Option<PickedMeshFace> {
+    pick_visible_mesh_face_with_budget(objects, camera, center, scale, cursor, MAX_VIEWPORT_FACES)
+}
+
+/// Keep renderer and picker budgets aligned even on constrained-memory hosts.
+pub fn pick_visible_mesh_face_with_budget<'a>(
+    objects: impl IntoIterator<Item = (u64, &'a PolygonMesh)>,
+    camera: OrthoFrame,
+    center: Vec3,
+    scale: f64,
+    cursor: Vec2,
+    max_faces: usize,
+) -> Option<PickedMeshFace> {
     if !cursor.is_finite() || !center.is_finite() || !camera.yaw.is_finite() || !camera.pitch.is_finite() || !scale.is_finite() || scale <= 0.0 {
         return None;
     }
@@ -83,7 +95,7 @@ pub fn pick_visible_mesh_face<'a>(
     let mut best = None;
     // The cap is shared across all visible objects, not separately per mesh.
     // Picking and viewport drawing traverse the same bounded prefix.
-    let mut remaining_faces = MAX_VIEWPORT_FACES;
+    let mut remaining_faces = max_faces.min(MAX_VIEWPORT_FACES);
     for (object_id, mesh) in objects {
         let visible_faces = remaining_faces.min(mesh.faces.len());
         remaining_faces -= visible_faces;
@@ -198,5 +210,15 @@ mod tests {
     fn returns_none_for_no_visible_mesh_objects() {
         let empty: [(u64, &PolygonMesh); 0] = [];
         assert!(pick(empty, Vec2::new(10., 10.)).is_none());
+    }
+    #[test]
+    fn configured_face_budget_makes_off_budget_faces_unpickable() {
+        let mut mesh = square(0.);
+        mesh.faces.push(PolygonFace::Triangle([0, 1, 2]));
+        assert!(pick_visible_mesh_face_with_budget([(2, &mesh)], top(), Vec3::ZERO, 100., Vec2::new(100., 100.), 0).is_none());
+        assert_eq!(
+            pick_visible_mesh_face_with_budget([(2, &mesh)], top(), Vec3::ZERO, 100., Vec2::new(100., 100.), 1).map(|hit| hit.face_index),
+            Some(0)
+        );
     }
 }

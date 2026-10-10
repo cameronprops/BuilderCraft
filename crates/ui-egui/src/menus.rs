@@ -13,6 +13,7 @@ pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("ui.command.search", "Search commands", &["Tools", "Search Commands"], Some("Cmd+K")),
     ("ui.workspace.modeling", "Modeling workspace", &["Window", "Workspace", "Modeling"], None),
     ("ui.workspace.drafting", "Drafting workspace", &["Window", "Workspace", "Drafting"], None),
+    ("ui.workspace.mesh_repair", "Mesh Repair workspace", &["Window", "Workspace", "Mesh Repair"], None),
     ("ui.workspace.focus", "Focus workspace", &["Window", "Workspace", "Focus"], None),
     ("ui.workspace.save", "Save custom layout", &["Window", "Workspace", "Save Custom Layout"], None),
     ("ui.workspace.restore", "Restore custom layout", &["Window", "Workspace", "Restore Custom Layout"], None),
@@ -313,6 +314,8 @@ pub fn shortcuts(app: &mut CadApp, ctx: &egui::Context) {
         crate::workbench::shortcuts(app, ctx);
         return;
     }
+    // Scoped PolyWorks-like input must be handled before generic CAD hotkeys.
+    crate::mesh_repair::shortcuts(app, ctx);
     let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
     let pairs: &[(KeyboardShortcut, &str)] = &[
         (sc(cmd_shift, Key::Z), "redo"),

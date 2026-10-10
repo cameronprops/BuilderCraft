@@ -18,10 +18,12 @@ pub mod dialogs;
 mod feature_history;
 pub mod gizmo;
 pub mod gpu;
+pub mod hardware_profile;
 pub mod icons;
 pub mod layers;
 pub mod menus;
 pub mod mesh_picking;
+pub mod mesh_repair;
 pub mod palettes;
 pub mod parametric;
 mod point_input;
@@ -73,6 +75,12 @@ pub struct UiState {
     pub mesh_face_object_id: Option<u64>,
     pub mesh_face_document_uid: Option<u64>,
     pub mesh_face_revision: Option<u64>,
+    /// Last inspected polygon topology; session-specific viewport overlay only.
+    #[serde(skip)]
+    pub mesh_defects: Option<buildercraft::MeshDefectOverlay>,
+    /// Dedicated mesh-repair workspace with isolated modal navigation controls.
+    #[serde(skip)]
+    pub mesh_repair: mesh_repair::State,
     /// Transient gizmo drag state must not be serialized with UI preferences.
     #[serde(skip)]
     pub gizmo: gizmo::Gizmo,
@@ -129,6 +137,8 @@ impl Default for UiState {
             mesh_face_object_id: None,
             mesh_face_document_uid: None,
             mesh_face_revision: None,
+            mesh_defects: None,
+            mesh_repair: mesh_repair::State::default(),
             gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,
@@ -167,6 +177,9 @@ pub struct CadApp {
     pub ui: UiState,
     pub services: Services,
     pub canvas: canvas::CanvasState,
+    /// First-run hardware tuning is a user preference, never document content.
+    pub machine_profile: hardware_profile::Profile,
+    gpu_canvas_target: Option<gpu::GpuTarget>,
     pub cmd: cmdline::CmdLine,
     pub status: Option<(String, f64)>,
     pub integrated_titlebar: bool,
@@ -187,6 +200,8 @@ impl CadApp {
             ui: UiState::default(),
             services,
             canvas: canvas::CanvasState::default(),
+            machine_profile: hardware_profile::Profile::safe_default(),
+            gpu_canvas_target: None,
             cmd: cmdline::CmdLine::default(),
             status: None,
             integrated_titlebar: false,
@@ -204,7 +219,41 @@ impl CadApp {
     /// Draw the canvas on the GPU with the app's wgpu render state (eframe's
     /// `CreationContext::wgpu_render_state`). Without it the canvas draws on the CPU.
     pub fn set_wgpu(&mut self, rs: &egui_wgpu::RenderState) {
-        self.canvas.gpu = Some(gpu::install(rs));
+        self.gpu_canvas_target = Some(gpu::install(rs));
+        self.apply_canvas_route();
+    }
+
+    /// Called on the desktop's first launch after wgpu initialization,
+    /// then checked against the saved hardware signature on future launches.
+    pub fn configure_machine(&mut self, stored: Option<&str>, rs: Option<&egui_wgpu::RenderState>) {
+        self.machine_profile = hardware_profile::Profile::initialize(hardware_profile::Hardware::detect(rs), stored);
+        self.apply_canvas_route();
+    }
+
+    pub fn set_power_mode(&mut self, mode: hardware_profile::PowerMode) {
+        self.machine_profile.mode(mode);
+        self.apply_canvas_route();
+    }
+
+    pub fn reprofile_machine(&mut self) {
+        let gpu = self.machine_profile.hardware.graphics.clone();
+        let mode = self.machine_profile.mode;
+        let mut hw = hardware_profile::Hardware::detect(None);
+        hw.graphics = gpu;
+        self.machine_profile = hardware_profile::Profile::initialize(hw, None);
+        self.machine_profile.mode(mode);
+        self.apply_canvas_route();
+    }
+
+    /// Route only workloads for which a GPU implementation already exists.
+    /// The 2D canvas has a real wgpu path; topology and 3D inspection do not.
+    pub fn apply_canvas_route(&mut self) {
+        let primitives = self.canvas.list.as_ref().map_or(0, |list| list.prims.len());
+        self.canvas.gpu = if self.machine_profile.route(hardware_profile::Operation::Canvas2d { primitives }) == hardware_profile::Compute::Gpu {
+            self.gpu_canvas_target
+        } else {
+            None
+        };
     }
 
     pub fn with_control(mut self, rx: Receiver<ControlRequest>) -> Self {
@@ -281,6 +330,7 @@ impl CadApp {
             theme::apply(ctx);
             self.styled = true;
         }
+        self.apply_canvas_route();
         self.drain_control(ctx);
         if !self.synthetic.is_empty() {
             ctx.request_repaint();
@@ -317,7 +367,11 @@ impl CadApp {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let t0 = now_ms();
         let t = theme::Tokens::get();
-        buildercraft::workspace_bar(self, ui);
+        if self.ui.mesh_repair.active {
+            mesh_repair::workspace_bar(self, ui);
+        } else {
+            buildercraft::workspace_bar(self, ui);
+        }
         if self.ui.layout_dirty {
             ui.ctx().data_mut(|data| {
                 for id in ["cc_toolsets", "cc_palettes", "buildercraft_commands"] {
@@ -326,27 +380,38 @@ impl CadApp {
             });
             self.ui.layout_dirty = false;
         }
-        chrome::title_and_toolbar(self, ui);
-        if self.ui.in_window_menu {
-            menus::menu_bar(self, ui);
-        }
-        if self.ui.show_status_bar {
-            chrome::status_bar(self, ui);
+        if self.ui.mesh_repair.active {
+            mesh_repair::bar(self, ui);
+            mesh_repair::status_bar(self, ui);
+        } else {
+            chrome::title_and_toolbar(self, ui);
+            if self.ui.in_window_menu {
+                menus::menu_bar(self, ui);
+            }
+            if self.ui.show_status_bar {
+                chrome::status_bar(self, ui);
+            }
         }
         if self.ui.show_file_tabs {
             chrome::file_tabs(self, ui);
         }
         let has_doc = !self.session.docs.is_empty() && !self.ui.start_tab;
-        if has_doc && self.ui.buildercraft_workspace && self.ui.show_command_line {
-            buildercraft::command_panel(self, ui);
+        if has_doc && self.ui.mesh_repair.active {
+            mesh_repair::project_panel(self, ui);
+            mesh_repair::tool_panel(self, ui);
+        } else {
+            if has_doc && self.ui.buildercraft_workspace && self.ui.show_command_line {
+                buildercraft::command_panel(self, ui);
+            }
+            if has_doc && self.ui.show_toolsets {
+                palettes::toolsets(self, ui);
+            }
+            if has_doc && self.ui.show_palettes {
+                palettes::right_palettes(self, ui);
+            }
         }
-        if has_doc && self.ui.show_toolsets {
-            palettes::toolsets(self, ui);
-        }
-        if has_doc && self.ui.show_palettes {
-            palettes::right_palettes(self, ui);
-        }
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.canvas)).show(ui, |ui| {
+        let canvas_color = if self.ui.mesh_repair.active { mesh_repair::VIEWPORT } else { t.canvas };
+        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(canvas_color)).show(ui, |ui| {
             if has_doc {
                 if self.ui.buildercraft_workspace && self.ui.view3d {
                     buildercraft::viewport3d(self, ui);

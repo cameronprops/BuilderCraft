@@ -131,6 +131,16 @@ const NURBS_FLOW: &[ToolPort] = &[
     ToolPort { name: "base", kind: ToolType::Surface, modifier: true },
     ToolPort { name: "target", kind: ToolType::Surface, modifier: true },
 ];
+/// QEM options have explicit required ports for reproducible graph evaluation.
+/// crease_degrees=180 disables original crease protection, preserve_boundary is 0 or 1.
+const MESH_DECIMATE: &[ToolPort] = &[
+    ToolPort { name: "geometry", kind: ToolType::Mesh, modifier: false },
+    ToolPort { name: "target_faces", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "max_error", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "normal_degrees", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "preserve_boundary", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "crease_degrees", kind: ToolType::Number, modifier: true },
+];
 const QUAD_PUSHPULL: &[ToolPort] =
     &[ToolPort { name: "face", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "distance", kind: ToolType::Number, modifier: true }];
 const A_B_POINTS: &[ToolPort] =
@@ -382,6 +392,15 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         prerequisites: &["kernel.tree.validate"],
         inputs: TREE_MATCH,
         output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.mesh.decimate",
+        cad_command: "worldwright.mesh.decimate",
+        orbweaver_node: "orbweaver.mesh.decimate",
+        dependency_group: "geometry.mesh_topology",
+        prerequisites: &["kernel.polygon.validate", "kernel.polygon.triangulate", "kernel.polygon.topology"],
+        inputs: MESH_DECIMATE,
+        output: ToolType::Mesh,
     },
 ];
 
@@ -647,6 +666,29 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.solid.pushpull_quad" => {
             Ok(ToolValue::Mesh(crate::pushpull_quad(polyline(&request.inputs, "face")?, number(&request.inputs, "distance")?)?))
         }
+        "kernel.mesh.decimate" => {
+            let boundary = count(&request.inputs, "preserve_boundary")?;
+            if boundary > 1 {
+                return Err(KernelError::Invalid("preserve_boundary must be 0 or 1"));
+            }
+            let crease = number(&request.inputs, "crease_degrees")?;
+            if !(0.0..=180.0).contains(&crease) {
+                return Err(KernelError::Invalid("crease_degrees must be within 0..180"));
+            }
+            let polygon = mesh(&request.inputs, "geometry")?;
+            let triangulated = crate::polygon_mesh_triangulate(polygon)?;
+            let result = crate::mesh_quadric_decimate(
+                &triangulated.mesh,
+                crate::MeshDecimateOptions {
+                    target_faces: count(&request.inputs, "target_faces")?,
+                    max_quadric_error: number(&request.inputs, "max_error")?,
+                    max_normal_change_degrees: number(&request.inputs, "normal_degrees")?,
+                    preserve_boundary: boundary == 1,
+                    preserve_creases_above_degrees: (crease < 180.0).then_some(crease),
+                },
+            )?;
+            Ok(ToolValue::Mesh(crate::polygon_mesh_from_triangles(&result.mesh)?))
+        }
         "kernel.project.mesh" => Ok(ToolValue::Polyline(crate::project_onto_mesh(
             polyline(&request.inputs, "geometry")?,
             mesh(&request.inputs, "target")?,
@@ -717,8 +759,48 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 25);
+        assert_eq!(SHARED_TOOLS.len(), 26);
     }
+    #[test]
+    fn mesh_qem_is_one_algorithm_for_cad_and_orbweaver() {
+        use crate::{PolygonFace, PolygonMesh};
+        let geometry = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0.0, 0.0, 1.0), Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, -1.0, 0.0),
+            ],
+            faces: vec![
+                PolygonFace::Triangle([0, 2, 3]), PolygonFace::Triangle([0, 3, 4]),
+                PolygonFace::Triangle([0, 4, 5]), PolygonFace::Triangle([0, 5, 2]),
+                PolygonFace::Triangle([1, 3, 2]), PolygonFace::Triangle([1, 4, 3]),
+                PolygonFace::Triangle([1, 5, 4]), PolygonFace::Triangle([1, 2, 5]),
+            ],
+        };
+        let source = geometry.clone();
+        let inputs = BTreeMap::from([
+            ("geometry".into(), ToolValue::Mesh(geometry)),
+            ("target_faces".into(), ToolValue::Count(6)),
+            ("max_error".into(), ToolValue::Number(1000.0)),
+            ("normal_degrees".into(), ToolValue::Number(85.0)),
+            ("preserve_boundary".into(), ToolValue::Count(1)),
+            ("crease_degrees".into(), ToolValue::Number(180.0)),
+        ]);
+        let run = |operation: &str, inputs: BTreeMap<String, ToolValue>| {
+            execute_shared_tool(&ToolRequest { operation: operation.to_string(), inputs })
+        };
+        let cad = run("worldwright.mesh.decimate", inputs.clone());
+        let graph = run("orbweaver.mesh.decimate", inputs.clone());
+        assert_eq!(cad, graph);
+        assert!(cad.is_ok_and(|mesh| {
+            matches!(mesh, ToolValue::Mesh(ref value) if value.faces.len() == 6)
+        }));
+        assert_eq!(inputs.get("geometry"), Some(&ToolValue::Mesh(source)));
+        let mut bad = inputs;
+        bad.insert("preserve_boundary".into(), ToolValue::Count(2));
+        assert!(run("worldwright.mesh.decimate", bad).is_err());
+    }
+
     #[test]
     fn distance_is_shared_across_both_entry_points() {
         let inputs = point_input(Vec3::ZERO, Vec3::new(3., 4., 0.));
@@ -748,7 +830,7 @@ mod tests {
         let original = ToolValue::Tree(tree.clone());
         let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
-        assert_eq!(SHARED_TOOLS.len(), 25);
+        assert_eq!(SHARED_TOOLS.len(), 26);
         let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();
         assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());

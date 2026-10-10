@@ -1,0 +1,13 @@
+[package]
+name = "worldwright-cadrum-brep-evaluation"
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Deliberately outside the production workspace.
+# This probe may download/build an OCCT binary and must not become a default dependency.
+[workspace]
+
+[dependencies]
+cadrum = { version = "=0.8.20", default-features = false }

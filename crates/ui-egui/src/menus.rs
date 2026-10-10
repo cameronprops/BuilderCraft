@@ -42,6 +42,7 @@ pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("ui.dialog.dsettings", "Drafting Settings...", &[], None),
     ("ui.dialog.about", "About BuilderCraft", &["Help", "About BuilderCraft"], None),
     ("ui.dialog.commands", "Command Reference", &["Help", "BuilderCraft Help"], Some("F1")),
+    ("ui.dialog.palette", "Command Palette", &["Window", "Command Palette"], Some("Cmd+K")),
     ("ui.noop", "", &[], None),
     ("ui.quit", "Quit BuilderCraft", &[], Some("Cmd+Q")),
 ];
@@ -158,6 +159,7 @@ pub fn run_ui_command(app: &mut CadApp, id: &str, params: &Value) -> Option<Resu
         | "ui.dialog.dsettings"
         | "ui.dialog.about"
         | "ui.dialog.commands"
+        | "ui.dialog.palette"
         | "ui.dialog.qselect"
         | "ui.dialog.parameters" => {
             app.ui.dialog = Some(id.trim_start_matches("ui.dialog.").to_string());
@@ -319,6 +321,7 @@ pub fn shortcuts(app: &mut CadApp, ctx: &egui::Context) {
         (sc(cmd, Key::Num1), "ui.toggle.palettes"),
         (sc(cmd, Key::Num3), "ui.toggle.toolsets"),
         (sc(cmd, Key::Num9), "ui.toggle.cmdline"),
+        (sc(cmd, Key::K), "ui.dialog.palette"),
         (sc(Modifiers::ALT, Key::Num1), "ui.workspace.drafting"),
         (sc(Modifiers::ALT, Key::Num2), "ui.workspace.modeling"),
         (sc(Modifiers::ALT, Key::ArrowLeft), "ui.workspace.back"),

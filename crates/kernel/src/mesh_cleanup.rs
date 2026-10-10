@@ -111,7 +111,25 @@ pub struct MeshValidationReport {
 
 pub fn mesh_validation_report(mesh: &TriangleMesh, relative_area_tolerance: f64) -> Result<MeshValidationReport> {
     validate(mesh)?;
-    let compact = mesh_remove_unused_vertices(mesh)?;
+    // A diagnostic only needs a used-vertex bitmap. Building a compacted copy
+    // here also allocated remapped triangles, vertices, and an old-to-new map.
+    // Preserve mesh_remove_unused_vertices for actual editing/compaction.
+    let mut used = Vec::new();
+    used.try_reserve_exact(mesh.vertices.len()).map_err(|_| KernelError::Budget)?;
+    used.resize(mesh.vertices.len(), false);
+    for face in &mesh.triangles {
+        for &index in face {
+            used[index as usize] = true;
+        }
+    }
+    let mut unused_vertex_indices = Vec::new();
+    let unused_count = used.iter().filter(|&&present| !present).count();
+    unused_vertex_indices.try_reserve_exact(unused_count).map_err(|_| KernelError::Budget)?;
+    for (index, &present) in used.iter().enumerate() {
+        if !present {
+            unused_vertex_indices.push(u32::try_from(index).map_err(|_| KernelError::Budget)?);
+        }
+    }
     let duplicate_faces = mesh_duplicate_faces(mesh)?;
     // A completely empty mesh has no faces to diagnose.
     let degenerate_face_indices = if mesh.vertices.is_empty() && mesh.triangles.is_empty() {
@@ -127,7 +145,7 @@ pub fn mesh_validation_report(mesh: &TriangleMesh, relative_area_tolerance: f64)
     Ok(MeshValidationReport {
         vertex_count: mesh.vertices.len(),
         face_count: mesh.triangles.len(),
-        unused_vertex_indices: compact.removed_vertex_indices,
+        unused_vertex_indices,
         duplicate_faces,
         degenerate_face_indices,
         edge_report,
@@ -180,6 +198,32 @@ mod tests {
     fn repeated_index_faces_remain_diagnosable() {
         let mesh = TriangleMesh { vertices: vec![Vec3::ZERO, Vec3::Z], triangles: vec![[0, 0, 1]] };
         assert!(mesh_validation_report(&mesh, 0.0).is_ok_and(|r| r.degenerate_face_indices == vec![0] && r.edge_report.is_none()));
+    }
+
+    #[test]
+    fn read_only_unused_indices_match_explicit_compaction() {
+        let mesh = TriangleMesh {
+            vertices: vec![
+                Vec3::ZERO,
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(2.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(4.0, 4.0, 4.0),
+                Vec3::new(5.0, 5.0, 5.0),
+            ],
+            triangles: vec![[0, 1, 3], [3, 1, 0]],
+        };
+        let before = mesh.clone();
+        let compact = mesh_remove_unused_vertices(&mesh);
+        let report = mesh_validation_report(&mesh, 0.0);
+        assert!(compact.is_ok());
+        assert!(report.is_ok());
+        if let (Ok(compact), Ok(report)) = (compact, report) {
+            assert_eq!(report.unused_vertex_indices, compact.removed_vertex_indices);
+            assert_eq!(report.unused_vertex_indices, vec![2, 4, 5]);
+            assert_eq!(report.duplicate_faces.duplicates, vec![[1, 0]]);
+        }
+        assert_eq!(mesh, before);
     }
 
     #[test]

@@ -30,6 +30,27 @@ pub fn validate_triangle_mesh(mesh: &TriangleMesh) -> Result<()> {
     Ok(())
 }
 
+// Single canonical per-face predicate for full inspection and streaming
+// defect-only diagnostics. Validated indices/tolerance are caller-owned.
+fn analyze_triangle(mesh: &TriangleMesh, [a, b, c]: [u32; 3], relative_area_tolerance: f64) -> Result<MeshFaceAnalysis> {
+    let p = mesh.vertices[a as usize];
+    let q = mesh.vertices[b as usize];
+    let r = mesh.vertices[c as usize];
+    let u = q - p;
+    let v = r - p;
+    let w = r - q;
+    let scale = u.x.hypot(u.y).hypot(u.z).max(v.x.hypot(v.y).hypot(v.z)).max(w.x.hypot(w.y).hypot(w.z));
+    let normalized_cross = if scale > 0.0 { (u * (1.0 / scale)).cross(v * (1.0 / scale)) } else { Vec3::ZERO };
+    let cross_length = normalized_cross.x.hypot(normalized_cross.y).hypot(normalized_cross.z);
+    let area = 0.5 * cross_length * scale * scale;
+    if !area.is_finite() {
+        return Err(KernelError::Invalid("mesh face area overflow"));
+    }
+    let degenerate = a == b || b == c || a == c || cross_length <= 2.0 * relative_area_tolerance || cross_length == 0.0;
+    let normal = if degenerate { None } else { Some(normalized_cross * (1.0 / cross_length)) };
+    Ok(MeshFaceAnalysis { normal, area, degenerate })
+}
+
 /// Calculate each face's unit normal and area. Degenerate faces get None,
 /// including triangles whose vertex indices differ but positions coincide.
 ///
@@ -42,35 +63,28 @@ pub fn mesh_face_analysis(mesh: &TriangleMesh, relative_area_tolerance: f64) -> 
     }
     let mut output = Vec::new();
     output.try_reserve_exact(mesh.triangles.len()).map_err(|_| KernelError::Budget)?;
-    for triangle in &mesh.triangles {
-        let [a, b, c] = *triangle;
-        let p = mesh.vertices[a as usize];
-        let q = mesh.vertices[b as usize];
-        let r = mesh.vertices[c as usize];
-        let u = q - p;
-        let v = r - p;
-        let w = r - q;
-        let scale = u.x.hypot(u.y).hypot(u.z).max(v.x.hypot(v.y).hypot(v.z)).max(w.x.hypot(w.y).hypot(w.z));
-        let normalized_cross = if scale > 0.0 { (u * (1.0 / scale)).cross(v * (1.0 / scale)) } else { Vec3::ZERO };
-        let cross_length = normalized_cross.x.hypot(normalized_cross.y).hypot(normalized_cross.z);
-        let area = 0.5 * cross_length * scale * scale;
-        if !area.is_finite() {
-            return Err(KernelError::Invalid("mesh face area overflow"));
-        }
-        let degenerate = a == b || b == c || a == c || cross_length <= 2.0 * relative_area_tolerance || cross_length == 0.0;
-        let normal = if degenerate { None } else { Some(normalized_cross * (1.0 / cross_length)) };
-        output.push(MeshFaceAnalysis { normal, area, degenerate });
+    for &triangle in &mesh.triangles {
+        output.push(analyze_triangle(mesh, triangle, relative_area_tolerance)?);
     }
     Ok(output)
 }
 
 /// Indices of degenerate triangles, in the order found.
 pub fn mesh_degenerate_faces(mesh: &TriangleMesh, relative_area_tolerance: f64) -> Result<Vec<usize>> {
-    Ok(mesh_face_analysis(mesh, relative_area_tolerance)?
-        .into_iter()
-        .enumerate()
-        .filter_map(|(index, analysis)| analysis.degenerate.then_some(index))
-        .collect())
+    validate_triangle_mesh(mesh)?;
+    if !relative_area_tolerance.is_finite() || !(0.0..0.5).contains(&relative_area_tolerance) {
+        return Err(KernelError::Invalid("mesh relative area tolerance"));
+    }
+    // Most good meshes have few/no defective faces. Avoid materializing one
+    // MeshFaceAnalysis (normal + area) for every face when only indices are wanted.
+    let mut indices = Vec::new();
+    for (index, &face) in mesh.triangles.iter().enumerate() {
+        if analyze_triangle(mesh, face, relative_area_tolerance)?.degenerate {
+            indices.try_reserve(1).map_err(|_| KernelError::Budget)?;
+            indices.push(index);
+        }
+    }
+    Ok(indices)
 }
 
 #[cfg(test)]
@@ -97,6 +111,21 @@ mod tests {
             assert!(faces[2].degenerate && faces[2].normal.is_none());
         }
         assert_eq!(mesh_degenerate_faces(&mesh(), 1e-12), Ok(vec![1, 2]));
+    }
+
+    #[test]
+    fn streamed_defect_indices_match_full_face_analysis() {
+        let mesh = mesh();
+        for tolerance in [0.0, 1e-12, 0.01, 0.49] {
+            let full = mesh_face_analysis(&mesh, tolerance);
+            let indices = mesh_degenerate_faces(&mesh, tolerance);
+            assert!(full.is_ok());
+            assert!(indices.is_ok());
+            if let (Ok(full), Ok(indices)) = (full, indices) {
+                let expected: Vec<usize> = full.iter().enumerate().filter_map(|(i, f)| f.degenerate.then_some(i)).collect();
+                assert_eq!(indices, expected);
+            }
+        }
     }
 
     #[test]

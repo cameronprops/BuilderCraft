@@ -30,7 +30,7 @@ The headless Scene and CAD document still have separate storage systems.
   Polygon **face** click selection and highlighting now exist on this branch.
 - Editable quad export to independently validated OBJ/PLY or CAD interchange
   adapters is still pending; `.dftba` retains native quads internally.
-- Advanced concave/nonplanar fills, self-intersection detection, large-scan
+- Curvature-optimized nonplanar surface fitting and global self-intersection certification, large-scan
   streaming, preservation of material/UV/per-face attributes, and robust
   external OBJ/PLY/STL import.
 - The shared Scene and current CAD Document are not yet one synchronized
@@ -149,3 +149,52 @@ occlude a mesh, and shaded depth-buffer picking is future work.
 Windows local validation: `powershell -ExecutionPolicy Bypass -File tools/verify-worldwright-kernel.ps1`.
 Linux/macOS: `bash tools/verify-worldwright-kernel.sh`. Neither invokes
 GitHub Actions; the PR remains draft until the tests pass.
+
+## Advanced patch preview and planarization (2026-10-10 draft)
+
+The newly authored shared `polygon_mesh_fill_hole_advanced` kernel adds four
+bounded modes. Native Rust compilation and complete regression gates remain
+mandatory before release. This is a **triangulated mesh patch**, never an
+exact-NURBS surface reconstruction:
+
+- `surface`: triangulate a simple inner boundary using a local projected
+  domain, while retaining every original three-dimensional rim vertex.
+- `planar_best_fit`: fit the least-squares orthogonal plane to the rim
+  through its centroid, then flatten the shared boundary vertices.
+- `planar_average_normal`: orient a plane through the rim centroid using
+  adjacent face normals, then flatten the shared rim.
+- `planar_direction`: flatten toward the centroid-anchored plane with a
+  caller-specified normal.
+
+The planar modes require a **maximum allowed displacement in the document's
+own length units**. Results report RMS/maximum boundary deviations, new face
+indices and each moved rim vertex's before/after coordinates. Flattening
+changes nearby faces sharing the same vertices. The normal is orientation-
+aligned to the inner-hole patch; a selected boundary with ambiguous normal
+orientation, non-manifold topology or self-crossing projected footprint is
+rejected conservatively. No global triangle-triangle collision guarantee,
+texture repair, subdivision blending or generic outer-shell capping is
+claimed.
+
+Example headless preview (replace `ID`, `REV`, `LOOP`):
+
+```json
+{
+  "command": "mesh3d.fill_preview",
+  "params": {
+    "id": 123,
+    "loop_index": 1,
+    "selected_revision": 10,
+    "mode": {"mode": "planar_best_fit", "max_displacement": 0.5}
+  }
+}
+```
+
+Commit the same parameters with
+`mesh3d.edit {id, edit:{kind:"fill_hole",selected_revision,loop_index,mode}}`.
+The existing scene edit adapter also routes this variant through revisioned,
+undoable scene transactions. A dedicated Scan/OrbWeaver presentation adapter
+still needs its own acceptance tests, though it will reuse this one kernel.
+The mesh repair UI now exposes these modes, numerical direction/limit inputs,
+a read-only diagnostic preview and an Apply Patch action. A ghosted 3D patch
+overlay and curvature-controlled interior triangulation remain later steps.

@@ -21,6 +21,7 @@ pub struct HolePatchPreview {
     pub loop_index: u32,
     pub boundary_vertices: Vec<u32>,
     pub triangles: Vec<[u32; 3]>,
+    pub mode: buildercraft_kernel::HoleFillMode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,13 +43,15 @@ pub struct State {
     pub edge: [u32; 2],
     pub fraction: f64,
     pub hole_index: u32,
+    pub fill_mode: u8,
+    pub direction: [f64; 3],
     pub picking_hole: bool,
     pub patch: Option<HolePatchPreview>,
     pub inspection: Option<Inspection>,
 }
 impl Default for State {
     fn default() -> Self {
-        Self { active: false, selecting: false, edge: [0, 1], fraction: 0.5, hole_index: 0, picking_hole: false, patch: None, inspection: None }
+        Self { active: false, selecting: false, edge: [0, 1], fraction: 0.5, hole_index: 0, fill_mode: 0, direction: [0., 0., -1.], picking_hole: false, patch: None, inspection: None }
     }
 }
 
@@ -197,7 +200,13 @@ pub fn preview_hole(app: &mut CadApp, id: u64, loop_index: u32) -> Result<(), St
     let st = app.session.state().map_err(|e| e.to_string())?;
     let uid = st.uid;
     let revision = st.revision;
-    let response = app.run("mesh3d.hole_preview", json!({"id":id,"loop_index":loop_index,"selected_revision":revision}))?;
+    let mode = match app.ui.mesh_repair.fill_mode {
+        1 => buildercraft_kernel::HoleFillMode::AverageNormal,
+        2 => buildercraft_kernel::HoleFillMode::Direction { vector: cadcraft_geom::Vec3::new(
+            app.ui.mesh_repair.direction[0], app.ui.mesh_repair.direction[1], app.ui.mesh_repair.direction[2]) },
+        _ => buildercraft_kernel::HoleFillMode::Planar,
+    };
+    let response = app.run("mesh3d.hole_preview", json!({"id":id,"loop_index":loop_index,"selected_revision":revision,"mode":mode}))?;
     let raw = response["new_triangles"].as_array().ok_or("Missing patch triangles")?;
     if raw.len() > 254 {
         return Err("Hole patch is too large".into());
@@ -215,7 +224,7 @@ pub fn preview_hole(app: &mut CadApp, id: u64, loop_index: u32) -> Result<(), St
         return Err("Hole preview became stale".into());
     }
     app.ui.mesh_repair.hole_index = loop_index;
-    app.ui.mesh_repair.patch = Some(HolePatchPreview { object_id: id, uid, revision, loop_index, boundary_vertices, triangles });
+    app.ui.mesh_repair.patch = Some(HolePatchPreview { object_id: id, uid, revision, loop_index, boundary_vertices, triangles, mode });
     app.ui.mesh_repair.picking_hole = false;
     app.set_status(format!("Validated hole {} preview, ready to commit", loop_index));
     Ok(())
@@ -410,6 +419,23 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
             }
             ui.strong("INTERACTIVE HOLE FILL");
             ui.small("Select boundary, preview patch, commit or cancel.");
+            ui.horizontal_wrapped(|ui| {
+                for (label, id) in [("Planar only", 0), ("Average normal", 1), ("Direction", 2)] {
+                    if ui.selectable_label(app.ui.mesh_repair.fill_mode == id, label).clicked() {
+                        app.ui.mesh_repair.fill_mode = id;
+                        app.ui.mesh_repair.patch = None;
+                    }
+                }
+            });
+            if app.ui.mesh_repair.fill_mode == 2 {
+                ui.horizontal(|ui| {
+                    ui.label("Normal XYZ");
+                    for component in &mut app.ui.mesh_repair.direction {
+                        ui.add(egui::DragValue::new(component).speed(0.05));
+                    }
+                });
+            }
+            ui.small("Average/direction preserve the original 3D boundary; they do not flatten adjoining scan geometry.");
             if ui.selectable_label(app.ui.mesh_repair.picking_hole, "Pick hole boundary in viewport").clicked() {
                 app.ui.mesh_repair.picking_hole = !app.ui.mesh_repair.picking_hole;
                 app.ui.mesh_repair.selecting = true;
@@ -428,13 +454,19 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 ui.colored_label(PATCH, format!("{} triangles, {} boundary vertices", patch.triangles.len(), patch.boundary_vertices.len()));
                 let revision = patch.revision;
                 let loop_index = patch.loop_index;
+                let mode = patch.mode;
                 if ui.button("Commit fill").clicked() {
-                    if let Err(err) = run_edit(app, id, json!({"kind":"fill_planar_hole","selected_revision":revision,"loop_index":loop_index})) {
+                    let operation = if matches!(mode, buildercraft_kernel::HoleFillMode::Planar) {
+                        json!({"kind":"fill_planar_hole","selected_revision":revision,"loop_index":loop_index})
+                    } else {
+                        json!({"kind":"fill_projected_hole","selected_revision":revision,"loop_index":loop_index,"mode":mode})
+                    };
+                    if let Err(err) = run_edit(app, id, operation) {
                         app.set_status(err);
                     }
                 }
             } else {
-                ui.weak("Preview a supported planar convex hole first.");
+                ui.weak("Preview a supported hole before committing.");
             }
             if ui.button("Cancel hole preview").clicked() {
                 app.ui.mesh_repair.patch = None;

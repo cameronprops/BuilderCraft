@@ -155,7 +155,7 @@ mod tests {
                 PolygonFace::Triangle([1, 2, 5]),
             ],
         };
-        let inputs = BTreeMap::from([
+        let inputs: BTreeMap<String, ToolValue> = BTreeMap::from([
             ("geometry".into(), ToolValue::Mesh(poly)),
             ("target_faces".into(), ToolValue::Count(6)),
             ("max_error".into(), ToolValue::Number(1000.0)),

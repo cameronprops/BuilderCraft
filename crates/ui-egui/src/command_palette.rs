@@ -41,9 +41,8 @@ pub fn hits(query: &str, limit: usize) -> Vec<PaletteHit> {
     let query = query.trim().chars().take(80).collect::<String>().to_ascii_lowercase();
     let mut results = Vec::new();
     for command in cadcraft_engine::command_specs() {
-        let score = relevance(command.id, command.label, &query).or_else(|| {
-            command.aliases.iter().any(|a| a.to_ascii_lowercase().contains(&query)).then_some(5)
-        });
+        let score = relevance(command.id, command.label, &query)
+            .or_else(|| command.aliases.iter().any(|a| a.to_ascii_lowercase().contains(&query)).then_some(5));
         if let Some(rank) = score {
             results.push(PaletteHit { id: command.id.into(), label: command.label.into(), rank });
         }
@@ -70,56 +69,52 @@ pub fn show(app: &mut CadApp, ctx: &egui::Context, open: &mut bool) {
     let mut selected = ctx.data_mut(|d| d.get_temp::<usize>(selection_id)).unwrap_or(0);
     let mut chosen = None;
     let mut dismissed = false;
-    egui::Window::new("Worldwright Command Palette")
-        .open(open)
-        .default_size(vec2(530.0, 370.0))
-        .collapsible(false)
-        .show(ctx, |ui| {
-            ui.label("Find a command by name, ID or alias. Enter runs the highlighted command.");
-            let previous = query.clone();
-            let response = ui.add(
-                egui::TextEdit::singleline(&mut query)
-                    .id(query_id.with("input"))
-                    .hint_text("Line, Move, 3D Modeling, Save…")
-                    .desired_width(f32::INFINITY),
-            );
-            if !response.has_focus() {
-                response.request_focus();
+    egui::Window::new("Worldwright Command Palette").open(open).default_size(vec2(530.0, 370.0)).collapsible(false).show(ctx, |ui| {
+        ui.label("Find a command by name, ID or alias. Enter runs the highlighted command.");
+        let previous = query.clone();
+        let response = ui.add(
+            egui::TextEdit::singleline(&mut query)
+                .id(query_id.with("input"))
+                .hint_text("Line, Move, 3D Modeling, Save…")
+                .desired_width(f32::INFINITY),
+        );
+        if !response.has_focus() {
+            response.request_focus();
+        }
+        if previous != query {
+            selected = 0;
+        }
+        let options = hits(&query, 40);
+        if !options.is_empty() {
+            selected = selected.min(options.len() - 1);
+        }
+        let down = ui.input(|i| i.key_pressed(Key::ArrowDown));
+        let up = ui.input(|i| i.key_pressed(Key::ArrowUp));
+        if down && !options.is_empty() {
+            selected = (selected + 1).min(options.len() - 1);
+        }
+        if up {
+            selected = selected.saturating_sub(1);
+        }
+        if ui.input(|i| i.key_pressed(Key::Escape)) {
+            dismissed = true;
+        }
+        if ui.input(|i| i.key_pressed(Key::Enter)) && !query.trim().is_empty() {
+            chosen = options.get(selected).map(|x| x.id.clone());
+        }
+        ui.separator();
+        egui::ScrollArea::vertical().max_height(290.0).show(ui, |ui| {
+            if options.is_empty() {
+                ui.weak("No matching registered command.");
             }
-            if previous != query {
-                selected = 0;
-            }
-            let options = hits(&query, 40);
-            if !options.is_empty() {
-                selected = selected.min(options.len() - 1);
-            }
-            let down = ui.input(|i| i.key_pressed(Key::ArrowDown));
-            let up = ui.input(|i| i.key_pressed(Key::ArrowUp));
-            if down && !options.is_empty() {
-                selected = (selected + 1).min(options.len() - 1);
-            }
-            if up {
-                selected = selected.saturating_sub(1);
-            }
-            if ui.input(|i| i.key_pressed(Key::Escape)) {
-                dismissed = true;
-            }
-            if ui.input(|i| i.key_pressed(Key::Enter)) && !query.trim().is_empty() {
-                chosen = options.get(selected).map(|x| x.id.clone());
-            }
-            ui.separator();
-            egui::ScrollArea::vertical().max_height(290.0).show(ui, |ui| {
-                if options.is_empty() {
-                    ui.weak("No matching registered command.");
+            for (index, option) in options.iter().enumerate() {
+                let text = format!("{}    {}", option.label, option.id);
+                if ui.selectable_label(index == selected, text).clicked() {
+                    chosen = Some(option.id.clone());
                 }
-                for (index, option) in options.iter().enumerate() {
-                    let text = format!("{}    {}", option.label, option.id);
-                    if ui.selectable_label(index == selected, text).clicked() {
-                        chosen = Some(option.id.clone());
-                    }
-                }
-            });
+            }
         });
+    });
     ctx.data_mut(|d| {
         d.insert_temp(query_id, query);
         d.insert_temp(selection_id, selected);

@@ -155,17 +155,20 @@ struct Candidate {
 }
 impl PartialEq for Candidate {
     fn eq(&self, other: &Self) -> bool {
-        (self.a, self.b, self.ver_a, self.ver_b, self.error.to_bits())
-            == (other.a, other.b, other.ver_a, other.ver_b, other.error.to_bits())
+        (self.a, self.b, self.ver_a, self.ver_b, self.error.to_bits()) == (other.a, other.b, other.ver_a, other.ver_b, other.error.to_bits())
     }
 }
 impl Eq for Candidate {}
 impl PartialOrd for Candidate {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.error.total_cmp(&self.error)
+        other
+            .error
+            .total_cmp(&self.error)
             .then_with(|| other.a.cmp(&self.a))
             .then_with(|| other.b.cmp(&self.b))
             .then_with(|| other.ver_a.cmp(&self.ver_a))
@@ -200,8 +203,7 @@ impl Work {
     }
 
     fn candidate(&self, a: u32, b: u32) -> Option<Candidate> {
-        if a == b || !self.active[a as usize] || !self.active[b as usize]
-            || self.protected[a as usize] || self.protected[b as usize] {
+        if a == b || !self.active[a as usize] || !self.active[b as usize] || self.protected[a as usize] || self.protected[b as usize] {
             return None;
         }
         let quadric = self.quadrics[a as usize].add(self.quadrics[b as usize]);
@@ -239,7 +241,9 @@ impl Work {
         }
         let mut opposite = BTreeSet::new();
         for &id in &shared {
-            let Some(face) = self.faces[id] else { return false; };
+            let Some(face) = self.faces[id] else {
+                return false;
+            };
             for vertex in face {
                 if vertex != c.a && vertex != c.b {
                     opposite.insert(vertex);
@@ -257,17 +261,23 @@ impl Work {
             return false;
         }
         for &id in self.incident[a].union(&self.incident[b]) {
-            let Some(face) = self.faces[id] else { return false; };
+            let Some(face) = self.faces[id] else {
+                return false;
+            };
             if face.contains(&c.a) && face.contains(&c.b) {
                 continue;
             }
-            let Some(before) = face_normal(face, &self.positions) else { return false; };
+            let Some(before) = face_normal(face, &self.positions) else {
+                return false;
+            };
             let mapped = face.map(|v| if v == c.b { c.a } else { v });
             if mapped[0] == mapped[1] || mapped[1] == mapped[2] || mapped[0] == mapped[2] {
                 return false;
             }
             let point = |v: u32| if v == c.a { c.pos } else { self.positions[v as usize] };
-            let Some(after) = normal(point(mapped[0]), point(mapped[1]), point(mapped[2])) else { return false; };
+            let Some(after) = normal(point(mapped[0]), point(mapped[1]), point(mapped[2])) else {
+                return false;
+            };
             if dot(before, after) < cos_limit {
                 return false;
             }
@@ -363,9 +373,12 @@ pub fn mesh_quadric_decimate(mesh: &TriangleMesh, options: MeshDecimateOptions) 
     if mesh.vertices.len() > MAX_VERTICES || mesh.triangles.len() > MAX_FACES {
         return Err(KernelError::Budget);
     }
-    if !options.max_quadric_error.is_finite() || options.max_quadric_error < 0.0
-        || !options.max_normal_change_degrees.is_finite() || !(0.0..89.0).contains(&options.max_normal_change_degrees)
-        || options.preserve_creases_above_degrees.is_some_and(|t| !t.is_finite() || !(0.0..=180.0).contains(&t)) {
+    if !options.max_quadric_error.is_finite()
+        || options.max_quadric_error < 0.0
+        || !options.max_normal_change_degrees.is_finite()
+        || !(0.0..89.0).contains(&options.max_normal_change_degrees)
+        || options.preserve_creases_above_degrees.is_some_and(|t| !t.is_finite() || !(0.0..=180.0).contains(&t))
+    {
         return Err(KernelError::Invalid("mesh decimate options"));
     }
     validate_triangle_mesh(mesh)?;
@@ -440,7 +453,9 @@ pub fn mesh_quadric_decimate(mesh: &TriangleMesh, options: MeshDecimateOptions) 
     let mut remaining = mesh.triangles.len();
     let cosine_limit = options.max_normal_change_degrees.to_radians().cos();
     while remaining > options.target_faces {
-        let Some(candidate) = heap.pop() else { break; };
+        let Some(candidate) = heap.pop() else {
+            break;
+        };
         if work.versions[candidate.a as usize] != candidate.ver_a || work.versions[candidate.b as usize] != candidate.ver_b {
             continue;
         }
@@ -489,11 +504,15 @@ pub fn mesh_quadric_decimate(mesh: &TriangleMesh, options: MeshDecimateOptions) 
     }
     let output = TriangleMesh { vertices, triangles };
     let edges = mesh_edge_report(&output)?;
-    if !output.triangles.is_empty() && !polygon_mesh_vertex_fans(&polygon_mesh_from_triangles(&output)?)?.non_manifold_vertices.is_empty() {
+    if !output.triangles.is_empty() && !polygon_mesh_vertex_fans(&polygon_mesh_from_triangles(&output)?)?.non_manifold_vertices.is_empty()
+    {
         return Err(KernelError::Invalid("decimation pinches vertex fans"));
     }
-    if !edges.non_manifold_edges.is_empty() || !edges.inconsistent_winding_edges.is_empty()
-        || !mesh_duplicate_faces(&output)?.duplicates.is_empty() || !mesh_degenerate_faces(&output, 0.0)?.is_empty() {
+    if !edges.non_manifold_edges.is_empty()
+        || !edges.inconsistent_winding_edges.is_empty()
+        || !mesh_duplicate_faces(&output)?.duplicates.is_empty()
+        || !mesh_degenerate_faces(&output, 0.0)?.is_empty()
+    {
         return Err(KernelError::Invalid("decimation postcondition"));
     }
     Ok(MeshDecimateResult {
@@ -521,14 +540,14 @@ mod tests {
     fn octahedron() -> TriangleMesh {
         TriangleMesh {
             vertices: vec![
-                Vec3::new(0.0, 0.0, 1.0), Vec3::new(0.0, 0.0, -1.0),
-                Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0),
-                Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, -1.0, 0.0),
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
             ],
-            triangles: vec![
-                [0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2],
-                [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5],
-            ],
+            triangles: vec![[0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 2], [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 2, 5]],
         }
     }
 

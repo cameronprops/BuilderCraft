@@ -225,7 +225,7 @@ pub fn polygon_mesh_fill_hole_with_mode(
     }
     let normal = area * (1.0 / norm(area));
     let positions: Vec<Vec3> = ids.iter().map(|&id| mesh.vertices[id as usize]).collect();
-    let mean = positions.iter().fold(Vec3::ZERO, |a, &p| a + (p - origin)) / positions.len() as f64 + origin;
+    let mean = positions.iter().fold(Vec3::ZERO, |a, &p| a + (p - origin)) * (1. / positions.len() as f64) + origin;
     let plane_normal = match mode {
         PolygonHoleFillMode::BestFitPlanar => {
             let fit = best_fit_plane(&positions).ok_or(KernelError::Invalid("cannot fit plane to boundary"))?;
@@ -510,6 +510,6 @@ mod tests {
         assert!(automatically.cap_plane.is_some());
         assert_eq!(polygon_mesh_fill_hole_with_mode(&source, 2, 1, ix, &z_axis), Err(KernelError::Conflict { expected:1,actual:2 }));
         assert!(polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::ZERO }).is_err());
-        assert!(polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::X }).is_err());
+        assert!(polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::new(1., 0., 0.) }).is_err());
     }
 }

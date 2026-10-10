@@ -18,6 +18,9 @@ pub const MAX_REQUEST_BYTES: u64 = 8 * 1024 * 1024;
 pub const MAX_BINARY_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_SOLIDS: usize = 64;
+const MAX_PROXY_VERTICES: usize = 30_000;
+const MAX_PROXY_TRIANGLES: usize = 50_000;
+const MAX_PROXY_EDGE_POINTS: usize = 50_000;
 const DEFAULT_TOLERANCE: f64 = 1e-7;
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +39,7 @@ pub enum WorkerRequest {
     Sphere { radius: f64, tolerance: Option<f64> },
     Boolean { operation: BooleanOp, left_brep: String, right_brep: String, tolerance: Option<f64> },
     Inspect { brep: String, tolerance: Option<f64> },
+    Tessellate { brep: String, linear_deflection: f64, angular_deflection: f64, tolerance: Option<f64> },
     ToStep { breps: Vec<String>, tolerance: Option<f64> },
     FromStep { step: String, tolerance: Option<f64> },
 }
@@ -49,6 +53,19 @@ pub struct WorkerSolid {
     pub edges: usize,
 }
 
+/// Derived, lossy **viewport** mesh. Triangle indices and transient native
+/// OCCT face IDs are not persistent BRep subobject references. Source BRep data
+/// stays untouched in the request/geometry store.
+#[derive(Debug, Serialize)]
+pub struct WorkerMesh {
+    pub vertices: Vec<[f64; 3]>,
+    pub normals: Vec<[f64; 3]>,
+    pub indices: Vec<u32>,
+    pub face_ids_session_hex: Vec<String>,
+    pub edge_chains: Vec<Vec<[f64; 3]>>,
+    pub exact: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct WorkerResponse {
     pub ok: bool,
@@ -57,20 +74,26 @@ pub struct WorkerResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub step: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub mesh: Option<WorkerMesh>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
 impl WorkerResponse {
     fn shapes(solids: Vec<WorkerSolid>) -> Self {
-        Self { ok: true, solids: Some(solids), step: None, error: None }
+        Self { ok: true, solids: Some(solids), step: None, mesh: None, error: None }
     }
 
     fn step(encoded: String) -> Self {
-        Self { ok: true, solids: None, step: Some(encoded), error: None }
+        Self { ok: true, solids: None, step: Some(encoded), mesh: None, error: None }
+    }
+
+    fn mesh(mesh: WorkerMesh) -> Self {
+        Self { ok: true, solids: None, step: None, mesh: Some(mesh), error: None }
     }
 
     fn error(msg: String) -> Self {
-        Self { ok: false, solids: None, step: None, error: Some(msg) }
+        Self { ok: false, solids: None, step: None, mesh: None, error: Some(msg) }
     }
 }
 
@@ -124,6 +147,60 @@ fn encode_solids(backend: &CadrumBrepCandidate, solids: Vec<BrepSolid>) -> Resul
     Ok(WorkerResponse::shapes(result))
 }
 
+fn display_proxy(backend: &CadrumBrepCandidate, shape: &BrepSolid, linear: f64, angular: f64) -> Result<WorkerResponse, String> {
+    let mesh = backend.display_mesh(shape, linear, angular).map_err(|e| e.to_string())?;
+    if mesh.vertices.is_empty() || mesh.vertices.len() > MAX_PROXY_VERTICES
+        || mesh.normals.len() != mesh.vertices.len()
+        || mesh.indices.is_empty() || mesh.indices.len() % 3 != 0
+        || mesh.indices.len() / 3 > MAX_PROXY_TRIANGLES
+        || mesh.face_ids.len() != mesh.indices.len() / 3
+        || mesh.edges.len() > MAX_PROXY_EDGE_POINTS
+    {
+        return Err("display tessellation is empty, invalid or exceeds triangle/vertex budget".into());
+    }
+    let mut vertices = Vec::with_capacity(mesh.vertices.len());
+    let mut normals = Vec::with_capacity(mesh.normals.len());
+    for (v, n) in mesh.vertices.iter().zip(&mesh.normals) {
+        if !v.is_finite() || !n.is_finite() || (n.length() - 1.0).abs() > 1e-3 {
+            return Err("display tessellation has nonfinite or nonunit surface normals".into());
+        }
+        vertices.push(v.to_array());
+        normals.push(n.to_array());
+    }
+    let mut indices = Vec::with_capacity(mesh.indices.len());
+    for &index in &mesh.indices {
+        if index >= vertices.len() {
+            return Err("display tessellation contains out-of-range index".into());
+        }
+        indices.push(u32::try_from(index).map_err(|_| "display index overflow")?);
+    }
+    let mut edge_chains = Vec::new();
+    let mut chain = Vec::new();
+    for point in &mesh.edges {
+        if point.x.is_nan() {
+            if !chain.is_empty() {
+                edge_chains.push(std::mem::take(&mut chain));
+            }
+        } else {
+            if !point.is_finite() {
+                return Err("display edge has invalid coordinate".into());
+            }
+            chain.push(point.to_array());
+        }
+    }
+    if !chain.is_empty() {
+        edge_chains.push(chain);
+    }
+    Ok(WorkerResponse::mesh(WorkerMesh {
+        vertices,
+        normals,
+        indices,
+        face_ids_session_hex: mesh.face_ids.into_iter().map(|id| format!("{id:016x}")).collect(),
+        edge_chains,
+        exact: false,
+    }))
+}
+
 /// Execute a single request. Transport errors never escape as partial solids.
 /// Production applications should spawn this executable per batch (or restart
 /// on crash), enforce process timeouts and never trust the worker as a sandbox.
@@ -172,6 +249,11 @@ pub fn execute(request: WorkerRequest) -> Result<WorkerResponse, String> {
             let backend = kernel(tolerance)?;
             let solid = exact_one(&backend, &brep)?;
             encode_solids(&backend, vec![solid])
+        }
+        WorkerRequest::Tessellate { brep, linear_deflection, angular_deflection, tolerance } => {
+            let backend = kernel(tolerance)?;
+            let solid = exact_one(&backend, &brep)?;
+            display_proxy(&backend, &solid, linear_deflection, angular_deflection)
         }
         WorkerRequest::ToStep { breps, tolerance } => {
             let backend = kernel(tolerance)?;
@@ -279,6 +361,45 @@ mod tests {
         let empty = call(json!({"op":"boolean","operation":"difference","left_brep":a,"right_brep":a}));
         assert_eq!(empty["ok"], true, "{empty}");
         assert_eq!(empty["solids"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn cube_shaded_display_proxy_preserves_exact_solid_and_edges() {
+        let box_brep = one_brep(json!({"op":"box","min":[0.0,0.0,0.0],"max":[2.0,3.0,4.0]}));
+        let response = call(json!({"op":"tessellate","brep":box_brep,"linear_deflection":0.05,"angular_deflection":0.3}));
+        assert_eq!(response["ok"], true, "{response}");
+        let mesh = &response["mesh"];
+        assert_eq!(mesh["exact"], false);
+        assert!(mesh["vertices"].as_array().unwrap().len() >= 8);
+        assert_eq!(mesh["vertices"].as_array().unwrap().len(), mesh["normals"].as_array().unwrap().len());
+        assert!(mesh["indices"].as_array().unwrap().len() >= 36);
+        assert_eq!(mesh["indices"].as_array().unwrap().len()/3, mesh["face_ids_session_hex"].as_array().unwrap().len());
+        assert!(!mesh["edge_chains"].as_array().unwrap().is_empty());
+        let exact = call(json!({"op":"inspect","brep":box_brep}));
+        assert_eq!(exact["solids"][0]["faces"], 6);
+        assert!((exact["solids"][0]["volume"].as_f64().unwrap()-24.0).abs() < 1e-8);
+        let refused = call(json!({"op":"tessellate","brep":box_brep,"linear_deflection":0.0,"angular_deflection":0.1}));
+        assert_eq!(refused["ok"], false);
+    }
+
+    #[test]
+    fn sphere_proxy_normals_follow_brep_analytic_surface() {
+        let sphere = one_brep(json!({"op":"sphere","radius":3.0}));
+        let result = call(json!({"op":"tessellate","brep":sphere,"linear_deflection":0.2,"angular_deflection":0.4}));
+        assert_eq!(result["ok"], true, "{result}");
+        let mesh = &result["mesh"];
+        let vertices = mesh["vertices"].as_array().unwrap();
+        let normals = mesh["normals"].as_array().unwrap();
+        assert!(vertices.len() > 20);
+        for (v, n) in vertices.iter().zip(normals) {
+            let a = v.as_array().unwrap();
+            let b = n.as_array().unwrap();
+            let xyz: Vec<f64> = a.iter().map(|x| x.as_f64().unwrap()).collect();
+            let nn: Vec<f64> = b.iter().map(|x| x.as_f64().unwrap()).collect();
+            let len = (xyz.iter().map(|x| x*x).sum::<f64>()).sqrt();
+            let radial_dot = xyz.iter().zip(&nn).map(|(x,y)| x*y).sum::<f64>()/len;
+            assert!(radial_dot > 1.0-1e-5, "surface normal not radial");
+        }
     }
 
     #[test]

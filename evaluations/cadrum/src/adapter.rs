@@ -139,6 +139,33 @@ impl CadrumBrepCandidate {
         Ok(BrepSolid { solid: Solid::sphere(radius), primitive: None })
     }
 
+    /// Bounded display approximation derived from exact topology. Never write
+    /// this result back into the document as if it were the BRep geometry.
+    pub fn display_mesh(
+        &self,
+        solid: &BrepSolid,
+        linear_deflection: f64,
+        angular_deflection: f64,
+    ) -> Result<cadrum::Mesh, BrepError> {
+        if !linear_deflection.is_finite()
+            || linear_deflection <= self.absolute.value()
+            || linear_deflection > 1e5
+            || !angular_deflection.is_finite()
+            || !(0.001..=std::f64::consts::PI).contains(&angular_deflection)
+        {
+            return Err(BrepError::InvalidPrimitive);
+        }
+        let mesh = Solid::mesh(
+            [&solid.solid],
+            cadrum::Tessellation {
+                deflection_linear: linear_deflection,
+                deflection_angular: angular_deflection,
+                relative_linear: false,
+            },
+        )?;
+        Ok(mesh)
+    }
+
     pub fn write_step(&self, solids: &[BrepSolid]) -> Result<Vec<u8>, BrepError> {
         if solids.is_empty() {
             return Err(BrepError::InvalidBinaryPayload);

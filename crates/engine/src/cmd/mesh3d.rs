@@ -436,10 +436,7 @@ mod tests {
     fn quad_strip_subdivision_document_edit_undo_and_file_roundtrip() {
         let mut s = Session::new();
         let quad = PolygonMesh {
-            vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.),
-                Vec3::new(2., 2., 0.), Vec3::new(0., 2., 0.),
-            ],
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(2., 2., 0.), Vec3::new(0., 2., 0.)],
             faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
         };
         let id = s.execute("mesh3d.create", &json!({"name":"Subdivide quads","mesh":quad})).unwrap()["id"].as_u64().unwrap();

@@ -82,20 +82,14 @@ pub fn polygon_mesh_split_quad_strip(
                 PolygonFace::Quad(q) => q,
                 PolygonFace::Triangle(_) => return Err(KernelError::Invalid("quad strip meets triangle face; mixed topology not supported")),
             };
-            let side = (0..4)
-                .find(|&i| quad[i] == h.from && quad[(i + 1) % 4] == h.to)
-                .ok_or(KernelError::Invalid("quad halfedge mismatch"))?;
+            let side = (0..4).find(|&i| quad[i] == h.from && quad[(i + 1) % 4] == h.to).ok_or(KernelError::Invalid("quad halfedge mismatch"))?;
             faces_to_split.insert(h.face);
             let local_fraction = if h.from == key[0] { stored_fraction } else { 1.0 - stored_fraction };
             let opposite_from = quad[(side + 2) % 4];
             let opposite_to = quad[(side + 3) % 4];
             let opposite_key = edge_key(opposite_from, opposite_to);
             let opposite_local_fraction = 1.0 - local_fraction;
-            let opposite_fraction = if opposite_from == opposite_key[0] {
-                opposite_local_fraction
-            } else {
-                1.0 - opposite_local_fraction
-            };
+            let opposite_fraction = if opposite_from == opposite_key[0] { opposite_local_fraction } else { 1.0 - opposite_local_fraction };
             if let Some(previous) = cuts.get(&opposite_key) {
                 if (previous - opposite_fraction).abs() > 1e-12 {
                     return Err(KernelError::Invalid("cyclic quad strip has inconsistent split fractions"));
@@ -150,8 +144,8 @@ pub fn polygon_mesh_split_quad_strip(
         let first = *index_by_edge.get(&edge_key(a, b)).ok_or(KernelError::Invalid("missing first split vertex"))?;
         let opposite = *index_by_edge.get(&edge_key(c, d)).ok_or(KernelError::Invalid("missing opposite split vertex"))?;
         result.faces[face_id as usize] = PolygonFace::Quad([a, first, opposite, d]);
-        let appended_id = u32::try_from(mesh.faces.len().checked_add(new_faces.len()).ok_or(KernelError::Budget)?)
-            .map_err(|_| KernelError::Budget)?;
+        let appended_id =
+            u32::try_from(mesh.faces.len().checked_add(new_faces.len()).ok_or(KernelError::Budget)?).map_err(|_| KernelError::Budget)?;
         new_faces.push(PolygonFace::Quad([first, b, c, opposite]));
         affected_faces.push(face_id);
         new_face_indices.push(appended_id);
@@ -183,10 +177,7 @@ mod tests {
 
     fn single_quad() -> PolygonMesh {
         PolygonMesh {
-            vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.),
-                Vec3::new(2., 2., 0.), Vec3::new(0., 2., 0.),
-            ],
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(2., 2., 0.), Vec3::new(0., 2., 0.)],
             faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
         }
     }
@@ -209,10 +200,7 @@ mod tests {
         assert_eq!(after.new_vertex_indices, vec![4, 5]);
         assert_eq!(after.affected_faces, vec![0]);
         assert_eq!(after.new_face_indices, vec![1]);
-        assert_eq!(after.mesh.faces, vec![
-            PolygonFace::Quad([0, 4, 5, 3]),
-            PolygonFace::Quad([4, 1, 2, 5]),
-        ]);
+        assert_eq!(after.mesh.faces, vec![PolygonFace::Quad([0, 4, 5, 3]), PolygonFace::Quad([4, 1, 2, 5]),]);
         assert_eq!(after.mesh.vertices[4], Vec3::new(1., 0., 0.));
         assert_eq!(after.mesh.vertices[5], Vec3::new(1., 2., 0.));
         assert_eq!(original.faces.len(), 1);
@@ -229,20 +217,30 @@ mod tests {
         assert_eq!(after.mesh.vertices.len(), 9);
         assert_eq!(after.mesh.faces.len(), 4);
         assert!(after.mesh.faces.iter().all(|face| matches!(face, PolygonFace::Quad(_))));
-        assert!(polygon_mesh_topology(&after.mesh).is_ok_and(|t| t.boundary_edges.len() == 8
-            && t.non_manifold_edges.is_empty() && t.inconsistent_winding_edges.is_empty()));
+        assert!(
+            polygon_mesh_topology(&after.mesh)
+                .is_ok_and(|t| t.boundary_edges.len() == 8 && t.non_manifold_edges.is_empty() && t.inconsistent_winding_edges.is_empty())
+        );
     }
 
     #[test]
     fn closed_quad_strip_terminates_and_preserves_boundary_count() {
         let mesh = PolygonMesh {
             vertices: vec![
-                Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.), Vec3::new(1., 1., 0.), Vec3::new(0., 1., 0.),
-                Vec3::new(0., 0., 2.), Vec3::new(1., 0., 2.), Vec3::new(1., 1., 2.), Vec3::new(0., 1., 2.),
+                Vec3::new(0., 0., 0.),
+                Vec3::new(1., 0., 0.),
+                Vec3::new(1., 1., 0.),
+                Vec3::new(0., 1., 0.),
+                Vec3::new(0., 0., 2.),
+                Vec3::new(1., 0., 2.),
+                Vec3::new(1., 1., 2.),
+                Vec3::new(0., 1., 2.),
             ],
             faces: vec![
-                PolygonFace::Quad([0, 1, 5, 4]), PolygonFace::Quad([1, 2, 6, 5]),
-                PolygonFace::Quad([2, 3, 7, 6]), PolygonFace::Quad([3, 0, 4, 7]),
+                PolygonFace::Quad([0, 1, 5, 4]),
+                PolygonFace::Quad([1, 2, 6, 5]),
+                PolygonFace::Quad([2, 3, 7, 6]),
+                PolygonFace::Quad([3, 0, 4, 7]),
             ],
         };
         let result = polygon_mesh_split_quad_strip(&mesh, 0, 0, [0, 4], 0.5).unwrap();
@@ -276,10 +274,7 @@ mod tests {
     #[test]
     fn stale_picks_bad_edges_and_bad_fraction_are_rejected() {
         let mesh = single_quad();
-        assert_eq!(
-            polygon_mesh_split_quad_strip(&mesh, 4, 3, [0, 1], 0.5),
-            Err(KernelError::Conflict { expected: 3, actual: 4 })
-        );
+        assert_eq!(polygon_mesh_split_quad_strip(&mesh, 4, 3, [0, 1], 0.5), Err(KernelError::Conflict { expected: 3, actual: 4 }));
         for t in [0., 1., f64::INFINITY, f64::NAN, -0.2, 0.00000001] {
             assert!(polygon_mesh_split_quad_strip(&mesh, 0, 0, [0, 1], t).is_err());
         }

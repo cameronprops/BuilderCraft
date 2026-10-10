@@ -90,6 +90,7 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
     }
     let mut remaining: Vec<usize> = (0..ids.len()).collect();
     let mut triangles = Vec::with_capacity(ids.len() - 2);
+    let mut covered_twice_area = 0.0;
     while remaining.len() > 3 {
         let n = remaining.len();
         let mut candidate: Option<(usize, f64)> = None;
@@ -120,6 +121,7 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
         let (slot, _) = candidate.ok_or(KernelError::Invalid("no valid ear for planar hole"))?;
         let n = remaining.len();
         let (a, b, c) = (remaining[(slot + n - 1) % n], remaining[slot], remaining[(slot + 1) % n]);
+        covered_twice_area += (points[b] - points[a]).cross(points[c] - points[a]);
         triangles.push([ids[a], ids[c], ids[b]]);
         remaining.remove(slot);
     }
@@ -128,16 +130,12 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
         || (points[b] - points[a]).cross(points[c] - points[a]) <= area_tol {
         return Err(KernelError::Invalid("degenerate final hole triangle"));
     }
+    covered_twice_area += (points[b] - points[a]).cross(points[c] - points[a]);
     triangles.push([ids[a], ids[c], ids[b]]);
-    // Area conservation independently guards all ear selections, including
-    // accidental omission from a near-degenerate or numerically fragile loop.
-    let covered: f64 = triangles.iter().map(|t| {
-        let ia = ids.iter().position(|id| *id == t[0]).unwrap_or(0);
-        let ib = ids.iter().position(|id| *id == t[1]).unwrap_or(0);
-        let ic = ids.iter().position(|id| *id == t[2]).unwrap_or(0);
-        (points[ib] - points[ia]).cross(points[ic] - points[ia]).abs()
-    }).sum();
-    if !covered.is_finite() || (covered - original_twice_area).abs() > 1e-8 * original_twice_area.max(extent * extent * 1e-12) {
+    // Area conservation independently guards all ear selections.
+    if !covered_twice_area.is_finite()
+        || (covered_twice_area - original_twice_area).abs() > 1e-8 * original_twice_area.max(area_tol)
+    {
         return Err(KernelError::Invalid("triangulated patch does not conserve area"));
     }
     Ok(triangles)

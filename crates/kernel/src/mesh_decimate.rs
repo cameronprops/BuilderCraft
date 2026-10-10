@@ -3,7 +3,10 @@
 //! The input is immutable. Only paired interior edges can collapse; boundaries,
 //! optional creases, local winding, and local triangle degeneracy are protected.
 //! Global self-intersection and Hausdorff bounds are NOT certified.
-use crate::{KernelError, Result, TriangleMesh, mesh_degenerate_faces, mesh_duplicate_faces, mesh_edge_report, validate_triangle_mesh};
+use crate::{
+    KernelError, Result, TriangleMesh, mesh_degenerate_faces, mesh_duplicate_faces, mesh_edge_report, polygon_mesh_from_triangles,
+    polygon_mesh_vertex_fans, validate_triangle_mesh,
+};
 use cadcraft_geom::Vec3;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
@@ -374,6 +377,14 @@ pub fn mesh_quadric_decimate(mesh: &TriangleMesh, options: MeshDecimateOptions) 
         return Err(KernelError::Invalid("decimation needs consistent manifold edges"));
     }
 
+    // Two closed shells sharing one vertex have valid edges but a pinched,
+    // non-manifold vertex. Reuse the native quad/triangle fan classifier here
+    // rather than maintaining a competing mesh-topology predicate.
+    let polygon = polygon_mesh_from_triangles(mesh)?;
+    if !polygon_mesh_vertex_fans(&polygon)?.non_manifold_vertices.is_empty() {
+        return Err(KernelError::Invalid("decimation needs manifold vertex fans"));
+    }
+
     let n = mesh.vertices.len();
     let mut work = Work {
         positions: mesh.vertices.clone(),
@@ -478,6 +489,9 @@ pub fn mesh_quadric_decimate(mesh: &TriangleMesh, options: MeshDecimateOptions) 
     }
     let output = TriangleMesh { vertices, triangles };
     let edges = mesh_edge_report(&output)?;
+    if !output.triangles.is_empty() && !polygon_mesh_vertex_fans(&polygon_mesh_from_triangles(&output)?)?.non_manifold_vertices.is_empty() {
+        return Err(KernelError::Invalid("decimation pinches vertex fans"));
+    }
     if !edges.non_manifold_edges.is_empty() || !edges.inconsistent_winding_edges.is_empty()
         || !mesh_duplicate_faces(&output)?.duplicates.is_empty() || !mesh_degenerate_faces(&output, 0.0)?.is_empty() {
         return Err(KernelError::Invalid("decimation postcondition"));
@@ -562,6 +576,21 @@ mod tests {
         let r = mesh_quadric_decimate(&m, opts);
         assert!(r.is_ok_and(|r| r.mesh == m && r.removed_faces == 0 && r.target_reached));
         assert_eq!(mesh_quadric_decimate(&m, options(6)), mesh_quadric_decimate(&m, options(6)));
+    }
+
+    #[test]
+    fn rejects_pinched_vertex_even_when_edges_are_manifold() {
+        let m = TriangleMesh {
+            vertices: vec![
+                Vec3::ZERO,
+                Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, -1.0, 0.0),
+            ],
+            triangles: vec![[0, 1, 2], [0, 3, 4]],
+        };
+        let edges = mesh_edge_report(&m);
+        assert!(edges.is_ok_and(|r| r.non_manifold_edges.is_empty()));
+        assert!(mesh_quadric_decimate(&m, options(1)).is_err());
     }
 
     #[test]

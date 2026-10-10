@@ -203,7 +203,7 @@ mod tests {
     fn three_faces_on_one_edge_marks_both_endpoints_invalid() {
         let mesh = PolygonMesh {
             vertices: points(),
-            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([1, 0, 3]), PolygonFace::Triangle([0, 1, 5])],
+            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([1, 0, 4]), PolygonFace::Triangle([0, 1, 5])],
         };
         let r = polygon_mesh_vertex_fans(&mesh);
         assert!(r.is_ok_and(|r| r.non_manifold_vertices.contains(&0) && r.non_manifold_vertices.contains(&1)));

@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-10-09",
+  "canonical_backend_decision": "UNDECIDED_PENDING_ACCURACY_TESTS",
+  "target_contract": "one exact trimmed BRep backend; separate explicit mesh CSG; reusable curve evaluator; no silent conversions",
+  "alternatives": [
+    {
+      "name": "Truck / truck-topology, truck-modeling, truck-shapeops",
+      "url": "https://github.com/ricosjp/truck",
+      "license": "Apache-2.0",
+      "role": "Rust-native exact BRep topology, NURBS/modeling, and conservative transversal solid boolean",
+      "status": "initial_candidate_under_compilation_in_feature_brep_truck_topology_acceptance",
+      "gate": "Shapeops explicitly excludes tangential face intersections and calls may panic; must pass fixture matrix and compare OpenCascade before promotion",
+      "duplicate_policy": "may become primary exact BRep backend only after full acceptance; do not rebuild topology locally"
+    },
+    {
+      "name": "Open CASCADE Technology",
+      "url": "https://dev.opencascade.org/",
+      "license": "LGPL-2.1 with special exception, validate distribution source requirements",
+      "role": "mature production exact BRep, STEP/IGES, boolean/healing reference; fallback candidate if Truck fails",
+      "status": "evaluation_pending",
+      "gate": "C++ FFI/macos/windows/linux/haiku packaging, API coverage, native error/trap strategy, licensing"
+    },
+    {
+      "name": "opencascade-rs",
+      "url": "https://github.com/bschwind/opencascade-rs",
+      "license": "LGPL-2.1 (confirm exact package files)",
+      "role": "candidate Rust FFI layer for OCCT, not a second geometric backend",
+      "status": "evaluation_pending",
+      "gate": "WIP upstream; inspect API coverage, dependency submodule version, CMake builds"
+    },
+    {
+      "name": "Curvo",
+      "url": "https://github.com/mattatz/curvo",
+      "license": "MIT",
+      "role": "rational NURBS curves/surfaces, intersections, closest point and fitting if better than existing",
+      "status": "existing_evaluation_pr_14",
+      "gate": "differential golden NURBS fixtures, memory and CPU versus existing evaluator; don't duplicate"
+    },
+    {
+      "name": "Manifold",
+      "url": "https://github.com/elalish/manifold",
+      "license": "Apache-2.0",
+      "role": "robust mesh CSG when user explicitly chooses approximation, never exact BRep fallback",
+      "status": "candidate",
+      "gate": "explicit output type, watertightness, degenerate/tangent fixtures, C interface and packaging"
+    },
+    {
+      "name": "libigl",
+      "url": "https://github.com/libigl/libigl",
+      "license": "MPL-2.0 core with optional GPL components; per-file audit",
+      "role": "mesh repair, Laplacian deformation, field-based remesh, fit utilities",
+      "status": "candidate",
+      "gate": "review which files compile/redistribute before code reuse"
+    },
+    {
+      "name": "Instant Meshes",
+      "url": "https://github.com/wjakob/instant-meshes",
+      "license": "BSD-3-Clause",
+      "role": "orientation/position field quad remesh before NURBS patch reconstruction",
+      "status": "evaluation_pending",
+      "gate": "upstream less active, build/third-party dependencies; mesh output is not NURBS"
+    },
+    {
+      "name": "OpenNurbsFit",
+      "url": "https://github.com/OpenNurbsFit/OpenNurbsFit",
+      "license": "unverified: bundled openNURBS and local License.txt",
+      "role": "historical mesh/point-cloud NURBS fitting reference",
+      "status": "reference_only_until_license_and_maintenance_audit",
+      "gate": "license and stability; older openNURBS, Eigen and SuiteSparse dependencies"
+    },
+    {
+      "name": "egui_dock",
+      "url": "https://github.com/Adanos020/egui_dock",
+      "license": "MIT",
+      "role": "persistent user-configurable first-build docking/palette UI",
+      "status": "candidate",
+      "gate": "v0.21 matches egui 0.36; persistence and migration tests"
+    },
+    {
+      "name": "Grasshopper Primer example files",
+      "url": "https://modelab.gitbooks.io/grasshopper-primer/content/appendix/A-2/1_gh-files.html",
+      "license": "examples copyright status not verified; original behavior-based recreation",
+      "role": "three alpha test webs: point attractor, weaving data trees, surface morph",
+      "status": "reference_only",
+      "gate": "recreate independent graphs; do not copy proprietary .gh component implementations"
+    }
+  ]
+}

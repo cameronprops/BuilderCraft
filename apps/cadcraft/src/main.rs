@@ -54,7 +54,7 @@ fn services() -> Services {
     Services {
         pick_open: Some(Box::new(|| {
             rfd::FileDialog::new()
-                .add_filter("BuilderCraft project", &["bcraft"])
+                .add_filter("Worldwright project", &["dftba", "bcraft"])
                 .add_filter("Drawing (DXF)", &["dxf"])
                 .add_filter("All files", &["*"])
                 .pick_file()
@@ -63,7 +63,7 @@ fn services() -> Services {
         pick_save: Some(Box::new(|name: &str| {
             rfd::FileDialog::new()
                 .set_file_name(name)
-                .add_filter("BuilderCraft project", &["bcraft"])
+                .add_filter("Worldwright project", &["dftba", "bcraft"])
                 .add_filter("Drawing (DXF)", &["dxf"])
                 .add_filter("SVG", &["svg"])
                 .add_filter("PNG", &["png"])

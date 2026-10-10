@@ -22,6 +22,7 @@ pub mod icons;
 pub mod layers;
 pub mod menus;
 pub mod mesh_picking;
+pub mod mesh_repair;
 pub mod palettes;
 pub mod parametric;
 mod point_input;
@@ -76,6 +77,9 @@ pub struct UiState {
     /// Last inspected polygon topology; session-specific viewport overlay only.
     #[serde(skip)]
     pub mesh_defects: Option<buildercraft::MeshDefectOverlay>,
+    /// Dedicated mesh-repair workspace with isolated modal navigation controls.
+    #[serde(skip)]
+    pub mesh_repair: mesh_repair::State,
     /// Transient gizmo drag state must not be serialized with UI preferences.
     #[serde(skip)]
     pub gizmo: gizmo::Gizmo,
@@ -133,6 +137,7 @@ impl Default for UiState {
             mesh_face_document_uid: None,
             mesh_face_revision: None,
             mesh_defects: None,
+            mesh_repair: mesh_repair::State::default(),
             gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,
@@ -321,7 +326,11 @@ impl CadApp {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let t0 = now_ms();
         let t = theme::Tokens::get();
-        buildercraft::workspace_bar(self, ui);
+        if self.ui.mesh_repair.active {
+            mesh_repair::workspace_bar(self, ui);
+        } else {
+            buildercraft::workspace_bar(self, ui);
+        }
         if self.ui.layout_dirty {
             ui.ctx().data_mut(|data| {
                 for id in ["cc_toolsets", "cc_palettes", "buildercraft_commands"] {
@@ -330,27 +339,26 @@ impl CadApp {
             });
             self.ui.layout_dirty = false;
         }
-        chrome::title_and_toolbar(self, ui);
-        if self.ui.in_window_menu {
-            menus::menu_bar(self, ui);
+        if self.ui.mesh_repair.active {
+            mesh_repair::bar(self, ui);
+            mesh_repair::status_bar(self, ui);
+        } else {
+            chrome::title_and_toolbar(self, ui);
+            if self.ui.in_window_menu { menus::menu_bar(self, ui); }
+            if self.ui.show_status_bar { chrome::status_bar(self, ui); }
         }
-        if self.ui.show_status_bar {
-            chrome::status_bar(self, ui);
-        }
-        if self.ui.show_file_tabs {
-            chrome::file_tabs(self, ui);
-        }
+        if self.ui.show_file_tabs { chrome::file_tabs(self, ui); }
         let has_doc = !self.session.docs.is_empty() && !self.ui.start_tab;
-        if has_doc && self.ui.buildercraft_workspace && self.ui.show_command_line {
-            buildercraft::command_panel(self, ui);
+        if has_doc && self.ui.mesh_repair.active {
+            mesh_repair::project_panel(self, ui);
+            mesh_repair::tool_panel(self, ui);
+        } else {
+            if has_doc && self.ui.buildercraft_workspace && self.ui.show_command_line { buildercraft::command_panel(self, ui); }
+            if has_doc && self.ui.show_toolsets { palettes::toolsets(self, ui); }
+            if has_doc && self.ui.show_palettes { palettes::right_palettes(self, ui); }
         }
-        if has_doc && self.ui.show_toolsets {
-            palettes::toolsets(self, ui);
-        }
-        if has_doc && self.ui.show_palettes {
-            palettes::right_palettes(self, ui);
-        }
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.canvas)).show(ui, |ui| {
+        let canvas_color = if self.ui.mesh_repair.active { mesh_repair::VIEWPORT } else { t.canvas };
+        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(canvas_color)).show(ui, |ui| {
             if has_doc {
                 if self.ui.buildercraft_workspace && self.ui.view3d {
                     buildercraft::viewport3d(self, ui);

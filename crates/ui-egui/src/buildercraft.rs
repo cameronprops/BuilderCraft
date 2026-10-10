@@ -17,6 +17,7 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
                 for (label, id) in [
                     ("Modeling", "ui.workspace.modeling"),
                     ("Drafting", "ui.workspace.drafting"),
+                    ("Mesh Repair", "ui.workspace.mesh_repair"),
                     ("Focus", "ui.workspace.focus"),
                     ("Save custom layout", "ui.workspace.save"),
                     ("Restore custom layout", "ui.workspace.restore"),
@@ -251,7 +252,7 @@ fn current_mesh_defects(app: &CadApp, id: u64) -> Option<&MeshDefectOverlay> {
 
 /// Fetches non-manifold indexed vertices through the headless engine service.
 /// Keeps its results transient and never advances document revision/undo.
-fn inspect_mesh(app: &mut CadApp, id: u64) -> Result<usize, String> {
+pub(crate) fn inspect_mesh(app: &mut CadApp, id: u64) -> Result<usize, String> {
     let before = app.session.state().map_err(|e| e.to_string())?;
     let document_uid = before.uid;
     let revision = before.revision;
@@ -365,6 +366,10 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
 }
 
 pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
+    let repair = app.ui.mesh_repair.active;
+    if repair {
+        crate::mesh_repair::viewport_toolbar(app, ui);
+    } else {
     ui.horizontal_wrapped(|ui| {
         ui.label("Orthographic 3D").on_hover_text("Click to select; Shift-click to toggle; drag to orbit; Shift-drag to pan; scroll to zoom");
         if ui.button("Draw control curve").clicked() {
@@ -401,11 +406,12 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     if !crate::point_input::active(app) {
         crate::gizmo::controls(app, ui);
     }
+    }
     let (rect, response) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     let rect = rect.intersect(ui.clip_rect());
     app.session.viewport_px = (f64::from(rect.width()), f64::from(rect.height()));
-    let point_input = crate::point_input::interact(app, ui, rect, &response);
-    let gizmo_drag = !point_input && crate::gizmo::interact(app, ui, rect, &response);
+    let point_input = !repair && crate::point_input::interact(app, ui, rect, &response);
+    let gizmo_drag = !repair && !point_input && crate::gizmo::interact(app, ui, rect, &response);
     if response.dragged() && !gizmo_drag {
         let d = ui.input(|i| i.pointer.delta());
         if ui.input(|i| i.modifiers.shift) {
@@ -426,6 +432,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     if response.clicked()
         && !point_input
         && !gizmo_drag
+        && (!repair || app.ui.mesh_repair.selecting)
         && let Some(pointer) = response.interact_pointer_pos().filter(|p| rect.contains(*p))
     {
         select_3d_at(app, rect, pointer, ui.input(|i| i.modifiers.shift));
@@ -441,7 +448,7 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     let line = |a, b, color| {
         painter.line_segment([project(a), project(b)], egui::Stroke::new(1., color));
     };
-    if let Some(plane) = crate::point_input::plane(app) {
+    if !repair && let Some(plane) = crate::point_input::plane(app) {
         let grid = crate::theme::Tokens::get().grid_major;
         let (u, v) = (plane.x_axis, plane.y_axis);
         for i in -20..=20 {
@@ -499,17 +506,33 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 preview_limited = true;
             }
             let picked = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
-            let color = if picked { egui::Color32::from_rgb(255, 200, 75) } else { egui::Color32::from_rgb(110, 230, 180) };
+            let color = if repair {
+                if picked { crate::mesh_repair::PICK } else { crate::mesh_repair::MESH }
+            } else if picked { egui::Color32::from_rgb(255, 200, 75) } else { egui::Color32::from_rgb(110, 230, 180) };
             let selected_face_is_current = picked_face_is_current(app, object.id);
             for (face_index, face) in object.mesh.faces.iter().take(visible_faces).enumerate() {
                 let highlighted = selected_face_is_current && app.ui.mesh_face_index as usize == face_index;
                 let color = if highlighted { egui::Color32::from_rgb(255, 245, 80) } else { color };
                 let stroke = egui::Stroke::new(if highlighted { 3.0 } else { 1.0 }, color);
                 let corners = face.indices();
-                for side in 0..corners.len() {
-                    let a = object.mesh.vertices[corners[side] as usize];
-                    let b = object.mesh.vertices[corners[(side + 1) % corners.len()] as usize];
-                    painter.line_segment([project(a), project(b)], stroke);
+                if repair {
+                    // Technical shaded-facet preview. This painter is not a
+                    // depth-buffer renderer; faces are drawn in scene order.
+                    let points: Vec<_> = corners.iter().map(|&v| project(object.mesh.vertices[v as usize])).collect();
+                    let fill = if highlighted {
+                        egui::Color32::from_rgb(117, 98, 64)
+                    } else if picked {
+                        egui::Color32::from_rgb(78, 96, 103)
+                    } else {
+                        egui::Color32::from_rgb(65, 79, 88)
+                    };
+                    painter.add(egui::Shape::convex_polygon(points, fill, stroke));
+                } else {
+                    for side in 0..corners.len() {
+                        let a = object.mesh.vertices[corners[side] as usize];
+                        let b = object.mesh.vertices[corners[(side + 1) % corners.len()] as usize];
+                        painter.line_segment([project(a), project(b)], stroke);
+                    }
                 }
             }
             if let Some(overlay) = current_mesh_defects(app, object.id) {
@@ -536,10 +559,8 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
             egui::Color32::YELLOW,
         );
     }
-    crate::point_input::draw(app, ui, rect, project);
-    if !point_input {
-        crate::cmdline::keyboard(app, ui.ctx());
-    }
+    if !repair { crate::point_input::draw(app, ui, rect, project); }
+    if !point_input && !repair { crate::cmdline::keyboard(app, ui.ctx()); }
 }
 
 /// Picking is a shared engine query; failed or over-budget queries preserve selection.

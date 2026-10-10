@@ -23,7 +23,9 @@ pub fn show(app: &mut CadApp, ctx: &egui::Context) {
         "blocks" => blocks(app, ctx, &mut open),
         _ => open = false,
     }
-    if !open {
+    // A command chosen in the palette may intentionally open another dialog.
+    // Close only the original dialog; do not overwrite the selected destination.
+    if !open && app.ui.dialog.as_deref() == Some(d.as_str()) {
         app.ui.dialog = None;
     }
 }

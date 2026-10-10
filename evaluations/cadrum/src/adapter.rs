@@ -56,7 +56,6 @@ pub enum ExactBoolean {
     Intersection,
 }
 
-#[derive(Debug)]
 // A bounded exact-construction certificate, never guessed from mass/bounds alone.
 // Equal bounding boxes and volume are NOT sufficient to prove arbitrary BRep equality.
 #[derive(Clone, Copy, Debug, PartialEq)]

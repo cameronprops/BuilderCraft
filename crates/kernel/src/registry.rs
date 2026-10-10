@@ -490,6 +490,14 @@ pub const OPERATIONS: &[OperationDescriptor] = &[
         outputs: &["preview_geometry"],
         status: OperationStatus::Implemented,
     },
+    OperationDescriptor {
+        id: "kernel.mesh.decimate",
+        label: "Conservative QEM Mesh Simplification",
+        category: "mesh",
+        inputs: &["geometry", "target_faces", "max_error", "normal_degrees", "preserve_boundary", "crease_degrees"],
+        outputs: &["mesh"],
+        status: OperationStatus::Partial,
+    },
 ];
 
 pub fn operation_by_id(id: &str) -> Option<&'static OperationDescriptor> {

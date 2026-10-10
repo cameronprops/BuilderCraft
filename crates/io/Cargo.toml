@@ -20,8 +20,10 @@ thiserror = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 miniz_oxide = "0.8"
+las = { version = "0.11.1", default-features = false } # MIT; LAZ decompression not enabled
 stl_io = "0.11.0" # MIT
 tobj = { version = "4.0.5", default-features = false, features = ["use_f64"] } # MIT
 
 [dev-dependencies]
+las = { version = "0.11.1", default-features = false }
 gltf = { version = "1.4", default-features = false }

@@ -1,5 +1,5 @@
 //! Direct-CAD and OrbWeaver share one geometry kernel and typed contracts.
-use buildercraft_kernel::{ToolValue, TreeMatchPolicy};
+use buildercraft_kernel::{ToolValue, TreeMatchPolicy, ToolRequest, execute_shared_tool};
 use cadcraft_geom::{
     Vec3,
     nurbs3d::{Curve, Surface, uniform_knots},
@@ -135,4 +135,31 @@ fn oriented_path_array_node_aligns_copies_and_keeps_source_geometry() {
     let mut bad = graph;
     bad.nodes[0].inputs.insert("up".into(), literal(ToolValue::Vector(p(1., 0., 0.))));
     assert!(evaluate(&bad).is_err());
+}
+
+
+#[test]
+fn cad_and_orbweaver_oriented_path_arrays_have_identical_outputs() {
+    let geometry=ToolValue::Polyline(vec![p(0.,0.,0.),p(1.,0.,0.),p(0.,1.,0.)]);
+    let path=ToolValue::Polyline(vec![p(0.,0.,0.),p(5.,0.,0.),p(5.,5.,0.)]);
+    let values=std::collections::BTreeMap::from([
+        ("geometry".into(),geometry.clone()),
+        ("path".into(),path.clone()),
+        ("count".into(),ToolValue::Count(3)),
+        ("up".into(),ToolValue::Vector(Vec3::Z)),
+        ("anchor".into(),ToolValue::Point(Vec3::ZERO)),
+    ]);
+    let direct=execute_shared_tool(&ToolRequest {
+        operation:"worldwright.array.path_oriented".into(),
+        inputs:values.clone(),
+    }).unwrap();
+    let node=Node {
+        id:1,
+        component:"orbweaver.array.path_oriented".into(),
+        inputs:values.into_iter().map(|(k,v)|(k,InputBinding::Constant{value:v})).collect(),
+        matching:TreeMatchPolicy::Shortest,
+    };
+    let graph=Graph {version:GRAPH_SCHEMA_VERSION,nodes:vec![node],outputs:vec![1]};
+    let evaluation=evaluate(&graph).unwrap();
+    assert_eq!(evaluation.values.get(&1),Some(&direct));
 }

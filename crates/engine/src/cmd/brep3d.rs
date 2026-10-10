@@ -58,7 +58,7 @@ fn tolerance(p: &Value) -> Result<Option<f64>> {
         .transpose()
 }
 
-fn get<'a>(s: &'a Session, id: u64) -> Result<&'a ExactBrepObject> {
+fn get(s: &Session, id: u64) -> Result<&ExactBrepObject> {
     s.doc()?.exact_breps.iter().find(|o| o.id == id).ok_or_else(|| fail("unknown exact BRep object ID"))
 }
 

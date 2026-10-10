@@ -366,9 +366,12 @@ fn select_3d_at(app: &mut CadApp, rect: egui::Rect, pointer: egui::Pos2, toggle:
 pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
     // Release stale display proxies immediately after document mutation/load
     // rather than retaining old triangle buffers until another preview click.
-    if app.ui.mesh_simplify_preview.as_ref().is_some_and(|preview| {
-        !app.session.state().is_ok_and(|st| preview.document_uid == st.uid && preview.source_revision == st.revision)
-    }) {
+    if app
+        .ui
+        .mesh_simplify_preview
+        .as_ref()
+        .is_some_and(|preview| !app.session.state().is_ok_and(|st| preview.document_uid == st.uid && preview.source_revision == st.revision))
+    {
         app.ui.mesh_simplify_preview = None;
     }
     ui.horizontal_wrapped(|ui| {

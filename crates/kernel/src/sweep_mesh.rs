@@ -187,7 +187,7 @@ mod tests {
     fn sweep2_respects_both_rails_and_rejects_bad_section(){
         let a=[p(0.,0.,0.),p(6.,0.,0.)];
         let b=[p(0.,2.,0.),p(6.,2.,0.)];
-        let profile=[p(0.,0.,0.),p(.5,1.,0.),p(1.,0.,0.)];
+        let profile=[p(0.,0.,0.),p(0.5,1.,0.),p(1.,0.,0.)];
         let m=sweep2_mesh(&a,&b,&profile,4).unwrap();
         assert_eq!(m.vertices.len(),12);
         assert_eq!(m.faces.len(),6);

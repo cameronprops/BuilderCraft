@@ -256,8 +256,10 @@ impl EditorDocument {
         if self.positions.iter().any(|(id, p)| !ids.contains_key(id) || !p.valid()) {
             return Err(EditorError::Position);
         }
-        if self.graph.outputs.iter().any(|id| !ids.contains_key(id)) {
-            return Err(EditorError::Node(*self.graph.outputs.iter().find(|id| !ids.contains_key(id)).unwrap_or(&0)));
+        for id in &self.graph.outputs {
+            if !ids.contains_key(id) {
+                return Err(EditorError::Node(*id));
+            }
         }
         // Bounded, iterative topological check: no recursion or hidden geometry evaluation.
         let mut completed = BTreeSet::new();

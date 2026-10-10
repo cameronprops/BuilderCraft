@@ -352,8 +352,8 @@ mod tests {
                         assert!(s.execute("mesh3d.preview_decimate", &json!({
                             "id":id, "target_faces":6, "selected_revision":revision + 1
                         })).is_err());
-                        assert_eq!(s.state().map(|state| state.revision), Ok(revision));
-                        assert_eq!(s.doc().map(|d| d.mesh3d[0].mesh.clone()), Ok(original));
+                        assert!(s.state().is_ok_and(|state| state.revision == revision));
+                        assert!(s.doc().is_ok_and(|d| d.mesh3d[0].mesh == original));
                     }
                 }
             }

@@ -18,6 +18,11 @@ use cadcraft_ui_egui::{CadApp, Services};
 struct App(CadApp, #[cfg(target_os = "macos")] Option<native_menu::NativeMenu>);
 
 impl eframe::App for App {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        if let Ok(profile) = cadcraft_ui_egui::workbench::encode(&self.0) {
+            storage.set_string("worldwright.workspace.v1", profile);
+        }
+    }
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         #[cfg(target_os = "macos")]
         {
@@ -104,7 +109,7 @@ fn main() -> eframe::Result {
     install_io();
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("BuilderCraft")
+            .with_title("Worldwright")
             .with_inner_size([1600.0, 1000.0])
             .with_min_inner_size([900.0, 560.0])
             .with_drag_and_drop(true)
@@ -122,6 +127,11 @@ fn main() -> eframe::Result {
         options,
         Box::new(move |cc| {
             let mut app = CadApp::new(Session::empty(), services());
+            if let Some(profile) = cc.storage.and_then(|s| s.get_string("worldwright.workspace.v1"))
+                && let Err(error) = cadcraft_ui_egui::workbench::restore(&mut app, &profile)
+            {
+                app.set_status(error);
+            }
             app.integrated_titlebar = cfg!(target_os = "macos");
             if let Some(rs) = &cc.wgpu_render_state {
                 app.set_wgpu(rs);

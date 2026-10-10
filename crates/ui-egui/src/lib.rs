@@ -27,6 +27,7 @@ pub mod parametric;
 mod point_input;
 pub mod quick;
 pub mod theme;
+pub mod workbench;
 
 use std::sync::mpsc::Receiver;
 
@@ -40,6 +41,12 @@ pub use control::{ControlRequest, ControlResponse};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct UiState {
+    #[serde(skip)]
+    pub layout_dirty: bool,
+    pub layout: workbench::Layout,
+    pub saved_layout: Option<workbench::Layout>,
+    #[serde(skip)]
+    pub command_search: workbench::Search,
     pub show_toolsets: bool,
     pub show_palettes: bool,
     pub show_toolbar: bool,
@@ -96,6 +103,10 @@ pub struct UiState {
 impl Default for UiState {
     fn default() -> Self {
         UiState {
+            layout_dirty: true,
+            layout: Default::default(),
+            saved_layout: None,
+            command_search: Default::default(),
             show_toolsets: true,
             show_palettes: true,
             show_toolbar: true,
@@ -222,7 +233,11 @@ impl CadApp {
 
     /// Start a command as if typed (interactive when it has prompts).
     pub fn start(&mut self, name: &str) {
-        if menus::run_ui_command(self, name, &Value::Null).is_some() {
+        if let Some(result) = menus::run_ui_command(self, name, &Value::Null) {
+            if let Err(error) = result {
+                self.session.echo(error.clone());
+                self.set_status(error);
+            }
             return;
         }
         if let Err(e) = self.session.start(name) {
@@ -303,6 +318,14 @@ impl CadApp {
         let t0 = now_ms();
         let t = theme::Tokens::get();
         buildercraft::workspace_bar(self, ui);
+        if self.ui.layout_dirty {
+            ui.ctx().data_mut(|data| {
+                for id in ["cc_toolsets", "cc_palettes", "buildercraft_commands"] {
+                    data.remove::<egui::containers::panel::PanelState>(egui::Id::new(id));
+                }
+            });
+            self.ui.layout_dirty = false;
+        }
         chrome::title_and_toolbar(self, ui);
         if self.ui.in_window_menu {
             menus::menu_bar(self, ui);
@@ -335,6 +358,7 @@ impl CadApp {
             }
         });
         dialogs::show(self, ui.ctx());
+        workbench::search(self, ui.ctx());
         self.frame_ms = now_ms() - t0;
     }
 

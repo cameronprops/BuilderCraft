@@ -47,12 +47,19 @@ mod tests {
     }
 
     #[test]
-    fn identical_operand_boolean_is_idempotent() -> Result<(), cadrum::Error> {
-        let a = Solid::cube(DVec3::ZERO, DVec3::splat(2.0));
-        near("same solid union", (&a + &a).build()?.volume(), 8.0, 1e-8);
-        near("same solid intersect", (&a * &a).build()?.volume(), 8.0, 1e-8);
-        // Subtracting identical solids should produce no 3D solid, not a corrupt shape.
-        let pieces = (&a - &a).build_vec()?;
+    fn identical_operand_boolean_is_idempotent() -> Result<(), Box<dyn std::error::Error>> {
+        // Regression for the native CellsBuilder error with repeated operands.
+        // The WorldWright adapter must prove identity and preserve boolean
+        // semantics without calling the failing foreign kernel in this case.
+        use crate::adapter::{AbsoluteTolerance, CadrumBrepCandidate, ExactBoolean};
+        let backend = CadrumBrepCandidate::new(AbsoluteTolerance::new(1e-7)?);
+        let a = backend.box_from_corners(DVec3::ZERO, DVec3::splat(2.0))?;
+        for op in [ExactBoolean::Union, ExactBoolean::Intersection] {
+            let pieces = backend.boolean(op, &a, &a)?;
+            assert_eq!(pieces.len(), 1);
+            near("same solid volume", pieces[0].statistics().volume, 8.0, 1e-8);
+        }
+        let pieces = backend.boolean(ExactBoolean::Difference, &a, &a)?;
         assert!(pieces.is_empty(), "identical difference unexpectedly has a solid");
         Ok(())
     }

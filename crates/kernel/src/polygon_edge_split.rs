@@ -227,9 +227,10 @@ mod tests {
     #[test]
     fn refuses_preexisting_bow_tie_and_invalid_winding() {
         let mut source = adjacent_triangles();
-        source.faces = vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 1])];
+        source.faces = vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 1, 3])];
         assert!(polygon_mesh_split_edge(&source, 0, 0, [0, 1], 0.5).is_err());
-        source.faces = vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 2])];
+        source.vertices.push(Vec3::new(-1., -1., 0.));
+        source.faces = vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])];
         assert!(polygon_mesh_split_edge(&source, 0, 0, [0, 1], 0.5).is_err());
     }
 }

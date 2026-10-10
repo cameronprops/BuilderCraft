@@ -6,16 +6,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use buildercraft_kernel::{
-    DataTree, ToolType, ToolValue, TreeMatchPolicy, tool_output_may_match_port,
-    tool_value_matches_port,
-};
+use buildercraft_kernel::{DataTree, ToolType, ToolValue, TreeMatchPolicy, tool_output_may_match_port, tool_value_matches_port};
 use cadcraft_geom::Vec3;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GRAPH_SCHEMA_VERSION, MAX_GRAPH_CONNECTIONS, MAX_GRAPH_NODES, Graph, GraphError,
-    GraphResult, InputBinding, Node, evaluate, native_components,
+    GRAPH_SCHEMA_VERSION, Graph, GraphError, GraphResult, InputBinding, MAX_GRAPH_CONNECTIONS, MAX_GRAPH_NODES, Node, evaluate, native_components,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -71,10 +67,7 @@ impl Default for EditorDocument {
 
 impl EditorDocument {
     pub fn new() -> Self {
-        Self {
-            graph: Graph { version: GRAPH_SCHEMA_VERSION, nodes: Vec::new(), outputs: Vec::new() },
-            positions: BTreeMap::new(),
-        }
+        Self { graph: Graph { version: GRAPH_SCHEMA_VERSION, nodes: Vec::new(), outputs: Vec::new() }, positions: BTreeMap::new() }
     }
 
     pub fn from_graph(graph: Graph) -> Result<Self> {
@@ -102,22 +95,18 @@ impl EditorDocument {
         if !position.valid() {
             return Err(EditorError::Position);
         }
-        let contract = native_components().iter().find(|p| p.orbweaver_node == component)
-            .ok_or_else(|| EditorError::Component(component.into()))?;
+        let contract = native_components().iter().find(|p| p.orbweaver_node == component).ok_or_else(|| EditorError::Component(component.into()))?;
         self.transact(|draft| {
             if draft.graph.nodes.len() >= MAX_GRAPH_NODES {
                 return Err(EditorError::Budget);
             }
-            let id = draft.graph.nodes.iter().map(|n| n.id).max().unwrap_or(0)
-                .checked_add(1).ok_or(EditorError::Budget)?;
+            let id = draft.graph.nodes.iter().map(|n| n.id).max().unwrap_or(0).checked_add(1).ok_or(EditorError::Budget)?;
             let mut inputs = BTreeMap::new();
             for port in contract.inputs {
                 let value = default_value(port.kind).ok_or_else(|| EditorError::Port { node: id, port: port.name.into() })?;
                 inputs.insert(port.name.into(), InputBinding::Constant { value });
             }
-            draft.graph.nodes.push(Node {
-                id, component: component.into(), inputs, matching: TreeMatchPolicy::Shortest,
-            });
+            draft.graph.nodes.push(Node { id, component: component.into(), inputs, matching: TreeMatchPolicy::Shortest });
             draft.graph.outputs.push(id);
             draft.positions.insert(id, position);
             Ok(id)
@@ -140,7 +129,9 @@ impl EditorDocument {
     pub fn set_literal(&mut self, id: u64, port: &str, value: ToolValue) -> Result<()> {
         self.transact(|draft| {
             let node = draft.graph.nodes.iter_mut().find(|n| n.id == id).ok_or(EditorError::Node(id))?;
-            let spec = native_components().iter().find(|p| p.orbweaver_node == node.component)
+            let spec = native_components()
+                .iter()
+                .find(|p| p.orbweaver_node == node.component)
                 .ok_or_else(|| EditorError::Component(node.component.clone()))?;
             let input = spec.inputs.iter().find(|p| p.name == port).ok_or_else(|| EditorError::Port { node: id, port: port.into() })?;
             if tool_value_matches_port(input.kind, &value).is_err() {
@@ -154,13 +145,16 @@ impl EditorDocument {
     pub fn connect(&mut self, from: u64, to: u64, port: &str) -> Result<()> {
         self.transact(|draft| {
             let source = draft.graph.nodes.iter().find(|n| n.id == from).ok_or(EditorError::Node(from))?;
-            let source_spec = native_components().iter().find(|p| p.orbweaver_node == source.component)
+            let source_spec = native_components()
+                .iter()
+                .find(|p| p.orbweaver_node == source.component)
                 .ok_or_else(|| EditorError::Component(source.component.clone()))?;
             let target = draft.graph.nodes.iter_mut().find(|n| n.id == to).ok_or(EditorError::Node(to))?;
-            let target_spec = native_components().iter().find(|p| p.orbweaver_node == target.component)
+            let target_spec = native_components()
+                .iter()
+                .find(|p| p.orbweaver_node == target.component)
                 .ok_or_else(|| EditorError::Component(target.component.clone()))?;
-            let destination = target_spec.inputs.iter().find(|p| p.name == port)
-                .ok_or_else(|| EditorError::Port { node: to, port: port.into() })?;
+            let destination = target_spec.inputs.iter().find(|p| p.name == port).ok_or_else(|| EditorError::Port { node: to, port: port.into() })?;
             if !tool_output_may_match_port(destination.kind, source_spec.output) {
                 return Err(EditorError::Type { node: to, port: port.into() });
             }
@@ -172,10 +166,11 @@ impl EditorDocument {
     pub fn disconnect(&mut self, id: u64, port: &str) -> Result<()> {
         self.transact(|draft| {
             let node = draft.graph.nodes.iter_mut().find(|n| n.id == id).ok_or(EditorError::Node(id))?;
-            let spec = native_components().iter().find(|p| p.orbweaver_node == node.component)
+            let spec = native_components()
+                .iter()
+                .find(|p| p.orbweaver_node == node.component)
                 .ok_or_else(|| EditorError::Component(node.component.clone()))?;
-            let input = spec.inputs.iter().find(|p| p.name == port)
-                .ok_or_else(|| EditorError::Port { node: id, port: port.into() })?;
+            let input = spec.inputs.iter().find(|p| p.name == port).ok_or_else(|| EditorError::Port { node: id, port: port.into() })?;
             let value = default_value(input.kind).ok_or_else(|| EditorError::Port { node: id, port: port.into() })?;
             node.inputs.insert(port.into(), InputBinding::Constant { value });
             Ok(())
@@ -191,12 +186,13 @@ impl EditorDocument {
                 return Err(EditorError::Node(id));
             }
             for node in &mut draft.graph.nodes {
-                let spec = native_components().iter().find(|p| p.orbweaver_node == node.component)
+                let spec = native_components()
+                    .iter()
+                    .find(|p| p.orbweaver_node == node.component)
                     .ok_or_else(|| EditorError::Component(node.component.clone()))?;
                 for input in spec.inputs {
                     if matches!(node.inputs.get(input.name), Some(InputBinding::Output { node: predecessor }) if *predecessor == id) {
-                        let value = default_value(input.kind)
-                            .ok_or_else(|| EditorError::Port { node: node.id, port: input.name.into() })?;
+                        let value = default_value(input.kind).ok_or_else(|| EditorError::Port { node: node.id, port: input.name.into() })?;
                         node.inputs.insert(input.name.into(), InputBinding::Constant { value });
                     }
                 }
@@ -219,7 +215,9 @@ impl EditorDocument {
             if node.id == 0 || ids.insert(node.id, node).is_some() {
                 return Err(EditorError::Node(node.id));
             }
-            let spec = native_components().iter().find(|p| p.orbweaver_node == node.component)
+            let spec = native_components()
+                .iter()
+                .find(|p| p.orbweaver_node == node.component)
                 .ok_or_else(|| EditorError::Component(node.component.clone()))?;
             if node.inputs.len() != spec.inputs.len() {
                 return Err(EditorError::Port { node: node.id, port: "inputs".into() });
@@ -227,11 +225,12 @@ impl EditorDocument {
         }
         let mut edge_count = 0usize;
         for node in &self.graph.nodes {
-            let spec = native_components().iter().find(|p| p.orbweaver_node == node.component)
+            let spec = native_components()
+                .iter()
+                .find(|p| p.orbweaver_node == node.component)
                 .ok_or_else(|| EditorError::Component(node.component.clone()))?;
             for input in spec.inputs {
-                let binding = node.inputs.get(input.name)
-                    .ok_or_else(|| EditorError::Port { node: node.id, port: input.name.into() })?;
+                let binding = node.inputs.get(input.name).ok_or_else(|| EditorError::Port { node: node.id, port: input.name.into() })?;
                 match binding {
                     InputBinding::Constant { value } => {
                         if tool_value_matches_port(input.kind, value).is_err() {
@@ -244,7 +243,9 @@ impl EditorDocument {
                             return Err(EditorError::Budget);
                         }
                         let predecessor = ids.get(source).ok_or(EditorError::Node(*source))?;
-                        let source_spec = native_components().iter().find(|p| p.orbweaver_node == predecessor.component)
+                        let source_spec = native_components()
+                            .iter()
+                            .find(|p| p.orbweaver_node == predecessor.component)
                             .ok_or_else(|| EditorError::Component(predecessor.component.clone()))?;
                         if !tool_output_may_match_port(input.kind, source_spec.output) {
                             return Err(EditorError::Type { node: node.id, port: input.name.into() });

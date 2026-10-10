@@ -1,134 +1,47 @@
-//! Arc-length path arrays with rotation-minimizing tangent frames.
-//! First copy is unchanged. Later copies rotate with the path and preserve
-//! shape scale. This is not NURBS-path, bank, or closed-loop seam parity.
-use crate::{KernelError, Result, polyline_divide_count};
+//! Oriented path array via WorldWright's shared RailFrame service.
+//! No separate rotation/arc-length implementation is permitted in this file.
+use crate::{KernelError, Result, rail_frames, MAX_RAIL_POINTS, MAX_RAIL_STATIONS};
 use cadcraft_geom::Vec3;
 
 const MAX_SEED: usize = 1024;
-const MAX_PATH: usize = 1024;
-const MAX_COUNT: usize = 256;
 const MAX_ITEMS: usize = 65_536;
 const LIMIT: f64 = 1e12;
 
-fn checked(v: Vec3) -> Result<Vec3> {
-    if v.is_finite() && v.x.abs().max(v.y.abs()).max(v.z.abs()) <= LIMIT {
-        Ok(v)
-    } else {
-        Err(KernelError::Invalid("nonfinite or oversized array coordinate"))
-    }
-}
-fn unit(v: Vec3) -> Result<Vec3> {
-    checked(v)?;
-    let len = v.len();
-    if !len.is_finite() || len < 1e-10 {
-        return Err(KernelError::Invalid("degenerate path tangent or frame axis"));
-    }
-    Ok(v * (1. / len))
-}
-fn rodrigues(v: Vec3, axis: Vec3, c: f64, s: f64) -> Vec3 {
-    v * c + axis.cross(v) * s + axis * (axis.dot(v) * (1. - c))
-}
-#[derive(Clone, Copy)]
-struct Frame {
-    tangent: Vec3,
-    up: Vec3,
-    side: Vec3,
-}
-fn first_frame(tangent: Vec3, guide: Vec3) -> Result<Frame> {
-    let tangent = unit(tangent)?;
-    let up = unit(guide - tangent * tangent.dot(guide))?;
-    let side = unit(up.cross(tangent))?;
-    Ok(Frame { tangent, up, side })
-}
-fn advance_frame(previous: Frame, next_tangent: Vec3) -> Result<Frame> {
-    let next = unit(next_tangent)?;
-    let axis = previous.tangent.cross(next);
-    let magnitude = axis.len();
-    let cosine = previous.tangent.dot(next).clamp(-1., 1.);
-    let candidate_up = if magnitude < 1e-10 {
-        // An exact 180-degree turn has no unique rotation axis: preserve up.
-        previous.up
-    } else {
-        rodrigues(previous.up, axis * (1. / magnitude), cosine, magnitude)
-    };
-    let up = unit(candidate_up - next * candidate_up.dot(next))?;
-    let side = unit(up.cross(next))?;
-    Ok(Frame { tangent: next, up, side })
-}
-/// Position and orient repeated geometry along a bounded 3D polyline.
-/// The pivot is the explicit source anchor; copy zero keeps source placement.
-/// Zero-length path segments are ignored, wholly degenerate paths rejected.
-pub fn array_path_oriented(seed: &[Vec3], path: &[Vec3], count: usize, guide_up: Vec3, anchor: Vec3) -> Result<Vec<Vec<Vec3>>> {
-    if seed.is_empty()
-        || seed.len() > MAX_SEED
-        || path.len() < 2
-        || path.len() > MAX_PATH
-        || count == 0
-        || count > MAX_COUNT
-        || seed.len().checked_mul(count).is_none_or(|n| n > MAX_ITEMS)
-    {
+/// Position and rotate copies using the same frame solver as Pipe and Sweep.
+pub fn array_path_oriented(seed:&[Vec3],path:&[Vec3],count:usize,guide_up:Vec3,anchor:Vec3)->Result<Vec<Vec<Vec3>>> {
+    if seed.is_empty() || seed.len()>MAX_SEED || path.len()>MAX_RAIL_POINTS || count==0 || count>MAX_RAIL_STATIONS
+        || seed.len().checked_mul(count).is_none_or(|n|n>MAX_ITEMS) {
         return Err(KernelError::Budget);
     }
-    checked(guide_up)?;
-    checked(anchor)?;
-    for &point in seed.iter().chain(path.iter()) {
-        checked(point)?;
+    if !anchor.is_finite() || anchor.x.abs().max(anchor.y.abs()).max(anchor.z.abs())>LIMIT ||
+        seed.iter().any(|p| !p.is_finite() || p.x.abs().max(p.y.abs()).max(p.z.abs())>LIMIT) {
+        return Err(KernelError::Invalid("invalid oriented-array input"));
     }
-    let mut segments = Vec::<(f64, Vec3)>::new();
-    let mut total = 0.;
-    for pair in path.windows(2) {
-        let delta = pair[1] - pair[0];
-        let length = delta.len();
-        if !length.is_finite() {
-            return Err(KernelError::Invalid("path arc-length overflow"));
+    let frames=rail_frames(path,count.max(2),guide_up)?;
+    let first=frames[0];
+    let mut out=Vec::new();
+    out.try_reserve_exact(count).map_err(|_|KernelError::Budget)?;
+    for (i,frame) in frames.into_iter().take(count).enumerate() {
+        if i==0 {
+            out.push(seed.to_vec());
+            continue;
         }
-        if length > 1e-10 {
-            let tangent = unit(delta)?;
-            segments.push((length, tangent));
-            total += length;
-        }
-    }
-    let Some(&(_, first_tangent)) = segments.first() else {
-        return Err(KernelError::Invalid("path has zero length"));
-    };
-    if !total.is_finite() || total <= 1e-10 {
-        return Err(KernelError::Invalid("invalid path length"));
-    }
-    let first = first_frame(first_tangent, guide_up)?;
-    if count == 1 {
-        return Ok(vec![seed.to_vec()]);
-    }
-    let samples = polyline_divide_count(path, count - 1)?;
-    if samples.len() != count {
-        return Err(KernelError::Invalid("path sample count mismatch"));
-    }
-    let mut result = Vec::new();
-    result.try_reserve_exact(count).map_err(|_| KernelError::Budget)?;
-    let mut frame = first;
-    let mut index = 0usize;
-    let mut completed = 0.;
-    for (i, sample) in samples.iter().enumerate() {
-        let distance = total * (i as f64 / (count - 1) as f64);
-        // At interior corners select outgoing tangent; at end select final.
-        while index + 1 < segments.len() && distance >= completed + segments[index].0 - 1e-10 {
-            completed += segments[index].0;
-            index += 1;
-        }
-        frame = advance_frame(frame, segments[index].1)?;
-        let placement = *sample - path[0];
-        let mut instance = Vec::new();
-        instance.try_reserve_exact(seed.len()).map_err(|_| KernelError::Budget)?;
+        let mut copy=Vec::new();
+        copy.try_reserve_exact(seed.len()).map_err(|_|KernelError::Budget)?;
         for &point in seed {
-            let local = point - anchor;
-            let along = local.dot(first.tangent);
-            let sideways = local.dot(first.side);
-            let upwards = local.dot(first.up);
-            let mapped = anchor + placement + frame.tangent * along + frame.side * sideways + frame.up * upwards;
-            instance.push(checked(mapped)?);
+            let d=point-anchor;
+            let x=d.dot(first.tangent);
+            let y=d.dot(first.side);
+            let z=d.dot(first.up);
+            let mapped=anchor+(frame.origin-path[0])+frame.tangent*x+frame.side*y+frame.up*z;
+            if !mapped.is_finite() || mapped.x.abs().max(mapped.y.abs()).max(mapped.z.abs())>LIMIT {
+                return Err(KernelError::Invalid("array mapping overflow"));
+            }
+            copy.push(mapped);
         }
-        result.push(instance);
+        out.push(copy);
     }
-    Ok(result)
+    Ok(out)
 }
 
 #[cfg(test)]

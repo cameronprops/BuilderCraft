@@ -12,6 +12,9 @@ const MAX_FACES: usize = 1_000_000;
 pub enum PolygonPatchMode {
     /// Triangles retain the original 3D boundary, including nonplanarity.
     Surface,
+    /// Insert bounded interior vertices and continue the surrounding face slope
+    /// toward the center while preserving the original 3D boundary exactly.
+    CurvatureSmooth { refinement_levels: u8, smoothing_iterations: u16, tangent_weight: f64, max_interior_offset: f64 },
     /// Least-squares total orthogonal distance fit (3x3 symmetric covariance).
     PlanarBestFit { max_displacement: f64 },
     /// Direction inferred from the adjacent polygon faces; plane through boundary centroid.
@@ -255,6 +258,11 @@ pub fn polygon_mesh_fill_hole_advanced(
     }
     let (candidate_normal, max_displacement) = match mode {
         PolygonPatchMode::Surface => (covariance_normal(&points, center)?, None),
+        PolygonPatchMode::CurvatureSmooth { refinement_levels, smoothing_iterations, tangent_weight, max_interior_offset } => {
+            return crate::polygon_mesh_fill_hole_curvature(
+                mesh, revision, picked_revision, loop_index, refinement_levels, smoothing_iterations, tangent_weight, max_interior_offset
+            );
+        },
         PolygonPatchMode::PlanarBestFit { max_displacement } => (covariance_normal(&points, center)?, Some(max_displacement)),
         PolygonPatchMode::PlanarAverageNormal { max_displacement } => (unit(mean_face_normal)?, Some(max_displacement)),
         PolygonPatchMode::PlanarDirection { normal, max_displacement } => (unit(normal)?, Some(max_displacement)),

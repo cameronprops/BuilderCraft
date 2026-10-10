@@ -22,6 +22,7 @@ pub mod icons;
 pub mod layers;
 pub mod menus;
 pub mod mesh_picking;
+pub mod mesh_simplify;
 pub mod palettes;
 pub mod parametric;
 mod point_input;
@@ -76,6 +77,9 @@ pub struct UiState {
     /// Explicitly loaded, revision-scoped OCCT wire display cache, not source geometry.
     #[serde(skip)]
     pub brep_preview: Option<buildercraft::BrepPreview>,
+    /// Transient revision-scoped QEM wire overlay. Never saved with the document.
+    #[serde(skip)]
+    pub mesh_simplify_preview: Option<mesh_simplify::Preview>,
     /// Transient gizmo drag state must not be serialized with UI preferences.
     #[serde(skip)]
     pub gizmo: gizmo::Gizmo,
@@ -133,6 +137,7 @@ impl Default for UiState {
             mesh_face_document_uid: None,
             mesh_face_revision: None,
             brep_preview: None,
+            mesh_simplify_preview: None,
             gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,

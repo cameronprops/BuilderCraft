@@ -193,6 +193,11 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
                     let _ = delete_mesh_face(app, object.id, revision, app.ui.mesh_face_index);
                 }
             });
+            // Derived-only QEM preview and undoable bake share one kernel path.
+            let source_triangles: usize = object.mesh.faces.iter().map(|face| face.indices().len().saturating_sub(2)).sum();
+            if crate::mesh_simplify::panel(app, ui, object.id, source_triangles) {
+                clear_picked_mesh_face(app);
+            }
             if let Ok(report) = buildercraft_kernel::polygon_mesh_boundary_loops(&object.mesh) {
                 if !report.unresolved_edges.is_empty() {
                     ui.label("Some boundary edges are ambiguous; repair these before hole filling.");
@@ -492,7 +497,20 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 preview_limited = true;
             }
             let picked = app.session.selection().contains(&cadcraft_doc::Handle(object.id));
-            let color = if picked { egui::Color32::from_rgb(255, 200, 75) } else { egui::Color32::from_rgb(110, 230, 180) };
+            let preview_source = app
+                .ui
+                .mesh_simplify_preview
+                .as_ref()
+                .is_some_and(|preview| app.session.state().is_ok_and(|st| preview.matches(st.uid, st.revision, object.id)));
+            // Source remains visible and selectable. Dim it while showing a
+            // clearly distinct, non-pickable derived wire overlay.
+            let color = if preview_source {
+                egui::Color32::from_gray(75)
+            } else if picked {
+                egui::Color32::from_rgb(255, 200, 75)
+            } else {
+                egui::Color32::from_rgb(110, 230, 180)
+            };
             let selected_face_is_current = picked_face_is_current(app, object.id);
             for (face_index, face) in object.mesh.faces.iter().take(visible_faces).enumerate() {
                 let highlighted = selected_face_is_current && app.ui.mesh_face_index as usize == face_index;
@@ -506,6 +524,29 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                 }
             }
         }
+    }
+    // Read-only QEM display proxy. The source triangle/quad object owns all
+    // document identities and remains pickable. The overlay never participates
+    // in save/export/selection, and vanishes when the revision changes.
+    if let Some(preview) = &app.ui.mesh_simplify_preview
+        && app.session.state().is_ok_and(|st| preview.document_uid == st.uid && preview.source_revision == st.revision)
+        && let Ok(doc) = app.session.doc()
+        && let Some(source) = doc.mesh3d.iter().find(|mesh| mesh.id == preview.object_id)
+        && source.visible
+        && doc.layer(&source.layer).is_none_or(|layer| layer.visible())
+    {
+        for edge in &preview.wire_edges {
+            let a = preview.mesh.vertices[edge[0] as usize];
+            let b = preview.mesh.vertices[edge[1] as usize];
+            painter.line_segment([project(a), project(b)], egui::Stroke::new(1.75, egui::Color32::from_rgb(255, 170, 55)));
+        }
+        painter.text(
+            rect.left_top() + egui::vec2(10., 10.),
+            egui::Align2::LEFT_TOP,
+            format!("QEM PREVIEW · {} triangles removed · source preserved", preview.removed_faces),
+            egui::FontId::proportional(13.),
+            egui::Color32::from_rgb(255, 205, 105),
+        );
     }
     // BRep wires are loaded explicitly from OCCT and tied to source revision.
     // No persistent conversion and no claim of occlusion-correct shading.

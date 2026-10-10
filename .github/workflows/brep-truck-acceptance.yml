@@ -1,0 +1,40 @@
+name: Worldwright exact BRep candidate acceptance
+on:
+  push:
+    branches: [feature/brep-truck-topology-acceptance]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: worldwright-exact-brep-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  truck-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Resolve pinned Truck topology/shapeops and format
+        run: |
+          cargo generate-lockfile
+          cargo fmt --all
+      - name: Exact BRep primitive and boolean golden tests
+        run: cargo test --locked -p worldwright-brep --all-targets -- --nocapture
+      - name: Strict no-warning candidate adapter lint
+        run: cargo clippy --locked -p worldwright-brep --all-targets -- -D warnings
+      - name: Do not drift existing kernel or OrbWeaver dependency DAG
+        run: python3 tools/check_paired_tools.py
+      - name: Commit only generated Cargo.lock and formatting after acceptance
+        shell: bash
+        run: |
+          git add Cargo.lock crates/brep/Cargo.toml crates/brep/src/lib.rs
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build(brep): lock accepted Truck BRep deps and pinned rustfmt'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

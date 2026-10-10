@@ -1,0 +1,15 @@
+[package]
+name = "worldwright-brep"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "WorldWright exact BRep backend candidate acceptance and isolated Truck adapter"
+
+[lints]
+workspace = true
+
+[dependencies]
+truck-modeling = { version = "0.6.0" }
+truck-topology = { version = "0.6.0" }
+truck-shapeops = { version = "0.4.0", default-features = false }
+thiserror = { workspace = true }

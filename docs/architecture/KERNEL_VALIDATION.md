@@ -46,3 +46,39 @@ The inherited visualization `Value` import was qualified at its native use to
 remove its WebAssembly warning. The documented verify-worldwright-kernel wrapper
 is still absent; checked-in `cargo xtask ci` was run directly. Hosted workflows
 remain manual-only and were not invoked.
+
+## Latest-main drafting and interchange integration (2026-10-10 UTC)
+
+Reconciled against main `f9ba9088a0ab26190ca73684d5727f2cbfa71aa0`, including
+native mesh editing, optional scoped histories, OrbWeaver, LAS/noise adapters
+and shared modeling subsets, including persistent undoable mesh Project/Flow. The final source passed all six `cargo xtask ci`
+gates on Rust 1.95.0: **646 workspace tests**, formatting, workspace Clippy with
+warnings denied, attribution, layering across 18 crates and all 13 configured
+WASM libraries. OrbWeaver's headless evaluator is now registered at L2; the
+previous full-workspace layering failure is resolved. The native-only JSON
+import in visualization is qualified to avoid its WASM warning.
+
+The now-present `tools/verify-worldwright-kernel.sh` passed all eight steps.
+`cargo build --locked -p cadcraft -p cadcraft-cli` passed locally. The compiled
+CLI created a control curve, saved/reopened `.dftba` and returned the original
+control points, degree, weights and knots. A compiled CLI PushPull invocation
+returned the expected eight vertices and six quad faces. These are development
+builds, not performance measurements or packaged releases.
+
+New fixtures cover off-plane endpoint snaps, layer exclusion, transient drafts,
+one-step undo/redo, stale identity/revision/plane rejection, mesh/curve ID
+collision rejection, full-viewport drafting consuming mesh-selection clicks,
+shared work-budget admission, adaptive orientation cancellation and bounded
+STL/OBJ round trips/hostile inputs/precision losses. The exact egui viewport
+was captured, rasterized and visually inspected after theme-token integration.
+
+STL reads/writes share one bounded codec path. Command-level triangular OBJ
+exchange delegates to the existing named-object parser; it does not replace
+native polygon mesh storage or implicitly import geometry into a document.
+See `OPEN_SOURCE_INTEGRATION.md` for precise repository reuse and deferred work,
+and `../ALPHA_SMOKE_TEST.md` for compiled-program/UI acceptance steps.
+
+Linux/native and portable WASM checks do not establish Windows, macOS or Haiku
+window-system behavior, general Rhino parity, full Scan/Terrain functionality,
+trimmed BRep/solid support, or aggregate process/GPU memory performance. Hosted
+native CI conclusions are separate from this local evidence.

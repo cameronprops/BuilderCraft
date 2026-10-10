@@ -48,12 +48,29 @@
     },
     {
       "id": "point_input_snapping",
-      "level": "L2-L4",
-      "status": "planned",
+      "level": "L0-L5",
+      "status": "partial",
       "depends_on": [
         "viewport_selection"
       ],
-      "scope": "construction plane, endpoints, interactive point input"
+      "scope": "shared orthographic construction planes, curve endpoints/parameter midpoints, surface corners/midpoints, grid query, transient control-curve drafting; transform reference input remains planned",
+      "commands": [
+        "geometry3d.cplane.point",
+        "geometry3d.snap",
+        "geometry3d.line",
+        "nurbs.controlcurve3d"
+      ],
+      "implementation": [
+        "crates/geom/src/snap3d.rs",
+        "crates/engine/src/cmd/snap3d.rs",
+        "crates/engine/src/cmd/point3d.rs",
+        "crates/ui-egui/src/point_input.rs"
+      ],
+      "evidence": [
+        "existing screen/plane inversion fixtures, shared evaluation work admission",
+        "endpoint visibility/locking, native persistence, stale preflight and single undo fixtures",
+        "egui pointer drafting, Enter, Escape and document/plane cancellation fixtures"
+      ]
     },
     {
       "id": "surface_construction",
@@ -67,22 +84,27 @@
     },
     {
       "id": "orbweaver_evaluator_canvas",
-      "level": "L5",
-      "status": "planned",
+      "level": "L2-L5",
+      "status": "partial",
       "depends_on": [
         "shared_exact_geometry"
       ],
-      "scope": "typed ports, data trees, pure evaluation, preview and transactional bake"
+      "scope": "shared typed evaluator, data trees and 25 CAD/OrbWeaver pairs; document geometry references, canvas, project graph persistence and bake remain planned",
+      "implementation": [
+        "crates/kernel/src/shared_tools.rs",
+        "crates/orbweaver/src/lib.rs",
+        "crates/engine/src/cmd/worldwright_tools.rs"
+      ]
     },
     {
       "id": "sketch_feature_history",
       "level": "L5-L6",
-      "status": "planned",
+      "status": "partial",
       "depends_on": [
         "surface_construction",
         "orbweaver_evaluator_canvas"
       ],
-      "scope": "constraints and editable feature blocks"
+      "scope": "optional scoped recipes, revisioned history operations, persistence and initial timeline panel; constrained sketches/general solid feature kernels remain planned"
     },
     {
       "id": "trimmed_topology_solids",
@@ -96,25 +118,49 @@
     {
       "id": "native_format_migration",
       "level": "L4",
-      "status": "planned",
+      "status": "partial",
       "depends_on": [
         "shared_exact_geometry"
       ],
-      "scope": ".dftba native save/reopen with .bcraft compatibility; subsequent graph/history schema migration"
+      "scope": "native .dftba save/reopen and legacy .bcraft readability exist; graph schema persistence remains planned",
+      "implementation": [
+        "crates/io/src/project.rs"
+      ]
     },
     {
       "id": "cross_domain_metrology_foundation",
       "level": "L2-L6",
-      "status": "planned",
+      "status": "partial",
       "depends_on": [
         "point_input_snapping",
         "shared_exact_geometry"
       ],
-      "scope": "One reusable Rust geometry service for CAD, OrbWeaver, metrology and reverse engineering. Prerequisites: bounded 3D spatial index, closest-point queries, source-revision references, normals, datum frames and calibration/tolerance policy. See cross-domain register.",
+      "scope": "shared mesh/cloud closest-point and native mesh diagnostics exist; spatial acceleration, datum/calibration, revision references and full inspection remain planned",
       "implementation": [
         "docs/roadmap/CROSS_DOMAIN_KERNEL_DEPENDENCIES.json"
       ],
       "evidence": []
+    },
+    {
+      "id": "mesh_exchange",
+      "level": "L3-L4",
+      "status": "partial",
+      "depends_on": [
+        "shared_exact_geometry"
+      ],
+      "commands": [
+        "worldwright.mesh.decode",
+        "worldwright.mesh.encode"
+      ],
+      "scope": "bounded position-only STL and triangular OBJ commands sharing existing named-object mesh codec; separate mesh3d editing exists, full streaming Scan remains planned",
+      "implementation": [
+        "crates/io/src/mesh_exchange.rs",
+        "crates/engine/src/cmd/mesh_exchange.rs",
+        "crates/io/src/mesh_formats.rs"
+      ],
+      "evidence": [
+        "binary/ASCII parser admission, round trip, f64 fidelity, explicit f32 error and triangle-collapse rejection, source preservation fixtures"
+      ]
     }
   ],
   "existing_reuse": [
@@ -137,5 +183,6 @@
     "aggregate memory/undo/cache and cancellation measurements",
     "cross-platform native builds; Haiku remains separately unvalidated"
   ],
-  "cross_domain_reuse_registry": "docs/roadmap/CROSS_DOMAIN_KERNEL_DEPENDENCIES.json"
+  "cross_domain_reuse_registry": "docs/roadmap/CROSS_DOMAIN_KERNEL_DEPENDENCIES.json",
+  "reconciled_main": "f9ba9088a0ab26190ca73684d5727f2cbfa71aa0"
 }

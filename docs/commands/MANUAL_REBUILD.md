@@ -225,3 +225,17 @@ snapping. Object/evaluation budgets reject queries without a partial hit;
 rendering signals an incomplete preview if its budget is reached. Tests live in
 `geom/src/picking.rs`, `kernel/src/wireframe.rs`, `engine/src/cmd/picking3d.rs` and
 `ui-egui/src/buildercraft.rs`. See the API and alpha dependency register.
+
+## Construction-plane drafting increment
+
+Shared orthographic plane inversion and exact curve endpoint queries now drive
+Draw control curve. XY/XZ/YZ, origin, degree and snap controls feed a transient
+preview. Enter/Finish creates one undoable curve; Escape and stale document or
+plane changes cancel. API controllers use `geometry3d.snap` and
+`nurbs.controlcurve3d`, sharing the same geometry and transaction services.
+Arbitrary planes are supported by the query API. Surface corners are available; intersections,
+transform reference input and interpolated curves remain planned. Next in the
+CAD hierarchy follows issue #26: shared rail evaluation, then exact surface
+construction from these authored curves. Native mesh Project/Flow already has
+revision-checked document adapters.
+See `BUILDERCRAFT_API.md` for limits and `CAD_ALPHA_DEPENDENCIES.json` for scope.

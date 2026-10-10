@@ -24,6 +24,7 @@ pub mod menus;
 pub mod mesh_picking;
 pub mod palettes;
 pub mod parametric;
+mod point_input;
 pub mod quick;
 pub mod theme;
 
@@ -73,6 +74,12 @@ pub struct UiState {
     pub orbit_pitch: f64,
     pub scale3d: f64,
     pub center3d: cadcraft_geom::Vec3,
+    pub plane3d: usize,
+    pub plane_origin: [f64; 3],
+    pub endpoint_snap: bool,
+    pub curve_degree: usize,
+    #[serde(skip)]
+    pub point_input: point_input::PointTool,
     pub transform_delta: [f64; 3],
     pub transform_origin: [f64; 3],
     pub transform_axis: [f64; 3],
@@ -117,6 +124,11 @@ impl Default for UiState {
             orbit_pitch: -(1.0_f64 / 3.0_f64.sqrt()).asin(),
             scale3d: 20.0,
             center3d: cadcraft_geom::Vec3::ZERO,
+            plane3d: 0,
+            plane_origin: [0.; 3],
+            endpoint_snap: true,
+            curve_degree: 3,
+            point_input: Default::default(),
             transform_delta: [0.; 3],
             transform_origin: [0.; 3],
             transform_axis: [0., 0., 1.],

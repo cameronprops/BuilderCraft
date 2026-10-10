@@ -35,6 +35,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn adaptive_fallback_preserves_cancelled_orientation() {
+        let a = Vec2::ZERO;
+        let b = Vec2::new(134_217_729., 134_217_728.);
+        let c = Vec2::new(134_217_728., 134_217_727.);
+        assert_eq!((b - a).cross(c - a), 0.);
+        assert_eq!(orientation2d(a, b, c), Some(Ordering::Less));
+        assert_eq!(orientation2d(a, c, b), Some(Ordering::Greater));
+    }
+
+    #[test]
     fn planar_winding_and_exact_degeneracy() {
         let a = Vec2::new(0., 0.);
         let b = Vec2::new(1., 0.);

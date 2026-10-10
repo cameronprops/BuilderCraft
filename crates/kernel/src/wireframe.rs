@@ -3,23 +3,39 @@
 use crate::{ExactShape, KernelError, Result};
 use cadcraft_geom::Vec3;
 
+/// Conservative shared exact-evaluation admission for preview and point snaps.
+/// Count buffers before full validation; callers validate after charging admission.
+pub fn exact_evaluation_work(shape: &ExactShape, samples: usize) -> Result<usize> {
+    let curve_cost = |c: &cadcraft_geom::nurbs3d::Curve| {
+        if !(2..=4096).contains(&c.control.len()) {
+            return None;
+        }
+        c.degree.checked_add(4).and_then(|n| c.control.len().checked_mul(n))
+    };
+    let cost = match shape {
+        ExactShape::Curve(c) => curve_cost(c),
+        ExactShape::Surface(s) => {
+            if !(2..=4096).contains(&s.rows.len()) {
+                return Err(KernelError::Invalid("surface row count"));
+            }
+            s.rows.iter().try_fold(0usize, |total, row| {
+                total.checked_add(curve_cost(row)?).and_then(|n| s.degree_v.checked_add(4).and_then(|v| n.checked_add(v)))
+            })
+        }
+    };
+    cost.and_then(|n| n.checked_mul(samples)).ok_or(KernelError::Budget)
+}
 /// Charge the whole shape before evaluation; callers share a work budget across a scene.
 pub fn visit_preview_wires(shape: &ExactShape, work_left: &mut usize, mut visit: impl FnMut(Vec3, Vec3)) -> Result<()> {
+    let samples = match shape {
+        ExactShape::Curve(_) => 192,
+        ExactShape::Surface(_) => 1248,
+    };
+    let work = exact_evaluation_work(shape, samples)?;
+    *work_left = work_left.checked_sub(work).ok_or(KernelError::Budget)?;
     if !shape.valid() {
         return Err(KernelError::Invalid("preview wire source"));
     }
-    let (samples, cost) = match shape {
-        ExactShape::Curve(c) => (192usize, c.control.len().checked_mul(c.degree + 4)),
-        ExactShape::Surface(s) => {
-            let row = s.rows.first().ok_or(KernelError::Invalid("empty surface"))?;
-            (
-                1248,
-                row.control.len().checked_mul(row.degree + 4).and_then(|n| n.checked_add(s.degree_v + 4)).and_then(|n| n.checked_mul(s.rows.len())),
-            )
-        }
-    };
-    let work = cost.and_then(|n| n.checked_mul(samples)).ok_or(KernelError::Budget)?;
-    *work_left = work_left.checked_sub(work).ok_or(KernelError::Budget)?;
     match shape {
         ExactShape::Curve(c) => {
             for i in 0..96 {

@@ -142,7 +142,7 @@ and control surfaces only; reference picking and other representations remain
 pending. See `docs/commands/MANUAL_REBUILD.md` for numerical limits and evidence.
 
 
-## OrbWeaver and dependency-first paired tools (source authored, validation pending)
+## OrbWeaver and dependency-first paired tools (partial native acceptance)
 
 Worldwright's native Grasshopper-style graph core is now called **OrbWeaver**
 (working name, after orb-weaving spiders). It will run
@@ -157,7 +157,8 @@ for, but initial classification is heuristic and 2,347 references remain
 unclassified. **No per-command or per-component verified dependency hierarchy
 or conformance claim is inferred from these labels.**
 
-Fifteen CAD/Graph pairs now route point, vector, polyline and native data-tree functions through
+Twenty-five CAD/Graph pairs now route point, vector, polyline, native data-tree
+and supported modeling functions through
 one typed kernel dispatcher (`crates/kernel/src/shared_tools.rs`). The newly
 authored `crates/orbweaver` evaluator supports typed ports, literal/linked
 values, versioned serializable graphs, dependency scheduling, cycle/type
@@ -167,8 +168,8 @@ validated implementations. Vector length is an additional base primitive,
 reused by normalize. The interpolation fraction, division count and division
 spacing are named modifier ports.
 
-These code paths and tests are **not compiled or run yet**; the current
-environment lacks Cargo. Native graph data-tree structure operations are authored
+These native code paths passed the local Rust validation recorded below.
+Native graph data-tree structure operations are implemented
 with strict branch paths, explicit matching policies, flatten, graft and simplify.
 A component canvas, exact Grasshopper implicit
 path matching, preview/bake, solver, expressions and exact reference GH port
@@ -184,22 +185,22 @@ and CAD options / OrbWeaver settings are modifiers or thin adapters.
 ### OrbWeaver native data-tree operation increment
 
 The Rust graph crate is now `crates/orbweaver` (package `orbweaver`,
-public nodes `orbweaver.*`). The dependency map now contains **46** registered
-kernel operations, of which **15** have shared CAD/OrbWeaver typed ports.
+public nodes `orbweaver.*`). The dependency map now contains **57** registered
+kernel operations, of which **25** have shared CAD/OrbWeaver typed ports.
 The five new `kernel.tree.*` paired operations validate canonical branch paths,
 flatten, graft, simplify and match with explicit Shortest, Longest and
 CrossReference modifiers. The existing OrbWeaver DAG can link tagged tree
 values through these nodes. A headless `paired_tree` example checks that
 CAD and graph entry points invoke one dispatcher. Grasshopper tree-path
 matching, graph UI and
-`.dftba` graph persistence are still future work; the new tests remain
-unexecuted until Rust/Cargo is available locally. No hosted CI is invoked.
+`.dftba` graph persistence are still future work. Local compiled tests passed in this increment; hosted
+CI conclusions and Grasshopper conformance are separate evidence.
 
 ## History-driven mechanical modeling track
 
 The optional scoped feature-history foundation now has a machine-readable
 [60-item dependency catalog](../dependencies/feature-history.json):
-eight source-authored, **uncompiled** infrastructure contracts and 52 planned
+eight native infrastructure contracts with local test evidence and 52 planned
 sketch, dimension, solid, assembly and fabrication operations. Histories can
 belong to a document, a component/body node or a reusable block definition,
 without imposing a timeline on direct CAD modeling.
@@ -210,3 +211,55 @@ It evaluates already-implemented shared kernel operations and saves recipes
 inside `.dftba`. An **initial 3D workspace timeline panel** now exposes enable, inspect, reorder, suppression, rollback and editing of basic local values. This is **not** a full visual feature-authoring or functioning sketch-to-solid mechanical modeler. Next: stable versioned geometry
 references, dimension expressions, constraint-driven sketch profiles and
 shared extrude/revolve/hole/fillet kernels, then previews and UI/bake.
+## Construction-plane drafting increment
+
+Shared orthographic plane inversion and exact curve endpoint queries now drive
+Draw control curve. XY/XZ/YZ, origin, degree and snap controls feed a transient
+preview. Enter/Finish creates one undoable curve; Escape and stale document or
+plane changes cancel. API controllers use `geometry3d.snap` and
+`nurbs.controlcurve3d`, sharing the same geometry and transaction services.
+Arbitrary planes are supported by the query API. Surface corners are available; intersections,
+transform reference input and interpolated curves remain planned. Next in the
+CAD hierarchy is shared exact surface construction from these authored curves.
+See `BUILDERCRAFT_API.md` for limits and `CAD_ALPHA_DEPENDENCIES.json` for scope.
+
+## Repository integration increment
+
+GeoRust robust 1.2 supplies adaptive projected-triangle orientation through the
+shared closest-point kernel. stl_io 0.11 and tobj 4.0.5 supply bounded position-
+only STL/triangular OBJ exchange through L3 IO and L4 commands. These results
+reuse the existing TriangleMesh, validation, face-normal and closest-point
+services. Source meshes remain unchanged; f32 and attribute/index losses are
+explicit. Persistent mesh editing already exists through `mesh3d.*`; this exchange
+facade adds no implicit persistence or full Scan UI.
+
+The reviewed used/deferred list is in
+`../architecture/OPEN_SOURCE_INTEGRATION.md` and its machine-readable register.
+Curvo is the next surface-construction candidate. geo-index is 2D, while
+3D acceleration must use suitable shared services. Vello CPU is already
+indirectly present through epaint. Non-MIT Truck/Parry/Fidget candidates are
+reopened under the broader open-source preference, pending their feature gates.
+
+## Latest-main reconciliation
+
+The drafting increment was reconciled with main `f9ba908`: mesh-scene editing,
+optional histories, OrbWeaver typed evaluation, `.dftba` persistence, LAS/noise
+adapters and shared numeric PushPull/Project/Flow/array subsets are retained.
+Earlier uncompiled notes above describe their original authoring checkpoints;
+they are not current validation evidence. See the final validation record below
+and `../ALPHA_SMOKE_TEST.md` for the compiled-program/UI acceptance sequence.
+
+Next work follows [issue #26](https://github.com/cameronprops/BuilderCraft/issues/26)
+and `IMMEDIATE_MODELING_OPENSCAD_AND_ALPHA_UI.md`: shared curve derivatives,
+adaptive arc-length stations and rail frames before Pipe/Sweep and BRep work.
+Native mesh Project/Flow already has undoable document adapters. Geometry
+references/project persistence/bake remain graph-specific needs; preserve the
+existing document operations and one common kernel.
+
+### Reconciled validation result
+
+Linux Rust 1.95.0: 646 workspace tests and all six CI gates passed, including
+13 configured WASM libraries. The required kernel wrapper and native CAD/CLI
+build passed. Compiled CLI curve save/reopen and PushPull smoke checks passed;
+headless viewport rendering was inspected. OrbWeaver is registered at L2.
+See `../architecture/KERNEL_VALIDATION.md` for scope and platform limits.

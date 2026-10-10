@@ -1,0 +1,425 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-10-09",
+  "policy": "Use compatible open-source code when it improves a concrete shared service; retain one native geometry/identity/transaction model. Candidate status does not claim implementation or benchmark results.",
+  "entries": [
+    {
+      "repo": "georust/robust",
+      "url": "https://github.com/georust/robust",
+      "license": "MIT OR Apache-2.0",
+      "status": "integrated",
+      "owner": "L0 geom, shared mesh closest point",
+      "scope": "Adaptive orient2d used for projected triangle containment",
+      "version": "1.2.0",
+      "commit": "654f34cb8cdb3ae21bf59ef3472f92652942cd74",
+      "reviewed_sources": [
+        {
+          "path": "Cargo.toml",
+          "ref": "654f34cb8cdb3ae21bf59ef3472f92652942cd74",
+          "url": "https://github.com/georust/robust/blob/654f34cb8cdb3ae21bf59ef3472f92652942cd74/Cargo.toml"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "ref": "654f34cb8cdb3ae21bf59ef3472f92652942cd74",
+          "url": "https://github.com/georust/robust/blob/654f34cb8cdb3ae21bf59ef3472f92652942cd74/LICENSE-MIT"
+        }
+      ],
+      "validation": "Linux Rust 1.95.0: 646 workspace tests and all six cargo xtask ci gates passed, including configured WASM checks; see KERNEL_VALIDATION.md"
+    },
+    {
+      "repo": "hmeyer/stl_io",
+      "url": "https://github.com/hmeyer/stl_io",
+      "license": "MIT",
+      "status": "integrated",
+      "owner": "L3 IO, L4 engine",
+      "scope": "Bounded ASCII/binary STL import and binary export; precision/loss reporting",
+      "version": "0.11.0",
+      "commit": "9a048baf77232c995beb2ca1b34d26f7ed9f7f83",
+      "reviewed_sources": [
+        {
+          "path": "Cargo.toml",
+          "ref": "9a048baf77232c995beb2ca1b34d26f7ed9f7f83",
+          "url": "https://github.com/hmeyer/stl_io/blob/9a048baf77232c995beb2ca1b34d26f7ed9f7f83/Cargo.toml"
+        },
+        {
+          "path": "LICENSE",
+          "ref": "9a048baf77232c995beb2ca1b34d26f7ed9f7f83",
+          "url": "https://github.com/hmeyer/stl_io/blob/9a048baf77232c995beb2ca1b34d26f7ed9f7f83/LICENSE"
+        }
+      ],
+      "validation": "Linux Rust 1.95.0: 646 workspace tests and all six cargo xtask ci gates passed, including configured WASM checks; see KERNEL_VALIDATION.md"
+    },
+    {
+      "repo": "Twinklebear/tobj",
+      "url": "https://github.com/Twinklebear/tobj",
+      "license": "MIT",
+      "status": "integrated",
+      "owner": "L3 IO, L4 engine",
+      "scope": "f64 triangular OBJ import; no material IO; OBJ export uses native mesh",
+      "version": "4.0.5",
+      "commit": "a54fea9d6ee5138bb95de0d2906e4e0323fe3524",
+      "reviewed_sources": [
+        {
+          "path": "Cargo.toml",
+          "ref": "a54fea9d6ee5138bb95de0d2906e4e0323fe3524",
+          "url": "https://github.com/Twinklebear/tobj/blob/a54fea9d6ee5138bb95de0d2906e4e0323fe3524/Cargo.toml"
+        },
+        {
+          "path": "LICENSE.md",
+          "ref": "a54fea9d6ee5138bb95de0d2906e4e0323fe3524",
+          "url": "https://github.com/Twinklebear/tobj/blob/a54fea9d6ee5138bb95de0d2906e4e0323fe3524/LICENSE.md"
+        }
+      ],
+      "validation": "Linux Rust 1.95.0: 646 workspace tests and all six cargo xtask ci gates passed, including configured WASM checks; see KERNEL_VALIDATION.md"
+    },
+    {
+      "repo": "mattatz/curvo",
+      "url": "https://github.com/mattatz/curvo",
+      "license": "MIT",
+      "status": "queued",
+      "owner": "shared surface construction",
+      "scope": "Next: bounded native Curve/Surface adapter, exact extrude/loft/revolve fixtures; avoid replacing persisted geometry types",
+      "reviewed_sources": [
+        {
+          "path": "Cargo.toml",
+          "ref": "6f6a51847a50092507936e9fd5735feedfecb69c",
+          "url": "https://github.com/mattatz/curvo/blob/6f6a51847a50092507936e9fd5735feedfecb69c/Cargo.toml"
+        },
+        {
+          "path": "LICENSE",
+          "ref": "6f6a51847a50092507936e9fd5735feedfecb69c",
+          "url": "https://github.com/mattatz/curvo/blob/6f6a51847a50092507936e9fd5735feedfecb69c/LICENSE"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "georust/geo-index",
+      "url": "https://github.com/georust/geo-index",
+      "license": "MIT OR Apache-2.0",
+      "status": "deferred",
+      "owner": "planar sketch/GIS indexes",
+      "scope": "2D only; not the 3D mesh/cloud index. Existing rstar remains available for 3D spatial work",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE_APACHE",
+          "sha": "1b5ec8b78e237b5c3b3d812a7c0a6589d0f7161d"
+        },
+        {
+          "path": "LICENSE_MIT",
+          "sha": "3ffab2257c5be1a001def5fec287725e75b18293"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "1c368afa7f2ab5dc8b1a3964bfcb0fd638c6a2e5"
+        },
+        {
+          "path": "README.md",
+          "sha": "4cc9e159a7b0b971916400ed3cd46a633431cce3"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "zakarumych/egui-snarl",
+      "url": "https://github.com/zakarumych/egui-snarl",
+      "license": "MIT OR Apache-2.0",
+      "status": "queued",
+      "owner": "L5 OrbWeaver canvas",
+      "scope": "Current 0.12 manifest uses egui 0.36; canvas must wrap shared typed evaluator, persistent graph IDs and bake transactions",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE-APACHE",
+          "sha": "adac6bb7b0f83e5d280fa80bcba2f7ba4019fd4f"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "sha": "7954474a7c9165ab6465d3da99e93ff444915bcf"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "be6d0d327853598d295b54de7fb36167f0d1275a"
+        },
+        {
+          "path": "README.md",
+          "sha": "1e73f2e08e66933546a6a6f0cedea6c052cbad8e"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "Stoeoef/spade",
+      "url": "https://github.com/Stoeoef/spade",
+      "license": "MIT OR Apache-2.0",
+      "status": "queued",
+      "owner": "shared planar triangulation",
+      "scope": "Constrained triangulation in construction-plane/UV coordinates, then shared mesh/topology validation",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE-APACHE",
+          "sha": "d645695673349e3947e8e5ae42332d0ac3164cd7"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "sha": "b5b89a3d255b569a6e86a8ab2df76ffdd42891e4"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "7c7d5f80769e18862bf25a66b715aec7c4601e6a"
+        },
+        {
+          "path": "README.md",
+          "sha": "d94590b036c9e37e979963e1bb2f78c55459195c"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "georust/geo",
+      "url": "https://github.com/georust/geo",
+      "license": "MIT OR Apache-2.0",
+      "status": "queued",
+      "owner": "planar geometry/trim",
+      "scope": "Planar polygon/offset operations with tolerance and identity adapters; not 3D solid booleans",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE-APACHE",
+          "sha": "16fe87b06e802f094b3fbb0894b137bca2b16ef1"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "sha": "c26fb0916ab1404eb31ed9f88293ef730be30b55"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "741b9af1fefbad09a1a4a6e3830ca53a6c216a71"
+        },
+        {
+          "path": "README.md",
+          "sha": "7b1e6aee3db5e8cd547b15638ec227dd6bae09bf"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "gadomski/las-rs",
+      "url": "https://github.com/gadomski/las-rs",
+      "license": "MIT",
+      "status": "integrated_on_main",
+      "owner": "L3 scan IO",
+      "scope": "Bounded uncompressed LAS point preview through existing L3 las_preview; LAZ and full classification/provenance resources remain deferred",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE.txt",
+          "sha": "a88c18aa9247d0270f2131523605f0a0f936ebae"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "70eb40019907b6b295217c20e848b21504935df6"
+        },
+        {
+          "path": "README.md",
+          "sha": "dab7401fc73accfc59103601a1da9c50cf4afae0"
+        }
+      ],
+      "validation": "Linux Rust 1.95.0: 646 workspace tests and all six cargo xtask ci gates passed, including configured WASM checks; see KERNEL_VALIDATION.md",
+      "version": "0.11.1"
+    },
+    {
+      "repo": "Auburn/FastNoiseLite",
+      "url": "https://github.com/Auburn/FastNoiseLite",
+      "license": "MIT",
+      "status": "integrated_on_main",
+      "owner": "terrain/landscape generation",
+      "scope": "Existing shared deterministic f64 procedural_noise implementation; full terrain authoring remains deferred",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE",
+          "sha": "dd6df2c160a31fff4e781e9589d56bc29dabb5c0"
+        },
+        {
+          "path": "README.md",
+          "sha": "36620b4e912f57b96466242e9414e22686fbfc49"
+        }
+      ],
+      "validation": "Linux Rust 1.95.0: 646 workspace tests and all six cargo xtask ci gates passed, including configured WASM checks; see KERNEL_VALIDATION.md",
+      "version": "1.1.1"
+    },
+    {
+      "repo": "linebender/vello",
+      "url": "https://github.com/linebender/vello",
+      "license": "MIT OR Apache-2.0",
+      "status": "existing_transitive",
+      "owner": "egui font rendering / later 2D renderer",
+      "scope": "epaint 0.36.2 already uses vello_cpu 0.1.0. New GPU renderer still deferred pending platform, GPU teardown and performance evidence",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE-APACHE",
+          "sha": "d9a10c0d8e868ebf8da0b3dc95bb0be634c34bfe"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "sha": "48ff8e414b77650f3fd61c80e7df90cc354d5017"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "e66466ea51e97c906746a37723e6fa888e8402d3"
+        },
+        {
+          "path": "README.md",
+          "sha": "6bd6aff04d52a17e0ab92c90199eb995b8161b1d"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "zeux/meshoptimizer",
+      "url": "https://github.com/zeux/meshoptimizer",
+      "license": "MIT",
+      "status": "deferred",
+      "owner": "visualization mesh optimization",
+      "scope": "C++ upstream; isolate safe Rust binding, verify native/WASM/Haiku build path, index remapping and memory limits before adoption",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE.md",
+          "sha": "468827f4b86ef754465396a9e163db25af406626"
+        },
+        {
+          "path": "README.md",
+          "sha": "66e422b7a02a95ae38a6a30a1d499d391b47b5de"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "YATSKOVSKYI/cadcore",
+      "url": "https://github.com/YATSKOVSKYI/cadcore",
+      "license": "MIT",
+      "status": "evaluation_required",
+      "owner": "analytic topology/STEP/sweeps",
+      "scope": "Candidate complementary analytic operations; verify claims on fixtures and preserve one authoritative geometry/identity layer",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE",
+          "sha": "ceb1d86eefc73679d7f1ef9d3f07863a11bf9679"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "121a0c889ae35af9b817dd28feec1f445e567db4"
+        },
+        {
+          "path": "README.md",
+          "sha": "a092322580ea720e1c3765b04523e2b2518244dd"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "jpcy/xatlas",
+      "url": "https://github.com/jpcy/xatlas",
+      "license": "MIT",
+      "status": "deferred",
+      "owner": "previs UV atlas generation",
+      "scope": "C++ upstream; portable bounded adapter and UV/source-index fidelity required; not exact modeling geometry",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE",
+          "sha": "7af8b33238802fccddb9b24de9229d2bc95c7032"
+        },
+        {
+          "path": "README.md",
+          "sha": "0ef8dc2e94be079c95427b387bdb3f39984ada39"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "ricosjp/truck",
+      "url": "https://github.com/ricosjp/truck",
+      "license": "Apache-2.0",
+      "status": "reopened_candidate",
+      "owner": "trimmed topology/STEP",
+      "scope": "Reopened after broader license authorization; compare complementary topology/STEP against native representation before adoption",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE",
+          "sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "4d3e67f335a58fbf16529de7d2e0665f58438330"
+        },
+        {
+          "path": "README.md",
+          "sha": "13f87a7d7ff13b945758b93d58ff0b371d50363b"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "dimforge/parry",
+      "url": "https://github.com/dimforge/parry",
+      "license": "Apache-2.0",
+      "status": "reopened_candidate",
+      "owner": "3D collision/proximity acceleration",
+      "scope": "Reopened; evaluate f64 feature, query/cancellation/resource contracts and 3D indexing alongside existing rstar",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE",
+          "sha": "97f4383a35a48ddd50566a879e836491d2fe9b75"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "06507e69c13c99fdb62f418b75d4cb7985de6ab2"
+        },
+        {
+          "path": "README.md",
+          "sha": "7a8c5e584d53acfcd007b3efffc95966b26cec1e"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    },
+    {
+      "repo": "mkeeter/fidget",
+      "url": "https://github.com/mkeeter/fidget",
+      "license": "MPL-2.0",
+      "status": "reopened_candidate",
+      "owner": "implicit modeling/terrain/rockwork",
+      "scope": "Reopened; isolated dependency with its notices; bytecode path for WASM, bounded meshing and cancellation before optional native JIT",
+      "reviewed_sources": [
+        {
+          "path": "LICENSE.txt",
+          "sha": "14e2f777f6c395e7e04ab4aa306bbcc4b0c1120e"
+        },
+        {
+          "path": "Cargo.toml",
+          "sha": "7ad5f3c1083dc1422d7706d6087e69f833d2aa5f"
+        },
+        {
+          "path": "README.md",
+          "sha": "5f0ca29abcd099b9e0f4001424f5e47373c868c2"
+        }
+      ],
+      "validation": "not claimed as new working integration"
+    }
+  ],
+  "reconciled_main": "f9ba9088a0ab26190ca73684d5727f2cbfa71aa0",
+  "validation": {
+    "platform": "Linux",
+    "rust": "1.95.0",
+    "workspace_tests_passed": 646,
+    "ci_gates": [
+      "fmt",
+      "clippy",
+      "test",
+      "assets",
+      "layers",
+      "wasm"
+    ],
+    "configured_wasm_libraries": 13,
+    "native_cad_cli_build": "passed",
+    "kernel_validation_wrapper": "passed",
+    "viewport_pointer_and_render_inspection": "passed",
+    "other_native_platforms": "not validated locally"
+  }
+}

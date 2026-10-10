@@ -17,7 +17,7 @@ pub struct MeshFaceAnalysis {
 
 /// Reject malformed indices and nonfinite coordinates, but allow geometric
 /// degeneracies such as coincident positions for diagnostic reporting.
-fn validate_mesh(mesh: &TriangleMesh) -> Result<()> {
+pub fn validate_triangle_mesh(mesh: &TriangleMesh) -> Result<()> {
     if mesh.vertices.is_empty() || mesh.vertices.len() > MAX_VERTICES || mesh.triangles.len() > MAX_FACES {
         return Err(KernelError::Invalid("mesh size"));
     }
@@ -36,7 +36,7 @@ fn validate_mesh(mesh: &TriangleMesh) -> Result<()> {
 /// `relative_area_tolerance` is a dimensionless threshold relative to the
 /// square of the longest edge. It must lie in [0, 0.5).
 pub fn mesh_face_analysis(mesh: &TriangleMesh, relative_area_tolerance: f64) -> Result<Vec<MeshFaceAnalysis>> {
-    validate_mesh(mesh)?;
+    validate_triangle_mesh(mesh)?;
     if !relative_area_tolerance.is_finite() || !(0.0..0.5).contains(&relative_area_tolerance) {
         return Err(KernelError::Invalid("mesh relative area tolerance"));
     }

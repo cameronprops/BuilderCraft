@@ -23,3 +23,4 @@ thiserror = { workspace = true }
 log = { workspace = true }
 # R-tree spatial index for picking, window selection and object snaps (MIT OR Apache-2.0).
 rstar = { version = "0.12", default-features = false }
+base64 = "0.22"

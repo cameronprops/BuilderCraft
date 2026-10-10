@@ -51,6 +51,9 @@ pub fn preview(app: &CadApp, id: u64) -> Option<Mat4> {
     let drag = app.ui.gizmo.drag.as_ref()?;
     drag.ids.contains(&id).then(|| drag.operation.matrix().ok()).flatten()
 }
+pub fn cancel(app: &mut CadApp) {
+    app.ui.gizmo.drag = None;
+}
 pub fn interact(app: &mut CadApp, ui: &egui::Ui, rect: egui::Rect, response: &egui::Response) -> bool {
     if app.session.selection().len() > 1024 {
         app.ui.gizmo.drag = None;

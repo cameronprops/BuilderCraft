@@ -48,3 +48,16 @@ Generated-in-code assets are original and have no file to list:
 | Reference data | Publisher | Source | Permission | Scope |
 |---|---|---|---|---|
 | `docs/components/grasshopper1-kangaroo2.json` names, categories, versions and purpose summaries | Grasshopper Docs, Robin Rodricks and contributors | https://grasshopperdocs.com/feeds/components.json and https://grasshopperdocs.com/feeds/addons.json | Publisher explicitly permits third-party processing and use of its live metadata feeds: https://github.com/grasshopper3d/GrasshopperDocsSite#live-json-feeds | Reference metadata only. This permission is not an open-source license for Grasshopper or add-on implementation code. No icons or implementation source copied. Native registry fields are original BuilderCraft work. |
+
+## Shared-service dependencies integrated 2026-10-09
+
+| Dependency | Authors | Source | Selected license | Native usage |
+|---|---|---|---|---|
+| robust 1.2.0 | Spade and GeoRust developers | https://github.com/georust/robust | MIT (dual MIT/Apache-2.0) | Adaptive projected triangle orientation; `docs/licenses/robust-MIT.txt` |
+| stl_io 0.11.0 | Henning Meyer | https://github.com/hmeyer/stl_io | MIT | Bounded STL exchange; `docs/licenses/stl_io-MIT.txt` |
+| tobj 4.0.5 | Will Usher and contributors | https://github.com/Twinklebear/tobj | MIT | Triangular OBJ parsing with f64 positions; `docs/licenses/tobj-MIT.txt` |
+| base64 0.22.1 | Alice Maz and Marshall Pierce | https://github.com/marshallpierce/rust-base64 | MIT (dual MIT/Apache-2.0) | Binary mesh payload transport; `docs/licenses/base64-MIT.txt` |
+
+Cargo.lock pins package checksums. Upstream code is consumed as dependencies,
+not copied into a second modeling engine. Other evaluated repositories remain
+explicitly scoped in `docs/architecture/OPEN_SOURCE_INTEGRATION.json`.

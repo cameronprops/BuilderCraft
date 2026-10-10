@@ -17,7 +17,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("visualization.publish", "Publish Visualization Scene", publish_visualization).params("{project_id:32 hex digits,directory}").noundo(),
         CommandSpec::new("geometry3d.preview", "Tessellate 3D Preview", preview3d).params("{id,curve_segments?:64,surface_u?:16,surface_v?:16}").noundo(),
         CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
-        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface","polygonMesh"],"nativeProject":"dftba","legacyNativeProject":"bcraft","solids":false,"meshTools":true,"meshViewport":true,"viewportPicking":"orthographicPreviewWires","transient3dSelection":true,"changeSubscriptions":false}))).enabled(always).noundo(),
+        CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface","polygonMesh"],"nativeProject":"dftba","legacyNativeProject":"bcraft","solids":false,"meshTools":true,"meshViewport":true,"viewportPicking":"orthographicPreviewWires","transient3dSelection":true,"changeSubscriptions":false,"constructionPlanePointInput":"orthographic","endpointSnapping":"exactCurveEndsAndSurfaceCorners","meshExchange":["stl","triangularObj"],"controlCurveFromPoints":true}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
         CommandSpec::new("nurbs.surface", "NURBS Control Surface", surface3d).params("{name, surface:{rows:[curve,...],degree_v,knots_v}}"),
         CommandSpec::new("geometry3d.controlpoint", "Edit NURBS Control Point", controlpoint).params("{id,row?:0,index,point:[x,y,z]}"),
@@ -303,7 +303,7 @@ fn add3d(s: &mut Session, p: &Value, shape: cadcraft_doc::organization::Shape) -
     d.geometry3d.push(cadcraft_doc::organization::GeometryObject { id, name, layer: d.header.str("CLAYER", "0"), visible: true, shape });
     Ok(json!({"id":id}))
 }
-fn curve3d(s: &mut Session, p: &Value) -> Result<Value> {
+pub(super) fn curve3d(s: &mut Session, p: &Value) -> Result<Value> {
     let curve: cadcraft_geom::nurbs3d::Curve =
         serde_json::from_value(p.get("curve").cloned().ok_or_else(|| error("curve required"))?).map_err(|e| error(&e.to_string()))?;
     if !curve.valid() {

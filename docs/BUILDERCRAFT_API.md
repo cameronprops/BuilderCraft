@@ -27,6 +27,14 @@ Use the returned model ID as `parent` when creating a component or body.
 | nurbs.curve3d | name, curve with degree, XYZ control objects, weights and knot vector |
 | nurbs.surface | name, surface with compatible curve rows, degree_v and knots_v |
 | geometry3d.list | returns exact 3D control geometry |
+| geometry3d.pick | pixel [x,y] in logical display pixels relative to viewport top-left; viewport [width,height], center [x,y,z], yaw/pitch radians, scale pixels/unit, optional radius 0–64 (default 6); returns nearest sampled wire ID or null, distance_pixels and camera-facing depth |
+| geometry3d.cplane.point | pixel, viewport, center, yaw/pitch, scale, optional plane {origin,x_axis,y_axis} and grid spacing; world XY default |
+| geometry3d.snap | same camera/plane query, optional radius default 8, endpoints/midpoints default true; point/kind/source ID and document UID/revision |
+| geometry3d.line | name, start/end snap queries; resolve against one document, then create one undoable degree-1 control curve |
+| worldwright.mesh.decode | format stl/obj, data string, encoding utf8/base64; read-only position-only triangle mesh and explicit losses |
+| worldwright.mesh.encode | format stl/obj, native TriangleMesh; returns data/encoding, losses and maximum coordinate error; no file or document mutation |
+| nurbs.controlcurve3d | points [[x,y,z],...], optional name, degree default min(3,count-1), expected_uid/revision; one undoable exact curve |
+| geometry3d.select | ids [unsigned object IDs], optional mode replace/toggle; transient selection, no geometry revision or undo step; rejects hidden/locked/missing objects atomically |
 | geometry3d.set | id, optional name and visibility |
 | geometry3d.controlpoint | id, optional row, index, point [x,y,z] |
 | mesh3d.create | name, mesh with vertices and native triangle/quad faces |
@@ -35,6 +43,8 @@ Use the returned model ID as `parent` when creating a component or body.
 | mesh3d.preview | id; non-mutating triangle view and original polygon-face mapping |
 | mesh3d.edit | id, edit with kind, selected_revision and selected indices/loop |
 | mesh3d.set | id, optional name and/or visible |
+| mesh3d.project | id, target_id, direction {x,y,z}, optional copy and selected_revision; undoable native mesh projection |
+| mesh3d.flow_along_srf | id, base_id, target_id, optional copy and selected_revision; undoable mesh mapping between untrimmed NURBS surfaces |
 
 3D curve example:
 ```json
@@ -238,8 +248,9 @@ geometry handle ports, exact Grasshopper implicit path matching and graphical
 editing are still pending. Native tree-item broadcasting is available for the
 ten point/vector/polyline operations; use the top-level optional `matching`
 modifier (`shortest`, `longest`, `cross_reference`) on CAD commands, or the
-per-node `matching` field on OrbWeaver graph nodes. See `crates/orbweaver/examples/paired_tree.rs`. Local compilation
-and runtime tests have not yet been performed.
+per-node `matching` field on OrbWeaver graph nodes. See `crates/orbweaver/examples/paired_tree.rs`. Local compilation and runtime tests passed for the supported native subset;
+see `architecture/KERNEL_VALIDATION.md`. Exact reference conformance remains
+separate acceptance work.
 
 ## Optional scoped parametric feature histories
 
@@ -276,3 +287,51 @@ Hidden objects/layers and locked layers are excluded. Queries admit at most 4096
 objects and 50 million conservative evaluation work units. Exceeding the scene
 budget returns an error without applying a partial selection. Rendering also
 uses this aggregate work limit and can stop before drawing the complete scene.
+
+## Construction-plane point input
+
+`geometry3d.snap` uses the shared orthographic `ScreenRay` and construction-plane
+service already on main. A finite origin and perpendicular X/Y axes define an
+arbitrary plane; world XY is the API default. Queries return document UID and
+source revision. Exact normalized curve endpoints/parameter midpoints and
+surface corners/edge parameter midpoints/center are available. An endpoint or
+surface snap can lie outside the plane and can work in an edge-on view. These
+are parameter midpoints, not arc-length midpoints. Optional grid spacing rounds
+unsnapped plane coordinates. Closest pixel distance wins, followed by
+camera-facing depth and stable object ID. Hidden objects/layers and locked
+layers are excluded. Object snaps admit 512 objects, 4096 candidates and 50
+million conservative exact-evaluation work units, with no partial result on
+rejection. Plane-only queries bypass object scans. Intersections and perspective
+remain unavailable. `geometry3d.cplane.point` performs only plane/grid inversion.
+
+`nurbs.controlcurve3d` accepts 2–4096 finite points within ±1e12 and degree 1–5
+less than point count, constructing a clamped uniform unit-weight curve. Points
+are controls, not interpolated passage points. Optional expected UID/revision
+reject stale input. Creation uses the existing document transaction, native
+persistence and undo. Object and endpoint evaluation budgets are enforced.
+
+Desktop Draw control curve offers XY/XZ/YZ planes, origin, endpoint/corner snap and
+degree controls. Click adds up to 256 controls with a live preview; Enter,
+right-click or Finish curve commits once. Escape cancels. Document or plane
+changes cancel stale drafts. Fewer than two points cannot finish. Plane choices
+are UI preferences, not saved project construction-plane objects. Drafts remain
+transient. Transform reference-point input remains planned.
+
+## Position-only mesh exchange
+
+`worldwright.mesh.decode` uses bounded `stl_io` and `tobj` adapters in L3 IO,
+returning the existing kernel `TriangleMesh`. STL may be ASCII or base64 binary;
+OBJ is UTF-8 and triangular only. At most 8 MiB decoded input, 65,536 vertices,
+65,536 faces and 256 OBJ object/group records are admitted. External material
+libraries, non-triangle faces, curves and unsupported records reject explicitly.
+Groups, normals, UVs/material assignments and unused/index identity losses are
+reported. Units remain caller-owned. This does not add persistent mesh objects
+or mesh-editing UI to the CAD document.
+
+`worldwright.mesh.encode` returns UTF-8 OBJ or base64 binary STL. OBJ uses f64
+positions; STL stores f32, reports maximum absolute coordinate error and rejects
+conversion that collapses or reverses a face. Normals use the existing shared
+mesh analysis service. Original geometry is preserved. No filesystem/network
+access occurs. Results can feed `worldwright.mesh.closest_point` directly. Source
+provenance, richer mesh attributes and streaming full-resolution Scan import
+are subsequent steps. Budgets are per call, not measured aggregate process RAM.

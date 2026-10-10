@@ -1,11 +1,10 @@
 //! Construction-plane and exact-geometry point input for headless CAD, UI and scripts.
 //! Queries are transient. Snap coordinates never change drawing history.
 use super::*;
-use cadcraft_doc::organization::{GeometryObject, Shape};
+use cadcraft_doc::organization::Shape;
 use cadcraft_geom::{
     Vec3,
     camera::OrthoFrame,
-    nurbs3d::{Curve, uniform_knots},
     snap3d::{ConstructionPlane, ScreenRay},
 };
 use serde::Deserialize;
@@ -107,16 +106,28 @@ struct SnapPoint {
 }
 
 fn resolved(s: &Session, q: &Query) -> Result<SnapPoint> {
+    resolved_with_work(s, q, 50_000_000)
+}
+fn resolved_with_work(s: &Session, q: &Query, mut work: usize) -> Result<SnapPoint> {
     let (ray, plane) = q.geometry()?;
     let d = s.doc()?;
-    if d.geometry3d.len() > SNAP_OBJECT_LIMIT {
+    if (q.endpoints || q.midpoints) && d.geometry3d.len() > SNAP_OBJECT_LIMIT {
         return Err(fail("Snap object budget exceeded (512); spatial acceleration required"));
     }
     let mut best: Option<(SnapPoint, f64, f64)> = None;
     let mut candidates = 0usize;
-    for object in &d.geometry3d {
+    for object in d.geometry3d.iter().take(if q.endpoints || q.midpoints { SNAP_OBJECT_LIMIT } else { 0 }) {
         if !object.visible || d.layer(&object.layer).is_some_and(|l| !l.visible() || l.locked) {
             continue;
+        }
+        let samples = match &object.shape {
+            Shape::Curve(_) => usize::from(q.endpoints) * 2 + usize::from(q.midpoints),
+            Shape::Surface(_) => usize::from(q.endpoints) * 4 + usize::from(q.midpoints) * 5,
+        };
+        let cost = buildercraft_kernel::exact_evaluation_work(&object.shape, samples).map_err(|e| fail(&e.to_string()))?;
+        work = work.checked_sub(cost).ok_or_else(|| fail("Snap evaluation work budget exceeded"))?;
+        if !object.shape.valid() {
+            return Err(fail("Invalid exact snap source"));
         }
         let mut check = |point: Option<Vec3>, kind: &'static str| -> Result<()> {
             candidates = candidates.checked_add(1).ok_or_else(|| fail("Snap candidate overflow"))?;
@@ -228,17 +239,8 @@ fn line(s: &mut Session, p: &Value) -> Result<Value> {
     if (start.point - end.point).len() <= 1e-9 {
         return Err(fail("3D line requires distinct endpoints"));
     }
-    let curve = Curve { degree: 1, control: vec![start.point, end.point], weights: vec![1., 1.], knots: uniform_knots(2, 1) };
-    if !curve.valid() {
-        return Err(fail("Invalid line geometry"));
-    }
-    let d = s.doc_mut()?;
-    if d.geometry3d.len() >= 4096 || d.handseed == u64::MAX {
-        return Err(fail("3D object limit reached"));
-    }
-    let id = d.new_handle().0;
-    let layer = d.header.str("CLAYER", "0");
-    d.geometry3d.push(GeometryObject { id, name: name.to_owned(), layer, visible: true, shape: Shape::Curve(curve.into()) });
+    let created = super::point3d::curve(s, &json!({"name":name,"points":[array(start.point),array(end.point)],"degree":1}))?;
+    let id = created.get("id").ok_or_else(|| fail("Curve creation returned no ID"))?;
     Ok(json!({"id":id,"start":array(start.point),"end":array(end.point),
         "start_kind":start.kind,"end_kind":end.kind}))
 }
@@ -289,6 +291,12 @@ mod tests {
             .as_u64()
             .unwrap();
         let revision = s.state().unwrap().revision;
+        let query = parse(&q(181., 201.)).unwrap();
+        assert!(resolved_with_work(&s, &query, 0).is_err());
+        let mut plane_only = q(200., 200.);
+        plane_only["endpoints"] = json!(false);
+        plane_only["midpoints"] = json!(false);
+        assert!(resolved_with_work(&s, &parse(&plane_only).unwrap(), 0).is_ok());
         let result = s.execute("geometry3d.snap", &q(181., 201.)).unwrap();
         assert_eq!(result["source_id"], id);
         assert_eq!(result["kind"], "endpoint");
@@ -338,5 +346,9 @@ mod tests {
             .is_err()
         );
         assert!(s.doc().unwrap().geometry3d.is_empty());
+        s.doc_mut().unwrap().layer_mut("0").unwrap().locked = true;
+        let before = s.state().unwrap().doc.clone();
+        assert!(s.execute("geometry3d.line", &json!({"name":"Blocked","start":q(200.,200.),"end":q(210.,200.)})).is_err());
+        assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
     }
 }

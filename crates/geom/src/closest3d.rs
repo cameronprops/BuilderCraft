@@ -1,6 +1,22 @@
 //! Numerically bounded 3D closest-point primitives used by CAD and metrology.
 //! Triangle queries preserve barycentric coordinates and do not modify geometry.
-use crate::Vec3;
+use crate::{Vec2, Vec3};
+
+fn projected_inside(point: Vec3, a: Vec3, b: Vec3, c: Vec3, normal: Vec3) -> bool {
+    let project = |p: Vec3| {
+        if normal.x.abs() >= normal.y.abs().max(normal.z.abs()) {
+            Vec2::new(p.y, p.z)
+        } else if normal.y.abs() >= normal.z.abs() {
+            Vec2::new(p.x, p.z)
+        } else {
+            Vec2::new(p.x, p.y)
+        }
+    };
+    let p = project(point);
+    let signs = [(a, b), (b, c), (c, a)].map(|(a, b)| crate::robust_predicates::orientation2d(project(a), project(b), p));
+    signs.iter().all(|s| s.is_some_and(|s| s != std::cmp::Ordering::Less))
+        || signs.iter().all(|s| s.is_some_and(|s| s != std::cmp::Ordering::Greater))
+}
 
 /// Nearest position on one triangle. Degenerate faces fall back to their
 /// segments or vertices rather than dividing by zero.
@@ -69,7 +85,7 @@ pub fn closest_point_triangle(query: Vec3, a: Vec3, b: Vec3, c: Vec3) -> Option<
             (c - projected).cross(a - projected).dot(normal) / normal2,
             (a - projected).cross(b - projected).dot(normal) / normal2,
         ];
-        if weights.iter().all(|w| *w >= -1e-12 && w.is_finite()) {
+        if projected_inside(projected, a, b, c, normal) && weights.iter().all(|w| w.is_finite()) {
             for weight in &mut weights {
                 *weight = weight.max(0.0);
             }

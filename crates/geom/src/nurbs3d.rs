@@ -63,6 +63,14 @@ fn basis(count: usize, degree: usize, knots: &[f64], t: f64) -> Option<Vec<f64>>
     Some(values)
 }
 impl Curve {
+    /// Bounded non-rational control curve; preview, CAD commands and nodes share construction.
+    pub fn from_control(control: Vec<Vec3>, degree: usize) -> Option<Self> {
+        if !(2..=4096).contains(&control.len()) || !(1..=5).contains(&degree) || degree >= control.len() {
+            return None;
+        }
+        let curve = Self { degree, knots: uniform_knots(control.len(), degree), weights: vec![1.; control.len()], control };
+        curve.valid().then_some(curve)
+    }
     pub fn valid(&self) -> bool {
         valid_axis(self.control.len(), self.degree, &self.knots)
             && self

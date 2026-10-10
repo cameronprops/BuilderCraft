@@ -11,9 +11,9 @@ use cadcraft_geom::Vec3;
 use std::io::{BufReader, Cursor};
 
 /// Limit parsed untrusted input before external parsers allocate memory.
-pub const MAX_MESH_INPUT_BYTES: usize = 16 * 1024 * 1024;
-pub const MAX_MESH_VERTICES: usize = 1_000_000;
-pub const MAX_MESH_TRIANGLES: usize = 1_000_000;
+pub const MAX_MESH_INPUT_BYTES: usize = crate::mesh_exchange::MAX_BYTES;
+pub const MAX_MESH_VERTICES: usize = crate::mesh_exchange::MAX_SAMPLES;
+pub const MAX_MESH_TRIANGLES: usize = crate::mesh_exchange::MAX_SAMPLES;
 
 /// A source mesh plus object name. Named OBJ objects remain independent.
 #[derive(Clone, Debug, PartialEq)]
@@ -36,7 +36,7 @@ fn bad(message: impl Into<String>) -> IoError {
 
 fn guard_input(bytes: &[u8]) -> Result<()> {
     if bytes.is_empty() || bytes.len() > MAX_MESH_INPUT_BYTES {
-        return Err(bad("mesh input empty or exceeds 16 MiB limit"));
+        return Err(bad("mesh input empty or exceeds 8 MiB limit"));
     }
     Ok(())
 }
@@ -55,25 +55,7 @@ fn validate(mesh: &TriangleMesh) -> Result<()> {
 /// This is mesh geometry only, not proof of water-tightness or solidness.
 pub fn read_stl_mesh(bytes: &[u8]) -> Result<TriangleMesh> {
     guard_input(bytes)?;
-    let mut cursor = Cursor::new(bytes);
-    let raw = stl_io::read_stl(&mut cursor).map_err(|e| bad(format!("STL: {e}")))?;
-    if raw.vertices.len() > MAX_MESH_VERTICES || raw.faces.len() > MAX_MESH_TRIANGLES {
-        return Err(bad("STL mesh element limit"));
-    }
-    let mut vertices = Vec::new();
-    vertices.try_reserve_exact(raw.vertices.len()).map_err(|_| bad("STL vertex allocation"))?;
-    for point in raw.vertices {
-        vertices.push(Vec3::new(f64::from(point.0[0]), f64::from(point.0[1]), f64::from(point.0[2])));
-    }
-    let mut triangles = Vec::new();
-    triangles.try_reserve_exact(raw.faces.len()).map_err(|_| bad("STL triangle allocation"))?;
-    for face in raw.faces {
-        let a = u32::try_from(face.vertices[0]).map_err(|_| bad("STL triangle index overflow"))?;
-        let b = u32::try_from(face.vertices[1]).map_err(|_| bad("STL triangle index overflow"))?;
-        let c = u32::try_from(face.vertices[2]).map_err(|_| bad("STL triangle index overflow"))?;
-        triangles.push([a, b, c]);
-    }
-    let result = TriangleMesh { vertices, triangles };
+    let result = crate::mesh_exchange::read_stl(bytes)?.mesh;
     validate(&result)?;
     Ok(result)
 }
@@ -83,28 +65,10 @@ pub fn read_stl_mesh(bytes: &[u8]) -> Result<TriangleMesh> {
 /// Output coordinates are f32, as required by STL.
 pub fn write_stl_mesh(mesh: &TriangleMesh) -> Result<Vec<u8>> {
     validate(mesh)?;
-    let analysis = mesh_face_analysis(mesh, 0.0).map_err(|e| bad(e.to_string()))?;
-    let mut faces = Vec::new();
-    faces.try_reserve_exact(mesh.triangles.len()).map_err(|_| bad("STL output allocation"))?;
-    for (&indices, info) in mesh.triangles.iter().zip(analysis.iter()) {
-        let normal = info.normal.ok_or_else(|| bad("STL cannot export a degenerate triangle"))?;
-        let to_vertex = |i: u32| {
-            let p = mesh.vertices[i as usize];
-            stl_io::Vertex::new([p.x as f32, p.y as f32, p.z as f32])
-        };
-        faces.push(stl_io::Triangle {
-            normal: stl_io::Normal::new([normal.x as f32, normal.y as f32, normal.z as f32]),
-            vertices: [to_vertex(indices[0]), to_vertex(indices[1]), to_vertex(indices[2])],
-        });
+    if mesh_face_analysis(mesh, 0.0).map_err(|e| bad(e.to_string()))?.iter().any(|f| f.degenerate) {
+        return Err(bad("STL cannot export a degenerate triangle"));
     }
-    let capacity = mesh.triangles.len().checked_mul(50).and_then(|n| n.checked_add(84)).ok_or_else(|| bad("STL byte budget overflow"))?;
-    if capacity > MAX_MESH_INPUT_BYTES {
-        return Err(bad("STL output exceeds 16 MiB limit"));
-    }
-    let mut output = Vec::new();
-    output.try_reserve_exact(capacity).map_err(|_| bad("STL output allocation"))?;
-    stl_io::write_stl(&mut output, faces.iter()).map_err(|e| bad(format!("STL write: {e}")))?;
-    Ok(output)
+    Ok(crate::mesh_exchange::write_mesh(mesh, "stl")?.bytes)
 }
 
 /// Read OBJ objects as distinct triangle meshes. The f64 parser option avoids
@@ -112,6 +76,35 @@ pub fn write_stl_mesh(mesh: &TriangleMesh) -> Result<Vec<u8>> {
 /// silently. Unsupported external MTL files are never fetched automatically.
 pub fn read_obj_meshes(bytes: &[u8]) -> Result<MeshImport> {
     guard_input(bytes)?;
+    let text = std::str::from_utf8(bytes).map_err(|_| bad("OBJ must be UTF-8"))?;
+    let mut records = [0usize; 5];
+    let mut face_corners = 0usize;
+    for line in text.lines() {
+        let mut words = line.split('#').next().unwrap_or_default().split_whitespace();
+        let Some(kind) = words.next() else { continue };
+        let slot = match kind {
+            "v" => 0,
+            "vn" => 1,
+            "vt" => 2,
+            "f" => {
+                let count = words.count();
+                if !(3..=256).contains(&count) {
+                    return Err(bad("OBJ face corner limit"));
+                }
+                face_corners = face_corners.checked_add(count).ok_or_else(|| bad("OBJ corner overflow"))?;
+                if face_corners > MAX_MESH_TRIANGLES * 3 {
+                    return Err(bad("OBJ triangle allocation budget"));
+                }
+                3
+            }
+            "o" | "g" => 4,
+            _ => continue,
+        };
+        records[slot] += 1;
+        if records[slot] > if slot == 4 { 256 } else { MAX_MESH_VERTICES } {
+            return Err(bad("OBJ source record budget"));
+        }
+    }
     let mut reader = BufReader::new(Cursor::new(bytes));
     let options = tobj::LoadOptions { triangulate: true, single_index: true, ignore_points: true, ignore_lines: true };
     let (models, _) = tobj::load_obj_buf(&mut reader, &options, |_| Ok((Vec::new(), Default::default()))).map_err(|e| bad(format!("OBJ: {e}")))?;

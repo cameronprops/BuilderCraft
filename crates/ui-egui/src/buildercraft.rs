@@ -169,6 +169,12 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
         if ui.checkbox(&mut visible, "Visible").changed() {
             let _ = app.run("mesh3d.set", json!({"id":object.id,"visible":visible}));
         }
+        egui::CollapsingHeader::new("Simplify Mesh (QEM)").id_salt(("mesh-qem", object.id)).show(ui, |ui| {
+            let triangle_count = object.mesh.faces.iter().map(|f| f.indices().len().saturating_sub(2)).sum();
+            if crate::mesh_simplify::panel(app, ui, object.id, triangle_count) {
+                clear_picked_mesh_face(app);
+            }
+        });
         egui::CollapsingHeader::new("Polygon mesh repair").id_salt(("mesh", object.id)).show(ui, |ui| {
             ui.label(format!("{} vertices, {} native faces", object.mesh.vertices.len(), object.mesh.faces.len()));
             ui.small("Click a visible polygon face in the 3D viewport, or enter its index.");
@@ -505,6 +511,24 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                     painter.line_segment([project(a), project(b)], stroke);
                 }
             }
+        }
+    }
+    // A QEM preview is a display-only derived mesh. Source polygons remain
+    // visible and retain the same pick IDs, whereas amber preview wires do not
+    // participate in scene picking or document serialization.
+    if let Some(cache) = &app.ui.mesh_simplify_preview
+        && app.session.state().is_ok_and(|st| cache.matches(st.uid, st.revision, cache.object_id))
+        && app.session.doc().is_ok_and(|d| {
+            d.mesh3d.iter().any(|o| o.id == cache.object_id && o.visible && d.layer(&o.layer).is_none_or(|layer| layer.visible()))
+        })
+    {
+        for [a, b] in &cache.wire_edges {
+            let p = cache.mesh.vertices[*a as usize];
+            let q = cache.mesh.vertices[*b as usize];
+            painter.line_segment(
+                [project(p), project(q)],
+                egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 178, 52)),
+            );
         }
     }
     // BRep wires are loaded explicitly from OCCT and tied to source revision.

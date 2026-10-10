@@ -58,6 +58,8 @@ pub struct UiState {
     pub dialog: Option<String>,
     pub history_lines: usize,
     pub buildercraft_workspace: bool,
+    /// Previous 2D/3D workspace for a predictable return path, never document history.
+    pub previous_workspace_3d: Option<bool>,
     pub model_name: String,
     /// Index of the polygon face selected for numeric mesh edit commands.
     pub mesh_face_index: u32,
@@ -106,6 +108,7 @@ impl Default for UiState {
             dialog: None,
             history_lines: 3,
             buildercraft_workspace: true,
+            previous_workspace_3d: None,
             model_name: "Body".into(),
             mesh_face_index: 0,
             mesh_face_object_id: None,

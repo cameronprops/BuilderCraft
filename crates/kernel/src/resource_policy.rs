@@ -322,7 +322,7 @@ mod tests {
                 lease.is_some()
             }));
         }
-        let successful = threads.into_iter().filter(|t| t.join().unwrap()).count();
+        let successful = threads.into_iter().map(|t| t.join().unwrap()).filter(|won| *won).count();
         assert_eq!(successful, 1);
         assert_eq!(ledger.used(ResourceClass::Transfer), 0);
     }

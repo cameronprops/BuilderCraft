@@ -10,7 +10,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use cadrum::DVec3;
 use serde::{Deserialize, Serialize};
 
-use crate::adapter::{AbsoluteTolerance, BrepError, BrepSolid, CadrumBrepCandidate, ExactBoolean};
+use crate::adapter::{AbsoluteTolerance, BrepSolid, CadrumBrepCandidate, ExactBoolean};
 
 /// Limits are intentionally smaller than the native 128 MiB adapter budget.
 /// These limits bound JSON transport and encoded native data, not C++ heap RSS.
@@ -294,6 +294,6 @@ mod tests {
         assert_eq!(call(json!({"op":"sphere","radius":-1.0}))["ok"],false);
         assert_eq!(call(json!({"op":"inspect","brep":"!!!"}))["ok"],false);
         assert_eq!(call(json!({"op":"boolean","operation":"illegal","left_brep":"x","right_brep":"x"}))["ok"],false);
-        assert_eq!(execute_json(&vec![b'x'; MAX_REQUEST_BYTES as usize + 1]).ok,false);
+        assert!(!execute_json(&vec![b'x'; MAX_REQUEST_BYTES as usize + 1]).ok);
     }
 }

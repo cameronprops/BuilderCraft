@@ -214,9 +214,14 @@ mod tests {
         let source = create_mesh(&mut s, 0.);
         let base = create_surface(&mut s, 0.);
         let target = create_surface(&mut s, 5.);
-        let edited = s.execute("mesh3d.flow_along_srf",&json!({
-            "id":source,"base_id":base,"target_id":target,"copy":true
-        })).unwrap();
+        let edited = s
+            .execute(
+                "mesh3d.flow_along_srf",
+                &json!({
+                    "id":source,"base_id":base,"target_id":target,"copy":true
+                }),
+            )
+            .unwrap();
         let transformed_id = edited["id"].as_u64().unwrap();
         let expected = s.doc().unwrap().mesh3d[1].mesh.clone();
         let bytes = cadcraft_io::write(s.doc().unwrap(), "modeling-roundtrip.bcraft").unwrap();

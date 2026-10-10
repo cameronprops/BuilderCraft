@@ -33,6 +33,13 @@ pub struct EditorDocument {
     pub graph: Graph,
     /// Canvas positions are presentation-only and never modify evaluation.
     pub positions: BTreeMap<u64, NodePosition>,
+    /// Monotonically increasing ID seed. Deleted IDs are never reused.
+    #[serde(default = "first_node_id")]
+    pub next_id: u64,
+}
+
+fn first_node_id() -> u64 {
+    1
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -67,11 +74,12 @@ impl Default for EditorDocument {
 
 impl EditorDocument {
     pub fn new() -> Self {
-        Self { graph: Graph { version: GRAPH_SCHEMA_VERSION, nodes: Vec::new(), outputs: Vec::new() }, positions: BTreeMap::new() }
+        Self { graph: Graph { version: GRAPH_SCHEMA_VERSION, nodes: Vec::new(), outputs: Vec::new() }, positions: BTreeMap::new(), next_id: 1 }
     }
 
     pub fn from_graph(graph: Graph) -> Result<Self> {
-        let document = Self { graph, positions: BTreeMap::new() };
+        let next_id = graph.nodes.iter().map(|n| n.id).max().unwrap_or(0).checked_add(1).ok_or(EditorError::Budget)?;
+        let document = Self { graph, positions: BTreeMap::new(), next_id };
         document.validate()?;
         Ok(document)
     }
@@ -100,7 +108,8 @@ impl EditorDocument {
             if draft.graph.nodes.len() >= MAX_GRAPH_NODES {
                 return Err(EditorError::Budget);
             }
-            let id = draft.graph.nodes.iter().map(|n| n.id).max().unwrap_or(0).checked_add(1).ok_or(EditorError::Budget)?;
+            let id = draft.next_id;
+            draft.next_id = draft.next_id.checked_add(1).ok_or(EditorError::Budget)?;
             let mut inputs = BTreeMap::new();
             for port in contract.inputs {
                 let value = default_value(port.kind).ok_or_else(|| EditorError::Port { node: id, port: port.name.into() })?;
@@ -209,6 +218,9 @@ impl EditorDocument {
         }
         if self.graph.nodes.len() > MAX_GRAPH_NODES || self.graph.outputs.len() > MAX_GRAPH_NODES {
             return Err(EditorError::Budget);
+        }
+        if self.next_id == 0 || self.graph.nodes.iter().any(|n| n.id >= self.next_id) {
+            return Err(EditorError::Schema);
         }
         let mut ids = BTreeMap::new();
         for node in &self.graph.nodes {
@@ -361,6 +373,8 @@ mod tests {
         assert_eq!(d.graph.nodes[0].inputs.get("a"), Some(&InputBinding::Constant { value: ToolValue::Point(Vec3::ZERO) }));
         assert!(!d.positions.contains_key(&a));
         assert_eq!(d.graph.outputs, vec![b]);
+        let c = d.add("orbweaver.point.midpoint", place(3.0)).unwrap();
+        assert!(c > b, "deleted node identities must not be recycled");
         let encoded = serde_json::to_string(&d).unwrap();
         let restored: EditorDocument = serde_json::from_str(&encoded).unwrap();
         restored.validate().unwrap();

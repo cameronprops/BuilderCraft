@@ -1,5 +1,14 @@
 # BuilderCraft suite instructions
 
+## Immediate production modeling gate (2026-10-09)
+
+**BEFORE implementing additional Pipe/Sweep/Flow/PushPull/booleans:** consult [issue #26](https://github.com/cameronprops/BuilderCraft/issues/26), `docs/roadmap/IMMEDIATE_MODELING_OPENSCAD_AND_ALPHA_UI.md`, `docs/parity/rhino-object-and-brep-acceptance.json`, and `docs/benchmarks/orbweaver-alpha-demo-catalog.json`. Work from a **single tolerance-aware exact trimmed BRep backend**; mesh prototypes remain clearly labeled as mesh-only until they produce proper solid topology and exact results. Include all point/line/polyline/curve/spline/NURBS/surface/polysurface/BRep/mesh semantics, Cap and MeshToNURBS, groups and nested layers in the immediate test matrix.
+
+Backend selection remains pending measured evidence. Truck (PR #30) successfully formed native six-face solids but its `truck-modeling 0.6`/`truck-shapeops 0.4` path hit `not implemented` on a straightforward overlapping-box boolean. Do not promote Truck's boolean engine without eliminating and retesting that failure. OpenCascade (PR #31) is under independent exact BRep test for intersect/union/subtract/tangency/file-roundtrip, with separate C++/license/platform gates. Do not silently replace exact errors with polygonized approximations or duplicate backend code. Keep shared conversion, units, identities and provenance.
+
+OrbWeaver first-alpha **seven** prewired demo specs are tracked: BasketWeaver Lite, BasketWeaver Full with Data Dam, three independently reconstructed published Grasshopper example graphs, Wallabee Kangaroo-style tree builder, engagement-ring designer. These are specifications, not working graphs until each is compiled/tested and independently benchmarked. Use `python3 tools/check_alpha_demo_catalog.py` to validate scope, then implement real serialized graphs and accept tests. Prefer reuse of existing BasketWeaver sources when accessible, not reimplementing elsewhere. Keep UI customization from first build.
+
+
 ## Worldwright toolchain and environment policy
 
 **License policy:** Worldwright is intended as free, donation-supported open

@@ -401,6 +401,34 @@ mod tests {
     }
 
     #[test]
+    fn fills_concave_warped_rim_without_flattening() {
+        let mut vertices = Vec::new();
+        for i in 0..6 {
+            let a = std::f64::consts::TAU * (i as f64) / 6.0;
+            vertices.push(Vec3::new(5.0 * a.cos(), 5.0 * a.sin(), 0.0));
+        }
+        for i in 0..6 {
+            let a = std::f64::consts::TAU * (i as f64) / 6.0;
+            let radius = if i == 3 { 0.2 } else { 1.5 };
+            vertices.push(Vec3::new(radius * a.cos(), radius * a.sin(), if i == 1 { 0.1 } else { 0.0 }));
+        }
+        let mut faces = Vec::new();
+        for i in 0..6_u32 {
+            let next = (i + 1) % 6;
+            faces.push(PolygonFace::Quad([i, next, next + 6, i + 6]));
+        }
+        let source = PolygonMesh { vertices, faces };
+        assert!(polygon_mesh_validate(&source).is_ok());
+        let result = polygon_mesh_fill_hole_advanced(&source, 7, 7, inner(&source), PolygonPatchMode::Surface);
+        assert!(result.is_ok(), "{result:?}");
+        if let Ok(patch) = result {
+            assert_eq!(patch.new_face_indices.len(), 4);
+            assert_eq!(patch.mesh.vertices, source.vertices);
+            assert!(polygon_mesh_boundary_loops(&patch.mesh).is_ok_and(|r| r.closed_loops.len() == 1));
+        }
+    }
+
+    #[test]
     fn caps_displacement_rejects_outer_and_stale() {
         let mut source = ring();
         source.vertices[4].z = 0.2;

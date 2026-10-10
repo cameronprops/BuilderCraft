@@ -3,7 +3,7 @@
 
 use crate::{
     KernelError, PolygonMesh, Result, polygon_mesh_add_triangle_from_edge, polygon_mesh_delete_faces, polygon_mesh_fill_hole,
-    polygon_mesh_split_edge, polygon_mesh_split_quad_strip, pushpull_mesh_face,
+    polygon_mesh_split_edge, polygon_mesh_split_quad_strip, polygon_mesh_fill_hole_mode, HoleFillMode, pushpull_mesh_face,
 };
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,7 @@ pub enum PolygonSceneEdit {
     DeleteFaces { selected_revision: u64, selected_faces: Vec<u32> },
     AddTriangleFromEdge { selected_revision: u64, edge_vertices: [u32; 2], point_vertex: u32 },
     FillPlanarHole { selected_revision: u64, loop_index: u32 },
+    FillProjectedHole { selected_revision: u64, loop_index: u32, mode: HoleFillMode },
     SplitEdge { selected_revision: u64, edge_vertices: [u32; 2], fraction: f64 },
     SplitQuadStrip { selected_revision: u64, edge_vertices: [u32; 2], fraction: f64 },
     PushPullFace { selected_revision: u64, face_index: u32, distance: f64 },
@@ -32,6 +33,9 @@ pub fn apply_polygon_scene_edit(source: &PolygonMesh, current_revision: u64, edi
         }
         PolygonSceneEdit::FillPlanarHole { selected_revision, loop_index } => {
             polygon_mesh_fill_hole(source, current_revision, *selected_revision, *loop_index).map(|result| result.mesh)
+        }
+        PolygonSceneEdit::FillProjectedHole { selected_revision, loop_index, mode } => {
+            polygon_mesh_fill_hole_mode(source, current_revision, *selected_revision, *loop_index, *mode).map(|result| result.mesh)
         }
         PolygonSceneEdit::SplitEdge { selected_revision, edge_vertices, fraction } => {
             polygon_mesh_split_edge(source, current_revision, *selected_revision, *edge_vertices, *fraction).map(|result| result.mesh)

@@ -180,7 +180,11 @@ fn hole_preview(s: &mut Session, p: &Value) -> Result<Value> {
     let loop_index = p.get("loop_index").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()).ok_or_else(|| invalid("loop_index required"))?;
     let source = &selected(s, object_id)?.mesh;
     validate_size(source)?;
-    let patch = polygon_mesh_fill_hole(source, revision, selected_revision, loop_index).map_err(|e| invalid(&e.to_string()))?;
+    let mode: buildercraft_kernel::HoleFillMode = p.get("mode")
+        .map(|value| serde_json::from_value(value.clone()).map_err(|err| invalid(&err.to_string())))
+        .transpose()?.unwrap_or(buildercraft_kernel::HoleFillMode::Planar);
+    let patch = buildercraft_kernel::polygon_mesh_fill_hole_mode(source, revision, selected_revision, loop_index, mode)
+        .map_err(|e| invalid(&e.to_string()))?;
     validate_size(&patch.mesh)?;
     let new_triangles: Vec<[u32; 3]> = patch
         .new_face_indices

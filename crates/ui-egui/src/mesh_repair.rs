@@ -433,7 +433,38 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 }
             }
             ui.strong("INTERACTIVE HOLE FILL");
-            ui.small("Select boundary, preview patch, commit or cancel.");
+            ui.small("Select boundary, choose surface, preview and commit.");
+            let old_mode = app.ui.mesh_repair.fill_mode.clone();
+            egui::ComboBox::from_label("Fill surface")
+                .selected_text(match &app.ui.mesh_repair.fill_mode {
+                    PolygonHoleFillMode::PlanarOnly => "Planar boundary only",
+                    PolygonHoleFillMode::Faceted => "Nonplanar faceted fill",
+                    PolygonHoleFillMode::BestFitPlanar => "Flat cap: average best-fit",
+                    PolygonHoleFillMode::BoundaryNormalPlanar => "Flat cap: automatic direction",
+                    PolygonHoleFillMode::DirectionPlanar { .. } => "Flat cap: custom normal",
+                })
+                .show_ui(ui, |ui| {
+                    for (label, mode) in [
+                        ("Planar boundary only", PolygonHoleFillMode::PlanarOnly),
+                        ("Follow nonplanar boundary", PolygonHoleFillMode::Faceted),
+                        ("Average best-fit plane", PolygonHoleFillMode::BestFitPlanar),
+                        ("Automatic boundary direction", PolygonHoleFillMode::BoundaryNormalPlanar),
+                        ("Custom plane direction", PolygonHoleFillMode::DirectionPlanar { direction: Vec3::Z }),
+                    ] {
+                        ui.selectable_value(&mut app.ui.mesh_repair.fill_mode, mode, label);
+                    }
+                });
+            if let PolygonHoleFillMode::DirectionPlanar { direction } = &mut app.ui.mesh_repair.fill_mode {
+                ui.horizontal(|ui| {
+                    ui.label("Normal");
+                    ui.add(egui::DragValue::new(&mut direction.x).speed(0.05));
+                    ui.add(egui::DragValue::new(&mut direction.y).speed(0.05));
+                    ui.add(egui::DragValue::new(&mut direction.z).speed(0.05));
+                });
+            }
+            if old_mode != app.ui.mesh_repair.fill_mode {
+                app.ui.mesh_repair.patch = None;
+            }
             if ui.selectable_label(app.ui.mesh_repair.picking_hole, "Pick hole boundary in viewport").clicked() {
                 app.ui.mesh_repair.picking_hole = !app.ui.mesh_repair.picking_hole;
                 app.ui.mesh_repair.selecting = true;
@@ -449,16 +480,22 @@ pub fn tool_panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 }
             });
             if let Some(patch) = app.ui.mesh_repair.patch.as_ref().filter(|p| p.object_id == id && patch_is_current(app, p)) {
-                ui.colored_label(PATCH, format!("{} triangles, {} boundary vertices", patch.triangles.len(), patch.boundary_vertices.len()));
+                ui.colored_label(PATCH, format!("{} triangles, {} cap vertices", patch.triangles.len(), patch.new_vertices.len()));
+                if let Some(plane) = &patch.cap_plane {
+                    ui.small(format!("Plane deviation: RMS {:.5}, max {:.5} document units", plane.rms_distance, plane.max_distance));
+                }
                 let revision = patch.revision;
                 let loop_index = patch.loop_index;
+                let mode = patch.mode.clone();
                 if ui.button("Commit fill").clicked() {
-                    if let Err(err) = run_edit(app, id, json!({"kind":"fill_planar_hole","selected_revision":revision,"loop_index":loop_index})) {
+                    if let Err(err) = run_edit(app, id, json!({
+                        "kind":"fill_hole","selected_revision":revision,"loop_index":loop_index,"mode":mode
+                    })) {
                         app.set_status(err);
                     }
                 }
             } else {
-                ui.weak("Preview a supported planar convex hole first.");
+                ui.weak("Preview a simple hole first. Folded caps are rejected.");
             }
             if ui.button("Cancel hole preview").clicked() {
                 app.ui.mesh_repair.patch = None;
@@ -681,5 +718,36 @@ mod tests {
         assert!(!patch_is_current(&app, &patch));
         app.run("undo", json!({})).unwrap();
         assert_eq!(app.session.doc().unwrap().mesh3d[0].mesh.as_ref(), old.as_ref());
+    }
+
+    #[test]
+    fn planar_cap_preview_uses_generated_transient_vertices() {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let mesh = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0.,0.,0.),Vec3::new(4.,0.,0.),Vec3::new(4.,4.,0.),Vec3::new(0.,4.,0.),
+                Vec3::new(1.,1.,0.07),Vec3::new(3.,1.,0.),
+                Vec3::new(3.,3.,-0.08),Vec3::new(1.,3.,0.),
+            ],
+            faces: vec![
+                PolygonFace::Quad([0,1,5,4]),PolygonFace::Quad([1,2,6,5]),
+                PolygonFace::Quad([2,3,7,6]),PolygonFace::Quad([3,0,4,7]),
+            ],
+        };
+        let id = app.run("mesh3d.create", json!({"name":"Warped boundary","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
+        let loops = app.run("mesh3d.boundaries", json!({"id":id})).unwrap();
+        let index = loops["report"]["closed_loops"].as_array().unwrap().iter().position(|l|
+            l["vertices"].as_array().unwrap().iter().all(|v| v.as_u64().unwrap() >= 4)).unwrap() as u32;
+        let revision = app.session.state().unwrap().revision;
+        app.ui.mesh_repair.fill_mode = PolygonHoleFillMode::BestFitPlanar;
+        preview_hole(&mut app,id,index).unwrap();
+        let patch = app.ui.mesh_repair.patch.as_ref().unwrap();
+        assert_eq!(patch.triangles.len(),10);
+        assert_eq!(patch.new_vertices.len(),4);
+        assert!(patch.cap_plane.is_some());
+        assert_eq!(app.session.state().unwrap().revision,revision);
+        let original = &app.session.doc().unwrap().mesh3d[0].mesh;
+        assert!(preview_vertex(original,patch,patch.source_vertex_count).is_some());
+        assert_eq!(preview_vertex(original,patch,u32::MAX),None);
     }
 }

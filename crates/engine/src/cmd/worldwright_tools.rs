@@ -34,6 +34,9 @@ pub fn specs() -> Vec<CommandSpec> {
             .enabled(always)
             .noundo(),
         CommandSpec::new("worldwright.pushpull", "PushPull Planar Face", pushpull).params("{inputs:{face,distance}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.project.mesh", "Project Geometry Onto Polygon Mesh", project_mesh).params("{inputs:{geometry,target,direction}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.project.nurbs", "Project Geometry Onto Rational NURBS Surface", project_nurbs).params("{inputs:{geometry,target,direction}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.flow_along_nurbs", "Flow Geometry Between Rational NURBS Surfaces", flow_along_nurbs).params("{inputs:{geometry,base,target}}").enabled(always).noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")
             .enabled(always)
@@ -92,6 +95,9 @@ paired_command!(array_path, "kernel.array.path");
 paired_command!(project, "kernel.project.plane");
 paired_command!(flow_along_srf, "kernel.surface.flow_patch");
 paired_command!(pushpull, "kernel.solid.pushpull_quad");
+paired_command!(project_mesh, "kernel.project.mesh");
+paired_command!(project_nurbs, "kernel.project.nurbs");
+paired_command!(flow_along_nurbs, "kernel.surface.flow_nurbs");
 paired_command!(point_distance, "kernel.point.distance");
 paired_command!(point_midpoint, "kernel.point.midpoint");
 paired_command!(point_interpolate, "kernel.point.interpolate");
@@ -271,7 +277,7 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(22));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(25));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

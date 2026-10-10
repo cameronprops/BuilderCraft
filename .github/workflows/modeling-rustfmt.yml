@@ -22,7 +22,7 @@ jobs:
       - name: Commit only formatting changes
         shell: bash
         run: |
-          git add crates/kernel/src/modeling_alpha.rs crates/kernel/src/modeling_surfaces.rs crates/kernel/src/shared_tools.rs crates/kernel/src/scene_polygon.rs crates/kernel/src/registry.rs crates/kernel/src/lib.rs crates/engine/src/cmd/worldwright_tools.rs crates/engine/src/cmd/mesh3d.rs
+          git add crates/kernel/src/modeling_alpha.rs crates/kernel/src/modeling_surfaces.rs crates/kernel/src/shared_tools.rs crates/kernel/src/scene_polygon.rs crates/kernel/src/registry.rs crates/kernel/src/lib.rs crates/engine/src/cmd/worldwright_tools.rs crates/engine/src/cmd/mesh3d.rs crates/orbweaver/tests/modeling_ops.rs
           if ! git diff --cached --quiet; then
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'style(modeling): apply pinned Rust 1.95 rustfmt'
             git push origin "HEAD:${GITHUB_REF_NAME}"

@@ -92,7 +92,9 @@ enum MeshArraySpec {
 fn array_object(s: &mut Session, p: &Value) -> Result<Value> {
     let source_id=id(p)?;
     let source=selected(s,source_id)?.clone();
-    let args:MeshArraySpec=serde_json::from_value(p.clone()).map_err(|e| invalid(&e.to_string()))?;
+    let mut arguments=p.clone();
+    arguments.as_object_mut().ok_or_else(|| invalid("array parameters must be a JSON object"))?.remove("id");
+    let args:MeshArraySpec=serde_json::from_value(arguments).map_err(|e| invalid(&e.to_string()))?;
     let copies=match args {
         MeshArraySpec::Linear{step,count} => buildercraft_kernel::array_linear(&source.mesh.vertices,step,count),
         MeshArraySpec::Rectangular{x_step,y_step,z_step,nx,ny,nz} =>

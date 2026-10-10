@@ -5,9 +5,9 @@ use buildercraft_kernel::{
     PolygonMesh, PolygonSceneEdit, apply_polygon_scene_edit, polygon_mesh_boundary_loops, polygon_mesh_triangulate, polygon_mesh_validate,
 };
 use cadcraft_doc::organization::PolygonGeometryObject;
-use serde_json::json;
-use serde::Deserialize;
 use cadcraft_geom::Vec3;
+use serde::Deserialize;
+use serde_json::json;
 use std::sync::Arc;
 
 const MAX_EDIT_VERTICES: usize = 100_000;
@@ -18,7 +18,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.create", "Create Native Polygon Mesh", create)
             .params("{name,mesh:{vertices:[{x,y,z},...],faces:[{triangle:[...]},{quad:[...]}]}}"),
         CommandSpec::new("mesh3d.array", "Array Native Polygon Mesh Object", array_object).params("{id,mode:linear|rectangular|polar|path, ...}"),
-        CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face).params("{id,face_index,distance,selected_revision?}"),
+        CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face)
+            .params("{id,face_index,distance,selected_revision?}"),
         CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
             .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole,selected_revision,...}}"),
         CommandSpec::new("mesh3d.list", "List Native Polygon Meshes", list).noundo(),
@@ -78,7 +79,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
 /// headless clients may omit it to use the current document revision.
 
 #[derive(Deserialize)]
-#[serde(tag="mode",rename_all="snake_case",deny_unknown_fields)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
 enum MeshArraySpec {
     Linear { step: Vec3, count: usize },
     Rectangular { x_step: Vec3, y_step: Vec3, z_step: Vec3, nx: usize, ny: usize, nz: usize },
@@ -90,42 +91,48 @@ enum MeshArraySpec {
 /// before a single document mutation, preserving the Session undo snapshot.
 /// This command creates explicit independent meshes, not associative instances.
 fn array_object(s: &mut Session, p: &Value) -> Result<Value> {
-    let source_id=id(p)?;
-    let source=selected(s,source_id)?.clone();
-    let mut arguments=p.clone();
+    let source_id = id(p)?;
+    let source = selected(s, source_id)?.clone();
+    let mut arguments = p.clone();
     arguments.as_object_mut().ok_or_else(|| invalid("array parameters must be a JSON object"))?.remove("id");
-    let args:MeshArraySpec=serde_json::from_value(arguments).map_err(|e| invalid(&e.to_string()))?;
-    let copies=match args {
-        MeshArraySpec::Linear{step,count} => buildercraft_kernel::array_linear(&source.mesh.vertices,step,count),
-        MeshArraySpec::Rectangular{x_step,y_step,z_step,nx,ny,nz} =>
-            buildercraft_kernel::array_rectangular(&source.mesh.vertices,x_step,y_step,z_step,nx,ny,nz),
-        MeshArraySpec::Polar{center,axis,sweep_degrees,count} =>
-            buildercraft_kernel::array_polar(&source.mesh.vertices,center,axis,sweep_degrees,count),
-        MeshArraySpec::Path{path,count} => buildercraft_kernel::array_path(&source.mesh.vertices,&path,count),
-    }.map_err(|e| invalid(&e.to_string()))?;
-    if copies.len()<2 { return Err(invalid("array needs at least two instances to add objects")); }
-    let required=copies.len()-1;
-    let d=s.doc()?;
-    if d.geometry3d.len().checked_add(d.mesh3d.len()).and_then(|n| n.checked_add(required)).is_none_or(|n| n>4096)
-        || d.handseed > u64::MAX - required as u64 {
+    let args: MeshArraySpec = serde_json::from_value(arguments).map_err(|e| invalid(&e.to_string()))?;
+    let copies = match args {
+        MeshArraySpec::Linear { step, count } => buildercraft_kernel::array_linear(&source.mesh.vertices, step, count),
+        MeshArraySpec::Rectangular { x_step, y_step, z_step, nx, ny, nz } => {
+            buildercraft_kernel::array_rectangular(&source.mesh.vertices, x_step, y_step, z_step, nx, ny, nz)
+        }
+        MeshArraySpec::Polar { center, axis, sweep_degrees, count } => {
+            buildercraft_kernel::array_polar(&source.mesh.vertices, center, axis, sweep_degrees, count)
+        }
+        MeshArraySpec::Path { path, count } => buildercraft_kernel::array_path(&source.mesh.vertices, &path, count),
+    }
+    .map_err(|e| invalid(&e.to_string()))?;
+    if copies.len() < 2 {
+        return Err(invalid("array needs at least two instances to add objects"));
+    }
+    let required = copies.len() - 1;
+    let d = s.doc()?;
+    if d.geometry3d.len().checked_add(d.mesh3d.len()).and_then(|n| n.checked_add(required)).is_none_or(|n| n > 4096)
+        || d.handseed > u64::MAX - required as u64
+    {
         return Err(invalid("3D object or identity budget exceeded"));
     }
-    let mut staged=Vec::new();
+    let mut staged = Vec::new();
     staged.try_reserve_exact(required).map_err(|_| invalid("array allocation rejected"))?;
     for (i, vertices) in copies.into_iter().enumerate().skip(1) {
-        let mesh=PolygonMesh { vertices, faces: source.mesh.faces.clone() };
+        let mesh = PolygonMesh { vertices, faces: source.mesh.faces.clone() };
         validate_size(&mesh)?;
-        let name=format!("{} array {}",source.name,i);
-        if name.len()>256 { return Err(invalid("array copy name too long")); }
-        staged.push((name,Arc::new(mesh)));
+        let name = format!("{} array {}", source.name, i);
+        if name.len() > 256 {
+            return Err(invalid("array copy name too long"));
+        }
+        staged.push((name, Arc::new(mesh)));
     }
-    let d=s.doc_mut()?;
-    let mut ids=Vec::new();
-    for (name,mesh) in staged {
-        let new_id=d.new_handle().0;
-        d.mesh3d.push(PolygonGeometryObject {
-            id:new_id, name, layer:source.layer.clone(), visible:source.visible, mesh
-        });
+    let d = s.doc_mut()?;
+    let mut ids = Vec::new();
+    for (name, mesh) in staged {
+        let new_id = d.new_handle().0;
+        d.mesh3d.push(PolygonGeometryObject { id: new_id, name, layer: source.layer.clone(), visible: source.visible, mesh });
         ids.push(new_id);
     }
     Ok(json!({"source_id":source_id,"new_ids":ids,"copy_count":ids.len()}))
@@ -137,8 +144,15 @@ fn pushpull_face(s: &mut Session, p: &Value) -> Result<Value> {
     let face_index = u32::try_from(face_index).map_err(|_| invalid("face_index exceeds supported size"))?;
     let distance = p.get("distance").and_then(Value::as_f64).filter(|d| d.is_finite()).ok_or_else(|| invalid("finite distance required"))?;
     let revision = s.state()?.revision;
-    let pick_revision = p.get("selected_revision").map(|v| v.as_u64().ok_or_else(|| invalid("selected_revision must be a revision number"))).transpose()?.unwrap_or(revision);
-    edit(s, &json!({"id":object_id, "edit":{"kind":"push_pull_face", "selected_revision":pick_revision, "face_index":face_index, "distance":distance}}))
+    let pick_revision = p
+        .get("selected_revision")
+        .map(|v| v.as_u64().ok_or_else(|| invalid("selected_revision must be a revision number")))
+        .transpose()?
+        .unwrap_or(revision);
+    edit(
+        s,
+        &json!({"id":object_id, "edit":{"kind":"push_pull_face", "selected_revision":pick_revision, "face_index":face_index, "distance":distance}}),
+    )
 }
 
 fn edit(s: &mut Session, p: &Value) -> Result<Value> {
@@ -205,33 +219,38 @@ mod tests {
     #[test]
     fn persistent_face_pushpull_is_undoable_and_revision_checked() {
         let mut s = Session::new();
-        let face = vec![Vec3::new(0.,0.,0.),Vec3::new(2.,0.,0.),Vec3::new(2.,2.,0.),Vec3::new(0.,2.,0.)];
-        let mesh = buildercraft_kernel::pushpull_quad(&face,2.).unwrap();
-        let id=s.execute("mesh3d.create",&json!({"name":"Extrusion target","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
-        let before=s.doc().unwrap().mesh3d[0].mesh.clone();
-        let revision=s.state().unwrap().revision;
-        let result=s.execute("mesh3d.pushpull",&json!({"id":id,"face_index":1,"distance":1.5,"selected_revision":revision}));
+        let face = vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(2., 2., 0.), Vec3::new(0., 2., 0.)];
+        let mesh = buildercraft_kernel::pushpull_quad(&face, 2.).unwrap();
+        let id = s.execute("mesh3d.create", &json!({"name":"Extrusion target","mesh":mesh})).unwrap()["id"].as_u64().unwrap();
+        let before = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = s.state().unwrap().revision;
+        let result = s.execute("mesh3d.pushpull", &json!({"id":id,"face_index":1,"distance":1.5,"selected_revision":revision}));
         assert!(result.is_ok());
-        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.faces.len(),10);
-        assert!(s.execute("mesh3d.pushpull",&json!({"id":id,"face_index":1,"distance":1.,"selected_revision":revision})).is_err());
-        s.execute("undo",&json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(),before.as_ref());
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.faces.len(), 10);
+        assert!(s.execute("mesh3d.pushpull", &json!({"id":id,"face_index":1,"distance":1.,"selected_revision":revision})).is_err());
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), before.as_ref());
     }
 
     #[test]
     fn document_array_creates_independent_geometry_and_is_undoable() {
-        let mut s=Session::new();
-        let square=vec![Vec3::new(0.,0.,0.),Vec3::new(1.,0.,0.),Vec3::new(1.,1.,0.),Vec3::new(0.,1.,0.)];
-        let cube=buildercraft_kernel::pushpull_quad(&square,1.).unwrap();
-        let id=s.execute("mesh3d.create",&json!({"name":"Seed","mesh":cube})).unwrap()["id"].as_u64().unwrap();
-        let created=s.execute("mesh3d.array",&json!({"id":id,"mode":"polar","center":{"x":0.,"y":0.,"z":0.},"axis":{"x":0.,"y":0.,"z":1.},"sweep_degrees":360.,"count":4})).unwrap();
-        assert_eq!(created["copy_count"],3);
-        assert_eq!(s.doc().unwrap().mesh3d.len(),4);
-        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.vertices[0],Vec3::ZERO);
-        s.execute("undo",&json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().mesh3d.len(),1);
-        assert!(s.execute("mesh3d.array",&json!({"id":id,"mode":"linear","step":{"x":1.,"y":0.,"z":0.},"count":usize::MAX})).is_err());
-        assert_eq!(s.doc().unwrap().mesh3d.len(),1);
+        let mut s = Session::new();
+        let square = vec![Vec3::new(0., 0., 0.), Vec3::new(1., 0., 0.), Vec3::new(1., 1., 0.), Vec3::new(0., 1., 0.)];
+        let cube = buildercraft_kernel::pushpull_quad(&square, 1.).unwrap();
+        let id = s.execute("mesh3d.create", &json!({"name":"Seed","mesh":cube})).unwrap()["id"].as_u64().unwrap();
+        let created = s
+            .execute(
+                "mesh3d.array",
+                &json!({"id":id,"mode":"polar","center":{"x":0.,"y":0.,"z":0.},"axis":{"x":0.,"y":0.,"z":1.},"sweep_degrees":360.,"count":4}),
+            )
+            .unwrap();
+        assert_eq!(created["copy_count"], 3);
+        assert_eq!(s.doc().unwrap().mesh3d.len(), 4);
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.vertices[0], Vec3::ZERO);
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d.len(), 1);
+        assert!(s.execute("mesh3d.array", &json!({"id":id,"mode":"linear","step":{"x":1.,"y":0.,"z":0.},"count":usize::MAX})).is_err());
+        assert_eq!(s.doc().unwrap().mesh3d.len(), 1);
     }
 
     fn ring() -> PolygonMesh {

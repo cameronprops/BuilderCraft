@@ -1,7 +1,9 @@
 //! Transaction-friendly polygon editing shared by the scene and future UI/API adapters.
 //! Edits are applied to a new mesh; the scene owns revision, undo and budgets.
 
-use crate::{PolygonMesh, Result, polygon_mesh_add_triangle_from_edge, polygon_mesh_delete_faces, polygon_mesh_fill_hole, pushpull_mesh_face, KernelError};
+use crate::{
+    KernelError, PolygonMesh, Result, polygon_mesh_add_triangle_from_edge, polygon_mesh_delete_faces, polygon_mesh_fill_hole, pushpull_mesh_face,
+};
 use serde::{Deserialize, Serialize};
 
 /// User-facing picks must carry the revision at which they were made.

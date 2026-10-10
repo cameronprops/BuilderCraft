@@ -113,10 +113,8 @@ const PATCH_FLOW: &[ToolPort] = &[
     ToolPort { name: "base", kind: ToolType::Polyline, modifier: true },
     ToolPort { name: "target", kind: ToolType::Polyline, modifier: true },
 ];
-const QUAD_PUSHPULL: &[ToolPort] = &[
-    ToolPort { name: "face", kind: ToolType::Polyline, modifier: false },
-    ToolPort { name: "distance", kind: ToolType::Number, modifier: true },
-];
+const QUAD_PUSHPULL: &[ToolPort] =
+    &[ToolPort { name: "face", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "distance", kind: ToolType::Number, modifier: true }];
 const A_B_POINTS: &[ToolPort] =
     &[ToolPort { name: "a", kind: ToolType::Point, modifier: false }, ToolPort { name: "b", kind: ToolType::Point, modifier: false }];
 const A_B_VECTORS: &[ToolPort] =
@@ -233,39 +231,67 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         output: ToolType::Polyline,
     },
     SharedToolContract {
-        operation: "kernel.array.linear", cad_command: "worldwright.array.linear", orbweaver_node: "orbweaver.array.linear",
-        dependency_group: "geometry.transforms", prerequisites: &["kernel.geometry.transform_exact"],
-        inputs: POLY_STEP_COUNT, output: ToolType::Tree,
+        operation: "kernel.array.linear",
+        cad_command: "worldwright.array.linear",
+        orbweaver_node: "orbweaver.array.linear",
+        dependency_group: "geometry.transforms",
+        prerequisites: &["kernel.geometry.transform_exact"],
+        inputs: POLY_STEP_COUNT,
+        output: ToolType::Tree,
     },
     SharedToolContract {
-        operation: "kernel.array.rectangular", cad_command: "worldwright.array.rectangular", orbweaver_node: "orbweaver.array.rectangular",
-        dependency_group: "geometry.transforms", prerequisites: &["kernel.geometry.transform_exact"],
-        inputs: RECT_ARRAY, output: ToolType::Tree,
+        operation: "kernel.array.rectangular",
+        cad_command: "worldwright.array.rectangular",
+        orbweaver_node: "orbweaver.array.rectangular",
+        dependency_group: "geometry.transforms",
+        prerequisites: &["kernel.geometry.transform_exact"],
+        inputs: RECT_ARRAY,
+        output: ToolType::Tree,
     },
     SharedToolContract {
-        operation: "kernel.array.polar", cad_command: "worldwright.array.polar", orbweaver_node: "orbweaver.array.polar",
-        dependency_group: "geometry.transforms", prerequisites: &["kernel.geometry.transform_exact"],
-        inputs: POLAR_ARRAY, output: ToolType::Tree,
+        operation: "kernel.array.polar",
+        cad_command: "worldwright.array.polar",
+        orbweaver_node: "orbweaver.array.polar",
+        dependency_group: "geometry.transforms",
+        prerequisites: &["kernel.geometry.transform_exact"],
+        inputs: POLAR_ARRAY,
+        output: ToolType::Tree,
     },
     SharedToolContract {
-        operation: "kernel.array.path", cad_command: "worldwright.array.path", orbweaver_node: "orbweaver.array.path",
-        dependency_group: "geometry.transforms", prerequisites: &["kernel.polyline.divide_count"],
-        inputs: PATH_ARRAY, output: ToolType::Tree,
+        operation: "kernel.array.path",
+        cad_command: "worldwright.array.path",
+        orbweaver_node: "orbweaver.array.path",
+        dependency_group: "geometry.transforms",
+        prerequisites: &["kernel.polyline.divide_count"],
+        inputs: PATH_ARRAY,
+        output: ToolType::Tree,
     },
     SharedToolContract {
-        operation: "kernel.project.plane", cad_command: "worldwright.project", orbweaver_node: "orbweaver.project.plane",
-        dependency_group: "geometry.intersections", prerequisites: &["kernel.vector.dot", "kernel.vector.normalize"],
-        inputs: PLANE_PROJECT, output: ToolType::Polyline,
+        operation: "kernel.project.plane",
+        cad_command: "worldwright.project",
+        orbweaver_node: "orbweaver.project.plane",
+        dependency_group: "geometry.intersections",
+        prerequisites: &["kernel.vector.dot", "kernel.vector.normalize"],
+        inputs: PLANE_PROJECT,
+        output: ToolType::Polyline,
     },
     SharedToolContract {
-        operation: "kernel.surface.flow_patch", cad_command: "worldwright.flow_along_srf", orbweaver_node: "orbweaver.surface.flow_patch",
-        dependency_group: "geometry.surface", prerequisites: &["kernel.vector.cross", "kernel.vector.dot"],
-        inputs: PATCH_FLOW, output: ToolType::Polyline,
+        operation: "kernel.surface.flow_patch",
+        cad_command: "worldwright.flow_along_srf",
+        orbweaver_node: "orbweaver.surface.flow_patch",
+        dependency_group: "geometry.surface",
+        prerequisites: &["kernel.vector.cross", "kernel.vector.dot"],
+        inputs: PATCH_FLOW,
+        output: ToolType::Polyline,
     },
     SharedToolContract {
-        operation: "kernel.solid.pushpull_quad", cad_command: "worldwright.pushpull", orbweaver_node: "orbweaver.solid.pushpull_quad",
-        dependency_group: "geometry.solid", prerequisites: &["kernel.polygon.validate", "kernel.vector.cross"],
-        inputs: QUAD_PUSHPULL, output: ToolType::Mesh,
+        operation: "kernel.solid.pushpull_quad",
+        cad_command: "worldwright.pushpull",
+        orbweaver_node: "orbweaver.solid.pushpull_quad",
+        dependency_group: "geometry.solid",
+        prerequisites: &["kernel.polygon.validate", "kernel.vector.cross"],
+        inputs: QUAD_PUSHPULL,
+        output: ToolType::Mesh,
     },
     SharedToolContract {
         operation: "kernel.tree.validate",
@@ -502,21 +528,61 @@ pub fn execute_shared_tool_with_matching(request: &ToolRequest, matching: TreeMa
 fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
     let contract = shared_tool(&request.operation).ok_or(KernelError::Invalid("unregistered shared operation"))?;
     let array_output = |copies: Vec<Vec<Vec3>>| -> Result<ToolValue> {
-        let branches = copies.into_iter().enumerate().map(|(i, points)| -> Result<TreeBranch<ToolValue>> {
-            Ok(TreeBranch { path: crate::TreePath(vec![u32::try_from(i).map_err(|_| KernelError::Budget)?]), items: vec![ToolValue::Polyline(points)] })
-        }).collect::<Result<Vec<_>>>()?;
+        let branches = copies
+            .into_iter()
+            .enumerate()
+            .map(|(i, points)| -> Result<TreeBranch<ToolValue>> {
+                Ok(TreeBranch {
+                    path: crate::TreePath(vec![u32::try_from(i).map_err(|_| KernelError::Budget)?]),
+                    items: vec![ToolValue::Polyline(points)],
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
         let tree = DataTree { branches };
         tree_validate(&tree)?;
         Ok(ToolValue::Tree(tree))
     };
     match contract.operation {
-        "kernel.array.linear" => array_output(crate::array_linear(polyline(&request.inputs, "geometry")?, vector(&request.inputs, "step")?, count(&request.inputs, "count")?)?),
-        "kernel.array.rectangular" => array_output(crate::array_rectangular(polyline(&request.inputs, "geometry")?, vector(&request.inputs, "x_step")?, vector(&request.inputs, "y_step")?, vector(&request.inputs, "z_step")?, count(&request.inputs, "nx")?, count(&request.inputs, "ny")?, count(&request.inputs, "nz")?)?),
-        "kernel.array.polar" => array_output(crate::array_polar(polyline(&request.inputs, "geometry")?, point(&request.inputs, "center")?, vector(&request.inputs, "axis")?, number(&request.inputs, "sweep_degrees")?, count(&request.inputs, "count")?)?),
-        "kernel.array.path" => array_output(crate::array_path(polyline(&request.inputs, "geometry")?, polyline(&request.inputs, "path")?, count(&request.inputs, "count")?)?),
-        "kernel.project.plane" => Ok(ToolValue::Polyline(crate::project_to_plane(polyline(&request.inputs, "geometry")?, point(&request.inputs, "origin")?, vector(&request.inputs, "normal")?, vector(&request.inputs, "direction")?)?)),
-        "kernel.surface.flow_patch" => Ok(ToolValue::Polyline(crate::flow_along_patch(polyline(&request.inputs, "geometry")?, polyline(&request.inputs, "base")?, polyline(&request.inputs, "target")?)?)),
-        "kernel.solid.pushpull_quad" => Ok(ToolValue::Mesh(crate::pushpull_quad(polyline(&request.inputs, "face")?, number(&request.inputs, "distance")?)?)),
+        "kernel.array.linear" => array_output(crate::array_linear(
+            polyline(&request.inputs, "geometry")?,
+            vector(&request.inputs, "step")?,
+            count(&request.inputs, "count")?,
+        )?),
+        "kernel.array.rectangular" => array_output(crate::array_rectangular(
+            polyline(&request.inputs, "geometry")?,
+            vector(&request.inputs, "x_step")?,
+            vector(&request.inputs, "y_step")?,
+            vector(&request.inputs, "z_step")?,
+            count(&request.inputs, "nx")?,
+            count(&request.inputs, "ny")?,
+            count(&request.inputs, "nz")?,
+        )?),
+        "kernel.array.polar" => array_output(crate::array_polar(
+            polyline(&request.inputs, "geometry")?,
+            point(&request.inputs, "center")?,
+            vector(&request.inputs, "axis")?,
+            number(&request.inputs, "sweep_degrees")?,
+            count(&request.inputs, "count")?,
+        )?),
+        "kernel.array.path" => array_output(crate::array_path(
+            polyline(&request.inputs, "geometry")?,
+            polyline(&request.inputs, "path")?,
+            count(&request.inputs, "count")?,
+        )?),
+        "kernel.project.plane" => Ok(ToolValue::Polyline(crate::project_to_plane(
+            polyline(&request.inputs, "geometry")?,
+            point(&request.inputs, "origin")?,
+            vector(&request.inputs, "normal")?,
+            vector(&request.inputs, "direction")?,
+        )?)),
+        "kernel.surface.flow_patch" => Ok(ToolValue::Polyline(crate::flow_along_patch(
+            polyline(&request.inputs, "geometry")?,
+            polyline(&request.inputs, "base")?,
+            polyline(&request.inputs, "target")?,
+        )?)),
+        "kernel.solid.pushpull_quad" => {
+            Ok(ToolValue::Mesh(crate::pushpull_quad(polyline(&request.inputs, "face")?, number(&request.inputs, "distance")?)?))
+        }
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.midpoint" => Ok(ToolValue::Point(point_midpoint(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.interpolate" => {

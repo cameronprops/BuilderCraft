@@ -12,12 +12,27 @@ pub fn specs() -> Vec<CommandSpec> {
             .enabled(always)
             .noundo(),
         CommandSpec::new("worldwright.tool.list", "List Paired CAD/OrbWeaver Tools", list).enabled(always).noundo(),
-        CommandSpec::new("worldwright.array.linear", "Linear Array of 3D Geometry", array_linear).params("{inputs:{geometry,step,count}}").enabled(always).noundo(),
-        CommandSpec::new("worldwright.array.rectangular", "Rectangular/3D Array", array_rectangular).params("{inputs:{geometry,x_step,y_step,z_step,nx,ny,nz}}").enabled(always).noundo(),
-        CommandSpec::new("worldwright.array.polar", "Polar Array", array_polar).params("{inputs:{geometry,center,axis,sweep_degrees,count}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.array.linear", "Linear Array of 3D Geometry", array_linear)
+            .params("{inputs:{geometry,step,count}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.array.rectangular", "Rectangular/3D Array", array_rectangular)
+            .params("{inputs:{geometry,x_step,y_step,z_step,nx,ny,nz}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.array.polar", "Polar Array", array_polar)
+            .params("{inputs:{geometry,center,axis,sweep_degrees,count}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.array.path", "Array Along Curve", array_path).params("{inputs:{geometry,path,count}}").enabled(always).noundo(),
-        CommandSpec::new("worldwright.project", "Project Geometry to Plane", project).params("{inputs:{geometry,origin,normal,direction}}").enabled(always).noundo(),
-        CommandSpec::new("worldwright.flow_along_srf", "Flow Along Surface Patch", flow_along_srf).params("{inputs:{geometry,base,target}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.project", "Project Geometry to Plane", project)
+            .params("{inputs:{geometry,origin,normal,direction}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.flow_along_srf", "Flow Along Surface Patch", flow_along_srf)
+            .params("{inputs:{geometry,base,target}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.pushpull", "PushPull Planar Face", pushpull).params("{inputs:{face,distance}}").enabled(always).noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")

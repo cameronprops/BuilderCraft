@@ -110,6 +110,15 @@
         "cad.mesh3d.fill_preview",
         "orbweaver.mesh.fill_hole (future adapter)"
       ]
+    },
+    {
+      "id": "kernel.polygon.fill_hole_curvature",
+      "used_by": [
+        "scan.mesh.repair",
+        "cad.mesh3d.edit",
+        "cad.mesh3d.fill_preview",
+        "orbweaver.mesh.fill_hole (planned adapter)"
+      ]
     }
   ],
   "planned_shared_primitives": [

@@ -25,6 +25,8 @@ pub fn specs() -> Vec<CommandSpec> {
             .enabled(always)
             .noundo(),
         CommandSpec::new("worldwright.array.path", "Array Along Curve", array_path).params("{inputs:{geometry,path,count}}").enabled(always).noundo(),
+        CommandSpec::new("worldwright.array.path_oriented", "Array Along Path With Tangent Alignment", array_path_oriented)
+            .params("{inputs:{geometry,path,count,up,anchor}}").enabled(always).noundo(),
         CommandSpec::new("worldwright.project", "Project Geometry to Plane", project)
             .params("{inputs:{geometry,origin,normal,direction}}")
             .enabled(always)
@@ -101,6 +103,7 @@ paired_command!(array_linear, "kernel.array.linear");
 paired_command!(array_rectangular, "kernel.array.rectangular");
 paired_command!(array_polar, "kernel.array.polar");
 paired_command!(array_path, "kernel.array.path");
+paired_command!(array_path_oriented, "kernel.array.path_oriented");
 paired_command!(project, "kernel.project.plane");
 paired_command!(flow_along_srf, "kernel.surface.flow_patch");
 paired_command!(pushpull, "kernel.solid.pushpull_quad");
@@ -286,7 +289,7 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(25));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(26));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

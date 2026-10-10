@@ -22,12 +22,18 @@ visibility/locked state and conservative renderer/picker face budgets.
 The preview is computed on demand, never every frame, and only returns new
 triangle IDs rather than transferring a replacement mesh.
 
-**Current kernel limit:** planar, convex inner boundaries with at most 256
-vertices. Concave, curved/nonplanar, noisy scan, bridged and self-intersecting
-holes still require proper constrained triangulation, vertex/triangle
-propagation and surface fairing. These capabilities are **not claimed** by
-this slice. GPU remains optional for display; topology validation and
-mesh repair remain deterministic CPU operations.
+**Current kernel limit:** simple planar **convex or concave** inner boundaries
+with at most 256 vertices. The shared kernel uses orientation-checked, quality-aware
+bounded ear clipping, rejects self-intersecting/overlapping boundary edges and
+collapsed edges, and checks area conservation and resulting halfedge winding.
+Existing faces and vertices are preserved, and the same triangulation is used
+in the Mesh Repair preview and the committed edit.
+
+Curved/nonplanar or intersecting mesh surfaces, bridged openings, noisy scans,
+and smoothing or unconstrained triangle propagation still require additional
+algorithms and verified tests. Global 3D self-intersection certification is not
+provided by the planar patch validator. GPU remains optional for display;
+topology validation and mesh repair remain deterministic CPU operations.
 
 Regression tests cover read-only preview/commit consistency, stale selection,
 undo, and nearest-boundary picking. No new external dependency was introduced.

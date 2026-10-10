@@ -323,4 +323,22 @@ mod tests {
         assert!(polygon_mesh_fill_hole(&source, 1, 1, outer).is_err());
         assert_eq!(polygon_mesh_fill_hole(&source, 12, 11, inner_index), Err(KernelError::Conflict { expected: 11, actual: 12 }));
     }
+
+    #[test]
+    fn concave_hole_accepts_vertical_plane_far_from_origin() {
+        let mut source = concave_ring();
+        for p in &mut source.vertices {
+            // Rigid coordinate permutation onto the YZ plane, plus translation.
+            let previous = *p;
+            *p = Vec3::new(10_000_000., -20_000_000. + previous.x, 30_000_000. + previous.y);
+        }
+        let filled = polygon_mesh_fill_hole(&source, 2, 2, inner(&source)).unwrap();
+        assert_eq!(filled.new_face_indices.len(), 3);
+        assert_eq!(filled.mesh.vertices, source.vertices);
+        assert!(polygon_mesh_boundary_loops(&filled.mesh).is_ok_and(|report| {
+            report.closed_loops.len() == 1
+                && report.non_manifold_edges.is_empty()
+                && report.inconsistent_winding_edges.is_empty()
+        }));
+    }
 }

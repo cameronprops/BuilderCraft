@@ -3,7 +3,7 @@
 
 use crate::{
     KernelError, PolygonMesh, Result, polygon_mesh_add_triangle_from_edge, polygon_mesh_delete_faces, polygon_mesh_fill_hole,
-    polygon_mesh_split_edge, pushpull_mesh_face,
+    polygon_mesh_split_edge, polygon_mesh_split_quad_strip, pushpull_mesh_face,
 };
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +16,7 @@ pub enum PolygonSceneEdit {
     AddTriangleFromEdge { selected_revision: u64, edge_vertices: [u32; 2], point_vertex: u32 },
     FillPlanarHole { selected_revision: u64, loop_index: u32 },
     SplitEdge { selected_revision: u64, edge_vertices: [u32; 2], fraction: f64 },
+    SplitQuadStrip { selected_revision: u64, edge_vertices: [u32; 2], fraction: f64 },
     PushPullFace { selected_revision: u64, face_index: u32, distance: f64 },
 }
 
@@ -34,6 +35,9 @@ pub fn apply_polygon_scene_edit(source: &PolygonMesh, current_revision: u64, edi
         }
         PolygonSceneEdit::SplitEdge { selected_revision, edge_vertices, fraction } => {
             polygon_mesh_split_edge(source, current_revision, *selected_revision, *edge_vertices, *fraction).map(|result| result.mesh)
+        }
+        PolygonSceneEdit::SplitQuadStrip { selected_revision, edge_vertices, fraction } => {
+            polygon_mesh_split_quad_strip(source, current_revision, *selected_revision, *edge_vertices, *fraction).map(|result| result.mesh)
         }
         PolygonSceneEdit::PushPullFace { selected_revision, face_index, distance } => {
             if *selected_revision != current_revision {

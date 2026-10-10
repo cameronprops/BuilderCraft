@@ -22,7 +22,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("mesh3d.pushpull", "PushPull Face on Native Polygon Solid", pushpull_face)
             .params("{id,face_index,distance,selected_revision?}"),
         CommandSpec::new("mesh3d.edit", "Edit Native Polygon Mesh", edit)
-            .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|split_edge,selected_revision,...}}"),
+            .params("{id,edit:{kind:delete_faces|add_triangle_from_edge|fill_planar_hole|split_edge|split_quad_strip,selected_revision,...}}"),
         CommandSpec::new("mesh3d.list", "List Native Polygon Meshes", list).noundo(),
         CommandSpec::new("mesh3d.boundaries", "Inspect Polygon Boundaries", boundaries).params("{id}").noundo(),
         CommandSpec::new("mesh3d.topology", "Inspect Polygon Vertex Fans", topology).params("{id,include_all_vertices?:false}").noundo(),
@@ -430,5 +430,34 @@ mod tests {
         assert!(Arc::ptr_eq(&after, &s.doc().unwrap().mesh3d[0].mesh));
         s.execute("undo", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), original.as_ref());
+    }
+
+    #[test]
+    fn quad_strip_subdivision_document_edit_undo_and_file_roundtrip() {
+        let mut s = Session::new();
+        let quad = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.),
+                Vec3::new(2., 2., 0.), Vec3::new(0., 2., 0.),
+            ],
+            faces: vec![PolygonFace::Quad([0, 1, 2, 3])],
+        };
+        let id = s.execute("mesh3d.create", &json!({"name":"Subdivide quads","mesh":quad})).unwrap()["id"].as_u64().unwrap();
+        let before = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = s.state().unwrap().revision;
+        let args = json!({"id":id,"edit":{"kind":"split_quad_strip","selected_revision":revision,"edge_vertices":[0,1],"fraction":0.5}});
+        s.execute("mesh3d.edit", &args).unwrap();
+        let after = s.doc().unwrap().mesh3d[0].mesh.clone();
+        assert_eq!(after.faces.len(), 2);
+        assert_eq!(after.vertices.len(), 6);
+        assert!(after.faces.iter().all(|f| matches!(f, PolygonFace::Quad(_))));
+        let saved = cadcraft_io::write(s.doc().unwrap(), "quad-strip.dftba").unwrap();
+        let reopened = cadcraft_io::read(&saved, "quad-strip.dftba").unwrap();
+        assert_eq!(reopened.mesh3d[0].id, id);
+        assert_eq!(reopened.mesh3d[0].mesh.as_ref(), after.as_ref());
+        assert!(s.execute("mesh3d.edit", &args).is_err(), "stale pick must be rejected");
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh, after);
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), before.as_ref());
     }
 }

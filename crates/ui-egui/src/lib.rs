@@ -76,6 +76,9 @@ pub struct UiState {
     /// Explicitly loaded, revision-scoped OCCT wire display cache, not source geometry.
     #[serde(skip)]
     pub brep_preview: Option<buildercraft::BrepPreview>,
+    /// Transient, compact, read-only proposed mesh patch geometry.
+    #[serde(skip)]
+    pub mesh_patch_preview: Option<buildercraft::MeshPatchPreview>,
     /// Transient gizmo drag state must not be serialized with UI preferences.
     #[serde(skip)]
     pub gizmo: gizmo::Gizmo,
@@ -133,6 +136,7 @@ impl Default for UiState {
             mesh_face_document_uid: None,
             mesh_face_revision: None,
             brep_preview: None,
+            mesh_patch_preview: None,
             gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,

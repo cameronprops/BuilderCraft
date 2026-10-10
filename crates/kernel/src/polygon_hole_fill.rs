@@ -1,8 +1,34 @@
 //! Conservative, quality-aware triangulation of simple planar INNER boundaries of polygon meshes.
 use crate::{KernelError, PolygonFace, PolygonMesh, Result, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_validate};
-use cadcraft_geom::{Vec2, Vec3, robust_predicates::orientation2d};
+use cadcraft_geom::{Vec2, Vec3, best_fit_plane, robust_predicates::orientation2d};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+
+/// A single shared operation, with geometry preserved unless a new cap
+/// and transitional triangles are explicitly requested.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PolygonHoleFillMode {
+    /// Legacy conservative planar-only fill.
+    PlanarOnly,
+    /// Triangulate the existing three-dimensional boundary without
+    /// changing any mesh vertex. Result is a piecewise planar patch.
+    Faceted,
+    /// Least-squares plane from all boundary points, through their average.
+    BestFitPlanar,
+    /// Plane through the centroid, normal from oriented boundary area.
+    BoundaryNormalPlanar,
+    /// Plane through the centroid with a caller-specified normal direction.
+    DirectionPlanar { direction: Vec3 },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FillPlaneReport {
+    pub origin: Vec3,
+    pub normal: Vec3,
+    pub rms_distance: f64,
+    pub max_distance: f64,
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PolygonFillResult {
@@ -10,6 +36,9 @@ pub struct PolygonFillResult {
     pub revision: u64,
     pub boundary_vertices: Vec<u32>,
     pub new_face_indices: Vec<u32>,
+    /// New cap vertices only; source boundary vertices remain untouched.
+    pub new_vertex_indices: Vec<u32>,
+    pub cap_plane: Option<FillPlaneReport>,
 }
 fn norm(v: Vec3) -> f64 {
     v.x.hypot(v.y).hypot(v.z)
@@ -147,10 +176,22 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
     Ok(triangles)
 }
 
-/// Triangulates a simple planar convex OR concave inner loop. Outer boundaries
-/// are rejected by comparing loop winding with adjacent polygon orientation.
-/// Does not support nonplanar holes, global 3D intersection repair or fairing.
+/// Backward compatible planar-only edit using the shared fill engine.
 pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision: u64, loop_index: u32) -> Result<PolygonFillResult> {
+    polygon_mesh_fill_hole_with_mode(mesh, revision, picked_revision, loop_index, &PolygonHoleFillMode::PlanarOnly)
+}
+
+/// Face-preserving hole repair: simple planar holes, nonplanar faceted fills,
+/// or a planar inset cap bridged into the original unmodified scan boundary.
+/// Pure operation, with topology and orientation validated before publication.
+/// Does not certify all distant 3D mesh/patch intersections.
+pub fn polygon_mesh_fill_hole_with_mode(
+    mesh: &PolygonMesh,
+    revision: u64,
+    picked_revision: u64,
+    loop_index: u32,
+    mode: &PolygonHoleFillMode,
+) -> Result<PolygonFillResult> {
     if revision != picked_revision {
         return Err(KernelError::Conflict { expected: picked_revision, actual: revision });
     }
@@ -164,7 +205,9 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
     if ids.len() < 3 || ids.len() > 256 {
         return Err(KernelError::Invalid("unsupported boundary size"));
     }
-    if mesh.faces.len().checked_add(ids.len() - 2).is_none_or(|n| n > 1_000_000) {
+    // Worst-case planar inset adds 2n transition triangles and n-2 cap faces.
+    let additional_faces = ids.len().checked_mul(3).and_then(|v| v.checked_sub(2)).ok_or(KernelError::Budget)?;
+    if mesh.faces.len().checked_add(additional_faces).is_none_or(|n| n > 1_000_000) {
         return Err(KernelError::Budget);
     }
     let next_revision = revision.checked_add(1).ok_or(KernelError::Budget)?;
@@ -181,13 +224,50 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
         return Err(KernelError::Invalid("degenerate boundary"));
     }
     let normal = area * (1.0 / norm(area));
-    for &id in ids {
-        if (mesh.vertices[id as usize] - origin).dot(normal).abs() > 1e-7 * extent {
-            return Err(KernelError::Invalid("nonplanar boundary"));
+    let positions: Vec<Vec3> = ids.iter().map(|&id| mesh.vertices[id as usize]).collect();
+    let mean = positions.iter().fold(Vec3::ZERO, |a, &p| a + (p - origin)) / positions.len() as f64 + origin;
+    let plane_normal = match mode {
+        PolygonHoleFillMode::BestFitPlanar => {
+            let fit = best_fit_plane(&positions).ok_or(KernelError::Invalid("cannot fit plane to boundary"))?;
+            if fit.normal.dot(normal).abs() < 0.4 {
+                return Err(KernelError::Invalid("best-fit plane conflicts with boundary winding"));
+            }
+            if fit.normal.dot(normal) < 0. { -fit.normal } else { fit.normal }
         }
+        PolygonHoleFillMode::DirectionPlanar { direction } => {
+            let n = norm(*direction);
+            if !n.is_finite() || n < 1e-12 { return Err(KernelError::Invalid("invalid plane direction")); }
+            let unit = *direction * (1. / n);
+            if unit.dot(normal).abs() < 0.4 {
+                return Err(KernelError::Invalid("direction is too oblique to hole normal"));
+            }
+            if unit.dot(normal) < 0. { -unit } else { unit }
+        }
+        PolygonHoleFillMode::PlanarOnly | PolygonHoleFillMode::Faceted | PolygonHoleFillMode::BoundaryNormalPlanar => normal,
+    };
+    let cap_plane = match mode {
+        PolygonHoleFillMode::PlanarOnly | PolygonHoleFillMode::Faceted => None,
+        _ => {
+            let mut squared = 0.;
+            let mut max_distance: f64 = 0.;
+            for &p in &positions {
+                let distance = (p - mean).dot(plane_normal).abs();
+                squared += distance * distance;
+                max_distance = max_distance.max(distance);
+            }
+            Some(FillPlaneReport {
+                origin: mean, normal: plane_normal,
+                rms_distance: (squared / ids.len() as f64).sqrt(), max_distance,
+            })
+        }
+    };
+    if matches!(mode, PolygonHoleFillMode::PlanarOnly)
+        && positions.iter().any(|&p| (p - origin).dot(normal).abs() > 1e-7 * extent)
+    {
+        return Err(KernelError::Invalid("nonplanar boundary"));
     }
-    let points = project_loop(mesh, ids, normal, origin);
-    let patch_triangles = triangulate_loop(ids, &points, extent)?;
+    let points = project_loop(mesh, ids, plane_normal, mean);
+    let mut patch_triangles = triangulate_loop(ids, &points, extent)?;
     let topo = polygon_mesh_topology(mesh)?;
     for &half_id in &loop_data.halfedges {
         let h = &topo.halfedges[half_id as usize];
@@ -202,6 +282,50 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
     }
     let mut output = mesh.clone();
     let mut new_face_indices = Vec::new();
+    let mut new_vertex_indices = Vec::new();
+    // For flat caps we preserve all source boundary points and create a
+    // new inset ring on the requested plane. The band between the two
+    // rings absorbs their different elevations without moving scan data.
+    if cap_plane.as_ref().is_some_and(|p| p.max_distance > 1e-8 * extent) {
+        let center = mean;
+        let inset = 0.85;
+        let mut ring_ids = Vec::with_capacity(ids.len());
+        for &id in ids {
+            let p = mesh.vertices[id as usize];
+            let q = p - plane_normal * (p - mean).dot(plane_normal);
+            let cap_point = center + (q - center) * inset;
+            if !cap_point.is_finite() {
+                return Err(KernelError::Invalid("nonfinite planar cap vertex"));
+            }
+            let next = u32::try_from(output.vertices.len()).map_err(|_| KernelError::Budget)?;
+            ring_ids.push(next);
+            new_vertex_indices.push(next);
+            output.vertices.push(cap_point);
+        }
+        let ring_points = project_loop(&output, &ring_ids, plane_normal, mean);
+        // Homothetic insets on concave boundaries may leave the polygon:
+        // reject any inverted/folded transition rather than hiding it.
+        let clockwise = |a: Vec2, b: Vec2, c: Vec2| -> Result<bool> {
+            Ok(orientation2d(a, b, c).ok_or(KernelError::Invalid("invalid rim orientation"))? == Ordering::Less
+                && (b - a).cross(c - a) < -1e-12 * extent * extent)
+        };
+        for i in 0..ids.len() {
+            let j = (i + 1) % ids.len();
+            if !clockwise(points[j], points[i], ring_points[i])?
+                || !clockwise(points[j], ring_points[i], ring_points[j])? {
+                return Err(KernelError::Invalid("inset cap would fold or cross its boundary"));
+            }
+            for tri in [
+                [ids[j], ids[i], ring_ids[i]],
+                [ids[j], ring_ids[i], ring_ids[j]],
+            ] {
+                let idx = u32::try_from(output.faces.len()).map_err(|_| KernelError::Budget)?;
+                new_face_indices.push(idx);
+                output.faces.push(PolygonFace::Triangle(tri));
+            }
+        }
+        patch_triangles = triangulate_loop(&ring_ids, &ring_points, extent)?;
+    }
     for triangle in patch_triangles {
         let index = u32::try_from(output.faces.len()).map_err(|_| KernelError::Budget)?;
         new_face_indices.push(index);
@@ -212,7 +336,7 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
     if !after.non_manifold_edges.is_empty() || !after.inconsistent_winding_edges.is_empty() {
         return Err(KernelError::Invalid("invalid patch topology"));
     }
-    Ok(PolygonFillResult { mesh: output, revision: next_revision, boundary_vertices: ids.clone(), new_face_indices })
+    Ok(PolygonFillResult { mesh: output, revision: next_revision, boundary_vertices: ids.clone(), new_face_indices, new_vertex_indices, cap_plane })
 }
 
 #[cfg(test)]
@@ -338,5 +462,54 @@ mod tests {
         assert!(polygon_mesh_boundary_loops(&filled.mesh).is_ok_and(|report| {
             report.closed_loops.len() == 1 && report.non_manifold_edges.is_empty() && report.inconsistent_winding_edges.is_empty()
         }));
+    }
+
+    #[test]
+    fn faceted_nonplanar_fill_preserves_scan_boundary_points() {
+        let mut source = ring();
+        source.vertices[4].z = 0.07;
+        source.vertices[6].z = -0.08;
+        let original = source.clone();
+        let filled = polygon_mesh_fill_hole_with_mode(&source, 4, 4, inner(&source), &PolygonHoleFillMode::Faceted).unwrap();
+        assert_eq!(filled.mesh.vertices, source.vertices);
+        assert_eq!(filled.new_face_indices.len(), 2);
+        assert!(filled.new_vertex_indices.is_empty());
+        assert!(polygon_mesh_boundary_loops(&filled.mesh).is_ok_and(|r| r.closed_loops.len() == 1));
+        assert_eq!(original, source);
+    }
+
+    #[test]
+    fn automatic_best_fit_planar_cap_has_flat_interior_and_transition_band() {
+        let mut source = ring();
+        source.vertices[4].z = 0.07;
+        source.vertices[6].z = -0.08;
+        let original_count = source.vertices.len();
+        let old_faces = source.faces.clone();
+        let patched = polygon_mesh_fill_hole_with_mode(&source, 11, 11, inner(&source), &PolygonHoleFillMode::BestFitPlanar).unwrap();
+        let plane = patched.cap_plane.unwrap();
+        assert_eq!(patched.new_vertex_indices.len(), 4);
+        assert_eq!(patched.new_face_indices.len(), 10);
+        for &vertex in &patched.new_vertex_indices {
+            let distance = (patched.mesh.vertices[vertex as usize] - plane.origin).dot(plane.normal);
+            assert!(distance.abs() < 1e-8);
+        }
+        assert_eq!(&patched.mesh.vertices[..original_count], source.vertices.as_slice());
+        assert_eq!(&patched.mesh.faces[..old_faces.len()], old_faces.as_slice());
+        assert!(polygon_mesh_boundary_loops(&patched.mesh).is_ok_and(|r| r.closed_loops.len() == 1 && r.non_manifold_edges.is_empty()));
+    }
+
+    #[test]
+    fn direction_controls_plane_while_stale_and_invalid_normals_fail() {
+        let mut source = ring();
+        source.vertices[4].z += 0.2;
+        let ix = inner(&source);
+        let z_axis = PolygonHoleFillMode::DirectionPlanar { direction: Vec3::new(0., 0., 2.) };
+        let result = polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &z_axis).unwrap();
+        assert!(result.cap_plane.as_ref().is_some_and(|p| p.normal.z.abs() > 0.999));
+        let automatically = polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::BoundaryNormalPlanar).unwrap();
+        assert!(automatically.cap_plane.is_some());
+        assert_eq!(polygon_mesh_fill_hole_with_mode(&source, 2, 1, ix, &z_axis), Err(KernelError::Conflict { expected:1,actual:2 }));
+        assert!(polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::ZERO }).is_err());
+        assert!(polygon_mesh_fill_hole_with_mode(&source, 1, 1, ix, &PolygonHoleFillMode::DirectionPlanar { direction: Vec3::X }).is_err());
     }
 }

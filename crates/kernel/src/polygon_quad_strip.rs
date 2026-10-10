@@ -229,7 +229,7 @@ mod tests {
         assert_eq!(after.mesh.vertices.len(), 9);
         assert_eq!(after.mesh.faces.len(), 4);
         assert!(after.mesh.faces.iter().all(|face| matches!(face, PolygonFace::Quad(_))));
-        assert!(polygon_mesh_topology(&after.mesh).is_ok_and(|t| t.boundary_edges.len() == 10
+        assert!(polygon_mesh_topology(&after.mesh).is_ok_and(|t| t.boundary_edges.len() == 8
             && t.non_manifold_edges.is_empty() && t.inconsistent_winding_edges.is_empty()));
     }
 

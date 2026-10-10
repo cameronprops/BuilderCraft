@@ -132,6 +132,52 @@ paired_command!(mesh_decimate, "kernel.mesh.decimate");
 mod tests {
     use super::*;
     #[test]
+    fn qem_cad_and_generic_api_are_non_mutating_and_identical() {
+        use buildercraft_kernel::{PolygonFace, PolygonMesh};
+        use cadcraft_geom::Vec3;
+        let poly = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
+            ],
+            faces: vec![
+                PolygonFace::Triangle([0, 2, 3]),
+                PolygonFace::Triangle([0, 3, 4]),
+                PolygonFace::Triangle([0, 4, 5]),
+                PolygonFace::Triangle([0, 5, 2]),
+                PolygonFace::Triangle([1, 3, 2]),
+                PolygonFace::Triangle([1, 4, 3]),
+                PolygonFace::Triangle([1, 5, 4]),
+                PolygonFace::Triangle([1, 2, 5]),
+            ],
+        };
+        let inputs = BTreeMap::from([
+            ("geometry".into(), ToolValue::Mesh(poly)),
+            ("target_faces".into(), ToolValue::Count(6)),
+            ("max_error".into(), ToolValue::Number(1000.0)),
+            ("normal_degrees".into(), ToolValue::Number(85.0)),
+            ("preserve_boundary".into(), ToolValue::Count(1)),
+            ("crease_degrees".into(), ToolValue::Number(180.0)),
+        ]);
+        let request = json!({"inputs":inputs});
+        let mut session = Session::new();
+        let revision = session.state().map(|state| state.revision);
+        let direct = session.execute("worldwright.mesh.decimate", &request);
+        let generic = session.execute("worldwright.tool.run", &json!({"operation":"kernel.mesh.decimate","inputs":inputs}));
+        assert!(direct.is_ok());
+        assert_eq!(direct, generic);
+        if let Ok(value) = direct {
+            assert_eq!(value["output"]["kind"], "mesh");
+            assert_eq!(value["output"]["value"]["faces"].as_array().map(Vec::len), Some(6));
+        }
+        assert_eq!(session.state().map(|state| state.revision), revision);
+    }
+
+    #[test]
     fn command_and_generic_dispatch_execute_identical_point_distance() {
         let mut session = Session::new();
         let inputs = json!({
@@ -291,7 +337,7 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(25));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(26));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

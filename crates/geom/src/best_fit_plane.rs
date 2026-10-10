@@ -62,7 +62,7 @@ pub fn best_fit_plane(points: &[Vec3]) -> Option<BestFitPlane> {
         }
         if a[p][q].abs() < 1e-14 { break; }
         let tau = (a[q][q] - a[p][p]) / (2. * a[p][q]);
-        let t = if tau >= 0. { 1. } else { -1. } / (tau.abs() + (1. + tau * tau).sqrt());
+        let t = (if tau >= 0. { 1. } else { -1. }) / (tau.abs() + (1. + tau * tau).sqrt());
         let c = (1. + t * t).sqrt().recip();
         let s = t * c;
         let (app, aqq, apq) = (a[p][p], a[q][q], a[p][q]);

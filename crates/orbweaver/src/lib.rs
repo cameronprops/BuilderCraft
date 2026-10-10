@@ -250,6 +250,54 @@ mod tests {
         assert_eq!(from_graph, Some(Number(13.)));
     }
     #[test]
+    fn qem_node_uses_the_same_shared_kernel_as_cad() {
+        use buildercraft_kernel::{PolygonFace, PolygonMesh};
+        let mesh = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0.0, 0.0, 1.0),
+                Vec3::new(0.0, 0.0, -1.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+                Vec3::new(-1.0, 0.0, 0.0),
+                Vec3::new(0.0, -1.0, 0.0),
+            ],
+            faces: vec![
+                PolygonFace::Triangle([0, 2, 3]),
+                PolygonFace::Triangle([0, 3, 4]),
+                PolygonFace::Triangle([0, 4, 5]),
+                PolygonFace::Triangle([0, 5, 2]),
+                PolygonFace::Triangle([1, 3, 2]),
+                PolygonFace::Triangle([1, 4, 3]),
+                PolygonFace::Triangle([1, 5, 4]),
+                PolygonFace::Triangle([1, 2, 5]),
+            ],
+        };
+        let inputs = BTreeMap::from([
+            ("geometry".into(), ToolValue::Mesh(mesh.clone())),
+            ("target_faces".into(), Count(6)),
+            ("max_error".into(), Number(1000.0)),
+            ("normal_degrees".into(), Number(85.0)),
+            ("preserve_boundary".into(), Count(1)),
+            ("crease_degrees".into(), Number(180.0)),
+        ]);
+        let graph = Graph {
+            version: GRAPH_SCHEMA_VERSION,
+            nodes: vec![Node {
+                id: 8,
+                matching: TreeMatchPolicy::Shortest,
+                component: "orbweaver.mesh.decimate".into(),
+                inputs: inputs.clone().into_iter().map(|(k, v)| (k, constant(v))).collect(),
+            }],
+            outputs: vec![8],
+        };
+        let output = evaluate(&graph);
+        let direct = execute_shared_tool(&ToolRequest { operation: "worldwright.mesh.decimate".into(), inputs });
+        assert!(output.is_ok());
+        assert_eq!(output.ok().and_then(|r| r.values.get(&8).cloned()), direct.ok());
+        assert_eq!(mesh.faces.len(), 8);
+    }
+
+    #[test]
     fn chained_vector_nodes_use_one_kernel_implementation() {
         let normalized = Node {
             id: 3,

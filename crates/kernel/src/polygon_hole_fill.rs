@@ -336,9 +336,7 @@ mod tests {
         assert_eq!(filled.new_face_indices.len(), 3);
         assert_eq!(filled.mesh.vertices, source.vertices);
         assert!(polygon_mesh_boundary_loops(&filled.mesh).is_ok_and(|report| {
-            report.closed_loops.len() == 1
-                && report.non_manifold_edges.is_empty()
-                && report.inconsistent_winding_edges.is_empty()
+            report.closed_loops.len() == 1 && report.non_manifold_edges.is_empty() && report.inconsistent_winding_edges.is_empty()
         }));
     }
 }

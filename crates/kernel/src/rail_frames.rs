@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn invalid_rail_and_up_are_rejected() {
         assert!(rail_frames(&[Vec3::ZERO, Vec3::ZERO], 3, Vec3::Z).is_err());
-        assert!(rail_frames(&[Vec3::ZERO, Vec3::X], 3, Vec3::X).is_err());
-        assert!(rail_frames(&[Vec3::ZERO, Vec3::X], 257, Vec3::Z).is_err());
+        assert!(rail_frames(&[Vec3::ZERO, Vec3::new(1., 0., 0.)], 3, Vec3::new(1., 0., 0.)).is_err());
+        assert!(rail_frames(&[Vec3::ZERO, Vec3::new(1., 0., 0.)], 257, Vec3::Z).is_err());
     }
 }

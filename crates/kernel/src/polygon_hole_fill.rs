@@ -1,7 +1,8 @@
-//! Conservative patching of planar convex INNER boundaries of polygon meshes.
+//! Conservative, quality-aware triangulation of simple planar INNER boundaries of polygon meshes.
 use crate::{KernelError, PolygonFace, PolygonMesh, Result, polygon_mesh_boundary_loops, polygon_mesh_topology, polygon_mesh_validate};
-use cadcraft_geom::Vec3;
+use cadcraft_geom::{Vec2, Vec3, robust_predicates::orientation2d};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PolygonFillResult {
@@ -14,9 +15,141 @@ fn norm(v: Vec3) -> f64 {
     v.x.hypot(v.y).hypot(v.z)
 }
 
-/// Triangulates a selected planar convex inner loop. Outer boundaries are
-/// rejected by comparing loop winding with adjacent polygon orientation.
-/// Does not support nonplanar holes, concave holes or intersection repair.
+fn project_loop(mesh: &PolygonMesh, ids: &[u32], normal: Vec3, origin: Vec3) -> Vec<Vec2> {
+    // Pick a signed dominant-axis plane, preserving the orientation of
+    // the boundary in the 2D projection. Relative positions reduce
+    // catastrophic cancellation for drawings far from the world origin.
+    ids.iter()
+        .map(|&id| {
+            let d = mesh.vertices[id as usize] - origin;
+            if normal.x.abs() >= normal.y.abs() && normal.x.abs() >= normal.z.abs() {
+                if normal.x >= 0. { Vec2::new(d.y, d.z) } else { Vec2::new(d.z, d.y) }
+            } else if normal.y.abs() >= normal.z.abs() {
+                if normal.y >= 0. { Vec2::new(d.z, d.x) } else { Vec2::new(d.x, d.z) }
+            } else if normal.z >= 0. {
+                Vec2::new(d.x, d.y)
+            } else {
+                Vec2::new(d.y, d.x)
+            }
+        })
+        .collect()
+}
+
+fn on_segment(a: Vec2, b: Vec2, point: Vec2) -> bool {
+    point.x >= a.x.min(b.x) && point.x <= a.x.max(b.x) && point.y >= a.y.min(b.y) && point.y <= a.y.max(b.y)
+}
+
+fn intersects(a: Vec2, b: Vec2, c: Vec2, d: Vec2) -> Result<bool> {
+    let ab_c = orientation2d(a, b, c).ok_or(KernelError::Invalid("invalid boundary orientation"))?;
+    let ab_d = orientation2d(a, b, d).ok_or(KernelError::Invalid("invalid boundary orientation"))?;
+    let cd_a = orientation2d(c, d, a).ok_or(KernelError::Invalid("invalid boundary orientation"))?;
+    let cd_b = orientation2d(c, d, b).ok_or(KernelError::Invalid("invalid boundary orientation"))?;
+    if (ab_c == Ordering::Equal && on_segment(a, b, c))
+        || (ab_d == Ordering::Equal && on_segment(a, b, d))
+        || (cd_a == Ordering::Equal && on_segment(c, d, a))
+        || (cd_b == Ordering::Equal && on_segment(c, d, b))
+    {
+        return Ok(true);
+    }
+    Ok(ab_c != ab_d && cd_a != cd_b)
+}
+
+fn validate_simple_loop(points: &[Vec2], extent: f64) -> Result<()> {
+    let n = points.len();
+    let min_separation = extent * 1e-9;
+    for i in 0..n {
+        let a = points[i];
+        let b = points[(i + 1) % n];
+        if !a.is_finite() || !b.is_finite() || (b - a).len() <= min_separation {
+            return Err(KernelError::Invalid("collapsed boundary edge"));
+        }
+        for j in i + 1..n {
+            if j == i + 1 || (i == 0 && j == n - 1) {
+                continue;
+            }
+            if intersects(a, b, points[j], points[(j + 1) % n])? {
+                return Err(KernelError::Invalid("self-intersecting planar hole boundary"));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn triangle_contains_or_touches(a: Vec2, b: Vec2, c: Vec2, point: Vec2) -> Result<bool> {
+    Ok(orientation2d(a, b, point).ok_or(KernelError::Invalid("invalid triangulation coordinate"))? != Ordering::Less
+        && orientation2d(b, c, point).ok_or(KernelError::Invalid("invalid triangulation coordinate"))? != Ordering::Less
+        && orientation2d(c, a, point).ok_or(KernelError::Invalid("invalid triangulation coordinate"))? != Ordering::Less)
+}
+
+/// Quality-aware ear clipping over an already validated simple, CCW loop.
+/// Bound at 256 vertices. Triangles are reversed for the new patch because
+/// the existing polygon half-edges around the hole have opposite winding.
+fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u32; 3]>> {
+    validate_simple_loop(points, extent)?;
+    let original_twice_area: f64 = (0..ids.len()).map(|i| points[i].cross(points[(i + 1) % ids.len()])).sum();
+    let area_tol = 1e-12 * extent * extent;
+    if !original_twice_area.is_finite() || original_twice_area <= area_tol {
+        return Err(KernelError::Invalid("zero or inverted projected hole area"));
+    }
+    let mut remaining: Vec<usize> = (0..ids.len()).collect();
+    let mut triangles = Vec::with_capacity(ids.len() - 2);
+    let mut covered_twice_area = 0.0;
+    while remaining.len() > 3 {
+        let n = remaining.len();
+        let mut candidate: Option<(usize, f64)> = None;
+        for slot in 0..n {
+            let ia = remaining[(slot + n - 1) % n];
+            let ib = remaining[slot];
+            let ic = remaining[(slot + 1) % n];
+            let (a, b, c) = (points[ia], points[ib], points[ic]);
+            if orientation2d(a, b, c) != Some(Ordering::Greater) {
+                continue;
+            }
+            let twice_area = (b - a).cross(c - a);
+            if !twice_area.is_finite() || twice_area <= area_tol {
+                continue;
+            }
+            let mut blocked = false;
+            for &other in &remaining {
+                if other != ia && other != ib && other != ic && triangle_contains_or_touches(a, b, c, points[other])? {
+                    blocked = true;
+                    break;
+                }
+            }
+            if blocked {
+                continue;
+            }
+            // Compact triangle quality proxy: avoids repeatedly choosing
+            // near-zero-angle ears when a better ear exists.
+            let edge_squares = (b - a).len2() + (c - b).len2() + (a - c).len2();
+            let quality = twice_area / edge_squares;
+            if candidate.is_none_or(|(_, previous)| quality > previous) {
+                candidate = Some((slot, quality));
+            }
+        }
+        let (slot, _) = candidate.ok_or(KernelError::Invalid("no valid ear for planar hole"))?;
+        let n = remaining.len();
+        let (a, b, c) = (remaining[(slot + n - 1) % n], remaining[slot], remaining[(slot + 1) % n]);
+        covered_twice_area += (points[b] - points[a]).cross(points[c] - points[a]);
+        triangles.push([ids[a], ids[c], ids[b]]);
+        remaining.remove(slot);
+    }
+    let [a, b, c] = [remaining[0], remaining[1], remaining[2]];
+    if orientation2d(points[a], points[b], points[c]) != Some(Ordering::Greater) || (points[b] - points[a]).cross(points[c] - points[a]) <= area_tol {
+        return Err(KernelError::Invalid("degenerate final hole triangle"));
+    }
+    covered_twice_area += (points[b] - points[a]).cross(points[c] - points[a]);
+    triangles.push([ids[a], ids[c], ids[b]]);
+    // Area conservation independently guards all ear selections.
+    if !covered_twice_area.is_finite() || (covered_twice_area - original_twice_area).abs() > 1e-8 * original_twice_area.max(area_tol) {
+        return Err(KernelError::Invalid("triangulated patch does not conserve area"));
+    }
+    Ok(triangles)
+}
+
+/// Triangulates a simple planar convex OR concave inner loop. Outer boundaries
+/// are rejected by comparing loop winding with adjacent polygon orientation.
+/// Does not support nonplanar holes, global 3D intersection repair or fairing.
 pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision: u64, loop_index: u32) -> Result<PolygonFillResult> {
     if revision != picked_revision {
         return Err(KernelError::Conflict { expected: picked_revision, actual: revision });
@@ -53,14 +186,8 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
             return Err(KernelError::Invalid("nonplanar boundary"));
         }
     }
-    for i in 0..ids.len() {
-        let a = mesh.vertices[ids[i] as usize];
-        let b = mesh.vertices[ids[(i + 1) % ids.len()] as usize];
-        let c = mesh.vertices[ids[(i + 2) % ids.len()] as usize];
-        if (b - a).cross(c - b).dot(normal) <= 1e-10 * extent * extent {
-            return Err(KernelError::Invalid("nonconvex hole"));
-        }
-    }
+    let points = project_loop(mesh, ids, normal, origin);
+    let patch_triangles = triangulate_loop(ids, &points, extent)?;
     let topo = polygon_mesh_topology(mesh)?;
     for &half_id in &loop_data.halfedges {
         let h = &topo.halfedges[half_id as usize];
@@ -75,10 +202,10 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
     }
     let mut output = mesh.clone();
     let mut new_face_indices = Vec::new();
-    for i in 1..ids.len() - 1 {
+    for triangle in patch_triangles {
         let index = u32::try_from(output.faces.len()).map_err(|_| KernelError::Budget)?;
         new_face_indices.push(index);
-        output.faces.push(PolygonFace::Triangle([ids[0], ids[i + 1], ids[i]]));
+        output.faces.push(PolygonFace::Triangle(triangle));
     }
     polygon_mesh_validate(&output)?;
     let after = polygon_mesh_topology(&output)?;
@@ -142,12 +269,9 @@ mod tests {
         assert_eq!(polygon_mesh_fill_hole(&ring(), 3, 2, 0), Err(KernelError::Conflict { expected: 2, actual: 3 }));
     }
     #[test]
-    fn rejects_nonplanar_and_nonconvex_loops() {
+    fn rejects_nonplanar_hole_loops() {
         let mut source = ring();
         source.vertices[4].z = 0.1;
-        assert!(polygon_mesh_fill_hole(&source, 0, 0, inner(&source)).is_err());
-        let mut source = ring();
-        source.vertices[5] = Vec3::new(1.25, 2.25, 0.);
         assert!(polygon_mesh_fill_hole(&source, 0, 0, inner(&source)).is_err());
     }
     #[test]
@@ -155,5 +279,66 @@ mod tests {
         let source = ring();
         assert!(polygon_mesh_fill_hole(&source, 0, 0, 99).is_err());
         assert_eq!(polygon_mesh_fill_hole(&source, u64::MAX, u64::MAX, inner(&source)), Err(KernelError::Budget));
+    }
+
+    fn concave_ring() -> PolygonMesh {
+        let mut mesh = ring();
+        mesh.vertices.push(Vec3::new(2., 1.6, 0.));
+        mesh.faces.remove(0);
+        mesh.faces.splice(0..0, [PolygonFace::Triangle([0, 1, 5]), PolygonFace::Triangle([0, 5, 8]), PolygonFace::Triangle([0, 8, 4])]);
+        mesh
+    }
+
+    #[test]
+    fn fills_concave_planar_hole_without_stepping_outside_loop() {
+        let original = concave_ring();
+        let pick = inner(&original);
+        assert!(polygon_mesh_validate(&original).is_ok());
+        let filled = polygon_mesh_fill_hole(&original, 3, 3, pick).unwrap();
+        assert_eq!(filled.revision, 4);
+        assert_eq!(filled.new_face_indices.len(), 3);
+        assert_eq!(filled.boundary_vertices.len(), 5);
+        assert_eq!(filled.mesh.faces.len(), original.faces.len() + 3);
+        assert_eq!(&filled.mesh.faces[..original.faces.len()], &original.faces);
+        let after = polygon_mesh_boundary_loops(&filled.mesh).unwrap();
+        assert_eq!(after.closed_loops.len(), 1);
+        assert!(after.non_manifold_edges.is_empty());
+        assert!(after.inconsistent_winding_edges.is_empty());
+        assert_eq!(original, concave_ring(), "operation must be atomic");
+    }
+
+    #[test]
+    fn robust_simple_loop_validation_rejects_crossings_and_collapsed_edges() {
+        let crossing = [Vec2::new(0., 0.), Vec2::new(4., 3.), Vec2::new(0., 4.), Vec2::new(4., 0.)];
+        assert!(validate_simple_loop(&crossing, 5.).is_err());
+        let collapsed = [Vec2::new(0., 0.), Vec2::new(4., 0.), Vec2::new(4., 0.), Vec2::new(0., 4.)];
+        assert!(validate_simple_loop(&collapsed, 5.).is_err());
+    }
+
+    #[test]
+    fn concave_rejects_outer_boundary_and_stale_picks() {
+        let source = concave_ring();
+        let inner_index = inner(&source);
+        let outer = if inner_index == 0 { 1 } else { 0 };
+        assert!(polygon_mesh_fill_hole(&source, 1, 1, outer).is_err());
+        assert_eq!(polygon_mesh_fill_hole(&source, 12, 11, inner_index), Err(KernelError::Conflict { expected: 11, actual: 12 }));
+    }
+
+    #[test]
+    fn concave_hole_accepts_vertical_plane_far_from_origin() {
+        let mut source = concave_ring();
+        for p in &mut source.vertices {
+            // Rigid coordinate permutation onto the YZ plane, plus translation.
+            let previous = *p;
+            *p = Vec3::new(10_000_000., -20_000_000. + previous.x, 30_000_000. + previous.y);
+        }
+        let filled = polygon_mesh_fill_hole(&source, 2, 2, inner(&source)).unwrap();
+        assert_eq!(filled.new_face_indices.len(), 3);
+        assert_eq!(filled.mesh.vertices, source.vertices);
+        assert!(polygon_mesh_boundary_loops(&filled.mesh).is_ok_and(|report| {
+            report.closed_loops.len() == 1
+                && report.non_manifold_edges.is_empty()
+                && report.inconsistent_winding_edges.is_empty()
+        }));
     }
 }

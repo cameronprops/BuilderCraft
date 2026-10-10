@@ -660,6 +660,7 @@ dependencies = [
 name = "cadcraft-io"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "buildercraft-kernel",
  "cadcraft-color",
  "cadcraft-doc",

@@ -19,6 +19,31 @@ The kernel wrapper includes mesh scene, document/I/O/engine/UI and OrbWeaver
 tests. The six CI gates add workspace Clippy, assets, layering and WASM checks.
 Record the observed result and commit, including failures.
 
+## Workspace and command discovery
+
+The alpha workbench combines direct modeling with a compact toolbar, a docked
+bottom command line, resizable side panels and command search. Geometry remains
+owned by the existing document and command engine.
+
+1. Press Ctrl+K (Cmd+K on macOS) or choose **Search commands**. Search by label,
+   command ID, alias or menu category. Use Up/Down and Enter, or click a result.
+   Disabled entries retain their engine availability explanation in a tooltip.
+   Escape closes search without cancelling an active curve draft.
+2. Drag the inner edges of Tool Sets and Inspector. Choose **Workspace > Save
+   custom layout**, choose Modeling/Drafting/Focus, then restore the custom layout.
+   Switching workspaces must preserve geometry, selection and undo history.
+3. Close and reopen the native desktop. The active layout and one custom layout
+   persist in the desktop user profile, independently of `.dftba` geometry.
+   Invalid/unsupported profiles leave defaults available and report an error.
+4. Verify **Window > Reset Palettes** recovers the standard workspace. Search remains
+   available when panels and the toolbar are hidden. Search is limited to 80
+   matching registered entries; narrow the query for additional results.
+
+This is the first customization slice. Free docking/reordering, arbitrary named
+profiles, shortcut rebinding, custom toolbar authoring, light theme, material
+shading and complete keyboard accessibility still need implementation/acceptance.
+No claim of a finished alpha or accessibility certification follows from this slice.
+
 ## Native viewport and persistence
 
 Start `cargo run --locked -p cadcraft -- --sample --control 39137` with a free

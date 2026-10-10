@@ -121,125 +121,132 @@ fn command_known(id: &str) -> bool {
 
 pub fn toolsets(app: &mut CadApp, ui: &mut egui::Ui) {
     let t = Tokens::get();
-    egui::Panel::left("cc_toolsets").exact_size(220.0).resizable(false).frame(egui::Frame::NONE.fill(t.panel)).show(ui, |ui| {
-        let r = ui.max_rect();
-        let p = ui.painter().clone();
-        // Tabs.
-        let tab_h = 28.0;
-        let mut x = r.left();
-        for name in ["Drafting", "Modeling"] {
-            let w = 92.0;
-            let tr = Rect::from_min_size(pos2(x, r.top()), vec2(w, tab_h));
-            let active = app.ui.toolset_tab == name;
-            let resp = ui.interact(tr, ui.id().with(("ts", name)), Sense::click());
-            p.rect_filled(tr, 0.0, if active { t.tab_active } else { t.chrome });
-            p.text(tr.center(), egui::Align2::CENTER_CENTER, name, egui::FontId::proportional(13.5), if active { t.text } else { t.text_dim });
-            if resp.clicked() {
-                app.ui.toolset_tab = name.into();
-                if app.ui.buildercraft_workspace {
-                    app.ui.view3d = name == "Modeling";
+    let panel = egui::Panel::left("cc_toolsets")
+        .default_size(app.ui.layout.left_width)
+        .size_range(190.0..=360.0)
+        .resizable(true)
+        .frame(egui::Frame::NONE.fill(t.panel))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            let r = ui.max_rect();
+            let p = ui.painter().clone();
+            // Tabs.
+            let tab_h = 28.0;
+            let mut x = r.left();
+            for name in ["Drafting", "Modeling"] {
+                let w = 92.0;
+                let tr = Rect::from_min_size(pos2(x, r.top()), vec2(w, tab_h));
+                let active = app.ui.toolset_tab == name;
+                let resp = ui.interact(tr, ui.id().with(("ts", name)), Sense::click());
+                p.rect_filled(tr, 0.0, if active { t.tab_active } else { t.chrome });
+                p.text(tr.center(), egui::Align2::CENTER_CENTER, name, egui::FontId::proportional(13.5), if active { t.text } else { t.text_dim });
+                if resp.clicked() {
+                    app.ui.toolset_tab = name.into();
+                    if app.ui.buildercraft_workspace {
+                        app.ui.view3d = name == "Modeling";
+                    }
                 }
+                x += w;
             }
-            x += w;
-        }
-        p.rect_filled(Rect::from_min_max(pos2(x, r.top()), pos2(r.right(), r.top() + tab_h)), 0.0, t.chrome);
-        let cr = Rect::from_center_size(pos2(r.right() - 14.0, r.top() + tab_h / 2.0), vec2(14.0, 14.0));
-        let cresp = ui.interact(cr, ui.id().with("ts_collapse"), Sense::click());
-        icons::paint(&p, cr, Icon::ChevronLeft, false);
-        if cresp.on_hover_text("Collapse Tool Sets").clicked() {
-            app.ui.show_toolsets = false;
-        }
-        let body = Rect::from_min_max(pos2(r.left(), r.top() + tab_h), r.max);
-        let mut clicked: Option<&'static str> = None;
-        let mut toggle_group = None;
-        ui.scope_builder(egui::UiBuilder::new().max_rect(body), |ui| {
-            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
-                let groups: &[(&str, &[Tool], &[Tool])] = if app.ui.buildercraft_workspace && app.ui.view3d {
-                    BUILDERCRAFT_TOOLS
-                } else if app.ui.toolset_tab == "Drafting" {
-                    DRAFTING
-                } else {
-                    MODELING
-                };
-                for (name, large, small) in groups {
-                    let collapsed = app.ui.collapsed_groups.iter().any(|g| g == name);
-                    // Header.
-                    let (hr, hresp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
-                    let pp = ui.painter();
-                    icons::paint(
-                        pp,
-                        Rect::from_center_size(pos2(hr.left() + 11.0, hr.center().y), vec2(11.0, 11.0)),
-                        if collapsed { Icon::ChevronRight } else { Icon::ChevronDown },
-                        false,
-                    );
-                    pp.text(pos2(hr.left() + 22.0, hr.center().y), egui::Align2::LEFT_CENTER, *name, egui::FontId::proportional(12.5), t.text);
-                    icons::paint(pp, Rect::from_center_size(pos2(hr.right() - 12.0, hr.center().y), vec2(11.0, 11.0)), Icon::Gear, false);
-                    if hresp.clicked() {
-                        toggle_group = Some(name.to_string());
-                    }
-                    if !collapsed {
-                        ui.add_space(4.0);
-                        // Large icons.
-                        if !large.is_empty() {
-                            ui.horizontal(|ui| {
-                                ui.add_space(8.0);
-                                ui.spacing_mut().item_spacing = vec2(8.0, 0.0);
-                                for (icon, cmd, tip) in large.iter() {
-                                    ui.add_enabled_ui(command_known(cmd), |ui| {
-                                        if icons::button(ui, *icon, 40.0, tip, false).clicked() {
-                                            clicked = Some(cmd);
-                                        }
-                                    });
-                                }
-                            });
+            p.rect_filled(Rect::from_min_max(pos2(x, r.top()), pos2(r.right(), r.top() + tab_h)), 0.0, t.chrome);
+            let cr = Rect::from_center_size(pos2(r.right() - 14.0, r.top() + tab_h / 2.0), vec2(14.0, 14.0));
+            let cresp = ui.interact(cr, ui.id().with("ts_collapse"), Sense::click());
+            icons::paint(&p, cr, Icon::ChevronLeft, false);
+            if cresp.on_hover_text("Collapse Tool Sets").clicked() {
+                app.ui.show_toolsets = false;
+            }
+            let body = Rect::from_min_max(pos2(r.left(), r.top() + tab_h), r.max);
+            let mut clicked: Option<&'static str> = None;
+            let mut toggle_group = None;
+            ui.scope_builder(egui::UiBuilder::new().max_rect(body), |ui| {
+                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                    ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
+                    let groups: &[(&str, &[Tool], &[Tool])] = if app.ui.buildercraft_workspace && app.ui.view3d {
+                        BUILDERCRAFT_TOOLS
+                    } else if app.ui.toolset_tab == "Drafting" {
+                        DRAFTING
+                    } else {
+                        MODELING
+                    };
+                    for (name, large, small) in groups {
+                        let collapsed = app.ui.collapsed_groups.iter().any(|g| g == name);
+                        // Header.
+                        let (hr, hresp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
+                        let pp = ui.painter();
+                        icons::paint(
+                            pp,
+                            Rect::from_center_size(pos2(hr.left() + 11.0, hr.center().y), vec2(11.0, 11.0)),
+                            if collapsed { Icon::ChevronRight } else { Icon::ChevronDown },
+                            false,
+                        );
+                        pp.text(pos2(hr.left() + 22.0, hr.center().y), egui::Align2::LEFT_CENTER, *name, egui::FontId::proportional(12.5), t.text);
+                        icons::paint(pp, Rect::from_center_size(pos2(hr.right() - 12.0, hr.center().y), vec2(11.0, 11.0)), Icon::Gear, false);
+                        if hresp.clicked() {
+                            toggle_group = Some(name.to_string());
                         }
-                        // Small icons, 8 per row.
-                        for row in small.chunks(8) {
-                            ui.add_space(2.0);
-                            ui.horizontal(|ui| {
-                                ui.add_space(8.0);
-                                ui.spacing_mut().item_spacing = vec2(2.0, 0.0);
-                                for (icon, cmd, tip) in row.iter() {
-                                    ui.add_enabled_ui(command_known(cmd), |ui| {
-                                        if icons::button(ui, *icon, 23.0, tip, false).clicked() {
-                                            clicked = Some(cmd);
-                                        }
-                                    });
-                                }
-                            });
+                        if !collapsed {
+                            ui.add_space(4.0);
+                            // Large icons.
+                            if !large.is_empty() {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(8.0);
+                                    ui.spacing_mut().item_spacing = vec2(8.0, 0.0);
+                                    for (icon, cmd, tip) in large.iter() {
+                                        ui.add_enabled_ui(command_known(cmd), |ui| {
+                                            if icons::button(ui, *icon, 40.0, tip, false).clicked() {
+                                                clicked = Some(cmd);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                            // Small icons, 8 per row.
+                            for row in small.chunks(8) {
+                                ui.add_space(2.0);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(8.0);
+                                    ui.spacing_mut().item_spacing = vec2(2.0, 0.0);
+                                    for (icon, cmd, tip) in row.iter() {
+                                        ui.add_enabled_ui(command_known(cmd), |ui| {
+                                            if icons::button(ui, *icon, 23.0, tip, false).clicked() {
+                                                clicked = Some(cmd);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                            ui.add_space(6.0);
                         }
-                        ui.add_space(6.0);
+                        let (sr, _) = ui.allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
+                        ui.painter().hline(sr.x_range().shrink(6.0), sr.center().y, Stroke::new(1.0, t.border));
                     }
-                    let (sr, _) = ui.allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
-                    ui.painter().hline(sr.x_range().shrink(6.0), sr.center().y, Stroke::new(1.0, t.border));
-                }
+                });
             });
-        });
-        if let Some(g) = toggle_group {
-            if let Some(i) = app.ui.collapsed_groups.iter().position(|x| *x == g) {
-                app.ui.collapsed_groups.remove(i);
-            } else {
-                app.ui.collapsed_groups.push(g);
+            if let Some(g) = toggle_group {
+                if let Some(i) = app.ui.collapsed_groups.iter().position(|x| *x == g) {
+                    app.ui.collapsed_groups.remove(i);
+                } else {
+                    app.ui.collapsed_groups.push(g);
+                }
             }
-        }
-        if let Some(c) = clicked {
-            app.cmd.buffer.clear();
-            app.start(c);
-        }
-    });
+            if let Some(c) = clicked {
+                app.cmd.buffer.clear();
+                app.start(c);
+            }
+        });
+    app.ui.layout.left_width = panel.response.rect.width();
 }
 
 pub const BUILDERCRAFT_TOOLS: &[(&str, &[Tool], &[Tool])] = &[(
     "NURBS",
-    &[(Icon::Spline, "ui.buildercraft.curve", "New editable 3D curve"), (Icon::Region, "ui.buildercraft.surface", "New control surface")],
+    &[(Icon::Spline, "ui.buildercraft.drawcurve", "Draw control curve"), (Icon::Region, "ui.buildercraft.surface", "New control surface")],
     &[],
 )];
 
 pub const MODELING: &[(&str, &[Tool], &[Tool])] = &[
     (
         "NURBS",
-        &[(Icon::Spline, "ui.buildercraft.curve", "New editable 3D curve"), (Icon::Region, "ui.buildercraft.surface", "New control surface")],
+        &[(Icon::Spline, "ui.buildercraft.drawcurve", "Draw control curve"), (Icon::Region, "ui.buildercraft.surface", "New control surface")],
         &[],
     ),
     (
@@ -271,29 +278,36 @@ fn swatch(p: &egui::Painter, r: Rect, c: Color) {
 
 pub fn right_palettes(app: &mut CadApp, ui: &mut egui::Ui) {
     let t = Tokens::get();
-    egui::Panel::right("cc_palettes").exact_size(300.0).resizable(false).frame(egui::Frame::NONE.fill(t.panel)).show(ui, |ui| {
-        let r = ui.max_rect();
-        // Palette icon tabs.
-        let p = ui.painter().clone();
-        let tab_h = 30.0;
-        p.rect_filled(Rect::from_min_size(r.min, vec2(r.width(), tab_h)), 0.0, t.chrome);
-        for (i, icon) in [Icon::Layers, Icon::Blocks, Icon::Properties].iter().enumerate() {
-            let br = Rect::from_center_size(pos2(r.left() + 30.0 + i as f32 * 52.0, r.top() + tab_h / 2.0), vec2(20.0, 20.0));
-            icons::paint(&p, br, *icon, false);
-        }
-        icons::paint(&p, Rect::from_center_size(pos2(r.right() - 14.0, r.top() + tab_h / 2.0), vec2(14.0, 14.0)), Icon::ChevronRight, false);
-        let body = Rect::from_min_max(pos2(r.left(), r.top() + tab_h), r.max);
-        ui.scope_builder(egui::UiBuilder::new().max_rect(body.shrink2(vec2(6.0, 0.0))), |ui| {
-            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                if app.ui.buildercraft_workspace {
-                    crate::buildercraft::model_browser(app, ui);
-                }
-                layers_section(app, ui);
-                ui.add_space(8.0);
-                properties_section(app, ui);
+    let panel = egui::Panel::right("cc_palettes")
+        .default_size(app.ui.layout.right_width)
+        .size_range(240.0..=480.0)
+        .resizable(true)
+        .frame(egui::Frame::NONE.fill(t.panel))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            let r = ui.max_rect();
+            // Palette icon tabs.
+            let p = ui.painter().clone();
+            let tab_h = 30.0;
+            p.rect_filled(Rect::from_min_size(r.min, vec2(r.width(), tab_h)), 0.0, t.chrome);
+            for (i, icon) in [Icon::Layers, Icon::Blocks, Icon::Properties].iter().enumerate() {
+                let br = Rect::from_center_size(pos2(r.left() + 30.0 + i as f32 * 52.0, r.top() + tab_h / 2.0), vec2(20.0, 20.0));
+                icons::paint(&p, br, *icon, false);
+            }
+            icons::paint(&p, Rect::from_center_size(pos2(r.right() - 14.0, r.top() + tab_h / 2.0), vec2(14.0, 14.0)), Icon::ChevronRight, false);
+            let body = Rect::from_min_max(pos2(r.left(), r.top() + tab_h), r.max);
+            ui.scope_builder(egui::UiBuilder::new().max_rect(body.shrink2(vec2(6.0, 0.0))), |ui| {
+                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                    if app.ui.buildercraft_workspace {
+                        crate::buildercraft::model_browser(app, ui);
+                    }
+                    layers_section(app, ui);
+                    ui.add_space(8.0);
+                    properties_section(app, ui);
+                });
             });
         });
-    });
+    app.ui.layout.right_width = panel.response.rect.width();
 }
 
 fn layers_section(app: &mut CadApp, ui: &mut egui::Ui) {

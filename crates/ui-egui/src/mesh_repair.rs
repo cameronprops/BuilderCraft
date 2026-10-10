@@ -2,6 +2,8 @@
 //! Space toggles Selection <-> Navigate as in classic PolyWorks, but all
 //! geometry operations delegate to shared document/mesh Rust commands.
 use crate::CadApp;
+use buildercraft_kernel::{FillPlaneReport, PolygonHoleFillMode};
+use cadcraft_geom::Vec3;
 use egui::{Color32, Key, Modifiers};
 use serde_json::{Value, json};
 
@@ -13,7 +15,7 @@ pub const MESH: Color32 = Color32::from_rgb(131, 150, 161);
 pub const PICK: Color32 = Color32::from_rgb(255, 179, 77);
 pub const PATCH: Color32 = Color32::from_rgb(100, 225, 185);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HolePatchPreview {
     pub object_id: u64,
     pub uid: u64,
@@ -21,6 +23,10 @@ pub struct HolePatchPreview {
     pub loop_index: u32,
     pub boundary_vertices: Vec<u32>,
     pub triangles: Vec<[u32; 3]>,
+    pub source_vertex_count: u32,
+    pub new_vertices: Vec<Vec3>,
+    pub mode: PolygonHoleFillMode,
+    pub cap_plane: Option<FillPlaneReport>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,13 +48,14 @@ pub struct State {
     pub edge: [u32; 2],
     pub fraction: f64,
     pub hole_index: u32,
+    pub fill_mode: PolygonHoleFillMode,
     pub picking_hole: bool,
     pub patch: Option<HolePatchPreview>,
     pub inspection: Option<Inspection>,
 }
 impl Default for State {
     fn default() -> Self {
-        Self { active: false, selecting: false, edge: [0, 1], fraction: 0.5, hole_index: 0, picking_hole: false, patch: None, inspection: None }
+        Self { active: false, selecting: false, edge: [0, 1], fraction: 0.5, hole_index: 0, fill_mode: PolygonHoleFillMode::PlanarOnly, picking_hole: false, patch: None, inspection: None }
     }
 }
 
@@ -193,29 +200,46 @@ pub fn patch_is_current(app: &CadApp, patch: &HolePatchPreview) -> bool {
 
 /// Preview uses the exact same kernel operation as commit. Only patch
 /// indices are transferred to UI state, never an entire replacement mesh.
+/// Resolve transient vertices from the exact validated preview geometry.
+pub fn preview_vertex(mesh: &buildercraft_kernel::PolygonMesh, patch: &HolePatchPreview, index: u32) -> Option<Vec3> {
+    let len = mesh.vertices.len();
+    if patch.source_vertex_count as usize != len { return None; }
+    if (index as usize) < len { mesh.vertices.get(index as usize).copied() }
+    else { patch.new_vertices.get(index as usize - len).copied() }
+}
+
 pub fn preview_hole(app: &mut CadApp, id: u64, loop_index: u32) -> Result<(), String> {
     let st = app.session.state().map_err(|e| e.to_string())?;
     let uid = st.uid;
     let revision = st.revision;
-    let response = app.run("mesh3d.hole_preview", json!({"id":id,"loop_index":loop_index,"selected_revision":revision}))?;
+    let mode = app.ui.mesh_repair.fill_mode.clone();
+    let response = app.run("mesh3d.hole_preview", json!({
+        "id":id,"loop_index":loop_index,"selected_revision":revision,"mode":mode
+    }))?;
     let raw = response["new_triangles"].as_array().ok_or("Missing patch triangles")?;
-    if raw.len() > 254 {
-        return Err("Hole patch is too large".into());
-    }
-    let triangles =
-        raw.iter().map(|face| serde_json::from_value::<[u32; 3]>(face.clone()).map_err(|e| e.to_string())).collect::<Result<Vec<_>, _>>()?;
-    let boundary_vertices = response["boundary_vertices"]
-        .as_array()
-        .ok_or("Missing boundary vertices")?
-        .iter()
-        .map(|id| id.as_u64().and_then(|id| u32::try_from(id).ok()).ok_or("Invalid boundary vertex"))
+    if raw.len() > 1024 { return Err("Hole patch is too large".into()); }
+    let triangles = raw.iter().map(|v| serde_json::from_value::<[u32; 3]>(v.clone()).map_err(|e| e.to_string()))
         .collect::<Result<Vec<_>, _>>()?;
+    let boundary_vertices = response["boundary_vertices"].as_array().ok_or("Missing boundary vertices")?
+        .iter().map(|v| v.as_u64().and_then(|n| u32::try_from(n).ok()).ok_or("Invalid boundary vertex"))
+        .collect::<Result<Vec<_>, _>>()?;
+    let source_vertex_count = response["source_vertex_count"].as_u64()
+        .and_then(|n| u32::try_from(n).ok()).ok_or("Invalid source vertex count")?;
+    let new_vertices = response["new_vertices"].as_array().ok_or("Missing new patch vertices")?
+        .iter().map(|v| serde_json::from_value::<Vec3>(v.clone()).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    if new_vertices.len() > 256 { return Err("Too many planar cap vertices".into()); }
+    let cap_plane: Option<FillPlaneReport> = serde_json::from_value(response["cap_plane"].clone())
+        .map_err(|e| e.to_string())?;
     let now = app.session.state().map_err(|e| e.to_string())?;
     if now.uid != uid || now.revision != revision || response["source_revision"].as_u64() != Some(revision) {
         return Err("Hole preview became stale".into());
     }
     app.ui.mesh_repair.hole_index = loop_index;
-    app.ui.mesh_repair.patch = Some(HolePatchPreview { object_id: id, uid, revision, loop_index, boundary_vertices, triangles });
+    app.ui.mesh_repair.patch = Some(HolePatchPreview {
+        object_id:id,uid,revision,loop_index,boundary_vertices,triangles,
+        source_vertex_count,new_vertices,mode,cap_plane,
+    });
     app.ui.mesh_repair.picking_hole = false;
     app.set_status(format!("Validated hole {} preview, ready to commit", loop_index));
     Ok(())

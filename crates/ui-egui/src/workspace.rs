@@ -37,11 +37,7 @@ impl Workspace {
 
 /// Read legacy UI settings without requiring migration of existing profiles.
 pub fn active(ui: &UiState) -> Workspace {
-    if ui.buildercraft_workspace && ui.view3d {
-        Workspace::Modeling
-    } else {
-        Workspace::Drafting
-    }
+    if ui.buildercraft_workspace && ui.view3d { Workspace::Modeling } else { Workspace::Drafting }
 }
 
 /// One presentation-only state change; does not touch document, selection,
@@ -112,9 +108,7 @@ mod tests {
 
     #[test]
     fn preserves_old_profiles_and_roundtrips_new_return_state() {
-        let mut old: UiState = serde_json::from_str(
-            r#"{"buildercraftWorkspace":false,"view3d":false,"showCommandLine":true}"#,
-        ).unwrap();
+        let mut old: UiState = serde_json::from_str(r#"{"buildercraftWorkspace":false,"view3d":false,"showCommandLine":true}"#).unwrap();
         assert_eq!(active(&old), Workspace::Drafting);
         assert_eq!(old.previous_workspace, None);
         assert!(activate(&mut old, Workspace::Modeling));

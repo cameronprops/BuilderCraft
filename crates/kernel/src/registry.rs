@@ -24,6 +24,9 @@ pub struct OperationDescriptor {
 /// Implemented means the listed kernel service exists, not that every UI option exists.
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
+    OperationDescriptor { id: "kernel.project.mesh", label: "Project to Polygon Mesh", category: "intersection", inputs: &["geometry", "target", "direction"], outputs: &["geometry"], status: OperationStatus::Partial },
+    OperationDescriptor { id: "kernel.project.nurbs", label: "Project to Rational NURBS", category: "intersection", inputs: &["geometry", "target", "direction"], outputs: &["geometry"], status: OperationStatus::Partial },
+    OperationDescriptor { id: "kernel.surface.flow_nurbs", label: "Flow Between Rational NURBS", category: "surface", inputs: &["geometry", "base", "target"], outputs: &["geometry"], status: OperationStatus::Partial },
     OperationDescriptor {
         id: "kernel.array.linear",
         label: "Linear Array",

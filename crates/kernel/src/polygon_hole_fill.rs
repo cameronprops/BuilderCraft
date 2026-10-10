@@ -11,6 +11,15 @@ pub struct PolygonFillResult {
     pub boundary_vertices: Vec<u32>,
     pub new_face_indices: Vec<u32>,
 }
+/// A projection direction is not a command to move existing scan vertices.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum HoleFillMode {
+    Planar,
+    AverageNormal,
+    Direction { vector: Vec3 },
+}
+
 fn norm(v: Vec3) -> f64 {
     v.x.hypot(v.y).hypot(v.z)
 }
@@ -151,6 +160,20 @@ fn triangulate_loop(ids: &[u32], points: &[Vec2], extent: f64) -> Result<Vec<[u3
 /// are rejected by comparing loop winding with adjacent polygon orientation.
 /// Does not support nonplanar holes, global 3D intersection repair or fairing.
 pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision: u64, loop_index: u32) -> Result<PolygonFillResult> {
+    polygon_mesh_fill_hole_mode(mesh, revision, picked_revision, loop_index, HoleFillMode::Planar)
+}
+
+/// Triangulate in the average oriented boundary plane or an explicit projection
+/// direction. Triangles retain the existing 3D boundary vertices and can be
+/// nonplanar; the operation never flattens or moves neighboring scan geometry.
+/// Rejected when projection overlaps, vanishes or opposes neighboring faces.
+pub fn polygon_mesh_fill_hole_mode(
+    mesh: &PolygonMesh,
+    revision: u64,
+    picked_revision: u64,
+    loop_index: u32,
+    mode: HoleFillMode,
+) -> Result<PolygonFillResult> {
     if revision != picked_revision {
         return Err(KernelError::Conflict { expected: picked_revision, actual: revision });
     }
@@ -180,10 +203,26 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
     if !extent.is_finite() || extent <= f64::EPSILON || norm(area) <= 1e-12 * extent * extent {
         return Err(KernelError::Invalid("degenerate boundary"));
     }
-    let normal = area * (1.0 / norm(area));
-    for &id in ids {
-        if (mesh.vertices[id as usize] - origin).dot(normal).abs() > 1e-7 * extent {
-            return Err(KernelError::Invalid("nonplanar boundary"));
+    let average_normal = area * (1.0 / norm(area));
+    let normal = match mode {
+        HoleFillMode::Planar | HoleFillMode::AverageNormal => average_normal,
+        HoleFillMode::Direction { vector } => {
+            let length = norm(vector);
+            if !length.is_finite() || length < 1e-12 {
+                return Err(KernelError::Invalid("invalid hole projection direction"));
+            }
+            let unit = vector * (1.0 / length);
+            if unit.dot(average_normal) <= 0.1 {
+                return Err(KernelError::Invalid("projection direction opposes boundary orientation"));
+            }
+            unit
+        }
+    };
+    if matches!(mode, HoleFillMode::Planar) {
+        for &id in ids {
+            if (mesh.vertices[id as usize] - origin).dot(normal).abs() > 1e-7 * extent {
+                return Err(KernelError::Invalid("nonplanar boundary"));
+            }
         }
     }
     let points = project_loop(mesh, ids, normal, origin);
@@ -196,7 +235,7 @@ pub fn polygon_mesh_fill_hole(mesh: &PolygonMesh, revision: u64, picked_revision
         let b = mesh.vertices[face[1] as usize];
         let c = mesh.vertices[face[2] as usize];
         let facing = (b - a).cross(c - a);
-        if norm(facing) <= f64::EPSILON || facing.dot(normal) / norm(facing) >= -0.9 {
+        if norm(facing) <= f64::EPSILON || facing.dot(normal) / norm(facing) >= if matches!(mode, HoleFillMode::Planar) { -0.9 } else { -0.1 } {
             return Err(KernelError::Invalid("exterior or nonplanar surrounding face"));
         }
     }
@@ -338,5 +377,30 @@ mod tests {
         assert!(polygon_mesh_boundary_loops(&filled.mesh).is_ok_and(|report| {
             report.closed_loops.len() == 1 && report.non_manifold_edges.is_empty() && report.inconsistent_winding_edges.is_empty()
         }));
+    }
+
+    #[test]
+    fn warped_hole_supports_average_and_direction_without_moving_boundary() {
+        let mut mesh = ring();
+        mesh.vertices[4].z = 0.15;
+        mesh.vertices[6].z = -0.15;
+        assert!(polygon_mesh_fill_hole(&mesh, 7, 7, inner(&mesh)).is_err());
+        for mode in [
+            HoleFillMode::AverageNormal,
+            HoleFillMode::Direction { vector: Vec3::new(0., 0., -1.) },
+        ] {
+            let result = polygon_mesh_fill_hole_mode(&mesh, 7, 7, inner(&mesh), mode).unwrap();
+            assert_eq!(result.mesh.vertices, mesh.vertices);
+            assert_eq!(result.mesh.faces.len(), mesh.faces.len() + 2);
+            assert!(polygon_mesh_topology(&result.mesh).is_ok_and(|t| t.inconsistent_winding_edges.is_empty()));
+        }
+    }
+
+    #[test]
+    fn projected_mode_rejects_zero_and_reversed_directions() {
+        let mesh = ring();
+        for vector in [Vec3::ZERO, Vec3::new(f64::NAN, 0., 1.), Vec3::new(0., 0., 1.)] {
+            assert!(polygon_mesh_fill_hole_mode(&mesh, 2, 2, inner(&mesh), HoleFillMode::Direction { vector }).is_err());
+        }
     }
 }

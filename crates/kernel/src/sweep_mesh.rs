@@ -115,8 +115,8 @@ pub fn sweep2_mesh(rail_a: &[Vec3], rail_b: &[Vec3], section: &[Vec3], stations:
     if start.x.abs() > 1e-8 || end.x - 1. > 1e-8 || (end.x - 1.).abs() > 1e-8 || start.y.abs() > 1e-8 || end.y.abs() > 1e-8 {
         return Err(KernelError::Invalid("sweep2 section endpoints must meet the rails"));
     }
-    let a = sample_rail(rail_a, stations, Vec3::Z).or_else(|_| sample_rail(rail_a, stations, Vec3::Y))?;
-    let b = sample_rail(rail_b, stations, Vec3::Z).or_else(|_| sample_rail(rail_b, stations, Vec3::Y))?;
+    let a = sample_rail(rail_a, stations, Vec3::Z).or_else(|_| sample_rail(rail_a, stations, Vec3::new(0., 1., 0.)))?;
+    let b = sample_rail(rail_b, stations, Vec3::Z).or_else(|_| sample_rail(rail_b, stations, Vec3::new(0., 1., 0.)))?;
     let mut rows = Vec::new();
     for (left, right) in a.iter().zip(b.iter()) {
         let lateral = right.origin - left.origin;

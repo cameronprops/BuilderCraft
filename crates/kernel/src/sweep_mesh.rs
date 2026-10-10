@@ -258,6 +258,6 @@ mod tests {
     fn rejects_invalid_pipe_without_partial_mesh() {
         let rail = [p(0., 0., 0.), p(1., 0., 0.)];
         assert!(pipe_mesh(&rail, Vec3::Z, 1., 1., 2., 2, 12, true).is_err());
-        assert!(pipe_mesh(&rail, Vec3::X, 1., 1., 0., 2, 12, true).is_err());
+        assert!(pipe_mesh(&rail, Vec3::new(1., 0., 0.), 1., 1., 0., 2, 12, true).is_err());
     }
 }

@@ -1,0 +1,25 @@
+name: OpenCascade exact BRep production candidate probe
+on:
+  push:
+    branches: [evaluation/occt-exact-brep-golden]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: occt-brep-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-brep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt
+      - name: Install OCCT source-build requirements
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build pkg-config libfreetype-dev libx11-dev libxext-dev libgl1-mesa-dev
+      - name: Validate exact BRep box boolean and roundtrip fixtures
+        run: cargo test --manifest-path evaluations/occt/Cargo.toml -- --nocapture

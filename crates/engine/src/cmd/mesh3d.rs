@@ -469,6 +469,31 @@ mod tests {
         assert_eq!(s.doc().unwrap().mesh3d[0].mesh.as_ref(), original.as_ref());
     }
     #[test]
+    fn curvature_patch_preview_reports_interior_vertices_and_is_undoable() {
+        let (mut s, id) = session();
+        let before = s.doc().unwrap().mesh3d[0].mesh.clone();
+        let revision = s.state().unwrap().revision;
+        let report = s.execute("mesh3d.boundaries", &json!({"id":id})).unwrap();
+        let loop_index = report["report"]["closed_loops"].as_array().unwrap().iter()
+            .position(|entry| entry["vertices"].as_array().is_some_and(|ids| ids.iter().all(|v| v.as_u64().is_some_and(|n| n >= 4))))
+            .unwrap();
+        let mode = json!({"mode":"curvature_smooth","refinement_levels":2,"smoothing_iterations":12,
+            "tangent_weight":0.5,"max_interior_offset":0.1});
+        let preview = s.execute("mesh3d.fill_preview", &json!({
+            "id":id,"loop_index":loop_index,"selected_revision":revision,"mode":mode
+        })).unwrap();
+        assert_eq!(preview["interior_vertices_added"], 8);
+        assert_eq!(preview["new_face_indices"].as_array().unwrap().len(), 18);
+        assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
+        s.execute("mesh3d.edit", &json!({
+            "id":id,"edit":{"kind":"fill_hole","selected_revision":revision,"loop_index":loop_index,"mode":mode}
+        })).unwrap();
+        assert_eq!(s.doc().unwrap().mesh3d[0].mesh.vertices.len(), before.vertices.len() + 8);
+        s.undo().unwrap();
+        assert!(Arc::ptr_eq(&s.doc().unwrap().mesh3d[0].mesh, &before));
+    }
+
+    #[test]
     fn advanced_hole_preview_does_not_edit_and_commit_is_undoable() {
         let mut s = Session::new();
         let mut source = ring();

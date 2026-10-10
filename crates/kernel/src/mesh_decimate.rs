@@ -99,16 +99,17 @@ impl Quadric {
             }
             a.swap(pivot, col);
             let denom = a[col][col];
-            for j in col..4 {
-                a[col][j] /= denom;
+            for value in &mut a[col][col..] {
+                *value /= denom;
             }
-            for i in 0..3 {
+            let pivot_row = a[col];
+            for (i, row) in a.iter_mut().enumerate() {
                 if i == col {
                     continue;
                 }
-                let factor = a[i][col];
-                for j in col..4 {
-                    a[i][j] -= factor * a[col][j];
+                let factor = row[col];
+                for (value, basis) in row[col..].iter_mut().zip(&pivot_row[col..]) {
+                    *value -= factor * basis;
                 }
             }
         }
@@ -338,13 +339,13 @@ fn add_edges(heap: &mut BinaryHeap<Candidate>, work: &Work, vertices: &BTreeSet<
         }
     }
     for (a, b) in edges {
-        if let Some(c) = work.candidate(a, b) {
-            if c.error <= max_error {
-                if heap.len() >= MAX_HEAP {
-                    return Err(KernelError::Budget);
-                }
-                heap.push(c);
+        if let Some(c) = work.candidate(a, b)
+            && c.error <= max_error
+        {
+            if heap.len() >= MAX_HEAP {
+                return Err(KernelError::Budget);
             }
+            heap.push(c);
         }
     }
     Ok(())
@@ -441,13 +442,13 @@ pub fn mesh_quadric_decimate(mesh: &TriangleMesh, options: MeshDecimateOptions) 
     }
     let mut heap = BinaryHeap::new();
     for &(a, b) in edge_faces.keys() {
-        if let Some(candidate) = work.candidate(a, b) {
-            if candidate.error <= options.max_quadric_error {
-                if heap.len() >= MAX_HEAP {
-                    return Err(KernelError::Budget);
-                }
-                heap.push(candidate);
+        if let Some(candidate) = work.candidate(a, b)
+            && candidate.error <= options.max_quadric_error
+        {
+            if heap.len() >= MAX_HEAP {
+                return Err(KernelError::Budget);
             }
+            heap.push(candidate);
         }
     }
     let mut remaining = mesh.triangles.len();

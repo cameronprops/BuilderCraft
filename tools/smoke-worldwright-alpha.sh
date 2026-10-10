@@ -53,6 +53,7 @@ PY
 
 echo "[alpha] UI workspace transition and headless kernel integration"
 cargo test --locked -p cadcraft-ui-egui workspace::tests
+cargo test --locked -p cadcraft-ui-egui command_palette::tests
 cargo test --locked -p buildercraft-kernel --test mesh_scene
 cargo test --locked -p orbweaver
 echo "[alpha] Compiled headless smoke passed; graphical usability remains a separate manual acceptance gate."

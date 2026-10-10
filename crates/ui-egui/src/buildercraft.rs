@@ -130,6 +130,22 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
         egui::CollapsingHeader::new("Polygon mesh repair").id_salt(("mesh", object.id)).show(ui, |ui| {
             ui.label(format!("{} vertices, {} native faces", object.mesh.vertices.len(), object.mesh.faces.len()));
             ui.small("Click a visible polygon face in the 3D viewport, or enter its index.");
+            ui.horizontal(|ui| {
+                if ui.button("Inspect topology").on_hover_text("Highlight non-manifold mesh vertices in the viewport").clicked() {
+                    let _ = inspect_mesh(app, object.id);
+                }
+                if app.ui.mesh_defects.as_ref().is_some_and(|overlay| overlay.object_id == object.id) && ui.button("Clear highlights").clicked() {
+                    app.ui.mesh_defects = None;
+                }
+            });
+            if let Some(overlay) = current_mesh_defects(app, object.id) {
+                ui.label(format!("{} non-manifold vertices", overlay.vertices.len()));
+                if overlay.vertices.len() > 2_048 {
+                    ui.small("Viewport displays at most 2048 defect markers.");
+                }
+            } else if app.ui.mesh_defects.as_ref().is_some_and(|overlay| overlay.object_id == object.id) {
+                ui.label("Topology inspection is stale — inspect again.");
+            }
             let live_revision = app.session.state().ok().map(|s| s.revision);
             if app.ui.mesh_face_object_id == Some(object.id) && app.ui.mesh_face_revision.is_some() {
                 if picked_face_is_current(app, object.id) {
@@ -211,6 +227,71 @@ fn show_node(app: &mut CadApp, ui: &mut egui::Ui, nodes: &[ModelNode], node: &Mo
             show_node(app, ui, nodes, child, depth + 1);
         }
     });
+}
+
+/// Non-persistent, revision-bound overlay. Vertex indices are transient; neither
+/// the geometry nor the document selection is modified by inspection.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MeshDefectOverlay {
+    pub object_id: u64,
+    pub document_uid: u64,
+    pub revision: u64,
+    /// Sorted, unique source polygon vertex indices.
+    pub vertices: Vec<u32>,
+}
+
+fn current_mesh_defects(app: &CadApp, id: u64) -> Option<&MeshDefectOverlay> {
+    let overlay = app.ui.mesh_defects.as_ref()?;
+    if overlay.object_id != id {
+        return None;
+    }
+    let state = app.session.state().ok()?;
+    (overlay.document_uid == state.uid && overlay.revision == state.revision).then_some(overlay)
+}
+
+/// Fetches non-manifold indexed vertices through the headless engine service.
+/// Keeps its results transient and never advances document revision/undo.
+fn inspect_mesh(app: &mut CadApp, id: u64) -> Result<usize, String> {
+    let before = app.session.state().map_err(|e| e.to_string())?;
+    let document_uid = before.uid;
+    let revision = before.revision;
+    let report = app.run("mesh3d.topology", json!({"id":id}))?;
+    let source_revision = report["source_revision"].as_u64().ok_or("Topology report missing source revision")?;
+    let selected = report["selected_vertices"].as_array().ok_or("Topology report missing vertex IDs")?;
+    if selected.len() > 100_000 {
+        return Err("Topology inspection exceeds viewport vertex budget".into());
+    }
+    let mut vertices: Vec<u32> = selected
+        .iter()
+        .map(|value| value.as_u64().and_then(|n| u32::try_from(n).ok()))
+        .collect::<Option<Vec<_>>>()
+        .ok_or("Topology inspection returned invalid vertex IDs")?;
+    vertices.sort_unstable();
+    vertices.dedup();
+    let after = app.session.state().map_err(|e| e.to_string())?;
+    if source_revision != revision || after.uid != document_uid || after.revision != revision {
+        return Err("Topology report is stale; inspect again".into());
+    }
+    let count = vertices.len();
+    app.ui.mesh_defects = Some(MeshDefectOverlay { object_id: id, document_uid, revision, vertices });
+    app.ui.view3d = true;
+    app.set_status(format!("{count} non-manifold vertices highlighted"));
+    Ok(count)
+}
+
+/// Return only inspected vertices attached to visible face geometry. A mesh
+/// face outside the global wireframe budget must not acquire a visible marker.
+/// No geometry mutation occurs and no indexed sub-selection is persisted.
+fn visible_defect_vertices(mesh: &buildercraft_kernel::PolygonMesh, drawn_faces: usize, defects: &[u32]) -> Vec<u32> {
+    let mut visible = std::collections::BTreeSet::new();
+    for face in mesh.faces.iter().take(drawn_faces) {
+        for vertex in face.indices() {
+            if defects.binary_search(&vertex).is_ok() {
+                visible.insert(vertex);
+            }
+        }
+    }
+    visible.into_iter().collect()
 }
 
 fn clear_picked_mesh_face(app: &mut CadApp) {
@@ -429,6 +510,19 @@ pub fn viewport3d(app: &mut CadApp, ui: &mut egui::Ui) {
                     let a = object.mesh.vertices[corners[side] as usize];
                     let b = object.mesh.vertices[corners[(side + 1) % corners.len()] as usize];
                     painter.line_segment([project(a), project(b)], stroke);
+                }
+            }
+            if let Some(overlay) = current_mesh_defects(app, object.id) {
+                // No off-budget face may contribute a marker. The overlay does
+                // not imply depth-buffer occlusion in this wireframe viewport.
+                let defects = visible_defect_vertices(&object.mesh, visible_faces, &overlay.vertices);
+                let marker = egui::Color32::from_rgb(255, 75, 115);
+                for vertex in defects.into_iter().take(2_048) {
+                    if let Some(point) = object.mesh.vertices.get(vertex as usize) {
+                        let screen = project(*point);
+                        painter.circle_filled(screen, 4.5, marker);
+                        painter.circle_stroke(screen, 6.5, egui::Stroke::new(1.5, egui::Color32::WHITE));
+                    }
                 }
             }
         }
@@ -991,5 +1085,69 @@ mod mesh_ui_tests {
         assert_ne!(app.session.state().unwrap().uid, first_uid);
         app.ui.mesh_face_revision = Some(app.session.state().unwrap().revision);
         assert!(!picked_face_is_current(&app, id));
+    }
+}
+
+#[cfg(test)]
+mod topology_overlay_tests {
+    use super::*;
+    use buildercraft_kernel::{PolygonFace, PolygonMesh};
+    use cadcraft_geom::Vec3;
+
+    fn fixture() -> (CadApp, u64) {
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        let mesh = PolygonMesh {
+            vertices: vec![Vec3::new(0., 0., 0.), Vec3::new(2., 0., 0.), Vec3::new(0., 2., 0.), Vec3::new(-2., 0., 0.), Vec3::new(0., -2., 0.)],
+            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([0, 3, 4])],
+        };
+        let id = app.run("mesh3d.create", json!({"name":"Pinched surface", "mesh":mesh})).unwrap()["id"].as_u64().unwrap();
+        (app, id)
+    }
+
+    #[test]
+    fn inspection_is_revision_bound_and_does_not_mutate_geometry_or_undo() {
+        let (mut app, id) = fixture();
+        let before = app.session.doc().unwrap().mesh3d.clone();
+        let revision = app.session.state().unwrap().revision;
+        assert_eq!(inspect_mesh(&mut app, id), Ok(1));
+        assert_eq!(current_mesh_defects(&app, id).unwrap().vertices, vec![0]);
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.doc().unwrap().mesh3d, before);
+        let no_overlay_in_prefs = serde_json::to_value(&app.ui).unwrap();
+        assert!(no_overlay_in_prefs.get("meshDefects").is_none());
+        assert_eq!(visible_defect_vertices(&before[0].mesh, 1, &[0]), vec![0]);
+        assert_eq!(visible_defect_vertices(&before[0].mesh, 0, &[0]), Vec::<u32>::new());
+        app.run("mesh3d.set", json!({"id":id,"name":"Edited mesh"})).unwrap();
+        assert!(current_mesh_defects(&app, id).is_none());
+        app.run("undo", json!({})).unwrap();
+        assert!(current_mesh_defects(&app, id).is_none(), "undo must not resurrect a stale vertex pick");
+    }
+
+    #[test]
+    fn inspection_rejects_unknown_object_without_overwriting_good_overlay() {
+        let (mut app, id) = fixture();
+        assert_eq!(inspect_mesh(&mut app, id), Ok(1));
+        let recorded = app.ui.mesh_defects.clone();
+        assert!(inspect_mesh(&mut app, u64::MAX).is_err());
+        assert_eq!(app.ui.mesh_defects, recorded);
+        assert!(current_mesh_defects(&app, id).is_some());
+        assert!(current_mesh_defects(&app, id + 1).is_none());
+    }
+
+    #[test]
+    fn overlay_only_highlights_vertices_in_drawn_faces() {
+        let mesh = PolygonMesh {
+            vertices: vec![
+                Vec3::new(0., 0., 0.),
+                Vec3::new(1., 0., 0.),
+                Vec3::new(0., 1., 0.),
+                Vec3::new(4., 0., 0.),
+                Vec3::new(5., 0., 0.),
+                Vec3::new(4., 1., 0.),
+            ],
+            faces: vec![PolygonFace::Triangle([0, 1, 2]), PolygonFace::Triangle([3, 4, 5])],
+        };
+        assert_eq!(visible_defect_vertices(&mesh, 1, &[0, 3]), vec![0]);
+        assert_eq!(visible_defect_vertices(&mesh, 2, &[0, 3]), vec![0, 3]);
     }
 }

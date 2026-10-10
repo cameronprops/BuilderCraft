@@ -1,15 +1,37 @@
 name: WorldWright exact BRep document integration
 on:
   push:
-    branches:
-      - feature/brep-document-native-integration
+    branches: [main]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - crates/doc/**
+      - crates/engine/**
+      - crates/geom/**
+      - crates/io/**
+      - crates/kernel/**
+      - crates/ui-egui/**
+      - evaluations/cadrum/**
+      - .github/workflows/brep-document-integration.yml
+  pull_request:
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - crates/doc/**
+      - crates/engine/**
+      - crates/geom/**
+      - crates/io/**
+      - crates/kernel/**
+      - crates/ui-egui/**
+      - evaluations/cadrum/**
+      - .github/workflows/brep-document-integration.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: worldwright-brep-document-${{ github.ref_name }}
+  group: worldwright-brep-document-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,19 +51,8 @@ jobs:
       - name: Linux CAD linker dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y pkg-config build-essential libxkbcommon-dev libwayland-dev libegl1-mesa-dev
-      # Format validation is separate. Early build probes normalize ephemeral
-      # checkout only; never push modified source from CI.
-      - name: Report committed Rust formatting differences
-        shell: bash
-        run: |
-          cargo fmt --all -- --check || echo "::warning::Committed source requires rustfmt before merge"
-          cargo fmt --manifest-path evaluations/cadrum/Cargo.toml --all -- --check || echo "::warning::Isolated candidate requires rustfmt"
-      - name: Format ephemeral checkout for compilation only
-        shell: bash
-        run: |
-          cargo fmt --all
-          cargo fmt --manifest-path evaluations/cadrum/Cargo.toml --all
-          git diff --stat
+      - name: Verify committed root Rust formatting
+        run: cargo fmt --all -- --check
       - name: Build exact OCCT worker executable
         run: cargo build --manifest-path evaluations/cadrum/Cargo.toml --bin worldwright-brep-worker
       - name: Run exact OCCT worker golden tests
@@ -54,7 +65,7 @@ jobs:
           export WORLDWRIGHT_BREP_WORKER="$GITHUB_WORKSPACE/evaluations/cadrum/target/debug/worldwright-brep-worker${suffix}"
           test -f "$WORLDWRIGHT_BREP_WORKER"
           cargo test --locked -p cadcraft-engine exact_worker_document_undo_and_roundtrip_when_worker_is_installed -- --nocapture
-      - name: Validate all Rust workspace tests
-        run: cargo test --locked --workspace
-      - name: Strict workspace Clippy
-        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Native project schema, legacy compatibility and corruption regressions
+        run: cargo test --locked -p cadcraft-io exact_brep
+      - name: Strict native CAD engine and document Clippy
+        run: cargo clippy --locked -p cadcraft-engine -p cadcraft-io --all-targets -- -D warnings

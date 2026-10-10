@@ -297,7 +297,13 @@ mod tests {
     #[test]
     fn curvature_fill_keeps_outer_shell_and_rim_unchanged() {
         let source = ring();
-        let r = polygon_mesh_fill_hole_curvature(&source, 10, 10, inner(&source), CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 16, tangent_weight: 0.4, max_interior_offset: 0.5 });
+        let r = polygon_mesh_fill_hole_curvature(
+            &source,
+            10,
+            10,
+            inner(&source),
+            CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 16, tangent_weight: 0.4, max_interior_offset: 0.5 },
+        );
         assert!(r.is_ok(), "{r:?}");
         if let Ok(patch) = r {
             assert_eq!(&patch.mesh.vertices[..source.vertices.len()], &source.vertices);
@@ -313,7 +319,13 @@ mod tests {
     fn flat_rim_remains_flat_to_roundoff() {
         let mut source = ring();
         source.vertices[4].z = 0.0;
-        let r = polygon_mesh_fill_hole_curvature(&source, 0, 0, inner(&source), CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 18, tangent_weight: 0.8, max_interior_offset: 0.01 });
+        let r = polygon_mesh_fill_hole_curvature(
+            &source,
+            0,
+            0,
+            inner(&source),
+            CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 18, tangent_weight: 0.8, max_interior_offset: 0.01 },
+        );
         assert!(r.is_ok(), "{r:?}");
         if let Ok(patch) = r {
             for vertex in patch.mesh.vertices.iter().skip(source.vertices.len()) {
@@ -326,10 +338,55 @@ mod tests {
     fn rejects_excessive_offset_and_invalid_settings() {
         let source = ring();
         let i = inner(&source);
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 4, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 1. }).is_err());
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 0, tangent_weight: 0.4, max_interior_offset: 1. }).is_err());
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: f64::NAN, max_interior_offset: 1. }).is_err());
-        assert!(polygon_mesh_fill_hole_curvature(&source, 0, 0, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 0. }).is_err());
-        assert_eq!(polygon_mesh_fill_hole_curvature(&source, 2, 1, i, CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 1. }), Err(KernelError::Conflict { expected: 1, actual: 2 }));
+        assert!(
+            polygon_mesh_fill_hole_curvature(
+                &source,
+                0,
+                0,
+                i,
+                CurvatureFillOptions { refinement_levels: 4, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 1. }
+            )
+            .is_err()
+        );
+        assert!(
+            polygon_mesh_fill_hole_curvature(
+                &source,
+                0,
+                0,
+                i,
+                CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 0, tangent_weight: 0.4, max_interior_offset: 1. }
+            )
+            .is_err()
+        );
+        assert!(
+            polygon_mesh_fill_hole_curvature(
+                &source,
+                0,
+                0,
+                i,
+                CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: f64::NAN, max_interior_offset: 1. }
+            )
+            .is_err()
+        );
+        assert!(
+            polygon_mesh_fill_hole_curvature(
+                &source,
+                0,
+                0,
+                i,
+                CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 0. }
+            )
+            .is_err()
+        );
+        assert_eq!(
+            polygon_mesh_fill_hole_curvature(
+                &source,
+                2,
+                1,
+                i,
+                CurvatureFillOptions { refinement_levels: 2, smoothing_iterations: 8, tangent_weight: 0.4, max_interior_offset: 1. }
+            ),
+            Err(KernelError::Conflict { expected: 1, actual: 2 })
+        );
     }
 }

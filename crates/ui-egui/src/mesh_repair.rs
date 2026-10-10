@@ -13,7 +13,7 @@ pub const MESH: Color32 = Color32::from_rgb(131, 150, 161);
 pub const PICK: Color32 = Color32::from_rgb(255, 179, 77);
 pub const PATCH: Color32 = Color32::from_rgb(100, 225, 185);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HolePatchPreview {
     pub object_id: u64,
     pub uid: u64,

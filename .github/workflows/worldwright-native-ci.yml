@@ -42,6 +42,8 @@ jobs:
         run: cargo test --locked --workspace
       - name: Build native CAD and CLI
         run: cargo build --locked -p cadcraft -p cadcraft-cli
+      - name: Exercise compiled alpha CLI, desktop binary and project roundtrip
+        run: python3 tools/alpha_compiled_smoke.py target/debug/cadcraft-cli target/debug/cadcraft
       - name: Lint all Rust targets
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
 

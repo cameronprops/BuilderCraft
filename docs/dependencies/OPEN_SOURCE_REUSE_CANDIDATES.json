@@ -309,6 +309,34 @@
         "benchmark_against_existing": false,
         "acceptance_test_passed": false
       }
+    },
+    {
+      "repository": "FreeCAD/FreeCAD",
+      "url": "https://github.com/FreeCAD/FreeCAD",
+      "declared_license": "LGPL-2.1-or-later (repository; verify per-file notices)",
+      "status": "evaluated_not_integrated",
+      "placement": "crates/constraints; crates/engine; evaluations/cadrum",
+      "rationale": "Compare Sketcher constrained sketches, PartDesign additive/subtractive features and TopoShape naming with Worldwright's shared Rust commands and existing OCCT worker. Reuse narrowly scoped algorithms/fixtures only when accuracy improves; do not import Qt/Coin3D or duplicate BRep kernels.",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
+    },
+    {
+      "repository": "storytold/artcraft",
+      "url": "https://github.com/storytold/artcraft",
+      "declared_license": "MIT OR Apache-2.0 (current main; file-specific NOTICE and assets)",
+      "status": "evaluated_not_integrated",
+      "placement": "crates/ui-egui; optional bounded media/scene preview cache",
+      "rationale": "ArtCraft Native uses compatible egui 0.36; investigate detached background work, bounded preview-cache eviction and panel UX. No whole app, Tokio/http/network backends, branded assets or duplicate renderer. Main at 28a39a0de4a2fc2eccc237df2046c24245bd12ab.",
+      "verification": {
+        "repository_license_checked": true,
+        "transitive_license_audit": false,
+        "benchmark_against_existing": false,
+        "acceptance_test_passed": false
+      }
     }
   ],
   "policy": {

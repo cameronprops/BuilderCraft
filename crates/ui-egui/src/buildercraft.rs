@@ -1109,10 +1109,13 @@ mod brep_selection_tests {
             edges: 3,
         });
         let state = app.session.state().unwrap();
-        let proxy = json!({"mesh":{"exact":false,
+        let mut proxy = json!({"mesh":{"exact":false,
             "vertices":[[0.,0.,2.],[10.,0.,2.],[0.,10.,2.]],
             "normals":[[0.,0.,1.],[0.,0.,1.],[0.,0.,1.]],
             "indices":[0,1,2],"edge_chains":[]}});
+        for vertex in proxy["mesh"]["vertices"].as_array_mut().unwrap() {
+            vertex[2] = json!(height);
+        }
         crate::brep_display::insert_preview(&mut app.ui.brep_previews, BrepPreview::from_worker(&proxy, state.uid, state.revision, id).unwrap())
             .unwrap();
     }
@@ -1143,10 +1146,6 @@ mod brep_selection_tests {
         select_3d_at(&mut app, viewport, cursor, false);
         assert!(app.session.selection().is_empty());
         app.session.doc_mut().unwrap().exact_breps[0].visible = true;
-        let mut proxy = proxy;
-        for vertex in proxy["mesh"]["vertices"].as_array_mut().unwrap() {
-            vertex[2] = json!(height);
-        }
         app.ui.brep_previews[0].source_revision += 1;
         select_3d_at(&mut app, viewport, cursor, false);
         assert!(app.session.selection().is_empty());

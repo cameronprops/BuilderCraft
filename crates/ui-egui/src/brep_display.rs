@@ -121,12 +121,12 @@ pub fn insert_preview(previews: &mut Vec<BrepPreview>, preview: BrepPreview) -> 
     let mut objects = 1usize;
     let mut vertices = preview.mesh.vertices.len();
     let mut triangles = preview.mesh.triangles.len();
-    let mut wires = preview.mesh.edge_chains.iter().map(Vec::len).sum::<usize>();
+    let mut wires = preview.mesh.edge_chains.iter().map(|chain| chain.len()).sum::<usize>();
     for old in previews.iter().filter(|p| p.current(preview.document_uid, preview.source_revision) && p.object_id != preview.object_id) {
         objects += 1;
         vertices += old.mesh.vertices.len();
         triangles += old.mesh.triangles.len();
-        wires += old.mesh.edge_chains.iter().map(Vec::len).sum::<usize>();
+        wires += old.mesh.edge_chains.iter().map(|chain| chain.len()).sum::<usize>();
     }
     if objects > MAX_CACHED_SOLIDS || vertices > MAX_SCENE_VERTICES || triangles > MAX_SCENE_TRIANGLES || wires > MAX_SCENE_WIRE_POINTS {
         return Err("exact BRep scene preview budget exceeded; clear some previews before loading another".into());
@@ -295,6 +295,21 @@ mod tests {
         assert_eq!(&meshes[0].indices[..3], &[0, 1, 2], "rear triangle must draw first");
         assert_eq!(&meshes[0].indices[3..], &[3, 4, 5], "front triangle draws last");
         output.textures_delta.clear();
+    }
+
+    #[test]
+    fn wire_budget_counts_points_across_loaded_solids_not_chain_count() {
+        let mut fixture = triangle();
+        // Each preview fits its individual 50K-point cap. Both together
+        // exceed the global 80K scene budget despite having just two chains.
+        fixture["mesh"]["edge_chains"] = json!([vec![[0., 0., 2.]; 40_100]]);
+        let first = BrepPreview::from_worker(&fixture, 1, 2, 1).unwrap();
+        let second = BrepPreview::from_worker(&fixture, 1, 2, 2).unwrap();
+        let mut previews = Vec::new();
+        insert_preview(&mut previews, first).unwrap();
+        assert!(insert_preview(&mut previews, second).is_err());
+        assert_eq!(previews.len(), 1, "rejected preview must leave prior scene intact");
+        assert_eq!(previews[0].object_id, 1);
     }
 
     #[test]

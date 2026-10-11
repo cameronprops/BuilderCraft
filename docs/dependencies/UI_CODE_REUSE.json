@@ -85,6 +85,23 @@
       "destinations": [],
       "notices": [],
       "decision": "Separate public website repository. MIT on website assets or code does not license Tenzen's photo editor or establish shared ownership."
+    },
+    {
+      "id": "artcraft-native-reuse-candidate",
+      "name": "ArtCraft Native egui front end",
+      "url": "https://github.com/storytold/artcraft",
+      "license": "MIT OR Apache-2.0 (repository code; third-party assets governed separately)",
+      "license_evidence": "https://github.com/storytold/artcraft/blob/main/README.md",
+      "reuse_mode": "reference_only",
+      "source_access": "source_available",
+      "source_revision": "28a39a0de4a2fc2eccc237df2046c24245bd12ab",
+      "destinations": [],
+      "notices": [
+        "LICENSE-MIT",
+        "LICENSE-APACHE",
+        "NOTICE"
+      ],
+      "decision": "Inspected artcraft-native/src/backend/media_cache.rs and artcraft-native/src/theme.rs: bounded asynchronous media-cache lifetime and egui UI patterns could improve Worldwright without importing ArtCraft's Tauri/Tokio/network stack. No source copied yet; prototype isolated adapters and measure memory/latency first. Trademarks/fonts/icons excluded."
     }
   ],
   "copy_requirements": {

@@ -75,9 +75,9 @@ pub struct UiState {
     pub mesh_face_object_id: Option<u64>,
     pub mesh_face_document_uid: Option<u64>,
     pub mesh_face_revision: Option<u64>,
-    /// Transient, bounded and revision-scoped shaded BRep proxy, not exact source geometry.
+    /// Transient bounded multi-solid shaded BRep cache, never exact source geometry.
     #[serde(skip)]
-    pub brep_preview: Option<buildercraft::BrepPreview>,
+    pub brep_previews: Vec<buildercraft::BrepPreview>,
     /// Transient gizmo drag state must not be serialized with UI preferences.
     #[serde(skip)]
     pub gizmo: gizmo::Gizmo,
@@ -135,7 +135,7 @@ impl Default for UiState {
             mesh_face_object_id: None,
             mesh_face_document_uid: None,
             mesh_face_revision: None,
-            brep_preview: None,
+            brep_previews: Vec::new(),
             gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,

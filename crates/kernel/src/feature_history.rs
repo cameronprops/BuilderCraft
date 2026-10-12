@@ -5,6 +5,7 @@
 use crate::{
     KernelError, Result, ToolValue, TreeMatchPolicy, shared_tool, shared_tool_value_cost, tool_output_may_match_port, tool_value_matches_port,
 };
+use worldwright_freecad_graph::affected_nodes;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -5,9 +5,9 @@
 use crate::{
     KernelError, Result, ToolValue, TreeMatchPolicy, shared_tool, shared_tool_value_cost, tool_output_may_match_port, tool_value_matches_port,
 };
-use worldwright_freecad_graph::affected_nodes;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use worldwright_freecad_graph::affected_nodes;
 
 pub const MAX_HISTORY_SCOPES: usize = 256;
 pub const MAX_HISTORY_STEPS: usize = 512;
@@ -151,21 +151,14 @@ impl FeatureTimeline {
             _ => {}
         }
 
-        let positions: BTreeMap<u64, usize> = self
-            .steps
-            .iter()
-            .enumerate()
-            .map(|(index, step)| (step.id, index))
-            .collect();
+        let positions: BTreeMap<u64, usize> = self.steps.iter().enumerate().map(|(index, step)| (step.id, index)).collect();
         let mut roots = Vec::new();
         let mut edges = Vec::new();
 
         for (index, step) in self.steps.iter().enumerate() {
             match &source {
                 FeatureImpactSource::Parameter(name) => {
-                    if step.inputs.values().any(|input| {
-                        matches!(input, FeatureInput::Parameter { name: parameter } if parameter == name)
-                    }) {
+                    if step.inputs.values().any(|input| matches!(input, FeatureInput::Parameter { name: parameter } if parameter == name)) {
                         roots.push(index);
                     }
                 }
@@ -174,9 +167,7 @@ impl FeatureTimeline {
             }
             for input in step.inputs.values() {
                 if let FeatureInput::PreviousFeature { id } = input {
-                    let prerequisite = positions
-                        .get(id)
-                        .ok_or(KernelError::Invalid("feature reference disappeared"))?;
+                    let prerequisite = positions.get(id).ok_or(KernelError::Invalid("feature reference disappeared"))?;
                     edges.push((*prerequisite, index));
                 }
             }
@@ -185,24 +176,12 @@ impl FeatureTimeline {
         // FreeCAD's iterative dependency traversal is isolated in its own
         // LGPL module, shared by all host interfaces. Validate first so the
         // history's chronological reference restriction remains authoritative.
-        let affected = affected_nodes(self.steps.len(), &edges, &roots).map_err(|error| {
-            match error {
-                worldwright_freecad_graph::WalkError::InvalidNode => {
-                    KernelError::Invalid("invalid history dependency index")
-                }
-                worldwright_freecad_graph::WalkError::Budget => KernelError::Budget,
-            }
+        let affected = affected_nodes(self.steps.len(), &edges, &roots).map_err(|error| match error {
+            worldwright_freecad_graph::WalkError::InvalidNode => KernelError::Invalid("invalid history dependency index"),
+            worldwright_freecad_graph::WalkError::Budget => KernelError::Budget,
         })?;
-        let affected_steps = affected
-            .into_iter()
-            .filter_map(|index| self.steps.get(index).map(|step| step.id))
-            .collect();
-        Ok(FeatureImpact {
-            scope: self.scope.clone(),
-            revision: self.revision,
-            source,
-            affected_steps,
-        })
+        let affected_steps = affected.into_iter().filter_map(|index| self.steps.get(index).map(|step| step.id)).collect();
+        Ok(FeatureImpact { scope: self.scope.clone(), revision: self.revision, source, affected_steps })
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -315,57 +294,29 @@ mod impact_tests {
     }
 
     fn constant() -> FeatureInput {
-        FeatureInput::Constant {
-            value: ToolValue::Point(Vec3::ZERO),
-        }
+        FeatureInput::Constant { value: ToolValue::Point(Vec3::ZERO) }
     }
 
     #[test]
     fn impact_reports_only_transitive_dependents_in_timeline_order() {
         let mut history = FeatureTimeline::new(FeatureScope::Document).unwrap();
-        history
-            .parameters
-            .insert("width".into(), ToolValue::Point(Vec3::ZERO));
-        history
-            .parameters
-            .insert("unused".into(), ToolValue::Point(Vec3::ZERO));
+        history.parameters.insert("width".into(), ToolValue::Point(Vec3::ZERO));
+        history.parameters.insert("unused".into(), ToolValue::Point(Vec3::ZERO));
         history.steps = vec![
-            midpoint(
-                10,
-                FeatureInput::Parameter {
-                    name: "width".into(),
-                },
-                constant(),
-            ),
-            midpoint(
-                20,
-                FeatureInput::PreviousFeature { id: 10 },
-                constant(),
-            ),
+            midpoint(10, FeatureInput::Parameter { name: "width".into() }, constant()),
+            midpoint(20, FeatureInput::PreviousFeature { id: 10 }, constant()),
             midpoint(30, constant(), constant()),
-            midpoint(
-                40,
-                FeatureInput::PreviousFeature { id: 20 },
-                constant(),
-            ),
+            midpoint(40, FeatureInput::PreviousFeature { id: 20 }, constant()),
         ];
         history.steps[1].suppressed = true;
         history.rollback_after = Some(20);
 
-        let parameter = history
-            .impact(FeatureImpactSource::Parameter("width".into()))
-            .unwrap();
+        let parameter = history.impact(FeatureImpactSource::Parameter("width".into())).unwrap();
         assert_eq!(parameter.affected_steps, vec![10, 20, 40]);
         assert_eq!(parameter.revision, 0);
         assert_eq!(history.impact(FeatureImpactSource::Step(20)).unwrap().affected_steps, vec![20, 40]);
         assert_eq!(history.impact(FeatureImpactSource::Step(30)).unwrap().affected_steps, vec![30]);
-        assert!(
-            history
-                .impact(FeatureImpactSource::Parameter("unused".into()))
-                .unwrap()
-                .affected_steps
-                .is_empty()
-        );
+        assert!(history.impact(FeatureImpactSource::Parameter("unused".into())).unwrap().affected_steps.is_empty());
         assert!(history.impact(FeatureImpactSource::Parameter("missing".into())).is_err());
         assert!(history.impact(FeatureImpactSource::Step(999)).is_err());
         assert_eq!(history.steps.len(), 4);

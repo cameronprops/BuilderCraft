@@ -1,0 +1,12 @@
+[package]
+name = "worldwright-freecad-graph"
+description = "Small LGPL FreeCAD-derived iterative document dependency walker for Worldwright"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "LGPL-2.1-or-later"
+repository = "https://github.com/cameronprops/BuilderCraft"
+readme = "README.md"
+
+[lints]
+workspace = true

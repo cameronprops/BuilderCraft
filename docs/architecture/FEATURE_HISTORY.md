@@ -119,8 +119,10 @@ Then append a driven operation:
 
 Before editing a parameter or feature, a read-only query can report the
 transitive set of potentially affected steps, inspired by FreeCAD's dependency
-graph. This uses the existing ordered history references rather than creating
-another parametric engine:
+graph. This uses an isolated LGPL-2.1-or-later Rust adaptation of FreeCAD's
+`DocumentObject::getInListEx` dependency traversal (`crates/freecad-graph`)
+over the existing ordered history references, rather than creating another
+parametric engine:
 
 ```json
 {"command":"worldwright.history.impact","params":{"scope":{"kind":"document"},"source":{"kind":"parameter","id":"width"}}}

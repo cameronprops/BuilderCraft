@@ -2,7 +2,7 @@
 //! document state; feature math is executed only by the shared kernel (also
 //! used by OrbWeaver). No unsupported solid features are marked executable.
 use super::*;
-use buildercraft_kernel::{FeatureHistoryEdit, FeatureScope, FeatureTimeline};
+use buildercraft_kernel::{FeatureHistoryEdit, FeatureImpactSource, FeatureScope, FeatureTimeline};
 use serde_json::{Value, json};
 
 pub fn specs() -> Vec<CommandSpec> {
@@ -13,6 +13,8 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{scope,expected_revision,change:{edit:append|set_parameter|set_input|set_suppressed|reorder|set_rollback,...}}"),
         CommandSpec::new("worldwright.history.list", "List Feature Timelines", list).noundo(),
         CommandSpec::new("worldwright.history.inspect", "Inspect Feature Timeline", inspect).params("{scope}").noundo(),
+        CommandSpec::new("worldwright.history.impact", "Preview Feature Dependencies", impact)
+            .params("{scope,source:{kind:parameter|step,id:string|number}}").noundo(),
         CommandSpec::new("worldwright.history.evaluate", "Recompute Feature Timeline", evaluate).params("{scope}").noundo(),
     ]
 }
@@ -80,6 +82,20 @@ fn inspect(session: &mut Session, p: &Value) -> Result<Value> {
     let scope = scope_from(session, p)?;
     serde_json::to_value(find(session.doc()?, &scope)?).map_err(|e| bad("worldwright.history.inspect", e.to_string()))
 }
+/// Read-only dependency analysis. Includes suppressed and rolled-back descendants;
+/// unlike evaluate, this does not execute geometric operations.
+fn impact(session: &mut Session, p: &Value) -> Result<Value> {
+    let scope = scope_from(session, p)?;
+    let source: FeatureImpactSource = serde_json::from_value(
+        p.get("source").cloned().ok_or_else(|| bad("worldwright.history.impact", "source is required"))?,
+    )
+    .map_err(|e| bad("worldwright.history.impact", e.to_string()))?;
+    let report = find(session.doc()?, &scope)?
+        .impact(source)
+        .map_err(|e| bad("worldwright.history.impact", e.to_string()))?;
+    serde_json::to_value(report).map_err(|e| bad("worldwright.history.impact", e.to_string()))
+}
+
 fn evaluate(session: &mut Session, p: &Value) -> Result<Value> {
     let scope = scope_from(session, p)?;
     let result = find(session.doc()?, &scope)?.evaluate().map_err(|e| bad("worldwright.history.evaluate", e.to_string()))?;
@@ -204,4 +220,64 @@ mod tests {
         );
         assert!(session.doc().unwrap().feature_timelines.is_empty());
     }
+    #[test]
+    fn impact_command_is_read_only_and_follows_feature_dependencies() {
+        let mut session = Session::new();
+        let scope = json!({"kind":"document"});
+        session.execute("worldwright.history.create", &json!({"scope":scope})).unwrap();
+        session
+            .execute(
+                "worldwright.history.edit",
+                &json!({
+                    "scope":scope,"expected_revision":0,
+                    "change":{"edit":"append","step":{
+                        "id":12,"name":"Feature 12","operation":"kernel.point.midpoint",
+                        "inputs":{
+                            "a":{"source":"constant","value":{"kind":"point","value":{"x":0.,"y":0.,"z":0.}}},
+                            "b":{"source":"constant","value":{"kind":"point","value":{"x":10.,"y":0.,"z":0.}}}
+                        }
+                    }}
+                }),
+            )
+            .unwrap();
+        session
+            .execute(
+                "worldwright.history.edit",
+                &json!({
+                    "scope":scope,"expected_revision":1,
+                    "change":{"edit":"append","step":{
+                        "id":23,"name":"Feature 23","operation":"kernel.point.midpoint",
+                        "inputs":{
+                            "a":{"source":"previous_feature","id":12},
+                            "b":{"source":"constant","value":{"kind":"point","value":{"x":20.,"y":0.,"z":0.}}}
+                        }
+                    }}
+                }),
+            )
+            .unwrap();
+        let before = session.doc().unwrap().clone();
+        let before_revision = session.state().unwrap().revision;
+        let before_undo = session.state().unwrap().undo.len();
+        let report = session
+            .execute(
+                "worldwright.history.impact",
+                &json!({"scope":scope,"source":{"kind":"step","id":12}}),
+            )
+            .unwrap();
+        assert_eq!(report["affected_steps"], json!([12, 23]));
+        assert_eq!(report["revision"], 2);
+        assert!(
+            session
+                .execute(
+                    "worldwright.history.impact",
+                    &json!({"scope":scope,"source":{"kind":"step","id":999}}),
+                )
+                .is_err()
+        );
+        assert!(session.execute("worldwright.history.impact", &json!({"scope":scope})).is_err());
+        assert_eq!(session.doc().unwrap(), &before);
+        assert_eq!(session.state().unwrap().revision, before_revision);
+        assert_eq!(session.state().unwrap().undo.len(), before_undo);
+    }
+
 }

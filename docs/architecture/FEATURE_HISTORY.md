@@ -117,6 +117,24 @@ Then append a driven operation:
 }
 ```
 
+Before editing a parameter or feature, a read-only query can report the
+transitive set of potentially affected steps, inspired by FreeCAD's dependency
+graph. This uses the existing ordered history references rather than creating
+another parametric engine:
+
+```json
+{"command":"worldwright.history.impact","params":{"scope":{"kind":"document"},"source":{"kind":"parameter","id":"width"}}}
+```
+
+The `source` can also be `{"kind":"step","id":10}`. The result contains the
+source, scope, history revision and `affected_steps` in timeline order.
+Suppressed and rolled-back descendants are included because they may later be
+reactivated. Unknown sources are rejected. This reports **potential impact**;
+it does not selectively rebuild geometry or mutate the document. This
+increment remains uncompiled until native CI confirms it. FreeCAD-inspired
+reusable subsystems are tracked in
+[the workflow mapping](../dependencies/FREECAD_WORKFLOW_REUSE.md).
+
 Run `worldwright.history.evaluate` with `{"scope":{"kind":"document"}}`;
 the output is a typed point at `(5,0,0)`, not automatically baked CAD
 geometry. `worldwright.history.list` and `worldwright.history.inspect`

@@ -314,15 +314,27 @@
       "repository": "FreeCAD/FreeCAD",
       "url": "https://github.com/FreeCAD/FreeCAD",
       "declared_license": "LGPL-2.1-or-later (repository; verify per-file notices)",
-      "status": "evaluated_not_integrated",
-      "placement": "crates/constraints; crates/engine; evaluations/cadrum",
-      "rationale": "Compare Sketcher constrained sketches, PartDesign additive/subtractive features and TopoShape naming with Worldwright's shared Rust commands and existing OCCT worker. Reuse narrowly scoped algorithms/fixtures only when accuracy improves; do not import Qt/Coin3D or duplicate BRep kernels.",
+      "status": "experimental_source_integrated_pending_ci",
+      "placement": "crates/freecad-graph; crates/kernel feature histories; future Sketcher/PartDesign evaluation",
+      "rationale": "First narrow LGPL-2.1-or-later Rust adaptation of FreeCAD DocumentObject::getInListEx (iterative transitive incoming-dependency walk). Shared feature history and API use it without importing Qt/Python or another BRep kernel. Sketcher and PartDesign remain unintegrated pending tests, numerical comparison and license review.",
       "verification": {
         "repository_license_checked": true,
         "transitive_license_audit": false,
         "benchmark_against_existing": false,
         "acceptance_test_passed": false
-      }
+      },
+      "integrated_sources": [
+        {
+          "source_path": "src/App/DocumentObject.cpp",
+          "upstream_revision": "ec6852e6caadf55045881a6003cc7ad038c8d2a7",
+          "upstream_license": "LGPL-2.1-or-later",
+          "adaptation": "crates/freecad-graph/src/lib.rs",
+          "adaptation_license": "LGPL-2.1-or-later",
+          "license_copy": "crates/freecad-graph/LICENSE.LGPL-2.1",
+          "algorithm": "DocumentObject::getInListEx",
+          "scope": "iterative graph reachability only; does not replace BRep, solver or document API"
+        }
+      ]
     },
     {
       "repository": "storytold/artcraft",

@@ -14,7 +14,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("worldwright.history.list", "List Feature Timelines", list).noundo(),
         CommandSpec::new("worldwright.history.inspect", "Inspect Feature Timeline", inspect).params("{scope}").noundo(),
         CommandSpec::new("worldwright.history.impact", "Preview Feature Dependencies", impact)
-            .params("{scope,source:{kind:parameter|step,id:string|number}}").noundo(),
+            .params("{scope,source:{kind:parameter|step,id:string|number}}")
+            .noundo(),
         CommandSpec::new("worldwright.history.evaluate", "Recompute Feature Timeline", evaluate).params("{scope}").noundo(),
     ]
 }
@@ -86,13 +87,10 @@ fn inspect(session: &mut Session, p: &Value) -> Result<Value> {
 /// unlike evaluate, this does not execute geometric operations.
 fn impact(session: &mut Session, p: &Value) -> Result<Value> {
     let scope = scope_from(session, p)?;
-    let source: FeatureImpactSource = serde_json::from_value(
-        p.get("source").cloned().ok_or_else(|| bad("worldwright.history.impact", "source is required"))?,
-    )
-    .map_err(|e| bad("worldwright.history.impact", e.to_string()))?;
-    let report = find(session.doc()?, &scope)?
-        .impact(source)
-        .map_err(|e| bad("worldwright.history.impact", e.to_string()))?;
+    let source: FeatureImpactSource =
+        serde_json::from_value(p.get("source").cloned().ok_or_else(|| bad("worldwright.history.impact", "source is required"))?)
+            .map_err(|e| bad("worldwright.history.impact", e.to_string()))?;
+    let report = find(session.doc()?, &scope)?.impact(source).map_err(|e| bad("worldwright.history.impact", e.to_string()))?;
     serde_json::to_value(report).map_err(|e| bad("worldwright.history.impact", e.to_string()))
 }
 
@@ -258,26 +256,13 @@ mod tests {
         let before = session.doc().unwrap().clone();
         let before_revision = session.state().unwrap().revision;
         let before_undo = session.state().unwrap().undo.len();
-        let report = session
-            .execute(
-                "worldwright.history.impact",
-                &json!({"scope":scope,"source":{"kind":"step","id":12}}),
-            )
-            .unwrap();
+        let report = session.execute("worldwright.history.impact", &json!({"scope":scope,"source":{"kind":"step","id":12}})).unwrap();
         assert_eq!(report["affected_steps"], json!([12, 23]));
         assert_eq!(report["revision"], 2);
-        assert!(
-            session
-                .execute(
-                    "worldwright.history.impact",
-                    &json!({"scope":scope,"source":{"kind":"step","id":999}}),
-                )
-                .is_err()
-        );
+        assert!(session.execute("worldwright.history.impact", &json!({"scope":scope,"source":{"kind":"step","id":999}}),).is_err());
         assert!(session.execute("worldwright.history.impact", &json!({"scope":scope})).is_err());
         assert_eq!(session.doc().unwrap(), &before);
         assert_eq!(session.state().unwrap().revision, before_revision);
         assert_eq!(session.state().unwrap().undo.len(), before_undo);
     }
-
 }

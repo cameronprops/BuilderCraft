@@ -34,6 +34,7 @@ impl Class {
 /// prefix.
 pub const TABLE: &[(&str, Class)] = &[
     ("geom", Class::Layer(0)),
+    ("worldwright-freecad-graph", Class::Layer(0)),
     ("buildercraft-kernel", Class::Layer(1)),
     ("dxf", Class::Standalone),
     ("dwg", Class::Standalone),

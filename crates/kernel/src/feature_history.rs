@@ -151,26 +151,51 @@ impl FeatureTimeline {
             _ => {}
         }
 
-        let mut affected = BTreeSet::new();
-        for step in &self.steps {
-            let direct = match &source {
-                FeatureImpactSource::Parameter(name) => step
-                    .inputs
-                    .values()
-                    .any(|input| matches!(input, FeatureInput::Parameter { name: parameter } if parameter == name)),
-                FeatureImpactSource::Step(id) => step.id == *id,
-            };
-            let downstream = step.inputs.values().any(|input| {
-                matches!(input, FeatureInput::PreviousFeature { id } if affected.contains(id))
-            });
-            if direct || downstream {
-                affected.insert(step.id);
-            }
-        }
-        let affected_steps = self
+        let positions: BTreeMap<u64, usize> = self
             .steps
             .iter()
-            .filter_map(|step| affected.contains(&step.id).then_some(step.id))
+            .enumerate()
+            .map(|(index, step)| (step.id, index))
+            .collect();
+        let mut roots = Vec::new();
+        let mut edges = Vec::new();
+
+        for (index, step) in self.steps.iter().enumerate() {
+            match &source {
+                FeatureImpactSource::Parameter(name) => {
+                    if step.inputs.values().any(|input| {
+                        matches!(input, FeatureInput::Parameter { name: parameter } if parameter == name)
+                    }) {
+                        roots.push(index);
+                    }
+                }
+                FeatureImpactSource::Step(id) if step.id == *id => roots.push(index),
+                FeatureImpactSource::Step(_) => {}
+            }
+            for input in step.inputs.values() {
+                if let FeatureInput::PreviousFeature { id } = input {
+                    let prerequisite = positions
+                        .get(id)
+                        .ok_or(KernelError::Invalid("feature reference disappeared"))?;
+                    edges.push((*prerequisite, index));
+                }
+            }
+        }
+
+        // FreeCAD's iterative dependency traversal is isolated in its own
+        // LGPL module, shared by all host interfaces. Validate first so the
+        // history's chronological reference restriction remains authoritative.
+        let affected = affected_nodes(self.steps.len(), &edges, &roots).map_err(|error| {
+            match error {
+                worldwright_freecad_graph::WalkError::InvalidNode => {
+                    KernelError::Invalid("invalid history dependency index")
+                }
+                worldwright_freecad_graph::WalkError::Budget => KernelError::Budget,
+            }
+        })?;
+        let affected_steps = affected
+            .into_iter()
+            .filter_map(|index| self.steps.get(index).map(|step| step.id))
             .collect();
         Ok(FeatureImpact {
             scope: self.scope.clone(),

@@ -2,13 +2,13 @@
 
 Review: 2026-10-11. Behavioral references: [FreeCAD source](https://github.com/FreeCAD/FreeCAD), [topological naming guidance](https://github.com/FreeCAD/FreeCAD-documentation/blob/main/wiki/Topological_naming_problem.md), [sketch placement](https://github.com/FreeCAD/FreeCAD-documentation/blob/main/wiki/PartDesign_NewSketch.md), and [spreadsheet workbench](https://github.com/FreeCAD/FreeCAD-documentation/blob/main/wiki/Spreadsheet_Workbench.md).
 
-This is **selective workflow adaptation, not a fork of FreeCAD**. No FreeCAD source, icons, models, Qt/Coin3D frameworks, or documentation text was copied into this increment. FreeCAD is predominantly LGPL-2.1-or-later; source reuse requires a file-level license audit, appropriate notices, platform tests and an objective benefit over existing Worldwright code. The existing OCCT worker remains the only authoritative exact BRep backend.
+This is **selective source reuse, not a wholesale FreeCAD fork**. The first actual FreeCAD-derived module is a bounded Rust adaptation of `DocumentObject::getInListEx` from the LGPL-2.1-or-later `src/App/DocumentObject.cpp`, pinned to upstream revision `ec6852e6caadf55045881a6003cc7ad038c8d2a7`. It lives in `crates/freecad-graph` with a full LGPL-2.1 copy and attribution. The native OCCT worker remains the only authoritative exact BRep backend; no Qt/Coin3D, FreeCAD model files, icons or Sketcher engine have been imported.
 
 ## Workflow decisions and dependencies
 
 | FreeCAD pattern | Worldwright destination | Current evidence | Next acceptance gate |
 |---|---|---|---|
-| Parametric document recompute / dependency graph | Scoped feature histories, optional per body, block or document | Native history recipes, revisions, suppression and recomputation exist. This branch adds a **read-only transitive impact query** in the kernel and CAD API, still uncompiled | Rust 1.95 tests, native CI, large-history timing, then revision-keyed selective recompute |
+| Parametric document recompute / dependency graph | Scoped feature histories, optional per body, block or document | Native history recipes, revisions, suppression and recomputation exist. This branch adds a **read-only transitive impact query** driven by the isolated FreeCAD-derived graph walker in the kernel and CAD API, still uncompiled | Rust 1.95 tests, native CI, large-history timing, then revision-keyed selective recompute |
 | Sketcher dimensional constraints | Mechanical sketch workbench using existing `cadcraft-constraints` solver | The native drafting solver exists, but a sketch-plane/closed-profile mechanical contract does not | Planes, degrees-of-freedom diagnostics, fully/under/over-constrained fixtures, a sketch-to-solid vertical slice |
 | PartDesign Body, Pad, Pocket, Revolution | Body-local history + shared OCCT exact BRep worker | Body organization and scoped history exist. Exact worker is separate from history; feature bindings are missing | Attach a constrained profile to a datum plane, extrude and subtract exact solids with stable references |
 | Datum planes and attachment modes | Shared construction frames, local placement and offset attachment | CPlane point input exists; persistent parametric datums do not | Reference identity, offset rules, orientation, units, detach/reattach and undo roundtrip |
@@ -23,7 +23,7 @@ This is **selective workflow adaptation, not a fork of FreeCAD**. No FreeCAD sou
 
 ## Dependency-impact increment
 
-`worldwright.history.impact` reads a validated, already-ordered timeline, takes a source parameter or step ID and returns **potentially affected** step IDs in timeline order, including currently suppressed or rolled-back descendants. The algorithm makes one forward pass over at most 512 steps and reuses the existing timeline validation. It does **not** recompute, cache, edit, bake, or change the document.
+`worldwright.history.impact` reads a validated, already-ordered timeline, takes a source parameter or step ID and returns **potentially affected** step IDs in timeline order, including currently suppressed or rolled-back descendants. The algorithm validates the existing chronological history, then constructs a bounded adjacency graph and traverses it iteratively using the LGPL FreeCAD-derived dependency walker. It supports up to 512 history steps under the host budget. It does **not** recompute, cache, edit, bake, or change the document.
 
 Sample headless command:
 
@@ -33,7 +33,7 @@ Sample headless command:
 
 For a parameter, supply `"source":{"kind":"parameter","id":"width"}`. Unknown IDs and names return errors. Report carries source, scope and timeline revision. Repeated calls are read-only and cannot add undo records. The tests exercise chain/branch isolation, suppression/rollback, unknown sources and command state immutability.
 
-This increment is **source-authored on a review branch, not confirmed buildable** until Rust 1.95 and cross-platform CI have run. It is the prerequisite for skipping unaffected work during future interactive editing, not proof that incremental recomputation already exists.
+This increment is **FreeCAD-derived source on a review branch, not confirmed buildable** until Rust 1.95 and cross-platform CI have run. The copied license and notices are part of the source, but binary distribution obligations still require packaging review. It is the prerequisite for skipping unaffected work during future interactive editing, not proof that incremental recomputation already exists.
 
 ## Rejected bulk imports
 

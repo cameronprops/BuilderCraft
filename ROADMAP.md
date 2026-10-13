@@ -17,3 +17,7 @@ Acceptance: `docs/ALPHA_SMOKE_TEST.md`. Free docking, shortcut/toolbar editing,
 light theme, shaded/material viewport and exact-solid/demo gates remain open.
 
 Tool shelf restoration: registered command pinning, bounded persistent preferences, reorder/remove, and disabled missing entries are source-authored on current main. Restored source passed eight workbench tests, rendered inspection and all six local CI gates on Rust 1.95.
+
+### Exact-solid UI restoration
+
+Inspector primitive and Boolean controls restored against main 8615c7f. Uses existing transactional OCCT engine commands and bounded shaded display service; no new runtime dependency. Document-scoped operands, invalid-input regression and native-worker result/undo acceptance authored. Current-session validation passed: 695 workspace tests, all six gates, required kernel script, native CAD/CLI builds, 21 OCCT tests and four panel tests including real pointer clicks. Rendered panel inspected. Next dependency: exact-solid transforms, followed by OrbWeaver reference resolution and Bake.

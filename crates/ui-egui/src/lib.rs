@@ -27,6 +27,7 @@ pub mod palettes;
 pub mod parametric;
 mod point_input;
 pub mod quick;
+mod solid_panel;
 pub mod theme;
 pub mod workbench;
 
@@ -78,6 +79,8 @@ pub struct UiState {
     /// Transient, bounded and revision-scoped shaded BRep proxy, not exact source geometry.
     #[serde(skip)]
     pub brep_preview: Option<buildercraft::BrepPreview>,
+    #[serde(skip)]
+    pub solid_panel: solid_panel::SolidPanel,
     /// Transient gizmo drag state must not be serialized with UI preferences.
     #[serde(skip)]
     pub gizmo: gizmo::Gizmo,
@@ -136,6 +139,7 @@ impl Default for UiState {
             mesh_face_document_uid: None,
             mesh_face_revision: None,
             brep_preview: None,
+            solid_panel: Default::default(),
             gizmo: gizmo::Gizmo::default(),
             view3d: true,
             orbit_yaw: -std::f64::consts::FRAC_PI_4,

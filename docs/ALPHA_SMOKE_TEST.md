@@ -103,3 +103,9 @@ This is not a completed interactive desktop or four-platform release sign-off.
 ### Custom tool shelf
 
 Search for Draw control curve, click Pin, and confirm no draft begins. Close search and click its My tools entry to begin drafting. Pin another command, reorder and remove entries through Edit, then restart and confirm the shelf order survives. Focus mode hides the shelf with the toolbar. Commands unavailable in the current context remain disabled; missing saved commands can be removed.
+
+## Exact solid Inspector controls
+
+With the native OCCT worker installed, expand Exact solids in the model browser. Create overlapping boxes using minimum/maximum coordinates; sphere and cylinder use radius and cylinder height. Choose distinct Left and Right operands, then Union, Difference or Intersection. Difference removes Right from Left; inputs remain in the document. Each result is one undoable transaction and requests its shaded preview. Preview errors are shown separately from successful creation. Switching documents clears operand choices; Undo removes stale operand choices.
+
+Current-session validation passed: 695 workspace tests, all six repository gates, the required kernel script, native CAD/CLI builds, 21 worker tests and four solid-panel tests with the native worker installed. The native panel fixture clicks Create box and all three Boolean buttons; volumes 15/7/1, result selection, shaded proxy and Undo are checked. Panel rendering was inspected. Exact-solid Move/Rotate/Scale, stable face picking and complete alpha packaging remain separate gates.

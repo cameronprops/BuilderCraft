@@ -65,6 +65,7 @@ jobs:
           export WORLDWRIGHT_BREP_WORKER="$GITHUB_WORKSPACE/evaluations/cadrum/target/debug/worldwright-brep-worker${suffix}"
           test -f "$WORLDWRIGHT_BREP_WORKER"
           cargo test --locked -p cadcraft-engine exact_worker_document_undo_and_roundtrip_when_worker_is_installed -- --nocapture
+          cargo test --locked -p cadcraft-ui-egui solid_panel::tests -- --nocapture
       - name: Native project schema, legacy compatibility and corruption regressions
         run: cargo test --locked -p cadcraft-io project::tests
       - name: Strict native CAD engine and document Clippy

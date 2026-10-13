@@ -1,6 +1,6 @@
 # WorldWright exact BRep process boundary
 
-**Status:** experimental worker implementation on `feature/brep-occt-worker`. The validated OCCT/Cadrum candidate on PR #32 stays isolated and unchanged until this worker passes. This is not yet integrated into the CAD document or saved-project schema. WorldWright keeps its own Rust NURBS/scene representation, and the native process returns exact OCCT BRep bytes.
+**Status:** the isolated OCCT worker, transactional `brep.*` engine commands, exact-solid document persistence, shaded display proxy and whole-solid picking are merged on main. Primitive/Boolean Inspector controls are restored in the current UI increment, verified by current-session native worker and UI tests. Worldwright persists exact OCCT BRep bytes; display meshes remain disposable. Complete Rhino-depth topology/editing and platform packaging acceptance remain open.
 
 ## Why an OS process?
 

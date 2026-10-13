@@ -263,3 +263,7 @@ Linux Rust 1.95.0: 646 workspace tests and all six CI gates passed, including
 build passed. Compiled CLI curve save/reopen and PushPull smoke checks passed;
 headless viewport rendering was inspected. OrbWeaver is registered at L2.
 See `../architecture/KERNEL_VALIDATION.md` for scope and platform limits.
+
+### Current main reconciliation for exact-solid UI
+
+Main 8615c7f contains the OCCT process worker, `brep.*` transactions, exact-solid persistence, shaded proxies and whole-solid picking. Earlier branch-stage notes are historical checkpoints. Current UI restoration adds primitive/Boolean Inspector controls; its fresh validation passed 695 workspace tests, all six gates, the kernel script, native builds, 21 worker tests and four panel tests. Exact-solid Move/Rotate/Scale precede OrbWeaver reference-and-bake work. This does not close the full alpha, trimmed topology or platform packaging gates.

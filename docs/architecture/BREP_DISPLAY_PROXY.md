@@ -1,6 +1,6 @@
 # Exact BRep to shaded/wireframe display proxy
 
-**Status:** experimental headless display proxy on top of the standalone exact BRep worker. It has no CAD viewport binding yet; see [alpha interaction acceptance](../roadmap/ALPHA_INTERACTION.md).
+**Status:** the OCCT display proxy is bound to the CAD viewport on main, with a bounded, document/revision-scoped cache and whole-solid picking. The cache currently displays one exact solid at a time. Stable face picking, mixed-scene depth and complete alpha interaction remain separate gates; see [alpha interaction acceptance](../roadmap/ALPHA_INTERACTION.md).
 
 The source of truth is a persisted OCCT binary BRep. The optional `tessellate` JSON request returns a separately derived **non-exact** viewport mesh. It never overwrites exact topology, face/trim definitions, analytic cylinders/spheres, or STEP exchange data.
 

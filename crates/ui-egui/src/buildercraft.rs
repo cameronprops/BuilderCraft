@@ -5,7 +5,7 @@ use serde_json::json;
 
 pub use crate::brep_display::BrepPreview;
 
-fn load_exact_brep_preview(app: &mut CadApp, id: u64) -> Result<(), String> {
+pub(crate) fn load_exact_brep_preview(app: &mut CadApp, id: u64) -> Result<(), String> {
     let state = app.session.state().map_err(|e| e.to_string())?;
     let (document_uid, revision) = (state.uid, state.revision);
     let reply = app.run("brep.preview", json!({"id":id,"linear_deflection":0.15,"angular_deflection":0.4}))?;
@@ -221,6 +221,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
         }
         ui.small("Shaded display and whole-solid picks are disposable OCCT proxies. Wire edges use X-ray overlay; mixed-scene depth and stable face picking remain future gates.");
     }
+    crate::solid_panel::panel(app, ui);
     transform_panel(app, ui);
     crate::feature_history::panel(app, ui);
     ui.separator();

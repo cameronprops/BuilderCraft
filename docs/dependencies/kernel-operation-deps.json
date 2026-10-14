@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 58,
-    "explicit_dependencies_mapped": 40,
+    "total": 60,
+    "explicit_dependencies_mapped": 42,
     "pending_source_review": 18,
     "paired": 26
   },
@@ -40,6 +40,31 @@
       "id": "kernel.polygon.fill_hole",
       "group": "geometry.mesh_topology",
       "depends_on": [
+        "kernel.polygon.boundary_loops",
+        "kernel.polygon.topology",
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.fill_hole_advanced",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.boundary_loops",
+        "kernel.polygon.topology",
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "mesh",
+      "paired_cad_graph": false
+    },
+    {
+      "id": "kernel.polygon.fill_hole_curvature",
+      "group": "geometry.mesh_topology",
+      "depends_on": [
+        "kernel.polygon.fill_hole_advanced",
         "kernel.polygon.boundary_loops",
         "kernel.polygon.topology",
         "kernel.polygon.validate"

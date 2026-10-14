@@ -184,3 +184,28 @@ fn native_polygon_json_roundtrip_preserves_quads_and_indices() {
     assert_eq!(mesh.faces.len(), 4);
     assert!(matches!(mesh.faces[0], PolygonFace::Quad(_)));
 }
+
+#[test]
+fn curvature_fill_is_one_revisioned_undoable_scene_edit() {
+    let budget = GeometryBudget::new(2_000_000, 100);
+    let mut scene = fixture(budget.clone());
+    let snapshot = scene.snapshot();
+    let source = polygon(&scene).clone();
+    let loop_index = inner_loop(&source);
+    let revision = scene.revision();
+    let edit = PolygonSceneEdit::FillHole {
+        selected_revision: revision,
+        loop_index,
+        mode: PolygonPatchMode::CurvatureSmooth { refinement_levels: 2, smoothing_iterations: 12, tangent_weight: 0.4, max_interior_offset: 0.5 },
+    };
+    let advanced_revision = scene.apply(revision, vec![SceneCommand::EditPolygon(id(2), edit.clone())], &Cancellation::default()).unwrap();
+    assert_eq!(advanced_revision, revision + 1);
+    assert_eq!(polygon(&scene).faces.len(), source.faces.len() + 18);
+    assert_eq!(&polygon(&scene).vertices[..source.vertices.len()], &source.vertices);
+    assert!(scene.apply(advanced_revision, vec![SceneCommand::EditPolygon(id(2), edit)], &Cancellation::default()).is_err());
+    scene.restore(advanced_revision, &snapshot, &Cancellation::default()).unwrap();
+    assert_eq!(polygon(&scene), &source);
+    drop(snapshot);
+    drop(scene);
+    assert_eq!(budget.used(), 0);
+}

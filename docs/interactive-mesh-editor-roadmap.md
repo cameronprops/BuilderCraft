@@ -58,8 +58,10 @@ new-face IDs.
 
 Existing: edge/face diagnostics, tolerance weld map, welding, duplicate
 face detection, unused vertex compaction, basic repair orchestration.
-Planned: manual vertex/edge/face actions, interactive hole patch preview,
-curvature-constrained reconstruction, boundary smoothing, edge sharpness,
+Second kernel/UI slice (awaiting Rust CI): Curvature-guided fill adds one to three interior centroid refinement levels, up to 64 fixed-boundary harmonic relaxation passes, adjacent-face tangent continuation, controlled blending, and maximum interior relief. Original rim vertices and edges are not split or moved. This is an approximate polygonal patch, not exact G1/C1 continuity or guaranteed intersection-free reconstruction.
+
+New kernel/UI slice (awaiting native CI): bounded concave/nonplanar rim triangulation, least-squares best-fit planarization, average-adjacent-normal planarization, explicit plane direction, maximum rim movement limit and fit diagnostics. All planar options move shared boundary vertices and therefore alter adjacent faces. Headless preview returns renderable candidate triangles without mutating the source; commit remains revision-bound and undoable. This is NOT a curvature-optimized GOM/PolyWorks equivalent, automatic outer-cap support, or self-intersection-certified patch.
+Planned: manual vertex/edge/face actions, viewport ghost overlay, curvature-constrained reconstruction, boundary smoothing, edge sharpness,
 quad-preserving remeshing, normal orientation, non-manifold vertex repair,
 self-intersection tests, thickness/watertight validation, scan fit deviation.
 
@@ -74,7 +76,7 @@ and support before/after reports.
 4. Selection/hover overlay and preview in CAD/Scan UI
 5. Triangle chain and manual patching based on picked vertices/edges
 6. Native quad creation/merge and quad strips
-7. Interactive fill + projected retopology, quad grid fill
+7. Interactive fill (initial surface/plane kernel slice authored) + projected retopology, quad grid fill
 8. Brush/region editing, subdivisions, remeshing and metrology metrics
 
 ## Quality gates

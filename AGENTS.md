@@ -1,5 +1,25 @@
 # BuilderCraft suite instructions
 
+## Open-source source-reuse override (2026-10-11)
+
+Worldwright is a free, donation-supported personal workflow CAD platform.
+The owner's explicit directive authorizes **actual** FreeCAD, GPL, LGPL and
+other lawfully redistributable open-source code reuse with full provenance,
+not solely clean-room behavior replication. The older inherited CADCraft
+prohibition on reading or linking GPL/LGPL FreeCAD code further below is
+superseded **for Worldwright development only**. Do not alter inherited source
+licenses or copy any proprietary Rhino/Autodesk/PolyWorks implementation.
+Preserve upstream file-level licenses, attributions, corresponding-source and
+relinkability obligations. Keep derived copyleft modules isolated and
+documented; the first such module is `crates/freecad-graph`. Favor
+measureably better source integration over parallel kernels, keep the existing
+OCCT BRep worker authoritative, and benchmark memory/performance before
+promoting upstream replacements. Source: `docs/architecture/OPEN_SOURCE_CORE_COMPOSITION.md`.
+External host plugin construction is **paused** until the shared native core
+has passed its CAD and OrbWeaver alpha gates; no plugin branches merge by
+default.
+
+
 ## Immediate production modeling gate (2026-10-09)
 
 **BEFORE implementing additional Pipe/Sweep/Flow/PushPull/booleans:** consult [issue #26](https://github.com/cameronprops/BuilderCraft/issues/26), `docs/roadmap/IMMEDIATE_MODELING_OPENSCAD_AND_ALPHA_UI.md`, `docs/parity/rhino-object-and-brep-acceptance.json`, and `docs/benchmarks/orbweaver-alpha-demo-catalog.json`. Work from a **single tolerance-aware exact trimmed BRep backend**; mesh prototypes remain clearly labeled as mesh-only until they produce proper solid topology and exact results. Include all point/line/polyline/curve/spline/NURBS/surface/polysurface/BRep/mesh semantics, Cap and MeshToNURBS, groups and nested layers in the immediate test matrix.

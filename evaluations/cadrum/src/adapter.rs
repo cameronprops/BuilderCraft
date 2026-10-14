@@ -139,6 +139,23 @@ impl CadrumBrepCandidate {
         Ok(BrepSolid { solid: Solid::sphere(radius), primitive: None })
     }
 
+    /// Exact positive uniform scale, axis-angle rotation, then translation.
+    pub fn transform(&self, source: &BrepSolid, translation: DVec3, origin: DVec3,
+        axis: DVec3, radians: f64, scale: f64) -> Result<BrepSolid, BrepError> {
+        let length = axis.length();
+        if !translation.is_finite() || !origin.is_finite() || !axis.is_finite()
+            || !length.is_finite() || length <= 1e-12 || !radians.is_finite()
+            || !scale.is_finite() || !(1e-6..=1e6).contains(&scale) {
+            return Err(BrepError::InvalidPrimitive);
+        }
+        let solid = source.solid.clone().scale(origin, scale)
+            .rotate(origin, axis / length, radians).translate(translation);
+        let result = BrepSolid { solid, primitive: None };
+        let volume = result.statistics().volume;
+        if !volume.is_finite() || volume <= 0.0 { return Err(BrepError::InvalidPrimitive); }
+        Ok(result)
+    }
+
     /// Bounded display approximation derived from exact topology. Never write
     /// this result back into the document as if it were the BRep geometry.
     pub fn display_mesh(

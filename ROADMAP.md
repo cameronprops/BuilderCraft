@@ -21,3 +21,12 @@ Tool shelf restoration: registered command pinning, bounded persistent preferenc
 ### Exact-solid UI restoration
 
 Inspector primitive and Boolean controls restored against main 8615c7f. Uses existing transactional OCCT engine commands and bounded shaded display service; no new runtime dependency. Document-scoped operands, invalid-input regression and native-worker result/undo acceptance authored. Current-session validation passed: 695 workspace tests, all six gates, required kernel script, native CAD/CLI builds, 21 OCCT tests and four panel tests including real pointer clicks. Rendered panel inspected. Next dependency: exact-solid transforms, followed by OrbWeaver reference resolution and Bake.
+
+### Exact-solid transforms checkpoint
+
+Source-authored `brep.transform` and Inspector Move/Rotate/uniform Scale use the
+existing OCCT worker, bounded decoder and document transaction. Preserve object
+identity/organization. Native and UI regressions authored; validation pending.
+Gizmo/multi-selection transforms and OrbWeaver exact-solid reference/Bake remain
+separate dependencies. Missing inherited local plan/craftrules sources were not
+used as evidence.

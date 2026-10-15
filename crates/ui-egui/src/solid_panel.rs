@@ -11,12 +11,31 @@ pub struct SolidPanel {
     height: f64,
     left: Option<u64>,
     right: Option<u64>,
+    translation: [f64; 3],
+    origin: [f64; 3],
+    axis: [f64; 3],
+    degrees: f64,
+    scale: f64,
     error: Option<String>,
 }
 
 impl Default for SolidPanel {
     fn default() -> Self {
-        Self { document: None, minimum: [0.; 3], maximum: [10.; 3], radius: 5., height: 10., left: None, right: None, error: None }
+        Self {
+            document: None,
+            minimum: [0.; 3],
+            maximum: [10.; 3],
+            radius: 5.,
+            height: 10.,
+            left: None,
+            right: None,
+            translation: [0.; 3],
+            origin: [0.; 3],
+            axis: [0., 0., 1.],
+            degrees: 90.,
+            scale: 1.,
+            error: None,
+        }
     }
 }
 
@@ -53,7 +72,7 @@ fn execute(app: &mut CadApp, command: &str, parameters: Value) -> Result<(), Str
         // Preview failure must not misrepresent a successfully committed solid.
         if let Err(error) = crate::buildercraft::load_exact_brep_preview(app, id) {
             app.ui.brep_preview = None;
-            return Err(format!("Solid created; shaded preview unavailable: {error}"));
+            return Err(format!("Solid updated; shaded preview unavailable: {error}"));
         }
     }
     Ok(())
@@ -63,6 +82,8 @@ pub(crate) fn panel(app: &mut CadApp, ui: &mut egui::Ui) {
     let document = app.session.state().ok().map(|state| state.uid);
     let objects = app.session.doc().map(|doc| doc.exact_breps.iter().map(|o| (o.id, o.name.clone())).collect::<Vec<_>>()).unwrap_or_default();
     app.ui.solid_panel.reconcile(document, &objects.iter().map(|(id, _)| *id).collect::<Vec<_>>());
+    let selected =
+        app.session.selection().first().map(|h| h.0).filter(|id| app.session.selection().len() == 1 && objects.iter().any(|(other, _)| other == id));
     let mut action = None;
     ui.collapsing("Exact solids", |ui| {
         ui.small("Dimensions in document units. Native OCCT worker required.");
@@ -102,6 +123,31 @@ pub(crate) fn panel(app: &mut CadApp, ui: &mut egui::Ui) {
                 action = Some(("brep.boolean", json!({"name":label,"left_id":state.left,"right_id":state.right,"operation":operation})));
             }
         }
+        ui.separator();
+        ui.label("Transform selected exact solid");
+        ui.small("Select one solid. Each action preserves its ID and supports Undo.");
+        xyz(ui, "Move offset", &mut state.translation);
+        xyz(ui, "Rotation / scale origin", &mut state.origin);
+        xyz(ui, "Rotation axis", &mut state.axis);
+        ui.horizontal(|ui| {
+            ui.label("Degrees");
+            ui.add(egui::DragValue::new(&mut state.degrees).speed(1.));
+            ui.label("Uniform scale");
+            ui.add(egui::DragValue::new(&mut state.scale).speed(0.01));
+        });
+        for label in ["Move solid", "Rotate solid", "Scale solid"] {
+            if ui.add_enabled(selected.is_some(), egui::Button::new(label)).clicked() {
+                action = Some((
+                    "brep.transform",
+                    json!({"id":selected,
+                    "translation":if label == "Move solid" { state.translation } else { [0.; 3] },
+                    "origin":state.origin,
+                    "axis":if label == "Rotate solid" { state.axis } else { [0., 0., 1.] },
+                    "radians":if label == "Rotate solid" { state.degrees.to_radians() } else { 0. },
+                    "scale":if label == "Scale solid" { state.scale } else { 1. }}),
+                ));
+            }
+        }
         if let Some(error) = &state.error {
             ui.label(error);
         }
@@ -117,7 +163,7 @@ mod tests {
 
     fn frame(app: &mut CadApp, ctx: &egui::Context, events: Vec<egui::Event>) -> egui::FullOutput {
         let mut output = ctx.run_ui(
-            egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(480., 900.))), events, ..Default::default() },
+            egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(480., 1300.))), events, ..Default::default() },
             |ui| panel(app, ui),
         );
         if std::env::var_os("WORLDWRIGHT_SOLID_CAPTURE").is_some() {
@@ -236,6 +282,40 @@ mod tests {
             assert_eq!(app.ui.brep_preview.as_ref().unwrap().object_id, object.id);
             app.run("undo", json!({})).unwrap();
             assert_eq!(app.session.doc().unwrap().exact_breps.len(), 2);
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn native_transform_buttons_when_worker_is_installed() {
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
+        let mut app = CadApp::new(cadcraft_engine::Session::new(), crate::Services::default());
+        execute(&mut app, "brep.box", json!({"name":"Transform me","min":[0.,0.,0.],"max":[2.,3.,4.]})).unwrap();
+        let source = app.session.doc().unwrap().exact_breps[0].clone();
+        let ctx = egui::Context::default();
+        for theme in [egui::Theme::Dark, egui::Theme::Light] {
+            ctx.style_mut_of(theme, |style| style.animation_time = 0.);
+        }
+        let output = frame(&mut app, &ctx, vec![]);
+        click(&mut app, &ctx, label_position(&output, "Exact solids"));
+        app.ui.solid_panel.translation = [10., 0., 0.];
+        app.ui.solid_panel.scale = 2.;
+        for (label, volume) in [("Move solid", 24.), ("Rotate solid", 24.), ("Scale solid", 192.)] {
+            frame(&mut app, &ctx, vec![]);
+            let output = frame(&mut app, &ctx, vec![]);
+            click(&mut app, &ctx, label_position(&output, label));
+            assert!(app.ui.solid_panel.error.is_none(), "{:?}", app.ui.solid_panel.error);
+            let objects = &app.session.doc().unwrap().exact_breps;
+            assert_eq!(objects.len(), 1);
+            assert_eq!(objects[0].id, source.id);
+            assert_ne!(objects[0].brep, source.brep);
+            assert!((objects[0].volume - volume).abs() < 1e-7);
+            assert_eq!(app.session.selection(), &[cadcraft_doc::Handle(source.id)]);
+            assert_eq!(app.ui.brep_preview.as_ref().unwrap().object_id, source.id);
+            app.run("undo", json!({})).unwrap();
+            assert_eq!(app.session.doc().unwrap().exact_breps[0], source);
         }
     }
 

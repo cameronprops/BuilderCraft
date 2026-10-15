@@ -109,3 +109,12 @@ Search for Draw control curve, click Pin, and confirm no draft begins. Close sea
 With the native OCCT worker installed, expand Exact solids in the model browser. Create overlapping boxes using minimum/maximum coordinates; sphere and cylinder use radius and cylinder height. Choose distinct Left and Right operands, then Union, Difference or Intersection. Difference removes Right from Left; inputs remain in the document. Each result is one undoable transaction and requests its shaded preview. Preview errors are shown separately from successful creation. Switching documents clears operand choices; Undo removes stale operand choices.
 
 Current-session validation passed: 695 workspace tests, all six repository gates, the required kernel script, native CAD/CLI builds, 21 worker tests and four solid-panel tests with the native worker installed. The native panel fixture clicks Create box and all three Boolean buttons; volumes 15/7/1, result selection, shaded proxy and Undo are checked. Panel rendering was inspected. Exact-solid Move/Rotate/Scale, stable face picking and complete alpha packaging remain separate gates.
+
+### Exact solid transforms (validation pending)
+
+Select exactly one exact solid. In Exact solids, enter Move offset and click
+Move solid. Enter a rotation origin, nonzero axis and degrees, then Rotate solid.
+Enter a positive Uniform scale, then Scale solid. Each button must preserve the
+object ID and organization, refresh its preview, and support one-step Undo/Redo.
+Verify native save/reopen and STEP exchange. Invalid scale/axis must leave the
+solid unchanged. Multiple or non-solid selections disable these buttons.

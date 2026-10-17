@@ -564,6 +564,55 @@ mod tests {
         assert!(std::sync::Arc::ptr_eq(a, b));
     }
     #[test]
+    fn solidcraft_body_and_scoped_history_are_created_in_one_undoable_transaction() {
+        let mut s = Session::new();
+        let before = s.doc().unwrap().clone();
+        let revision = s.state().unwrap().revision;
+        let undo_count = s.state().unwrap().undo.len();
+        let created = s
+            .execute("model.create", &json!({
+                "kind": "body", "name": "Driven Bracket", "feature_history": true
+            }))
+            .unwrap();
+        let id = created["id"].as_u64().unwrap();
+        assert_eq!(created["feature_history"], true);
+        assert!(s.doc().unwrap().organization.nodes.iter().any(|n| n.id == id && n.kind == NodeKind::Body));
+        assert_eq!(s.doc().unwrap().feature_timelines.len(), 1);
+        assert_eq!(
+            s.doc().unwrap().feature_timelines[0].scope,
+            buildercraft_kernel::FeatureScope::ModelNode(id)
+        );
+        assert_eq!(s.doc().unwrap().feature_timelines[0].revision, 0);
+        s.doc().unwrap().validate_feature_histories().unwrap();
+        assert_eq!(s.state().unwrap().revision, revision + 1);
+        assert_eq!(s.state().unwrap().undo.len(), undo_count + 1);
+        s.undo().unwrap();
+        assert_eq!(s.doc().unwrap(), &before);
+    }
+
+    #[test]
+    fn freeform_bodies_have_no_implicit_history_and_invalid_body_is_atomic() {
+        let mut s = Session::new();
+        let direct = s.execute("model.create", &json!({"kind":"body","name":"Organic Rock"})).unwrap();
+        assert_eq!(direct["feature_history"], false);
+        assert!(s.doc().unwrap().feature_timelines.is_empty());
+        let before = s.doc().unwrap().clone();
+        let revision = s.state().unwrap().revision;
+        let undo_count = s.state().unwrap().undo.len();
+        for invalid in [
+            json!({"kind":"assembly","name":"Scene","feature_history":true}),
+            json!({"kind":"component","name":"Part","feature_history":true}),
+            json!({"kind":"body","name":"Rock","feature_history":"true"}),
+            json!({"kind":"body","name":"Rock","feature_history":null}),
+        ] {
+            assert!(s.execute("model.create", &invalid).is_err());
+            assert_eq!(s.doc().unwrap(), &before);
+            assert_eq!(s.state().unwrap().revision, revision);
+            assert_eq!(s.state().unwrap().undo.len(), undo_count);
+        }
+    }
+
+    #[test]
     fn organization_undo_and_selection() {
         let mut s = Session::new();
         s.execute("line", &json!({"points": [[0,0],[5,0]]})).unwrap();

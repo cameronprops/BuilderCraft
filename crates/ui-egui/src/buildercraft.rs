@@ -26,9 +26,22 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
             if ui.selectable_value(&mut app.ui.view3d, false, "2D / Drafting").clicked() {
                 app.ui.toolset_tab = "Drafting".into();
             }
+            if ui.selectable_label(app.ui.modeling_mode == crate::workbench::ModelingMode::WorldBuilder && app.ui.view3d, "WorldBuilder")
+                .on_hover_text("Rhino-style freeform: direct curves, surfaces, meshes and exact solids")
+                .clicked()
+            {
+                app.start("ui.workspace.worldbuilder");
+            }
+            if ui.selectable_label(app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft && app.ui.view3d, "SolidCraft")
+                .on_hover_text("Fusion-style: body-scoped feature timelines and exact solids; direct editing remains available")
+                .clicked()
+            {
+                app.start("ui.workspace.solidcraft");
+            }
             ui.menu_button("Workspace", |ui| {
                 for (label, id) in [
-                    ("Modeling", "ui.workspace.modeling"),
+                    ("WorldBuilder (direct)", "ui.workspace.worldbuilder"),
+                    ("SolidCraft (parametric)", "ui.workspace.solidcraft"),
                     ("Drafting", "ui.workspace.drafting"),
                     ("Focus", "ui.workspace.focus"),
                     ("Save custom layout", "ui.workspace.save"),
@@ -74,7 +87,11 @@ pub fn command_panel(app: &mut CadApp, ui: &mut egui::Ui) {
     app.ui.layout.command_height = panel.response.rect.height();
 }
 pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
-    ui.heading("Model Browser");
+    ui.heading(if app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft {
+        "SolidCraft | Bodies and features"
+    } else {
+        "WorldBuilder | Model Browser"
+    });
     ui.text_edit_singleline(&mut app.ui.model_name);
     ui.horizontal(|ui| {
         for (label, kind) in [("Assembly", "assembly"), ("Component", "component"), ("Body", "body")] {

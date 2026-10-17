@@ -32,7 +32,11 @@ fn edit(app: &mut CadApp, history: &FeatureTimeline, change: Value) {
 }
 
 pub fn panel(app: &mut CadApp, ui: &mut egui::Ui) {
-    egui::CollapsingHeader::new("Parametric feature timelines").id_salt("worldwright_feature_histories").default_open(false).show(ui, |ui| {
+    let solidcraft = app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft;
+    egui::CollapsingHeader::new("Parametric feature timelines")
+        .id_salt(("worldwright_feature_histories", app.ui.modeling_mode))
+        .default_open(solidcraft)
+        .show(ui, |ui| {
         ui.small("Opt-in: direct-modeled objects do not need histories.");
         let Ok(d) = app.session.doc() else { return };
         let histories = d.feature_timelines.clone();

@@ -83,7 +83,7 @@ mod tests {
         assert_eq!(wires, 96);
     }
     #[test]
-    fn failed_evaluation_is_not_silently_skipped() {
+    fn large_origin_knots_evaluate_exact_endpoints_and_complete_preview() {
         let c = cadcraft_geom::nurbs3d::Curve {
             degree: 1,
             control: vec![Vec3::ZERO, Vec3::new(1., 0., 0.)],
@@ -91,9 +91,27 @@ mod tests {
             knots: vec![1e11, 1e11, 1e11 + 1., 1e11 + 1.],
         };
         assert!(c.valid());
-        // Endpoint's inward epsilon is below the representable spacing at this knot origin.
-        assert!(c.evaluate(1.).is_none());
+        // Previously, the right-endpoint epsilon rounded back to the final
+        // knot and produced no basis, silently making a valid curve unusable.
+        assert_eq!(c.evaluate(0.), Some(Vec3::ZERO));
+        assert_eq!(c.evaluate(1.), Some(Vec3::new(1., 0., 0.)));
         let shape = ExactShape::Curve(std::sync::Arc::new(c));
-        assert_eq!(visit_preview_wires(&shape, &mut 50_000_000, |_, _| {}), Err(KernelError::Invalid("curve preview sample")));
+        let mut wires = 0;
+        visit_preview_wires(&shape, &mut 50_000_000, |_, _| wires += 1).unwrap();
+        assert_eq!(wires, 96);
+    }
+    #[test]
+    fn invalid_curve_fails_without_emitting_preview_segments() {
+        let c = cadcraft_geom::nurbs3d::Curve {
+            degree: 1,
+            control: vec![Vec3::ZERO, Vec3::new(1., 0., 0.)],
+            weights: vec![1., -1.],
+            knots: vec![0., 0., 1., 1.],
+        };
+        assert!(!c.valid());
+        let shape = ExactShape::Curve(std::sync::Arc::new(c));
+        let mut wires = 0;
+        assert_eq!(visit_preview_wires(&shape, &mut 50_000_000, |_, _| wires += 1), Err(KernelError::Invalid("preview wire source")));
+        assert_eq!(wires, 0);
     }
 }

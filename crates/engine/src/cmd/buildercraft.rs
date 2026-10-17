@@ -25,7 +25,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("geometry3d.list", "List 3D Geometry", |s, _| Ok(json!({"objects":s.doc()?.geometry3d}))).noundo(),
         CommandSpec::new("nurbs.curve", "Rational Control Curve (XY)", nurbs_curve)
             .params("{control:[[x,y],...],degree?:1..5,weights?:[positive finite,...]}"),
-        CommandSpec::new("model.create", "Create Model Item", create).params("{name, kind: assembly|component|body, parent?: id, handles?: [hex] }"),
+        CommandSpec::new("model.create", "Create Model Item", create).params("{name, kind: assembly|component|body, parent?: id, handles?: [hex], feature_history?: bool (body only) }"),
         CommandSpec::new("model.rename", "Rename Model Item", rename).params("{id, name}"),
         CommandSpec::new("model.list", "List Model Items", |s, _| Ok(json!({"nodes": s.doc()?.organization.nodes}))).noundo(),
         CommandSpec::new("model.select", "Select Model Item", select).params("{id}").noundo(),
@@ -154,6 +154,14 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
         None | Some(Value::Null) => None,
         Some(v) => Some(v.as_u64().ok_or_else(|| error("parent must be an id"))?),
     };
+    let with_history = match p.get("feature_history") {
+        None => false,
+        Some(Value::Bool(enabled)) => *enabled,
+        _ => return Err(error("feature_history must be a boolean")),
+    };
+    if with_history && kind != NodeKind::Body {
+        return Err(error("feature_history can only be enabled for bodies"));
+    }
     if let Some(parent) = parent {
         let node = s.doc()?.organization.nodes.iter().find(|n| n.id == parent).ok_or_else(|| error("parent does not exist"))?;
         if node.kind == NodeKind::Body {
@@ -194,13 +202,30 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
     if entities.iter().any(|h| s.doc().is_ok_and(|d| d.organization.nodes.iter().any(|n| n.entities.contains(h)))) {
         return Err(error("an entity already belongs to a body"));
     }
-    let d = s.doc_mut()?;
-    if d.handseed == u64::MAX {
+    // Stage a scoped timeline against the upcoming body ID. Validate limits
+    // before editing the COW document, so invalid requests cannot leave a
+    // body without its requested history or consume a handle.
+    let source = s.doc()?;
+    if source.handseed == 0 || source.handseed == u64::MAX {
         return Err(error("model id space exhausted"));
     }
+    let timeline = if with_history {
+        let history = buildercraft_kernel::FeatureTimeline::new(buildercraft_kernel::FeatureScope::ModelNode(source.handseed))
+            .map_err(|e| error(&e.to_string()))?;
+        let mut histories = source.feature_timelines.clone();
+        histories.push(history.clone());
+        buildercraft_kernel::validate_feature_timelines(&histories).map_err(|e| error(&e.to_string()))?;
+        Some(history)
+    } else {
+        None
+    };
+    let d = s.doc_mut()?;
     let id = d.new_handle().0;
     d.organization.nodes.push(ModelNode { id, name, kind, parent, entities });
-    Ok(json!({"id": id}))
+    if let Some(history) = timeline {
+        d.feature_timelines.push(history);
+    }
+    Ok(json!({"id": id, "feature_history": with_history}))
 }
 fn rename(s: &mut Session, p: &Value) -> Result<Value> {
     let id = id(p)?;

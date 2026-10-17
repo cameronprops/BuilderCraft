@@ -570,18 +570,18 @@ mod tests {
         let revision = s.state().unwrap().revision;
         let undo_count = s.state().unwrap().undo.len();
         let created = s
-            .execute("model.create", &json!({
-                "kind": "body", "name": "Driven Bracket", "feature_history": true
-            }))
+            .execute(
+                "model.create",
+                &json!({
+                    "kind": "body", "name": "Driven Bracket", "feature_history": true
+                }),
+            )
             .unwrap();
         let id = created["id"].as_u64().unwrap();
         assert_eq!(created["feature_history"], true);
         assert!(s.doc().unwrap().organization.nodes.iter().any(|n| n.id == id && n.kind == NodeKind::Body));
         assert_eq!(s.doc().unwrap().feature_timelines.len(), 1);
-        assert_eq!(
-            s.doc().unwrap().feature_timelines[0].scope,
-            buildercraft_kernel::FeatureScope::ModelNode(id)
-        );
+        assert_eq!(s.doc().unwrap().feature_timelines[0].scope, buildercraft_kernel::FeatureScope::ModelNode(id));
         assert_eq!(s.doc().unwrap().feature_timelines[0].revision, 0);
         s.doc().unwrap().validate_feature_histories().unwrap();
         assert_eq!(s.state().unwrap().revision, revision + 1);

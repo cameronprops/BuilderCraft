@@ -11,6 +11,8 @@ Worldwright combines independent CAD, Scan, Graph and Show apps around shared ge
 
 Every app should operate independently, with optional file/live bridges to BuilderCraft or proprietary tools. Early immersive walkthroughs from massing models are a core requirement.
 
+Modeling perspectives: **WorldBuilder** (Rhino-style direct NURBS/mesh modeling) and **SolidCraft** (Fusion-style optional body-scoped feature histories) use the same 3D viewport, CAD document, exact-solid kernel, and undo stack. See [unified WorldBuilder/SolidCraft behavior](docs/architecture/WORLDBUILDER_SOLIDCRAFT.md). The perspective switch and saved UI preference are implemented in the integration branch; constrained sketch-to-solid regeneration is not yet implemented.
+
 Start with [suite architecture](docs/architecture/SUITE.md), [continuous world-building pipeline](docs/architecture/WORLD_BUILDING_PIPELINE.md), [delivery roadmap](docs/roadmap/SUITE_ROADMAP.md), [Rhino command inventory](docs/commands/README.md), [show/previs](docs/architecture/SHOW_AND_PREVIS.md), [memory policy](docs/architecture/MEMORY_AND_JOBS.md) and [StructureGraph reuse](docs/architecture/STRUCTUREGRAPH_REUSE.md).
 
 ## Current CAD alpha 0.1

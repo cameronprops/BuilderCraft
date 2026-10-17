@@ -46,6 +46,7 @@ Use an immutable fixture corpus with both analytic values and independent refere
 ## Implemented in this qualification increment
 
 - `crates/geom/src/nurbs3d.rs` now evaluates only the active knot span using bounded stack arrays for polynomial bases (degree <= 5). `Surface::evaluate` computes the U and V bases once per evaluation and uses only active tensor-product control points. Right endpoints are evaluated as the actual knot endpoint, rather than `b - 1e-12*(b-a)`. Added rational-cylinder, repeated-knot/partition-of-unity and exact-endpoint regression tests.
+- `evaluations/cadrum/src/lib.rs` adds independent OCCT analytic baselines using SolidCraft oracle cases 01 (40 x 30 x 20 box), 02 (r15 x 50 cylinder) and 03 (60 x 40 x 20 box with a centered r6 through-hole). This checks identical **mathematical specifications**, not SolidCraft's result buffers, time or RAM; native CI must pass before recording it as validated.
 - Existing NURBS preview tessellation is still uniform and explicitly not error-certified; exact BRep display still uses OCCT tessellation. No Truck, SolidCraft or Curvo runtime dependency was added, and none is promoted without common acceptance fixtures.
 - These changes need current-branch Rust 1.95 CI before they can be described as passing. There is no local Rust toolchain in this development runtime.
 

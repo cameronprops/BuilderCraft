@@ -88,8 +88,13 @@ struct Preferences {
 /// Only user workspace fields are persisted. Selection, camera, dialogs and geometry are excluded.
 pub fn encode(app: &CadApp) -> Result<String, String> {
     validate_shelf(&app.ui.tool_shelf)?;
-    serde_json::to_string(&Preferences { active: Layout::capture(app), saved: app.ui.saved_layout.clone(), shelf: app.ui.tool_shelf.clone(), modeling_mode: app.ui.modeling_mode })
-        .map_err(|e| e.to_string())
+    serde_json::to_string(&Preferences {
+        active: Layout::capture(app),
+        saved: app.ui.saved_layout.clone(),
+        shelf: app.ui.tool_shelf.clone(),
+        modeling_mode: app.ui.modeling_mode,
+    })
+    .map_err(|e| e.to_string())
 }
 pub fn restore(app: &mut CadApp, text: &str) -> Result<(), String> {
     if text.len() > 16_384 {
@@ -127,12 +132,8 @@ pub fn command(app: &mut CadApp, id: &str) -> Result<Value, String> {
             // exact BReps, selection, feature timelines, undo and revision
             // are deliberately untouched.
             Layout { view3d: true, ..Layout::capture(app) }.apply(app)?;
-            app.ui.modeling_mode = if id == "ui.workspace.solidcraft" {
-                ModelingMode::SolidCraft
-            } else {
-                ModelingMode::WorldBuilder
-            };
-        },
+            app.ui.modeling_mode = if id == "ui.workspace.solidcraft" { ModelingMode::SolidCraft } else { ModelingMode::WorldBuilder };
+        }
         "ui.workspace.drafting" => Layout { view3d: false, ..Default::default() }.apply(app)?,
         "ui.workspace.focus" => Layout { tools: false, inspector: false, toolbar: false, ..Layout::capture(app) }.apply(app)?,
         _ => return Err(format!("Unknown workspace command: {id}")),

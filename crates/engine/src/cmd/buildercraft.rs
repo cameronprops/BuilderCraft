@@ -248,17 +248,12 @@ fn members(s: &Session, p: &Value) -> Result<Vec<Handle>> {
         let Some(current) = ids.get(cursor).copied() else { break };
         for n in &d.organization.nodes {
             if n.id == current {
-                members.extend(
-                    n.entities
-                        .iter()
-                        .copied()
-                        .filter(|h| {
-                            d.entity(*h).is_some()
-                                || d.geometry3d.iter().any(|o| o.id == h.0)
-                                || d.mesh3d.iter().any(|o| o.id == h.0)
-                                || d.exact_breps.iter().any(|o| o.id == h.0)
-                        }),
-                );
+                members.extend(n.entities.iter().copied().filter(|h| {
+                    d.entity(*h).is_some()
+                        || d.geometry3d.iter().any(|o| o.id == h.0)
+                        || d.mesh3d.iter().any(|o| o.id == h.0)
+                        || d.exact_breps.iter().any(|o| o.id == h.0)
+                }));
             }
             if n.parent == Some(current) && !ids.contains(&n.id) {
                 ids.push(n.id);
@@ -627,23 +622,27 @@ mod tests {
             return;
         }
         let mut s = Session::new();
-        let result = s.execute("brep.box", &json!({
-            "name":"Bracket Blank", "min":[0.,0.,0.], "max":[2.,3.,1.]
-        })).unwrap();
+        let result = s
+            .execute(
+                "brep.box",
+                &json!({
+                    "name":"Bracket Blank", "min":[0.,0.,0.], "max":[2.,3.,1.]
+                }),
+            )
+            .unwrap();
         let solid_id = result["ids"][0].as_u64().unwrap();
-        let body = s.execute("model.create", &json!({
-            "kind":"body", "name":"Bracket", "handles":[format!("{solid_id:x}")],
-            "feature_history":true
-        })).unwrap();
+        let body = s
+            .execute(
+                "model.create",
+                &json!({
+                    "kind":"body", "name":"Bracket", "handles":[format!("{solid_id:x}")],
+                    "feature_history":true
+                }),
+            )
+            .unwrap();
         let body_id = body["id"].as_u64().unwrap();
-        assert_eq!(
-            s.doc().unwrap().feature_timelines[0].scope,
-            buildercraft_kernel::FeatureScope::ModelNode(body_id)
-        );
-        assert_eq!(
-            s.execute("model.select", &json!({"id":body_id})).unwrap()["count"],
-            1
-        );
+        assert_eq!(s.doc().unwrap().feature_timelines[0].scope, buildercraft_kernel::FeatureScope::ModelNode(body_id));
+        assert_eq!(s.execute("model.select", &json!({"id":body_id})).unwrap()["count"], 1);
         assert_eq!(s.selection(), vec![Handle(solid_id)]);
         s.execute("model.visible", &json!({"id":body_id, "visible":false})).unwrap();
         assert!(!s.doc().unwrap().exact_breps[0].visible);

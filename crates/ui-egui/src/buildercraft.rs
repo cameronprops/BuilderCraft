@@ -96,7 +96,14 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         for (label, kind) in [("Assembly", "assembly"), ("Component", "component"), ("Body", "body")] {
             if ui.button(label).clicked() {
-                let _ = app.run("model.create", json!({"name": app.ui.model_name, "kind":kind}));
+                let _ = app.run("model.create", json!({
+                    "name": app.ui.model_name,
+                    "kind": kind,
+                    // SolidCraft creates an editable history with its body
+                    // as one undoable operation; freeform WorldBuilder does not.
+                    "feature_history": kind == "body"
+                        && app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft
+                }));
             }
         }
     });

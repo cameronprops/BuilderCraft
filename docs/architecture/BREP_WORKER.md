@@ -94,7 +94,7 @@ Positive scale is bounded to 1e-6..1e6; zero axes and nonfinite values are rejec
 ID, name, layer and visibility are preserved. CAD Inspector Move/Rotate/Scale
 buttons invoke this command; rotation is entered in degrees in the UI.
 
-Source authored; current-session native validation is pending. Tests cover
+Implemented; native acceptance results are tracked in [PR #63](https://github.com/cameronprops/BuilderCraft/pull/63). Tests cover
 nonzero pivot/order, exact volume, STEP/native round-trip, identity, Undo/Redo,
 and pointer buttons. No new runtime dependencies. This does not add gizmo
 support, nonuniform scaling, reflections, or OrbWeaver exact-solid references.

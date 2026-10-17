@@ -369,6 +369,53 @@ mod tests {
         CadApp::new(cadcraft_engine::Session::new(), crate::Services::default())
     }
     #[test]
+    fn worldbuilder_and_solidcraft_share_the_same_undoable_document() {
+        let mut app = app();
+        app.run("line", json!({"points":[[0,0],[4,4]]})).unwrap();
+        app.run("worldwright.history.create", json!({"scope":{"kind":"document"}})).unwrap();
+        let before = app.session.doc().unwrap().clone();
+        let revision = app.session.state().unwrap().revision;
+        let undo_count = app.session.state().unwrap().undo.len();
+        let selection = app.session.selection().to_vec();
+
+        command(&mut app, "ui.workspace.solidcraft").unwrap();
+        assert_eq!(app.ui.modeling_mode, ModelingMode::SolidCraft);
+        assert!(app.ui.view3d);
+        assert_eq!(app.session.doc().unwrap(), &before);
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.state().unwrap().undo.len(), undo_count);
+        assert_eq!(app.session.selection(), selection.as_slice());
+
+        command(&mut app, "ui.workspace.drafting").unwrap();
+        assert!(!app.ui.view3d);
+        assert_eq!(app.ui.modeling_mode, ModelingMode::SolidCraft);
+        command(&mut app, "ui.workspace.worldbuilder").unwrap();
+        assert_eq!(app.ui.modeling_mode, ModelingMode::WorldBuilder);
+        assert_eq!(app.session.doc().unwrap(), &before);
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.state().unwrap().undo.len(), undo_count);
+    }
+
+    #[test]
+    fn modeling_mode_persists_in_preferences_and_legacy_defaults_to_worldbuilder() {
+        let mut app = app();
+        command(&mut app, "ui.workspace.solidcraft").unwrap();
+        let saved = encode(&app).unwrap();
+        let mut reopened = self::app();
+        restore(&mut reopened, &saved).unwrap();
+        assert_eq!(reopened.ui.modeling_mode, ModelingMode::SolidCraft);
+        let mut legacy: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        legacy.as_object_mut().unwrap().remove("modeling_mode");
+        restore(&mut reopened, &legacy.to_string()).unwrap();
+        assert_eq!(reopened.ui.modeling_mode, ModelingMode::WorldBuilder);
+        // Invalid profile data must not partially replace a valid preference.
+        let mut invalid: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        invalid["active"]["version"] = json!(999);
+        assert!(restore(&mut reopened, &invalid.to_string()).is_err());
+        assert_eq!(reopened.ui.modeling_mode, ModelingMode::WorldBuilder);
+    }
+
+    #[test]
     fn layouts_preserve_document_and_roundtrip_custom_preferences() {
         let mut app = app();
         app.run("line", json!({"points":[[0,0],[4,4]]})).unwrap();

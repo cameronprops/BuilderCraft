@@ -7,10 +7,19 @@ Decision: 2026-10-17. **WorldBuilder** is the Rhino-style freeform/direct-modeli
 - The single Worldwright 3D desktop exposes `WorldBuilder` and `SolidCraft` mode commands (`ui.workspace.worldbuilder`, `ui.workspace.solidcraft`) beside the existing 3D/drafting selector.
 - Both expose the same viewport, object IDs, named body/component organization, direct curve/surface/mesh controls, BRep solids and Boolean commands, selection, undo and `.dftba` storage. Switching perspectives does not copy or convert geometry and does not advance document revision.
 - SolidCraft opens the **existing optional scoped feature-history inspector** by default. WorldBuilder leaves it collapsed by default but available, enabling mixed modeling without disabling histories.
+- SolidCraft's **Body** button creates a named body plus empty `FeatureScope::ModelNode(body_id)` history in one validated, undoable `model.create` transaction. WorldBuilder's **Body** button still creates a direct body without a no-op history. The shared command also accepts `feature_history:true` headlessly for body creation, rejected for components and assemblies.
 - Workspace preference serialization retains the selected modeling mode; older profiles missing the new field default to WorldBuilder. The mode lives only in UI preferences, not authoritative CAD geometry or the native file.
 - No new geometry engine, document format, permanent geometry cache or external host runtime is introduced. The existing exact OpenCascade/BRep worker remains the sole exact-solid authority, and the existing Rust shared-tool dispatcher remains the feature-history and OrbWeaver operation authority.
 
 This slice does **not** yet implement Fusion-equivalent constrained sketch-to-extrude/revolve, parametric exact solid features, automatic direct-edit-to-feature conversion or topological naming.
+
+## Creating a driven body via the shared API
+
+```json
+{"command":"model.create","params":{"kind":"body","name":"Bracket","feature_history":true}}
+```
+
+The returned `id` is both the body ID and the identity used by the new `worldwright.history` scope (`{"kind":"model_node","id":<body id>}`). Then `worldwright.history.edit` and `worldwright.history.evaluate` use the existing shared kernel operation registry. No placeholder extrude feature is inserted.
 
 ## Representation and edit ownership
 

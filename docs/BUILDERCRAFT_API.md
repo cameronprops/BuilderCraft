@@ -18,7 +18,7 @@ Use the returned model ID as `parent` when creating a component or body.
 | production.set | records, bindings, links; validated, undoable replacement of production organization |
 | geometry3d.preview | id; optional curve_segments (1–4096), surface_u and surface_v (1–128); bounded uniform polyline/triangle data plus source revision, no edit |
 | kernel.manifest | project_id (32 hex digits), optional geometry_budget_bytes; metadata-only 3D scene projection, no edit |
-| model.create | name, kind (assembly/component/body), optional parent ID and hex entity handles; bodies use current selection if handles are absent |
+| model.create | name, kind (assembly/component/body), optional parent ID and hex entity handles; bodies use current selection if handles are absent; optional `feature_history:true` on body creates its empty, body-scoped parametric timeline in the same undo transaction |
 | model.list | returns organization nodes |
 | model.rename | id, name |
 | model.select | id; selects descendant geometry |

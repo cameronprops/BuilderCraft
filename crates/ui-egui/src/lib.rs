@@ -69,6 +69,8 @@ pub struct UiState {
     pub dialog: Option<String>,
     pub history_lines: usize,
     pub buildercraft_workspace: bool,
+    /// Rhino-style WorldBuilder or history-first SolidCraft, UI preference only.
+    pub modeling_mode: workbench::ModelingMode,
     pub model_name: String,
     /// Index of the polygon face selected for numeric mesh edit commands.
     pub mesh_face_index: u32,
@@ -133,6 +135,7 @@ impl Default for UiState {
             dialog: None,
             history_lines: 3,
             buildercraft_workspace: true,
+            modeling_mode: workbench::ModelingMode::WorldBuilder,
             model_name: "Body".into(),
             mesh_face_index: 0,
             mesh_face_object_id: None,

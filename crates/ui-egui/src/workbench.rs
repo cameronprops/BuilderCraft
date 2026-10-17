@@ -3,6 +3,15 @@ use crate::CadApp;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+/// Two modeling perspectives over the same document, not separate kernels.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelingMode {
+    #[default]
+    WorldBuilder,
+    SolidCraft,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Layout {
@@ -73,12 +82,19 @@ struct Preferences {
     saved: Option<Layout>,
     #[serde(default)]
     shelf: Vec<String>,
+    #[serde(default)]
+    modeling_mode: ModelingMode,
 }
 /// Only user workspace fields are persisted. Selection, camera, dialogs and geometry are excluded.
 pub fn encode(app: &CadApp) -> Result<String, String> {
     validate_shelf(&app.ui.tool_shelf)?;
-    serde_json::to_string(&Preferences { active: Layout::capture(app), saved: app.ui.saved_layout.clone(), shelf: app.ui.tool_shelf.clone() })
-        .map_err(|e| e.to_string())
+    serde_json::to_string(&Preferences {
+        active: Layout::capture(app),
+        saved: app.ui.saved_layout.clone(),
+        shelf: app.ui.tool_shelf.clone(),
+        modeling_mode: app.ui.modeling_mode,
+    })
+    .map_err(|e| e.to_string())
 }
 pub fn restore(app: &mut CadApp, text: &str) -> Result<(), String> {
     if text.len() > 16_384 {
@@ -94,6 +110,7 @@ pub fn restore(app: &mut CadApp, text: &str) -> Result<(), String> {
     profile.active.apply(app)?;
     app.ui.tool_shelf = profile.shelf;
     app.ui.saved_layout = profile.saved;
+    app.ui.modeling_mode = profile.modeling_mode;
     Ok(())
 }
 pub fn command(app: &mut CadApp, id: &str) -> Result<Value, String> {
@@ -106,12 +123,22 @@ pub fn command(app: &mut CadApp, id: &str) -> Result<Value, String> {
             let layout = app.ui.saved_layout.clone().ok_or("No custom layout saved yet")?;
             layout.apply(app)?;
         }
-        "ui.workspace.modeling" => Layout::default().apply(app)?,
+        "ui.workspace.modeling" => {
+            Layout::default().apply(app)?;
+            app.ui.modeling_mode = ModelingMode::WorldBuilder;
+        }
+        "ui.workspace.worldbuilder" | "ui.workspace.solidcraft" => {
+            // A workspace switch changes only UI state. CAD identities,
+            // exact BReps, selection, feature timelines, undo and revision
+            // are deliberately untouched.
+            Layout { view3d: true, ..Layout::capture(app) }.apply(app)?;
+            app.ui.modeling_mode = if id == "ui.workspace.solidcraft" { ModelingMode::SolidCraft } else { ModelingMode::WorldBuilder };
+        }
         "ui.workspace.drafting" => Layout { view3d: false, ..Default::default() }.apply(app)?,
         "ui.workspace.focus" => Layout { tools: false, inspector: false, toolbar: false, ..Layout::capture(app) }.apply(app)?,
         _ => return Err(format!("Unknown workspace command: {id}")),
     }
-    Ok(json!({"workspaceVersion":1}))
+    Ok(json!({"workspaceVersion":1,"modelingMode":app.ui.modeling_mode}))
 }
 #[derive(Clone, Debug, Default)]
 pub struct Search {
@@ -342,6 +369,53 @@ mod tests {
     fn app() -> CadApp {
         CadApp::new(cadcraft_engine::Session::new(), crate::Services::default())
     }
+    #[test]
+    fn worldbuilder_and_solidcraft_share_the_same_undoable_document() {
+        let mut app = app();
+        app.run("line", json!({"points":[[0,0],[4,4]]})).unwrap();
+        app.run("worldwright.history.create", json!({"scope":{"kind":"document"}})).unwrap();
+        let before = app.session.doc().unwrap().clone();
+        let revision = app.session.state().unwrap().revision;
+        let undo_count = app.session.state().unwrap().undo.len();
+        let selection = app.session.selection();
+
+        command(&mut app, "ui.workspace.solidcraft").unwrap();
+        assert_eq!(app.ui.modeling_mode, ModelingMode::SolidCraft);
+        assert!(app.ui.view3d);
+        assert_eq!(app.session.doc().unwrap(), &before);
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.state().unwrap().undo.len(), undo_count);
+        assert_eq!(app.session.selection(), selection);
+
+        command(&mut app, "ui.workspace.drafting").unwrap();
+        assert!(!app.ui.view3d);
+        assert_eq!(app.ui.modeling_mode, ModelingMode::SolidCraft);
+        command(&mut app, "ui.workspace.worldbuilder").unwrap();
+        assert_eq!(app.ui.modeling_mode, ModelingMode::WorldBuilder);
+        assert_eq!(app.session.doc().unwrap(), &before);
+        assert_eq!(app.session.state().unwrap().revision, revision);
+        assert_eq!(app.session.state().unwrap().undo.len(), undo_count);
+    }
+
+    #[test]
+    fn modeling_mode_persists_in_preferences_and_legacy_defaults_to_worldbuilder() {
+        let mut app = app();
+        command(&mut app, "ui.workspace.solidcraft").unwrap();
+        let saved = encode(&app).unwrap();
+        let mut reopened = self::app();
+        restore(&mut reopened, &saved).unwrap();
+        assert_eq!(reopened.ui.modeling_mode, ModelingMode::SolidCraft);
+        let mut legacy: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        legacy.as_object_mut().unwrap().remove("modeling_mode");
+        restore(&mut reopened, &legacy.to_string()).unwrap();
+        assert_eq!(reopened.ui.modeling_mode, ModelingMode::WorldBuilder);
+        // Invalid profile data must not partially replace a valid preference.
+        let mut invalid: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        invalid["active"]["version"] = json!(999);
+        assert!(restore(&mut reopened, &invalid.to_string()).is_err());
+        assert_eq!(reopened.ui.modeling_mode, ModelingMode::WorldBuilder);
+    }
+
     #[test]
     fn layouts_preserve_document_and_roundtrip_custom_preferences() {
         let mut app = app();

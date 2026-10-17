@@ -12,6 +12,8 @@ pub const MENUS: &[&str] = &["File", "Edit", "View", "Insert", "Format", "Tools"
 pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("ui.command.search", "Search commands", &["Tools", "Search Commands"], Some("Cmd+K")),
     ("ui.workspace.modeling", "Modeling workspace", &["Window", "Workspace", "Modeling"], None),
+    ("ui.workspace.worldbuilder", "WorldBuilder direct modeling", &["Window", "Workspace", "WorldBuilder"], None),
+    ("ui.workspace.solidcraft", "SolidCraft parametric modeling", &["Window", "Workspace", "SolidCraft"], None),
     ("ui.workspace.drafting", "Drafting workspace", &["Window", "Workspace", "Drafting"], None),
     ("ui.workspace.focus", "Focus workspace", &["Window", "Workspace", "Focus"], None),
     ("ui.workspace.save", "Save custom layout", &["Window", "Workspace", "Save Custom Layout"], None),

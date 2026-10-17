@@ -25,7 +25,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("geometry3d.list", "List 3D Geometry", |s, _| Ok(json!({"objects":s.doc()?.geometry3d}))).noundo(),
         CommandSpec::new("nurbs.curve", "Rational Control Curve (XY)", nurbs_curve)
             .params("{control:[[x,y],...],degree?:1..5,weights?:[positive finite,...]}"),
-        CommandSpec::new("model.create", "Create Model Item", create).params("{name, kind: assembly|component|body, parent?: id, handles?: [hex] }"),
+        CommandSpec::new("model.create", "Create Model Item", create).params("{name, kind: assembly|component|body, parent?: id, handles?: [hex], feature_history?: bool (body only) }"),
         CommandSpec::new("model.rename", "Rename Model Item", rename).params("{id, name}"),
         CommandSpec::new("model.list", "List Model Items", |s, _| Ok(json!({"nodes": s.doc()?.organization.nodes}))).noundo(),
         CommandSpec::new("model.select", "Select Model Item", select).params("{id}").noundo(),
@@ -154,6 +154,14 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
         None | Some(Value::Null) => None,
         Some(v) => Some(v.as_u64().ok_or_else(|| error("parent must be an id"))?),
     };
+    let with_history = match p.get("feature_history") {
+        None => false,
+        Some(Value::Bool(enabled)) => *enabled,
+        _ => return Err(error("feature_history must be a boolean")),
+    };
+    if with_history && kind != NodeKind::Body {
+        return Err(error("feature_history can only be enabled for bodies"));
+    }
     if let Some(parent) = parent {
         let node = s.doc()?.organization.nodes.iter().find(|n| n.id == parent).ok_or_else(|| error("parent does not exist"))?;
         if node.kind == NodeKind::Body {
@@ -175,6 +183,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
             if s.doc()?.entity(handle).is_none()
                 && !s.doc()?.geometry3d.iter().any(|o| o.id == handle.0)
                 && !s.doc()?.mesh3d.iter().any(|o| o.id == handle.0)
+                && !s.doc()?.exact_breps.iter().any(|o| o.id == handle.0)
             {
                 return Err(error("entity does not exist"));
             }
@@ -194,13 +203,30 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
     if entities.iter().any(|h| s.doc().is_ok_and(|d| d.organization.nodes.iter().any(|n| n.entities.contains(h)))) {
         return Err(error("an entity already belongs to a body"));
     }
-    let d = s.doc_mut()?;
-    if d.handseed == u64::MAX {
+    // Stage a scoped timeline against the upcoming body ID. Validate limits
+    // before editing the COW document, so invalid requests cannot leave a
+    // body without its requested history or consume a handle.
+    let source = s.doc()?;
+    if source.handseed == 0 || source.handseed == u64::MAX {
         return Err(error("model id space exhausted"));
     }
+    let timeline = if with_history {
+        let history = buildercraft_kernel::FeatureTimeline::new(buildercraft_kernel::FeatureScope::ModelNode(source.handseed))
+            .map_err(|e| error(&e.to_string()))?;
+        let mut histories = source.feature_timelines.clone();
+        histories.push(history.clone());
+        buildercraft_kernel::validate_feature_timelines(&histories).map_err(|e| error(&e.to_string()))?;
+        Some(history)
+    } else {
+        None
+    };
+    let d = s.doc_mut()?;
     let id = d.new_handle().0;
     d.organization.nodes.push(ModelNode { id, name, kind, parent, entities });
-    Ok(json!({"id": id}))
+    if let Some(history) = timeline {
+        d.feature_timelines.push(history);
+    }
+    Ok(json!({"id": id, "feature_history": with_history}))
 }
 fn rename(s: &mut Session, p: &Value) -> Result<Value> {
     let id = id(p)?;
@@ -222,12 +248,12 @@ fn members(s: &Session, p: &Value) -> Result<Vec<Handle>> {
         let Some(current) = ids.get(cursor).copied() else { break };
         for n in &d.organization.nodes {
             if n.id == current {
-                members.extend(
-                    n.entities
-                        .iter()
-                        .copied()
-                        .filter(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0)),
-                );
+                members.extend(n.entities.iter().copied().filter(|h| {
+                    d.entity(*h).is_some()
+                        || d.geometry3d.iter().any(|o| o.id == h.0)
+                        || d.mesh3d.iter().any(|o| o.id == h.0)
+                        || d.exact_breps.iter().any(|o| o.id == h.0)
+                }));
             }
             if n.parent == Some(current) && !ids.contains(&n.id) {
                 ids.push(n.id);
@@ -251,6 +277,8 @@ fn visible(s: &mut Session, p: &Value) -> Result<Value> {
         } else if let Some(o) = s.doc_mut()?.geometry3d.iter_mut().find(|o| o.id == h.0) {
             o.visible = visible;
         } else if let Some(o) = s.doc_mut()?.mesh3d.iter_mut().find(|o| o.id == h.0) {
+            o.visible = visible;
+        } else if let Some(o) = s.doc_mut()?.exact_breps.iter_mut().find(|o| o.id == h.0) {
             o.visible = visible;
         }
     }
@@ -538,6 +566,96 @@ mod tests {
         let cadcraft_doc::organization::Shape::Curve(a) = &before.geometry3d[0].shape else { panic!() };
         assert!(std::sync::Arc::ptr_eq(a, b));
     }
+    #[test]
+    fn solidcraft_body_and_scoped_history_are_created_in_one_undoable_transaction() {
+        let mut s = Session::new();
+        let before = s.doc().unwrap().clone();
+        let revision = s.state().unwrap().revision;
+        let undo_count = s.state().unwrap().undo.len();
+        let created = s
+            .execute(
+                "model.create",
+                &json!({
+                    "kind": "body", "name": "Driven Bracket", "feature_history": true
+                }),
+            )
+            .unwrap();
+        let id = created["id"].as_u64().unwrap();
+        assert_eq!(created["feature_history"], true);
+        assert!(s.doc().unwrap().organization.nodes.iter().any(|n| n.id == id && n.kind == NodeKind::Body));
+        assert_eq!(s.doc().unwrap().feature_timelines.len(), 1);
+        assert_eq!(s.doc().unwrap().feature_timelines[0].scope, buildercraft_kernel::FeatureScope::ModelNode(id));
+        assert_eq!(s.doc().unwrap().feature_timelines[0].revision, 0);
+        s.doc().unwrap().validate_feature_histories().unwrap();
+        assert_eq!(s.state().unwrap().revision, revision + 1);
+        assert_eq!(s.state().unwrap().undo.len(), undo_count + 1);
+        s.undo().unwrap();
+        assert_eq!(s.doc().unwrap(), &before);
+    }
+
+    #[test]
+    fn freeform_bodies_have_no_implicit_history_and_invalid_body_is_atomic() {
+        let mut s = Session::new();
+        let direct = s.execute("model.create", &json!({"kind":"body","name":"Organic Rock"})).unwrap();
+        assert_eq!(direct["feature_history"], false);
+        assert!(s.doc().unwrap().feature_timelines.is_empty());
+        let before = s.doc().unwrap().clone();
+        let revision = s.state().unwrap().revision;
+        let undo_count = s.state().unwrap().undo.len();
+        for invalid in [
+            json!({"kind":"assembly","name":"Scene","feature_history":true}),
+            json!({"kind":"component","name":"Part","feature_history":true}),
+            json!({"kind":"body","name":"Rock","feature_history":"true"}),
+            json!({"kind":"body","name":"Rock","feature_history":null}),
+        ] {
+            assert!(s.execute("model.create", &invalid).is_err());
+            assert_eq!(s.doc().unwrap(), &before);
+            assert_eq!(s.state().unwrap().revision, revision);
+            assert_eq!(s.state().unwrap().undo.len(), undo_count);
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn exact_solid_is_owned_and_selectable_by_solidcraft_body_with_native_worker() {
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
+        let mut s = Session::new();
+        let result = s
+            .execute(
+                "brep.box",
+                &json!({
+                    "name":"Bracket Blank", "min":[0.,0.,0.], "max":[2.,3.,1.]
+                }),
+            )
+            .unwrap();
+        let solid_id = result["ids"][0].as_u64().unwrap();
+        let body = s
+            .execute(
+                "model.create",
+                &json!({
+                    "kind":"body", "name":"Bracket", "handles":[format!("{solid_id:x}")],
+                    "feature_history":true
+                }),
+            )
+            .unwrap();
+        let body_id = body["id"].as_u64().unwrap();
+        assert_eq!(s.doc().unwrap().feature_timelines[0].scope, buildercraft_kernel::FeatureScope::ModelNode(body_id));
+        assert_eq!(s.execute("model.select", &json!({"id":body_id})).unwrap()["count"], 1);
+        assert_eq!(s.selection(), vec![Handle(solid_id)]);
+        s.execute("model.visible", &json!({"id":body_id, "visible":false})).unwrap();
+        assert!(!s.doc().unwrap().exact_breps[0].visible);
+        s.undo().unwrap();
+        assert!(s.doc().unwrap().exact_breps[0].visible);
+        s.doc().unwrap().validate_feature_histories().unwrap();
+        let file = cadcraft_io::write(s.doc().unwrap(), "bracket.dftba").unwrap();
+        let reopened = cadcraft_io::read(&file, "bracket.dftba").unwrap();
+        assert_eq!(reopened.organization, s.doc().unwrap().organization);
+        assert_eq!(reopened.feature_timelines, s.doc().unwrap().feature_timelines);
+        assert_eq!(reopened.exact_breps, s.doc().unwrap().exact_breps);
+    }
+
     #[test]
     fn organization_undo_and_selection() {
         let mut s = Session::new();

@@ -621,6 +621,43 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn exact_solid_is_owned_and_selectable_by_solidcraft_body_with_native_worker() {
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
+        let mut s = Session::new();
+        let result = s.execute("brep.box", &json!({
+            "name":"Bracket Blank", "min":[0.,0.,0.], "max":[2.,3.,1.]
+        })).unwrap();
+        let solid_id = result["ids"][0].as_u64().unwrap();
+        let body = s.execute("model.create", &json!({
+            "kind":"body", "name":"Bracket", "handles":[format!("{solid_id:x}")],
+            "feature_history":true
+        })).unwrap();
+        let body_id = body["id"].as_u64().unwrap();
+        assert_eq!(
+            s.doc().unwrap().feature_timelines[0].scope,
+            buildercraft_kernel::FeatureScope::ModelNode(body_id)
+        );
+        assert_eq!(
+            s.execute("model.select", &json!({"id":body_id})).unwrap()["count"],
+            1
+        );
+        assert_eq!(s.selection(), vec![Handle(solid_id)]);
+        s.execute("model.visible", &json!({"id":body_id, "visible":false})).unwrap();
+        assert!(!s.doc().unwrap().exact_breps[0].visible);
+        s.undo().unwrap();
+        assert!(s.doc().unwrap().exact_breps[0].visible);
+        s.doc().unwrap().validate_feature_histories().unwrap();
+        let file = cadcraft_io::write(s.doc().unwrap(), "bracket.dftba").unwrap();
+        let reopened = cadcraft_io::read(&file, "bracket.dftba").unwrap();
+        assert_eq!(reopened.organization, s.doc().unwrap().organization);
+        assert_eq!(reopened.feature_timelines, s.doc().unwrap().feature_timelines);
+        assert_eq!(reopened.exact_breps, s.doc().unwrap().exact_breps);
+    }
+
+    #[test]
     fn organization_undo_and_selection() {
         let mut s = Session::new();
         s.execute("line", &json!({"points": [[0,0],[5,0]]})).unwrap();

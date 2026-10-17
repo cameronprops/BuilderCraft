@@ -183,6 +183,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
             if s.doc()?.entity(handle).is_none()
                 && !s.doc()?.geometry3d.iter().any(|o| o.id == handle.0)
                 && !s.doc()?.mesh3d.iter().any(|o| o.id == handle.0)
+                && !s.doc()?.exact_breps.iter().any(|o| o.id == handle.0)
             {
                 return Err(error("entity does not exist"));
             }
@@ -251,7 +252,12 @@ fn members(s: &Session, p: &Value) -> Result<Vec<Handle>> {
                     n.entities
                         .iter()
                         .copied()
-                        .filter(|h| d.entity(*h).is_some() || d.geometry3d.iter().any(|o| o.id == h.0) || d.mesh3d.iter().any(|o| o.id == h.0)),
+                        .filter(|h| {
+                            d.entity(*h).is_some()
+                                || d.geometry3d.iter().any(|o| o.id == h.0)
+                                || d.mesh3d.iter().any(|o| o.id == h.0)
+                                || d.exact_breps.iter().any(|o| o.id == h.0)
+                        }),
                 );
             }
             if n.parent == Some(current) && !ids.contains(&n.id) {
@@ -276,6 +282,8 @@ fn visible(s: &mut Session, p: &Value) -> Result<Value> {
         } else if let Some(o) = s.doc_mut()?.geometry3d.iter_mut().find(|o| o.id == h.0) {
             o.visible = visible;
         } else if let Some(o) = s.doc_mut()?.mesh3d.iter_mut().find(|o| o.id == h.0) {
+            o.visible = visible;
+        } else if let Some(o) = s.doc_mut()?.exact_breps.iter_mut().find(|o| o.id == h.0) {
             o.visible = visible;
         }
     }

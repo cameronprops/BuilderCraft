@@ -303,6 +303,9 @@ mod tests {
         app.ui.solid_panel.translation = [10., 0., 0.];
         app.ui.solid_panel.scale = 2.;
         for (label, volume) in [("Move solid", 24.), ("Rotate solid", 24.), ("Scale solid", 192.)] {
+            // Undo clears selection by design. Each independent button exercise
+            // starts by selecting the restored solid, just as the user must.
+            app.session.set_selection(vec![cadcraft_doc::Handle(source.id)]);
             frame(&mut app, &ctx, vec![]);
             let output = frame(&mut app, &ctx, vec![]);
             click(&mut app, &ctx, label_position(&output, label));
@@ -310,12 +313,17 @@ mod tests {
             let objects = &app.session.doc().unwrap().exact_breps;
             assert_eq!(objects.len(), 1);
             assert_eq!(objects[0].id, source.id);
-            assert_ne!(objects[0].brep, source.brep);
+            assert!(objects[0].brep != source.brep, "{label} did not transform the selected solid");
             assert!((objects[0].volume - volume).abs() < 1e-7);
             assert_eq!(app.session.selection(), &[cadcraft_doc::Handle(source.id)]);
             assert_eq!(app.ui.brep_preview.as_ref().unwrap().object_id, source.id);
             app.run("undo", json!({})).unwrap();
             assert_eq!(app.session.doc().unwrap().exact_breps[0], source);
+            assert!(app.session.selection().is_empty());
+            let output = frame(&mut app, &ctx, vec![]);
+            click(&mut app, &ctx, label_position(&output, label));
+            assert_eq!(app.session.doc().unwrap().exact_breps[0], source);
+            assert!(app.session.selection().is_empty());
         }
     }
 

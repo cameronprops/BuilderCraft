@@ -37,4 +37,4 @@ Do not silently discard a SolidCraft recipe when editing its derived geometry. A
 
 Implement a constrained sketch profile and a single history-driven exact `extrude` feature through the existing OCCT worker, with stable body ownership and published output IDs. Test parameter edits, rebuild/rollback/suppression, undo/redo, save/reopen and failed-Boolean preservation; expose the same shared operation in OrbWeaver and headless API. This depends on exact sketch/profile validation, stable topology references and worker IPC admission, not a second separate SolidCraft kernel.
 
-Related: [feature history](FEATURE_HISTORY.md), [unified workspace](UNIFIED_WORKSPACE_EXPERIENCE.md), [world-building pipeline](WORLD_BUILDING_PIPELINE.md), [core source composition](OPEN_SOURCE_CORE_COMPOSITION.md).
+Related: [feature history](FEATURE_HISTORY.md), [unified workspace](UNIFIED_WORKSPACE_EXPERIENCE.md), [world-building pipeline](WORLD_BUILDING_PIPELINE.md), [memory and job budgets](MEMORY_AND_JOBS.md).

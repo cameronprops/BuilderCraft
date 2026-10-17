@@ -26,13 +26,15 @@ pub fn workspace_bar(app: &mut CadApp, ui: &mut egui::Ui) {
             if ui.selectable_value(&mut app.ui.view3d, false, "2D / Drafting").clicked() {
                 app.ui.toolset_tab = "Drafting".into();
             }
-            if ui.selectable_label(app.ui.modeling_mode == crate::workbench::ModelingMode::WorldBuilder && app.ui.view3d, "WorldBuilder")
+            if ui
+                .selectable_label(app.ui.modeling_mode == crate::workbench::ModelingMode::WorldBuilder && app.ui.view3d, "WorldBuilder")
                 .on_hover_text("Rhino-style freeform: direct curves, surfaces, meshes and exact solids")
                 .clicked()
             {
                 app.start("ui.workspace.worldbuilder");
             }
-            if ui.selectable_label(app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft && app.ui.view3d, "SolidCraft")
+            if ui
+                .selectable_label(app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft && app.ui.view3d, "SolidCraft")
                 .on_hover_text("Fusion-style: body-scoped feature timelines and exact solids; direct editing remains available")
                 .clicked()
             {
@@ -96,14 +98,17 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         for (label, kind) in [("Assembly", "assembly"), ("Component", "component"), ("Body", "body")] {
             if ui.button(label).clicked() {
-                let _ = app.run("model.create", json!({
-                    "name": app.ui.model_name,
-                    "kind": kind,
-                    // SolidCraft creates an editable history with its body
-                    // as one undoable operation; freeform WorldBuilder does not.
-                    "feature_history": kind == "body"
-                        && app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft
-                }));
+                let _ = app.run(
+                    "model.create",
+                    json!({
+                        "name": app.ui.model_name,
+                        "kind": kind,
+                        // SolidCraft creates an editable history with its body
+                        // as one undoable operation; freeform WorldBuilder does not.
+                        "feature_history": kind == "body"
+                            && app.ui.modeling_mode == crate::workbench::ModelingMode::SolidCraft
+                    }),
+                );
             }
         }
     });

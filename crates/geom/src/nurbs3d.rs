@@ -46,11 +46,7 @@ fn local_basis(count: usize, degree: usize, knots: &[f64], t: f64) -> Option<(us
     let a = *knots.get(degree)?;
     let b = *knots.get(count)?;
     let u = if t == 1.0 { b } else { a + t * (b - a) };
-    let span = if t == 1.0 {
-        count - 1
-    } else {
-        knots.partition_point(|k| *k <= u).saturating_sub(1).clamp(degree, count - 1)
-    };
+    let span = if t == 1.0 { count - 1 } else { knots.partition_point(|k| *k <= u).saturating_sub(1).clamp(degree, count - 1) };
     let mut values = [0.0; 6];
     let mut left = [0.0; 6];
     let mut right = [0.0; 6];
@@ -168,12 +164,7 @@ mod tests {
     #[test]
     fn exact_clamped_endpoints_and_repeated_knots() {
         let control = (0..7).map(|x| Vec3::new(f64::from(x), 0., 0.)).collect();
-        let curve = Curve {
-            degree: 3,
-            control,
-            weights: vec![1.; 7],
-            knots: vec![0., 0., 0., 0., 0.5, 0.5, 0.5, 1., 1., 1., 1.],
-        };
+        let curve = Curve { degree: 3, control, weights: vec![1.; 7], knots: vec![0., 0., 0., 0., 0.5, 0.5, 0.5, 1., 1., 1., 1.] };
         assert!(curve.valid());
         assert_eq!(curve.evaluate(0.), Some(Vec3::new(0., 0., 0.)));
         assert_eq!(curve.evaluate(1.), Some(Vec3::new(6., 0., 0.)));
@@ -191,11 +182,7 @@ mod tests {
             weights: vec![1., 0.5_f64.sqrt(), 1.],
             knots: uniform_knots(3, 2),
         };
-        let surface = Surface {
-            rows: vec![circle_row(0.), circle_row(10.)],
-            degree_v: 1,
-            knots_v: uniform_knots(2, 1),
-        };
+        let surface = Surface { rows: vec![circle_row(0.), circle_row(10.)], degree_v: 1, knots_v: uniform_knots(2, 1) };
         for &u in &[0., 0.125, 0.5, 0.875, 1.] {
             for &v in &[0., 0.5, 1.] {
                 let p = surface.evaluate(u, v).unwrap();
@@ -218,5 +205,4 @@ mod tests {
             assert!(values[..4].iter().all(|w| *w >= -1e-14 && w.is_finite()));
         }
     }
-
 }

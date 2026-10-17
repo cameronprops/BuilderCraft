@@ -376,7 +376,7 @@ mod tests {
         let before = app.session.doc().unwrap().clone();
         let revision = app.session.state().unwrap().revision;
         let undo_count = app.session.state().unwrap().undo.len();
-        let selection = app.session.selection().to_vec();
+        let selection = app.session.selection();
 
         command(&mut app, "ui.workspace.solidcraft").unwrap();
         assert_eq!(app.ui.modeling_mode, ModelingMode::SolidCraft);
@@ -384,7 +384,7 @@ mod tests {
         assert_eq!(app.session.doc().unwrap(), &before);
         assert_eq!(app.session.state().unwrap().revision, revision);
         assert_eq!(app.session.state().unwrap().undo.len(), undo_count);
-        assert_eq!(app.session.selection(), selection.as_slice());
+        assert_eq!(app.session.selection(), selection);
 
         command(&mut app, "ui.workspace.drafting").unwrap();
         assert!(!app.ui.view3d);

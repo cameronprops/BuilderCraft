@@ -312,7 +312,9 @@ fn default_value(kind: ToolType) -> Option<ToolValue> {
         ToolType::Polyline => Some(ToolValue::Polyline(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0)])),
         ToolType::Tree => Some(ToolValue::Tree(DataTree { branches: Vec::new() })),
         ToolType::MatchMode => Some(ToolValue::MatchMode(TreeMatchPolicy::Shortest)),
-        ToolType::Pair => None,
+        // Complex geometry must be provided explicitly by a user, source
+        // object, or upstream node. Never synthesize phantom modeling data.
+        ToolType::Pair | ToolType::Mesh | ToolType::Surface | ToolType::Curve => None,
     }
 }
 
@@ -382,6 +384,28 @@ mod tests {
         let restored: EditorDocument = serde_json::from_str(&encoded).unwrap();
         restored.validate().unwrap();
         assert_eq!(restored, d);
+    }
+
+    #[test]
+    fn geometry_ports_require_explicit_inputs_not_fabricated_defaults() {
+        for kind in [ToolType::Mesh, ToolType::Surface, ToolType::Curve, ToolType::Pair] {
+            assert_eq!(default_value(kind), None);
+        }
+        // A failed node addition must not mutate the editor or consume its ID.
+        let mut d = EditorDocument::new();
+        let before = d.clone();
+        for spec in native_components() {
+            if let Some(port) = spec.inputs.iter().find(|p| {
+                matches!(p.kind, ToolType::Mesh | ToolType::Surface | ToolType::Curve)
+            }) {
+                assert_eq!(
+                    d.add(spec.orbweaver_node, place(0.0)),
+                    Err(EditorError::Port { node: before.next_id, port: port.name.into() }),
+                );
+                assert_eq!(d, before);
+                break;
+            }
+        }
     }
 
     #[test]

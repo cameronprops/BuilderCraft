@@ -3,7 +3,8 @@
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
     DataTree, KernelError, MAX_TREE_ITEMS, Result, TreeBranch, TreeMatchPolicy, point_distance, point_interpolate, point_midpoint,
-    polyline_divide_count, polyline_divide_distance, polyline_length, tree_flatten, tree_graft, tree_match, tree_simplify, tree_validate,
+    polyline_divide_count, polyline_divide_distance, polyline_length, polyline_point_at_station,
+    polyline_tangent_at_station, polyline_offset_xy, tree_flatten, tree_graft, tree_match, tree_simplify, tree_validate,
     vector_cross, vector_dot, vector_length, vector_normalize,
 };
 use cadcraft_geom::Vec3;
@@ -165,6 +166,16 @@ const TREE_MATCH: &[ToolPort] = &[
 const POLYLINE_DISTANCE: &[ToolPort] =
     &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "spacing", kind: ToolType::Number, modifier: true }];
 
+const POLYLINE_STATION: &[ToolPort] = &[
+    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "station", kind: ToolType::Number, modifier: true },
+];
+const POLYLINE_OFFSET_XY: &[ToolPort] = &[
+    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "distance", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "miter_limit", kind: ToolType::Number, modifier: true },
+];
+
 /// One record per shared, executable operation. No copy of any algorithm exists
 /// in the CAD or Graph adapters.
 pub const SHARED_TOOLS: &[SharedToolContract] = &[
@@ -256,6 +267,33 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         dependency_group: "geometry.polyline",
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_DISTANCE,
+        output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.polyline.point_at_station",
+        cad_command: "worldwright.polyline.point_at_station",
+        orbweaver_node: "orbweaver.polyline.point_at_station",
+        dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: POLYLINE_STATION,
+        output: ToolType::Point,
+    },
+    SharedToolContract {
+        operation: "kernel.polyline.tangent_at_station",
+        cad_command: "worldwright.polyline.tangent_at_station",
+        orbweaver_node: "orbweaver.polyline.tangent_at_station",
+        dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: POLYLINE_STATION,
+        output: ToolType::Vector,
+    },
+    SharedToolContract {
+        operation: "kernel.polyline.offset_xy",
+        cad_command: "worldwright.polyline.offset_xy",
+        orbweaver_node: "orbweaver.polyline.offset_xy",
+        dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: POLYLINE_OFFSET_XY,
         output: ToolType::Polyline,
     },
     SharedToolContract {
@@ -720,6 +758,15 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.polyline.divide_distance" => {
             Ok(ToolValue::Polyline(polyline_divide_distance(polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?)?))
         }
+        "kernel.polyline.point_at_station" => Ok(ToolValue::Point(
+            polyline_point_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?
+        )),
+        "kernel.polyline.tangent_at_station" => Ok(ToolValue::Vector(
+            polyline_tangent_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?
+        )),
+        "kernel.polyline.offset_xy" => Ok(ToolValue::Polyline(
+            polyline_offset_xy(polyline(&request.inputs, "points")?, number(&request.inputs, "distance")?, number(&request.inputs, "miter_limit")?)?
+        )),
         "kernel.tree.validate" => {
             Ok(ToolValue::Count(u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?).map_err(|_| KernelError::Budget)?))
         }
@@ -759,7 +806,7 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 26);
+        assert_eq!(SHARED_TOOLS.len(), 29);
     }
     #[test]
     fn mesh_qem_is_one_algorithm_for_cad_and_orbweaver() {

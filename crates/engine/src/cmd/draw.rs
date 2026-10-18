@@ -206,9 +206,7 @@ fn run_polygon(s: &mut Session, p: &Value) -> Result<Value> {
     };
     // Even finite input coordinates can overflow during edge-walk accumulation.
     // Never persist a polygon with non-finite or collapsed vertices.
-    if vs.iter().any(|vertex| !vertex.p.is_finite())
-        || vs.windows(2).any(|edge| edge[0].p == edge[1].p)
-    {
+    if vs.iter().any(|vertex| !vertex.p.is_finite()) || vs.windows(2).any(|edge| edge[0].p == edge[1].p) {
         return Err(bad("polygon", "polygon construction produced invalid or collapsed vertices"));
     }
     added(s.add_entity(lwpoly(vs, true))?)

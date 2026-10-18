@@ -211,6 +211,16 @@ const CURVE_SWEEP2: &[ToolPort] = &[
     ToolPort { name: "section", kind: ToolType::Polyline, modifier: false },
 ];
 
+const NURBS_POINT: &[ToolPort] = &[
+    ToolPort { name: "curve", kind: ToolType::Curve, modifier: false },
+    ToolPort { name: "t", kind: ToolType::Number, modifier: true },
+];
+const NURBS_TRIM: &[ToolPort] = &[
+    ToolPort { name: "curve", kind: ToolType::Curve, modifier: false },
+    ToolPort { name: "start", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "end", kind: ToolType::Number, modifier: true },
+];
+
 /// One record per shared, executable operation. No copy of any algorithm exists
 /// in the CAD or Graph adapters.
 pub const SHARED_TOOLS: &[SharedToolContract] = &[
@@ -413,6 +423,33 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         output: ToolType::Mesh,
     },
     SharedToolContract {
+        operation: "kernel.nurbs.evaluate",
+        cad_command: "worldwright.nurbs.evaluate",
+        orbweaver_node: "orbweaver.nurbs.evaluate",
+        dependency_group: "geometry.curve",
+        prerequisites: &[],
+        inputs: NURBS_POINT,
+        output: ToolType::Point,
+    },
+    SharedToolContract {
+        operation: "kernel.nurbs.split",
+        cad_command: "worldwright.nurbs.split",
+        orbweaver_node: "orbweaver.nurbs.split",
+        dependency_group: "geometry.curve",
+        prerequisites: &[],
+        inputs: NURBS_POINT,
+        output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.nurbs.trim",
+        cad_command: "worldwright.nurbs.trim",
+        orbweaver_node: "orbweaver.nurbs.trim",
+        dependency_group: "geometry.curve",
+        prerequisites: &[],
+        inputs: NURBS_TRIM,
+        output: ToolType::Curve,
+    },
+    SharedToolContract {
         operation: "kernel.array.linear",
         cad_command: "worldwright.array.linear",
         orbweaver_node: "orbweaver.array.linear",
@@ -600,6 +637,12 @@ fn polyline<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&
     }
 }
 
+fn nurbs_curve<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a cadcraft_geom::nurbs3d::Curve> {
+    match inputs.get(name) {
+        Some(ToolValue::Curve(value)) if value.valid() => Ok(value),
+        _ => Err(KernelError::Invalid("invalid rational NURBS curve port")),
+    }
+}
 fn mesh<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a crate::PolygonMesh> {
     match inputs.get(name) {
         Some(ToolValue::Mesh(mesh)) => Ok(mesh),
@@ -940,6 +983,23 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
             polyline(&request.inputs, "rail_b")?,
             polyline(&request.inputs, "section")?,
         )?)),
+        "kernel.nurbs.evaluate" => Ok(ToolValue::Point(crate::nurbs_curve_evaluate(
+            nurbs_curve(&request.inputs, "curve")?, number(&request.inputs, "t")?
+        )?)),
+        "kernel.nurbs.split" => {
+            let (a,b) = crate::nurbs_curve_split(
+                nurbs_curve(&request.inputs, "curve")?,number(&request.inputs, "t")?
+            )?;
+            let out = DataTree { branches: vec![
+                TreeBranch {path:crate::TreePath(vec![0]),items:vec![ToolValue::Curve(a)]},
+                TreeBranch {path:crate::TreePath(vec![1]),items:vec![ToolValue::Curve(b)]},
+            ] };
+            tree_validate(&out)?;
+            Ok(ToolValue::Tree(out))
+        }
+        "kernel.nurbs.trim" => Ok(ToolValue::Curve(crate::nurbs_curve_trim(
+            nurbs_curve(&request.inputs, "curve")?, number(&request.inputs,"start")?, number(&request.inputs,"end")?
+        )?)),
         "kernel.tree.validate" => {
             Ok(ToolValue::Count(u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?).map_err(|_| KernelError::Budget)?))
         }
@@ -979,7 +1039,7 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 38);
+        assert_eq!(SHARED_TOOLS.len(), 41);
     }
     #[test]
     fn mesh_qem_is_one_algorithm_for_cad_and_orbweaver() {
@@ -1054,7 +1114,7 @@ mod tests {
         let original = ToolValue::Tree(tree.clone());
         let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
-        assert_eq!(SHARED_TOOLS.len(), 38);
+        assert_eq!(SHARED_TOOLS.len(), 41);
         let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();
         assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());

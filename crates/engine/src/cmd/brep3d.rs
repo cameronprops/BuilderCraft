@@ -426,7 +426,7 @@ fn probe_window(p:&Value,stem:&str)->Result<ProbeWindow>{
 }
 fn worker_failure_is_technical(e:&EngineError)->bool{
     let message=e.to_string().to_lowercase();
-    ["unavailable","timed out","terminated","malformed","could not","no such file","request exceeds",
+    ["unavailable","timed out","terminated","malformed","cannot wait for","no such file","request exceeds",
      "reading brep worker","writing brep worker","encode brep request"].iter().any(|word|message.contains(word))
 }
 fn analyze_constraints(

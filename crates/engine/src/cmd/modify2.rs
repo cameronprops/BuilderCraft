@@ -2140,6 +2140,15 @@ pub(crate) fn arraypath(
         }
         _ => (6, if c.closed { l / 6.0 } else { l / 5.0 }),
     };
+    // Bound the total count before allocating copies. A reasonable station
+    // count multiplied by a large selection can otherwise exhaust memory.
+    const MAX_PATH_ARRAY_ENTITIES: usize = 20_000;
+    if objs.len().saturating_mul(n.saturating_sub(1)) > MAX_PATH_ARRAY_ENTITIES {
+        return Err(bad(
+            "arraypath",
+            format!("would generate more than {MAX_PATH_ARRAY_ENTITIES} entities; reduce the count or split the selection"),
+        ));
+    }
     let Some((p0, t0)) = c.at_length(0.0) else { return Ok(Vec::new()) };
     let mut out = Vec::new();
     for i in 1..n {

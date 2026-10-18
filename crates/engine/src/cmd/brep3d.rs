@@ -418,12 +418,12 @@ struct ProbeWindow {
 }
 fn probe_window(p: &Value, stem: &str) -> Result<ProbeWindow> {
     let min = p
-        .get(&format!("{stem}_min"))
+        .get(format!("{stem}_min"))
         .and_then(Value::as_f64)
         .filter(|x| x.is_finite() && (1e-7..=1e8).contains(x))
         .ok_or_else(|| fail(format!("{stem}_min must be positive and finite")))?;
     let max = p
-        .get(&format!("{stem}_max"))
+        .get(format!("{stem}_max"))
         .and_then(Value::as_f64)
         .filter(|x| x.is_finite() && (1e-7..=1e8).contains(x) && *x > min)
         .ok_or_else(|| fail(format!("{stem}_max must exceed {stem}_min")))?;

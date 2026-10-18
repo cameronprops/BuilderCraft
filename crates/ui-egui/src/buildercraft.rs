@@ -122,9 +122,9 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             app.session
                 .selection()
                 .iter()
-                .filter(|handle| d.geometry3d.iter().any(|object| {
-                    object.id == handle.0 && matches!(&object.shape, cadcraft_doc::organization::Shape::Curve(_))
-                }))
+                .filter(|handle| {
+                    d.geometry3d.iter().any(|object| object.id == handle.0 && matches!(&object.shape, cadcraft_doc::organization::Shape::Curve(_)))
+                })
                 .map(|handle| handle.0)
                 .collect()
         })

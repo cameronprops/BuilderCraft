@@ -102,6 +102,11 @@ const CASES: &[Case] = &[
     ("explode", explode_splits_polyline_into_lines),
     ("overkill", overkill_removes_duplicate_geometry),
     ("offset", offset_circle_changes_radius),
+    ("arraypath", path_array_places_copies_along_rail),
+    ("reverse", reverse_swaps_line_endpoints),
+    ("flatten", flatten_projects_3d_polyline),
+    ("align", align_translates_with_two_reference_points),
+    ("lengthen", lengthen_changes_line_length),
 ];
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -1024,6 +1029,68 @@ fn offset_circle_changes_radius() {
         })
         .collect();
     assert!(radii.contains(&2.0) && radii.contains(&3.0), "{radii:?}");
+}
+
+fn path_array_places_copies_along_rail() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    let path = s.execute("line", &json!({"points":[[0,5],[30,5]]})).unwrap()["handles"][0].clone();
+    let r = s.execute("arraypath", &json!({"handles":[h], "path":path, "count":4, "align":true})).unwrap();
+    assert_eq!(r["handles"].as_array().unwrap().len(), 3);
+    assert_eq!(s.doc().unwrap().model.len(), 5);
+    let starts: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Line(l) if l.a.y.abs() < 1e-9 => Some(l.a.x),
+            _ => None,
+        })
+        .collect();
+    for x in [0.0, 10.0, 20.0, 30.0] {
+        assert!(starts.iter().any(|actual| (actual - x).abs() < 1e-8), "missing station {x}: {starts:?}");
+    }
+}
+
+fn reverse_swaps_line_endpoints() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    let result = s.execute("reverse", &json!({"handles":[h]})).unwrap();
+    assert_eq!(result["reversed"], 1);
+    assert_eq!(first_line(&s), (1.0, 0.0, 0.0, 0.0));
+}
+
+fn flatten_projects_3d_polyline() {
+    let mut s = Session::new();
+    let handle = s.execute("3dpoly", &json!({"points":[[0,0,3],[1,2,4],[3,2,8]]})).unwrap()["handle"].as_str().unwrap().to_string();
+    let result = s.execute("flatten", &json!({"handles":[handle]})).unwrap();
+    assert_eq!(result["flattened"], 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(p) => {
+            assert_eq!(p.vertices.len(), 3);
+            assert_eq!(p.vertices[1].p.x, 1.0);
+            assert_eq!(p.vertices[1].p.y, 2.0);
+            assert_eq!(p.elevation, 0.0);
+        }
+        other => panic!("expected flattened planar polyline, got {other:?}"),
+    }
+}
+
+fn align_translates_with_two_reference_points() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    let result = s.execute("align", &json!({"handles":[h], "s1":[0,0], "d1":[2,3]})).unwrap();
+    assert_eq!(result["handles"].as_array().unwrap().len(), 1);
+    assert_eq!(first_line(&s), (2.0, 3.0, 3.0, 3.0));
+}
+
+fn lengthen_changes_line_length() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    let result = s.execute("lengthen", &json!({"handle":h, "total":5})).unwrap();
+    assert_eq!(result["length"], 5.0);
+    assert_eq!(first_line(&s), (0.0, 0.0, 5.0, 0.0));
 }
 
 #[test]

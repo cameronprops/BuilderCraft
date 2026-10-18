@@ -585,7 +585,6 @@ fn elliptical_arc_keeps_ratio() {
     }
 }
 
-
 fn model_layer(s: &Session) -> String {
     s.doc().unwrap().model.iter().next().unwrap().common.layer.clone()
 }
@@ -704,7 +703,7 @@ fn layer_state_save_records_snapshot() {
     s.execute("layer.new", &json!({"name":"Set"})).unwrap();
     s.execute("layerstate.save", &json!({"name":"Opening"})).unwrap();
     assert_eq!(s.doc().unwrap().layer_states[0].name, "Opening");
-    assert!(s.doc().unwrap().layer_states[0].layers.iter().any(|l| l.name=="Set"));
+    assert!(s.doc().unwrap().layer_states[0].layers.iter().any(|l| l.name == "Set"));
 }
 
 fn layer_state_list_reports_saved_name() {

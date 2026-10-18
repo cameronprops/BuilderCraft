@@ -219,86 +219,105 @@ fn sweep_two(s: &mut Session, p: &Value) -> Result<Value> {
 /// piecewise-linear rail. This is NOT exact NURBS interpolation in the native
 /// OCCT spine. The OCCT result itself remains an authoritative exact BRep.
 fn sampled_document_curve(s: &Session, p: &Value, id_key: &str) -> Result<(u64, Vec<[f64; 3]>, usize)> {
-    let id = uid(p,id_key)?;
+    let id = uid(p, id_key)?;
     let object = s.doc()?.geometry3d.iter().find(|o| o.id == id).ok_or_else(|| fail("NURBS rail object not found"))?;
     let cadcraft_doc::organization::Shape::Curve(curve) = &object.shape else {
         return Err(fail("selected geometry must be a 3D rational NURBS curve"));
     };
-    if !curve.valid() { return Err(fail("NURBS rail is invalid")); }
+    if !curve.valid() {
+        return Err(fail("NURBS rail is invalid"));
+    }
     let default_segments = if curve.degree == 1 && curve.control.len() == 2 { 1 } else { 63 };
-    let segments = p.get("segments").map(|v| v.as_u64().and_then(|n| usize::try_from(n).ok())
-        .ok_or_else(|| fail("segments must be 1..127"))).transpose()?.unwrap_or(default_segments);
-    if !(1..=127).contains(&segments) || (segments < 8 && curve.control.len()>2) {
+    let segments = p
+        .get("segments")
+        .map(|v| v.as_u64().and_then(|n| usize::try_from(n).ok()).ok_or_else(|| fail("segments must be 1..127")))
+        .transpose()?
+        .unwrap_or(default_segments);
+    if !(1..=127).contains(&segments) || (segments < 8 && curve.control.len() > 2) {
         return Err(fail("NURBS rail segments must be 8..127 for curved/multispan rails"));
     }
-    let points = (0..=segments).map(|i| -> Result<[f64;3]> {
-        let t = i as f64 / segments as f64;
-        let pt = curve.evaluate(t).ok_or_else(|| fail("could not evaluate NURBS rail"))?;
-        if !pt.is_finite() || pt.x.abs()>1e9 || pt.y.abs()>1e9 || pt.z.abs()>1e9 {
-            return Err(fail("rail coordinate outside bounded worker range"));
-        }
-        Ok([pt.x,pt.y,pt.z])
-    }).collect::<Result<Vec<_>>>()?;
+    let points = (0..=segments)
+        .map(|i| -> Result<[f64; 3]> {
+            let t = i as f64 / segments as f64;
+            let pt = curve.evaluate(t).ok_or_else(|| fail("could not evaluate NURBS rail"))?;
+            if !pt.is_finite() || pt.x.abs() > 1e9 || pt.y.abs() > 1e9 || pt.z.abs() > 1e9 {
+                return Err(fail("rail coordinate outside bounded worker range"));
+            }
+            Ok([pt.x, pt.y, pt.z])
+        })
+        .collect::<Result<Vec<_>>>()?;
     for pair in points.windows(2) {
-        let delta = [pair[1][0]-pair[0][0],pair[1][1]-pair[0][1],pair[1][2]-pair[0][2]];
+        let delta = [pair[1][0] - pair[0][0], pair[1][1] - pair[0][1], pair[1][2] - pair[0][2]];
         let length = delta[0].hypot(delta[1]).hypot(delta[2]);
         if !length.is_finite() || length <= 1e-7 {
             return Err(fail("sampled NURBS path contains degenerate rail segment"));
         }
     }
-    Ok((id,points,segments))
+    Ok((id, points, segments))
 }
 fn check_curve_revision(s: &Session, p: &Value) -> Result<()> {
     if let Some(value) = p.get("selected_revision") {
         let revision = value.as_u64().ok_or_else(|| fail("selected_revision must be an integer"))?;
-        if s.state()?.revision != revision { return Err(fail("NURBS rail selection revision is stale")); }
+        if s.state()?.revision != revision {
+            return Err(fail("NURBS rail selection revision is stale"));
+        }
     }
     Ok(())
 }
 fn relay_document_curve(s: &mut Session, p: &Value, mode: &str) -> Result<Value> {
     name(p)?;
-    check_curve_revision(s,p)?;
-    let (id_a,rail_a,segments) = sampled_document_curve(s,p,if mode=="sweep2"{"curve_a_id"}else{"curve_id"})?;
+    check_curve_revision(s, p)?;
+    let (id_a, rail_a, segments) = sampled_document_curve(s, p, if mode == "sweep2" { "curve_a_id" } else { "curve_id" })?;
     let worker = match mode {
         "pipe" => {
-            let radius=positive(p,"radius")?;
-            point_field(p,"up",3)?;
+            let radius = positive(p, "radius")?;
+            point_field(p, "up", 3)?;
             json!({"op":"pipe","rail":rail_a,"up":p["up"],"radius":radius,"tolerance":tolerance(p)?})
         }
         "sweep1" => {
             section_field(p)?;
-            point_field(p,"up",3)?;
+            point_field(p, "up", 3)?;
             json!({"op":"sweep1","rail":rail_a,"section":p["section"],"up":p["up"],"tolerance":tolerance(p)?})
         }
         "sweep2" => {
             section_field(p)?;
-            let (id_b,rail_b,samples_b) = sampled_document_curve(s,p,"curve_b_id")?;
-            if id_a==id_b { return Err(fail("Sweep2 requires distinct rails")); }
-            if samples_b!=segments { return Err(fail("paired NURBS rails require identical segment counts")); }
+            let (id_b, rail_b, samples_b) = sampled_document_curve(s, p, "curve_b_id")?;
+            if id_a == id_b {
+                return Err(fail("Sweep2 requires distinct rails"));
+            }
+            if samples_b != segments {
+                return Err(fail("paired NURBS rails require identical segment counts"));
+            }
             json!({"op":"sweep2","rail_a":rail_a,"rail_b":rail_b,
                 "section":p["section"],"tolerance":tolerance(p)?})
         }
         _ => return Err(fail("unrecognized document NURBS construction")),
     };
     // All input checks and native processing must finish before document mutates.
-    let reply=call_worker(&worker)?;
-    let mut output=add_worker_shapes(s,p,reply)?;
-    if let Some(map)=output.as_object_mut() {
-        map.insert("source_curve_id".into(),json!(id_a));
-        if mode=="sweep2" {
-            map.insert("source_curve_b_id".into(),p["curve_b_id"].clone());
+    let reply = call_worker(&worker)?;
+    let mut output = add_worker_shapes(s, p, reply)?;
+    if let Some(map) = output.as_object_mut() {
+        map.insert("source_curve_id".into(), json!(id_a));
+        if mode == "sweep2" {
+            map.insert("source_curve_b_id".into(), p["curve_b_id"].clone());
         }
-        map.insert("source_representation".into(),json!("rational_nurbs"));
-        map.insert("construction_spine".into(),json!("uniform_parameter_polyline_approximation"));
-        map.insert("spine_deviation_certified".into(),json!(false));
-        map.insert("sample_segments".into(),json!(segments));
-        map.insert("associative".into(),json!(false));
+        map.insert("source_representation".into(), json!("rational_nurbs"));
+        map.insert("construction_spine".into(), json!("uniform_parameter_polyline_approximation"));
+        map.insert("spine_deviation_certified".into(), json!(false));
+        map.insert("sample_segments".into(), json!(segments));
+        map.insert("associative".into(), json!(false));
     }
     Ok(output)
 }
-fn pipe_from_curve(s: &mut Session,p: &Value) -> Result<Value> { relay_document_curve(s,p,"pipe") }
-fn sweep_one_from_curve(s: &mut Session,p: &Value) -> Result<Value> { relay_document_curve(s,p,"sweep1") }
-fn sweep_two_from_curves(s: &mut Session,p: &Value) -> Result<Value> { relay_document_curve(s,p,"sweep2") }
+fn pipe_from_curve(s: &mut Session, p: &Value) -> Result<Value> {
+    relay_document_curve(s, p, "pipe")
+}
+fn sweep_one_from_curve(s: &mut Session, p: &Value) -> Result<Value> {
+    relay_document_curve(s, p, "sweep1")
+}
+fn sweep_two_from_curves(s: &mut Session, p: &Value) -> Result<Value> {
+    relay_document_curve(s, p, "sweep2")
+}
 
 fn positive(p: &Value, key: &str) -> Result<f64> {
     p.get(key).and_then(Value::as_f64).filter(|v| v.is_finite() && *v > 0.0).ok_or_else(|| fail(format!("{key} must be finite and positive")))
@@ -592,54 +611,84 @@ mod tests {
     }
     #[test]
     fn document_nurbs_pipe_selection_failures_do_not_modify_scene() {
-        let mut s=Session::new();
-        let c=cadcraft_geom::nurbs3d::Curve::from_control(vec![
-            cadcraft_geom::Vec3::new(0.,0.,0.),cadcraft_geom::Vec3::new(0.,0.,5.)
-        ],1).unwrap();
-        let id=s.execute("nurbs.curve3d",&json!({"name":"Track","curve":c})).unwrap()["id"].as_u64().unwrap();
-        let before=s.state().unwrap().revision;
+        let mut s = Session::new();
+        let c =
+            cadcraft_geom::nurbs3d::Curve::from_control(vec![cadcraft_geom::Vec3::new(0., 0., 0.), cadcraft_geom::Vec3::new(0., 0., 5.)], 1).unwrap();
+        let id = s.execute("nurbs.curve3d", &json!({"name":"Track","curve":c})).unwrap()["id"].as_u64().unwrap();
+        let before = s.state().unwrap().revision;
         for p in [
             json!({"name":"Bad","curve_id":id,"radius":0.3,"up":[0.,1.,0.],"selected_revision":before+1}),
             json!({"name":"Bad","curve_id":id,"radius":0.,"up":[0.,1.,0.]}),
             json!({"name":"Bad","curve_id":id+1000,"radius":0.3,"up":[0.,1.,0.]}),
             json!({"name":"Bad","curve_id":id,"radius":0.3,"up":[0.,1.,0.],"segments":128}),
         ] {
-            assert!(s.execute("brep.pipe_from_curve",&p).is_err());
+            assert!(s.execute("brep.pipe_from_curve", &p).is_err());
         }
         assert!(s.doc().unwrap().exact_breps.is_empty());
-        assert_eq!(s.state().unwrap().revision,before);
+        assert_eq!(s.state().unwrap().revision, before);
     }
     #[test]
-    #[cfg(not(target_arch="wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     fn document_nurbs_spine_produces_real_exact_solid_when_worker_installed() {
-        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() { return; }
-        let mut s=Session::new();
-        let control=vec![cadcraft_geom::Vec3::new(0.,0.,0.),cadcraft_geom::Vec3::new(0.,0.,5.)];
-        let id=s.execute("nurbs.curve3d",&json!({"name":"Show Track","curve":
-            cadcraft_geom::nurbs3d::Curve::from_control(control,1).unwrap()})).unwrap()["id"].as_u64().unwrap();
-        let result=s.execute("brep.pipe_from_curve",&json!({"name":"Handrail","curve_id":id,
-            "radius":0.5,"up":[0.,1.,0.]})).unwrap();
-        assert_eq!(result["representation"],"exact_occt_brep");
-        assert_eq!(result["construction_spine"],"uniform_parameter_polyline_approximation");
-        assert_eq!(result["spine_deviation_certified"],false);
-        let solid=result["ids"][0].as_u64().unwrap();
-        let summary=s.execute("brep.inspect",&json!({"id":solid})).unwrap();
-        assert!((summary["volume"].as_f64().unwrap()-std::f64::consts::PI*0.25*5.).abs()<1e-3);
-        let section=json!([[-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]]);
-        let one=s.execute("brep.sweep1_from_curve",&json!({"name":"Extruded scenic","curve_id":id,
-            "section":section,"up":[0.,1.,0.]})).unwrap();
-        assert_eq!(one["representation"],"exact_occt_brep");
-        let other_curve=s.execute("nurbs.curve3d",&json!({"name":"Rail B","curve":
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
+        let mut s = Session::new();
+        let control = vec![cadcraft_geom::Vec3::new(0., 0., 0.), cadcraft_geom::Vec3::new(0., 0., 5.)];
+        let id = s
+            .execute(
+                "nurbs.curve3d",
+                &json!({"name":"Show Track","curve":
+            cadcraft_geom::nurbs3d::Curve::from_control(control,1).unwrap()}),
+            )
+            .unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        let result = s
+            .execute(
+                "brep.pipe_from_curve",
+                &json!({"name":"Handrail","curve_id":id,
+            "radius":0.5,"up":[0.,1.,0.]}),
+            )
+            .unwrap();
+        assert_eq!(result["representation"], "exact_occt_brep");
+        assert_eq!(result["construction_spine"], "uniform_parameter_polyline_approximation");
+        assert_eq!(result["spine_deviation_certified"], false);
+        let solid = result["ids"][0].as_u64().unwrap();
+        let summary = s.execute("brep.inspect", &json!({"id":solid})).unwrap();
+        assert!((summary["volume"].as_f64().unwrap() - std::f64::consts::PI * 0.25 * 5.).abs() < 1e-3);
+        let section = json!([[-0.25, -0.25], [0.25, -0.25], [0.25, 0.25], [-0.25, 0.25]]);
+        let one = s
+            .execute(
+                "brep.sweep1_from_curve",
+                &json!({"name":"Extruded scenic","curve_id":id,
+            "section":section,"up":[0.,1.,0.]}),
+            )
+            .unwrap();
+        assert_eq!(one["representation"], "exact_occt_brep");
+        let other_curve = s
+            .execute(
+                "nurbs.curve3d",
+                &json!({"name":"Rail B","curve":
             cadcraft_geom::nurbs3d::Curve::from_control(vec![
                 cadcraft_geom::Vec3::new(2.,0.,0.),cadcraft_geom::Vec3::new(2.,0.,5.)
-            ],1).unwrap()})).unwrap()["id"].as_u64().unwrap();
-        let two=s.execute("brep.sweep2_from_curves",&json!({"name":"Scenic beam",
+            ],1).unwrap()}),
+            )
+            .unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        let two = s
+            .execute(
+                "brep.sweep2_from_curves",
+                &json!({"name":"Scenic beam",
             "curve_a_id":id,"curve_b_id":other_curve,
-            "section":[[0.,-0.25],[1.,-0.25],[1.,0.25],[0.,0.25]]})).unwrap();
-        assert_eq!(two["representation"],"exact_occt_brep");
-        assert_eq!(s.doc().unwrap().exact_breps.len(),3);
-        s.execute("undo",&json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().exact_breps.len(),2);
+            "section":[[0.,-0.25],[1.,-0.25],[1.,0.25],[0.,0.25]]}),
+            )
+            .unwrap();
+        assert_eq!(two["representation"], "exact_occt_brep");
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 3);
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 2);
     }
     #[test]
     fn native_worker_is_an_explicit_capability_not_a_mesh_fallback() {

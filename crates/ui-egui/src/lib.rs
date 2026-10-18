@@ -228,10 +228,13 @@ impl CadApp {
 
     /// Run a command programmatically (or a UI command).
     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
-        if let Some(r) = menus::run_ui_command(self, id, &params) {
-            return r;
-        }
-        let r = self.session.execute(id, &params).map_err(|e| e.to_string());
+        // Both UI commands and engine commands must report failures consistently.
+        // Model-browser controls often intentionally discard the Result; an error
+        // cannot be discoverable only by callers that inspect the return value.
+        let r = match menus::run_ui_command(self, id, &params) {
+            Some(result) => result,
+            None => self.session.execute(id, &params).map_err(|e| e.to_string()),
+        };
         if let Ok(v) = &r
             && let Some(m) = v.get("message").and_then(Value::as_str)
         {
@@ -240,7 +243,9 @@ impl CadApp {
             }
         }
         if let Err(e) = &r {
-            self.session.echo(e.clone());
+            let message = format!("{id}: {e}");
+            self.session.echo(message.clone());
+            self.set_status(message);
         }
         r
     }
@@ -255,7 +260,9 @@ impl CadApp {
             return;
         }
         if let Err(e) = self.session.start(name) {
-            self.session.echo(e.to_string());
+            let message = format!("{name}: {e}");
+            self.session.echo(message.clone());
+            self.set_status(message);
         }
     }
 
@@ -268,7 +275,9 @@ impl CadApp {
             }
         }
         if let Err(e) = self.session.cmdline(text) {
-            self.session.echo(e.to_string());
+            let message = e.to_string();
+            self.session.echo(message.clone());
+            self.set_status(message);
         }
     }
 

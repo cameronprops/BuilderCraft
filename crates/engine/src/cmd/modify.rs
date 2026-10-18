@@ -181,10 +181,22 @@ fn run_move(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "moved": moved.len() }))
 }
 
+// Keep user-controlled replication bounded before any entity is inserted.
+// This is a total output budget, not an arbitrary per-axis clamp.
+const MAX_ARRAY_ENTITIES: u64 = 20_000;
+
+fn check_replication_budget(command: &str, input_count: usize, copies: u64) -> Result<()> {
+    if (input_count as u64).saturating_mul(copies) > MAX_ARRAY_ENTITIES {
+        return Err(bad(command, format!("operation would create more than {MAX_ARRAY_ENTITIES} entities; reduce the count or split the array")));
+    }
+    Ok(())
+}
+
 fn run_copy(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
     let d = delta_of("copy", p)?;
     let n = p.get("count").and_then(Value::as_u64).unwrap_or(1).clamp(1, 10_000);
+    check_replication_budget("copy", hs.len(), n)?;
     let mut out = Vec::new();
     for k in 1..=n {
         out.extend(transform_entities(s, &hs, &Mat3::translate(d * k as f64), true)?.into_iter().map(|h| h.hex()));
@@ -1013,6 +1025,7 @@ fn run_arrayrect(s: &mut Session, p: &Value) -> Result<Value> {
     let cols = p.get("cols").and_then(Value::as_u64).unwrap_or(4).clamp(1, 1000);
     let rs = f64_or(p, "rowSpacing", 1.0);
     let cs = f64_or(p, "colSpacing", 1.0);
+    check_replication_budget("arrayrect", hs.len(), rows.saturating_mul(cols).saturating_sub(1))?;
     let mut out = Vec::new();
     for r in 0..rows {
         for c in 0..cols {
@@ -1031,6 +1044,7 @@ fn run_arraypolar(s: &mut Session, p: &Value) -> Result<Value> {
     let n = p.get("count").and_then(Value::as_u64).unwrap_or(6).clamp(1, 10_000);
     let total = f64_or(p, "angle", 360.0).to_radians();
     let rotate = bool_or(p, "rotate", true);
+    check_replication_budget("arraypolar", hs.len(), n.saturating_sub(1))?;
     let step = if (total - TAU).abs() < 1e-9 { total / n as f64 } else { total / (n.saturating_sub(1).max(1)) as f64 };
     let mut out = Vec::new();
     for k in 1..n {
@@ -1180,17 +1194,24 @@ fn run_breakat(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// Join lines/arcs/polylines that share endpoints into one polyline (or merge collinear lines).
 pub(crate) fn join(s: &mut Session, hs: &[Handle]) -> Result<Option<Handle>> {
+    let working_space = s.space();
     let d = s.doc()?;
     let mut segs: Vec<Segment> = Vec::new();
     let mut common = None;
     for h in hs {
-        let Some(e) = d.entity(*h) else { continue };
+        let e = d.entity(*h).ok_or_else(|| bad("join", format!("object {} does not exist", h.hex())))?;
+        if d.space_of(*h).as_ref() != Some(&working_space) {
+            return Err(bad("join", format!("object {} is not in the current drawing space", h.hex())));
+        }
+        if d.layer(&e.common.layer).is_some_and(|l| l.locked) {
+            return Err(bad("join", format!("object {} is on locked layer {}", h.hex(), e.common.layer)));
+        }
         common.get_or_insert_with(|| e.common.clone());
         match &e.kind {
             EntityKind::Line(l) => segs.push(Segment::Line(Line::new(l.a.xy(), l.b.xy()))),
             EntityKind::Arc(a) => segs.push(Segment::Arc { arc: Arc::new(a.center.xy(), a.radius, a.start, a.end), ccw: true }),
             EntityKind::LwPolyline(p) if !p.closed => segs.extend(Polyline { vertices: p.vertices.clone(), closed: false }.segments()),
-            _ => {}
+            _ => return Err(bad("join", format!("object {} is not a supported open curve", h.hex()))),
         }
     }
     if segs.len() < 2 {
@@ -1220,6 +1241,9 @@ pub(crate) fn join(s: &mut Session, hs: &[Handle]) -> Result<Option<Handle>> {
     }
     if chain.len() < 2 {
         return Err(EngineError::Other("Objects are not connected.".into()));
+    }
+    if !segs.is_empty() {
+        return Err(bad("join", format!("{} segment(s) are disconnected; no objects were changed", segs.len())));
     }
     let closed = chain.first().zip(chain.last()).is_some_and(|(a, b)| a.start().near(b.end(), tol));
     let mut vs: Vec<PolyVertex> = chain
@@ -1258,15 +1282,13 @@ fn run_join(s: &mut Session, p: &Value) -> Result<Value> {
 fn run_overkill(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = if p.get("handles").is_some() { targets(s, p)? } else { s.doc()?.space(&s.space()).map(|st| st.handles()).unwrap_or_default() };
     let d = s.doc()?;
-    let mut seen: Vec<(String, String)> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     let mut dup = Vec::new();
     for h in hs {
         let Some(e) = d.entity(h) else { continue };
         let key = (serde_json::to_string(&e.kind).unwrap_or_default(), serde_json::to_string(&e.common).unwrap_or_default());
-        if seen.contains(&key) {
+        if !seen.insert(key) {
             dup.push(h);
-        } else {
-            seen.push(key);
         }
     }
     let n = erase(s, &dup)?;

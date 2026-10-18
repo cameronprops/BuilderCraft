@@ -325,14 +325,12 @@ fn every_registered_command_error_preserves_drawing_and_undo() {
             let selection = state.selection.clone();
 
             if s.execute(spec.id, &request).is_err() {
-                let state = s.docs.iter().find(|doc| doc.uid == uid).unwrap_or_else(|| {
-                    panic!("{} discarded the open document when rejecting invalid params", spec.id)
-                });
-                assert!(
-                    std::sync::Arc::ptr_eq(&document, &state.doc),
-                    "{} changed the document despite returning an error",
-                    spec.id
-                );
+                let state = s
+                    .docs
+                    .iter()
+                    .find(|doc| doc.uid == uid)
+                    .unwrap_or_else(|| panic!("{} discarded the open document when rejecting invalid params", spec.id));
+                assert!(std::sync::Arc::ptr_eq(&document, &state.doc), "{} changed the document despite returning an error", spec.id);
                 assert_eq!(state.selection, selection, "{} changed selection on error", spec.id);
                 assert_eq!(state.revision, revision, "{} advanced revision on error", spec.id);
                 assert_eq!(state.undo.len(), undo_len, "{} changed undo on error", spec.id);

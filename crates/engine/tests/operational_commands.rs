@@ -62,6 +62,8 @@ const CASES: &[Case] = &[
     ("arc.sce", arc_start_center_end_keeps_radius),
     ("ellipse.axis", ellipse_axis_uses_half_minor_axis),
     ("ellipse.arc", elliptical_arc_keeps_ratio),
+    ("3dpoly", three_d_polyline_preserves_elevation),
+    ("helix", helix_has_expected_height_and_turns),
     ("layer.delete", unused_layer_can_be_deleted),
     ("laymcur", object_layer_becomes_current),
     ("laymch", layer_match_moves_entity),
@@ -820,6 +822,33 @@ fn pan_down_moves_camera_down() {
     let old = s.state().unwrap().view().center;
     s.execute("pan.down", &json!({})).unwrap();
     assert!(s.state().unwrap().view().center.y < old.y);
+}
+
+fn three_d_polyline_preserves_elevation() {
+    let mut s = Session::new();
+    s.execute("3dpoly", &json!({"points": [[0, 0, 0], [3, 4, 5], [6, 7, 8]]})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Polyline3d(pl) => {
+            assert_eq!(pl.points.len(), 3);
+            assert_eq!(pl.points[1].z, 5.0);
+            assert_eq!(pl.points[2].z, 8.0);
+        }
+        other => panic!("expected a 3D polyline, got {other:?}"),
+    }
+}
+
+fn helix_has_expected_height_and_turns() {
+    let mut s = Session::new();
+    s.execute("helix", &json!({"center": [0, 0], "baseRadius": 2, "topRadius": 2, "height": 8, "turns": 2})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Polyline3d(pl) => {
+            assert!(pl.points.len() >= 72);
+            assert_eq!(pl.points.first().unwrap().z, 0.0);
+            assert!((pl.points.last().unwrap().z - 8.0).abs() < 1e-9);
+            assert!(pl.points.iter().all(|point| point.is_finite()));
+        }
+        other => panic!("expected a 3D helix polyline, got {other:?}"),
+    }
 }
 
 #[test]

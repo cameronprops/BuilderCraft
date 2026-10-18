@@ -172,6 +172,9 @@ fn run_arc(s: &mut Session, p: &Value) -> Result<Value> {
     } else {
         return Err(bad("arc", "give {p1,p2,p3}, {start,center,end} or {center,radius,start,end}"));
     };
+    if !a.radius.is_finite() || a.radius <= 0.0 || !a.center.is_finite() || !a.start.is_finite() || !a.end.is_finite() {
+        return Err(bad("arc", "arc must have a positive finite radius and finite angles"));
+    }
     added(s.add_entity(arc(&a))?)
 }
 
@@ -182,10 +185,16 @@ fn run_polygon(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let vs = if let Some(e) = points_param(p, "edge") {
         let (Some(a), Some(b)) = (e.first(), e.get(1)) else { return Err(bad("polygon", "edge needs 2 points")) };
+        if !a.dist(*b).is_finite() || a.dist(*b) <= 1e-12 {
+            return Err(bad("polygon", "edge must have a positive finite length"));
+        }
         polygon_from_edge(*a, *b, n)
     } else {
         let c = point_req("polygon", p, "center")?;
         let r = f64_req("polygon", p, "radius")?;
+        if r <= 0.0 {
+            return Err(bad("polygon", "radius must be positive"));
+        }
         let ang = f64_or(p, "angle", 90.0).to_radians();
         let inscribed = bool_or(p, "inscribed", true);
         polygon_vertices(
@@ -202,7 +211,7 @@ fn run_ellipse(s: &mut Session, p: &Value) -> Result<Value> {
     let c = point_req("ellipse", p, "center")?;
     let m = point_req("ellipse", p, "major")?;
     let ratio = f64_req("ellipse", p, "ratio")?;
-    if !(ratio > 0.0 && ratio <= 1.0) || m.len() < 1e-12 {
+    if !(ratio > 0.0 && ratio <= 1.0) || !m.len().is_finite() || m.len() < 1e-12 {
         return Err(bad("ellipse", "ratio must be in (0, 1] and major non-zero"));
     }
     let start = f64_or(p, "start", 0.0).to_radians();
@@ -215,6 +224,9 @@ fn run_point(s: &mut Session, p: &Value) -> Result<Value> {
         Some(a) => vec![a],
         None => points_param(p, "points").ok_or_else(|| bad("point", "`at` or `points` is required"))?,
     };
+    if pts.is_empty() {
+        return Err(bad("point", "at least one point is required"));
+    }
     let mut hs = Vec::new();
     for q in pts {
         hs.push(s.add_entity(EntityKind::Point(Point { p: v3(q), angle: 0.0 }))?.hex());
@@ -261,7 +273,12 @@ fn donut(center: Vec2, inside: f64, outside: f64) -> EntityKind {
 
 fn run_donut(s: &mut Session, p: &Value) -> Result<Value> {
     let c = point_req("donut", p, "center")?;
-    added(s.add_entity(donut(c, f64_or(p, "inside", 0.5), f64_or(p, "outside", 1.0)))?)
+    let inside = f64_req("donut", p, "inside")?;
+    let outside = f64_req("donut", p, "outside")?;
+    if !(inside >= 0.0 && outside > inside) {
+        return Err(bad("donut", "outside diameter must be greater than nonnegative inside diameter"));
+    }
+    added(s.add_entity(donut(c, inside, outside))?)
 }
 
 /// Justification code → (halign, valign).

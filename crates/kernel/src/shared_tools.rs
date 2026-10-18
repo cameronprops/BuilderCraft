@@ -211,10 +211,8 @@ const CURVE_SWEEP2: &[ToolPort] = &[
     ToolPort { name: "section", kind: ToolType::Polyline, modifier: false },
 ];
 
-const NURBS_POINT: &[ToolPort] = &[
-    ToolPort { name: "curve", kind: ToolType::Curve, modifier: false },
-    ToolPort { name: "t", kind: ToolType::Number, modifier: true },
-];
+const NURBS_POINT: &[ToolPort] =
+    &[ToolPort { name: "curve", kind: ToolType::Curve, modifier: false }, ToolPort { name: "t", kind: ToolType::Number, modifier: true }];
 const NURBS_TRIM: &[ToolPort] = &[
     ToolPort { name: "curve", kind: ToolType::Curve, modifier: false },
     ToolPort { name: "start", kind: ToolType::Number, modifier: true },
@@ -983,22 +981,24 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
             polyline(&request.inputs, "rail_b")?,
             polyline(&request.inputs, "section")?,
         )?)),
-        "kernel.nurbs.evaluate" => Ok(ToolValue::Point(crate::nurbs_curve_evaluate(
-            nurbs_curve(&request.inputs, "curve")?, number(&request.inputs, "t")?
-        )?)),
+        "kernel.nurbs.evaluate" => {
+            Ok(ToolValue::Point(crate::nurbs_curve_evaluate(nurbs_curve(&request.inputs, "curve")?, number(&request.inputs, "t")?)?))
+        }
         "kernel.nurbs.split" => {
-            let (a,b) = crate::nurbs_curve_split(
-                nurbs_curve(&request.inputs, "curve")?,number(&request.inputs, "t")?
-            )?;
-            let out = DataTree { branches: vec![
-                TreeBranch {path:crate::TreePath(vec![0]),items:vec![ToolValue::Curve(a)]},
-                TreeBranch {path:crate::TreePath(vec![1]),items:vec![ToolValue::Curve(b)]},
-            ] };
+            let (a, b) = crate::nurbs_curve_split(nurbs_curve(&request.inputs, "curve")?, number(&request.inputs, "t")?)?;
+            let out = DataTree {
+                branches: vec![
+                    TreeBranch { path: crate::TreePath(vec![0]), items: vec![ToolValue::Curve(a)] },
+                    TreeBranch { path: crate::TreePath(vec![1]), items: vec![ToolValue::Curve(b)] },
+                ],
+            };
             tree_validate(&out)?;
             Ok(ToolValue::Tree(out))
         }
         "kernel.nurbs.trim" => Ok(ToolValue::Curve(crate::nurbs_curve_trim(
-            nurbs_curve(&request.inputs, "curve")?, number(&request.inputs,"start")?, number(&request.inputs,"end")?
+            nurbs_curve(&request.inputs, "curve")?,
+            number(&request.inputs, "start")?,
+            number(&request.inputs, "end")?,
         )?)),
         "kernel.tree.validate" => {
             Ok(ToolValue::Count(u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?).map_err(|_| KernelError::Budget)?))

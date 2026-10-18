@@ -346,16 +346,12 @@ fn transform_rejects_stale_or_locked_batch_without_partial_geometry() {
 #[test]
 fn transform_rejects_coordinate_overflow_without_mutation() {
     let mut s = Session::new();
-    let h = s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap()["handles"][0]
-        .as_str()
-        .unwrap()
-        .to_string();
+    let h = s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
     let before = s.state().unwrap().doc.clone();
     let revision = s.state().unwrap().revision;
-    for params in [
-        json!({"handles":[h.clone()], "from":[-1e308, 0], "to":[1e308, 0]}),
-        json!({"handles":[h.clone()], "delta":[1e308, 1e308], "count": 2}),
-    ] {
+    for params in
+        [json!({"handles":[h.clone()], "from":[-1e308, 0], "to":[1e308, 0]}), json!({"handles":[h.clone()], "delta":[1e308, 1e308], "count": 2})]
+    {
         let command = if params.get("count").is_some() { "copy" } else { "move" };
         assert!(s.execute(command, &params).is_err(), "{command} accepted numeric overflow: {params}");
         assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));

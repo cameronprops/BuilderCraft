@@ -244,6 +244,43 @@ impl CadrumBrepCandidate {
         Ok(BrepSolid { solid: Solid::sphere(radius), primitive: None })
     }
 
+    /// Apply an exact OpenCascade fillet to the selected edge set. Empty
+    /// indices mean all edges. Edge positions are transient per native BRep
+    /// payload, not stable topological naming identifiers across edits.
+    /// This operation is never permitted to mutate its source BRep.
+    pub fn fillet_selected(
+        &self,
+        source: &BrepSolid,
+        radius: f64,
+        indices: &[usize],
+    ) -> Result<BrepSolid, BrepError> {
+        if !radius.is_finite() || radius <= self.absolute.value() || radius > 1e8
+            || indices.len() > 4096 {
+            return Err(BrepError::InvalidPrimitive);
+        }
+        let edges = source.solid.iter_edge().collect::<Vec<_>>();
+        if edges.is_empty() || edges.len() > 4096 {
+            return Err(BrepError::InvalidPrimitive);
+        }
+        let selected = if indices.is_empty() {
+            (0..edges.len()).collect::<Vec<_>>()
+        } else {
+            let mut unique = indices.to_vec();
+            unique.sort_unstable();
+            unique.dedup();
+            if unique.len() != indices.len() || unique.iter().any(|&i| i >= edges.len()) {
+                return Err(BrepError::InvalidPrimitive);
+            }
+            unique
+        };
+        let result = source.solid.fillet_edges(radius,selected.iter().map(|&index| edges[index]))?;
+        let stats = result.volume();
+        if !stats.is_finite() || stats <= 0.0 || result.iter_face().count()==0 {
+            return Err(BrepError::InvalidPrimitive);
+        }
+        Ok(BrepSolid {solid:result,primitive:None})
+    }
+
     /// Bounded display approximation derived from exact topology. Never write
     /// this result back into the document as if it were the BRep geometry.
     pub fn display_mesh(

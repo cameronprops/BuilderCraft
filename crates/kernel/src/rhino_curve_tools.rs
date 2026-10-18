@@ -306,7 +306,7 @@ mod tests {
         ]).unwrap();
         for mesh in [pipe,one,two] {
             assert!(polygon_mesh_validate(&mesh).is_ok());
-            let topology=crate::polygon_halfedge_topology(&mesh).unwrap();
+            let topology=crate::polygon_mesh_topology(&mesh).unwrap();
             assert!(topology.boundary_edges.is_empty());
             assert!(topology.non_manifold_edges.is_empty());
         }

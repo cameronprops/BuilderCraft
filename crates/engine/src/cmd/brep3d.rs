@@ -365,119 +365,138 @@ fn sweep_two_from_curves(s: &mut Session, p: &Value) -> Result<Value> {
     relay_document_curve(s, p, "sweep2")
 }
 
-fn selected_revision(s:&Session,p:&Value)->Result<()>{
-    if let Some(value)=p.get("selected_revision"){
-        let wanted=value.as_u64().ok_or_else(||fail("selected_revision must be an integer"))?;
-        if wanted!=s.state()?.revision {return Err(fail("selected BRep revision is stale"));}
+fn selected_revision(s: &Session, p: &Value) -> Result<()> {
+    if let Some(value) = p.get("selected_revision") {
+        let wanted = value.as_u64().ok_or_else(|| fail("selected_revision must be an integer"))?;
+        if wanted != s.state()?.revision {
+            return Err(fail("selected BRep revision is stale"));
+        }
     }
     Ok(())
 }
-fn edge_indices(p:&Value)->Result<Vec<usize>>{
-    let Some(value)=p.get("edge_indices") else {return Ok(Vec::new())};
-    let indices=value.as_array().filter(|items|items.len()<=4096)
-        .ok_or_else(||fail("edge_indices must be an array of at most 4096 indices"))?;
-    let mut out=Vec::with_capacity(indices.len());
-    for entry in indices{
-        let index=entry.as_u64().and_then(|v|usize::try_from(v).ok())
-            .filter(|v|*v<4096).ok_or_else(||fail("invalid transient BRep edge index"))?;
-        if out.contains(&index){return Err(fail("edge index selected more than once"));}
+fn edge_indices(p: &Value) -> Result<Vec<usize>> {
+    let Some(value) = p.get("edge_indices") else { return Ok(Vec::new()) };
+    let indices =
+        value.as_array().filter(|items| items.len() <= 4096).ok_or_else(|| fail("edge_indices must be an array of at most 4096 indices"))?;
+    let mut out = Vec::with_capacity(indices.len());
+    for entry in indices {
+        let index =
+            entry.as_u64().and_then(|v| usize::try_from(v).ok()).filter(|v| *v < 4096).ok_or_else(|| fail("invalid transient BRep edge index"))?;
+        if out.contains(&index) {
+            return Err(fail("edge index selected more than once"));
+        }
         out.push(index);
     }
     Ok(out)
 }
-fn fillet(s:&mut Session,p:&Value)->Result<Value>{
+fn fillet(s: &mut Session, p: &Value) -> Result<Value> {
     name(p)?;
-    selected_revision(s,p)?;
-    let id=uid(p,"id")?;
-    let radius=positive(p,"radius")?;
-    let indices=edge_indices(p)?;
-    let brep=get(s,id)?.brep.clone();
-    let request=json!({"op":"fillet","brep":brep.as_str(),
+    selected_revision(s, p)?;
+    let id = uid(p, "id")?;
+    let radius = positive(p, "radius")?;
+    let indices = edge_indices(p)?;
+    let brep = get(s, id)?.brep.clone();
+    let request = json!({"op":"fillet","brep":brep.as_str(),
         "radius":radius,"edge_indices":indices,"tolerance":tolerance(p)?});
-    let reply=call_worker(&request)?;
-    let mut created=add_worker_shapes(s,p,reply)?;
-    if let Some(out)=created.as_object_mut(){
-        out.insert("source_id".into(),json!(id));
-        out.insert("radius".into(),json!(radius));
-        out.insert("edge_selection".into(),json!("transient_indices"));
-        out.insert("source_preserved".into(),json!(true));
-        out.insert("fillet_constraints_certified".into(),json!(false));
+    let reply = call_worker(&request)?;
+    let mut created = add_worker_shapes(s, p, reply)?;
+    if let Some(out) = created.as_object_mut() {
+        out.insert("source_id".into(), json!(id));
+        out.insert("radius".into(), json!(radius));
+        out.insert("edge_selection".into(), json!("transient_indices"));
+        out.insert("source_preserved".into(), json!(true));
+        out.insert("fillet_constraints_certified".into(), json!(false));
     }
     Ok(created)
 }
 #[derive(Clone, Copy)]
 struct ProbeWindow {
-    min:f64,max:f64,samples:usize,refinements:usize,
+    min: f64,
+    max: f64,
+    samples: usize,
+    refinements: usize,
 }
-fn probe_window(p:&Value,stem:&str)->Result<ProbeWindow>{
-    let min=p.get(&format!("{stem}_min")).and_then(Value::as_f64)
-        .filter(|x|x.is_finite()&&(1e-7..=1e8).contains(x))
-        .ok_or_else(||fail(format!("{stem}_min must be positive and finite")))?;
-    let max=p.get(&format!("{stem}_max")).and_then(Value::as_f64)
-        .filter(|x|x.is_finite()&&(1e-7..=1e8).contains(x)&&*x>min)
-        .ok_or_else(||fail(format!("{stem}_max must exceed {stem}_min")))?;
-    let samples=p.get("probe_count").map(|v|v.as_u64().and_then(|n|usize::try_from(n).ok())
-        .filter(|n|(3..=12).contains(n)).ok_or_else(||fail("probe_count must be 3..12")))
-        .transpose()?.unwrap_or(6);
-    let refinements=p.get("refine_count").map(|v|v.as_u64().and_then(|n|usize::try_from(n).ok())
-        .filter(|n|*n<=6).ok_or_else(||fail("refine_count must be 0..6")))
-        .transpose()?.unwrap_or(3);
-    Ok(ProbeWindow{min,max,samples,refinements})
+fn probe_window(p: &Value, stem: &str) -> Result<ProbeWindow> {
+    let min = p
+        .get(&format!("{stem}_min"))
+        .and_then(Value::as_f64)
+        .filter(|x| x.is_finite() && (1e-7..=1e8).contains(x))
+        .ok_or_else(|| fail(format!("{stem}_min must be positive and finite")))?;
+    let max = p
+        .get(&format!("{stem}_max"))
+        .and_then(Value::as_f64)
+        .filter(|x| x.is_finite() && (1e-7..=1e8).contains(x) && *x > min)
+        .ok_or_else(|| fail(format!("{stem}_max must exceed {stem}_min")))?;
+    let samples = p
+        .get("probe_count")
+        .map(|v| v.as_u64().and_then(|n| usize::try_from(n).ok()).filter(|n| (3..=12).contains(n)).ok_or_else(|| fail("probe_count must be 3..12")))
+        .transpose()?
+        .unwrap_or(6);
+    let refinements = p
+        .get("refine_count")
+        .map(|v| v.as_u64().and_then(|n| usize::try_from(n).ok()).filter(|n| *n <= 6).ok_or_else(|| fail("refine_count must be 0..6")))
+        .transpose()?
+        .unwrap_or(3);
+    Ok(ProbeWindow { min, max, samples, refinements })
 }
-fn worker_failure_is_technical(e:&EngineError)->bool{
-    let message=e.to_string().to_lowercase();
-    ["unavailable","timed out","terminated","malformed","cannot wait for","no such file","request exceeds",
-     "reading brep worker","writing brep worker","encode brep request"].iter().any(|word|message.contains(word))
+fn worker_failure_is_technical(e: &EngineError) -> bool {
+    let message = e.to_string().to_lowercase();
+    [
+        "unavailable",
+        "timed out",
+        "terminated",
+        "malformed",
+        "cannot wait for",
+        "no such file",
+        "request exceeds",
+        "reading brep worker",
+        "writing brep worker",
+        "encode brep request",
+    ]
+    .iter()
+    .any(|word| message.contains(word))
 }
-fn analyze_constraints(
-    s:&Session,p:&Value,stem:&str,kind:&str,
-    request:impl Fn(f64)->Value
-)->Result<Value>{
-    selected_revision(s,p)?;
-    let window=probe_window(p,stem)?;
-    fn evaluate_probe(
-        tried:&mut Vec<(f64,bool,String)>,
-        request:&impl Fn(f64)->Value,
-        value:f64
-    )->Result<()>{
-        match call_worker(&request(value)){
-            Ok(_)=>tried.push((value,true,String::new())),
-            Err(e) if worker_failure_is_technical(&e)=>return Err(e),
-            Err(e)=>tried.push((value,false,e.to_string())),
+fn analyze_constraints(s: &Session, p: &Value, stem: &str, kind: &str, request: impl Fn(f64) -> Value) -> Result<Value> {
+    selected_revision(s, p)?;
+    let window = probe_window(p, stem)?;
+    fn evaluate_probe(tried: &mut Vec<(f64, bool, String)>, request: &impl Fn(f64) -> Value, value: f64) -> Result<()> {
+        match call_worker(&request(value)) {
+            Ok(_) => tried.push((value, true, String::new())),
+            Err(e) if worker_failure_is_technical(&e) => return Err(e),
+            Err(e) => tried.push((value, false, e.to_string())),
         }
         Ok(())
     }
-    let mut tried:Vec<(f64,bool,String)>=Vec::new();
+    let mut tried: Vec<(f64, bool, String)> = Vec::new();
     // Probe the entire requested range. A fillet/sweep may have several
     // disconnected feasible intervals; never blindly assume monotonicity.
     for i in 0..window.samples {
-        let v=window.min+(window.max-window.min)*i as f64/(window.samples-1) as f64;
-        evaluate_probe(&mut tried,&request,v)?;
+        let v = window.min + (window.max - window.min) * i as f64 / (window.samples - 1) as f64;
+        evaluate_probe(&mut tried, &request, v)?;
     }
     // Refine the transition immediately above the highest passing probe.
     // This is a local tested boundary, not a proof of a global maximum.
     for _ in 0..window.refinements {
-        let high=tried.iter().filter(|x|x.1).map(|x|x.0).max_by(f64::total_cmp);
-        let Some(passed)=high else {break};
-        let failure=tried.iter().filter(|x|!x.1&&x.0>passed).map(|x|x.0)
-            .min_by(f64::total_cmp);
-        let Some(failed)=failure else {break};
-        if failed-passed<1e-9*(1.0+passed.abs()) {break;}
-        evaluate_probe(&mut tried,&request,(passed+failed)*0.5)?;
+        let high = tried.iter().filter(|x| x.1).map(|x| x.0).max_by(f64::total_cmp);
+        let Some(passed) = high else { break };
+        let failure = tried.iter().filter(|x| !x.1 && x.0 > passed).map(|x| x.0).min_by(f64::total_cmp);
+        let Some(failed) = failure else { break };
+        if failed - passed < 1e-9 * (1.0 + passed.abs()) {
+            break;
+        }
+        evaluate_probe(&mut tried, &request, (passed + failed) * 0.5)?;
     }
-    tried.sort_by(|a,b|a.0.total_cmp(&b.0));
-    let highest=tried.iter().filter(|item|item.1).map(|item|item.0).max_by(f64::total_cmp);
-    let first_failure_above=highest.and_then(|max|tried.iter()
-        .filter(|item|!item.1&&item.0>max).map(|item|item.0).min_by(f64::total_cmp));
-    let gaps=tried.windows(2).filter(|pair|!pair[0].1&&pair[1].1).count();
-    let status=match highest{
-        None=>"no_success_in_tested_range",
-        Some(pass) if pass>=window.max=>"range_cap_reached",
-        Some(_)=>"sampled_transition_only",
+    tried.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let highest = tried.iter().filter(|item| item.1).map(|item| item.0).max_by(f64::total_cmp);
+    let first_failure_above = highest.and_then(|max| tried.iter().filter(|item| !item.1 && item.0 > max).map(|item| item.0).min_by(f64::total_cmp));
+    let gaps = tried.windows(2).filter(|pair| !pair[0].1 && pair[1].1).count();
+    let status = match highest {
+        None => "no_success_in_tested_range",
+        Some(pass) if pass >= window.max => "range_cap_reached",
+        Some(_) => "sampled_transition_only",
     };
-    let outcomes=tried.iter().map(|(v,ok,err)|{
-        json!({"candidate":v,"feasible":ok,"reason":if *ok{Value::Null}else{json!(err)}})
-    }).collect::<Vec<_>>();
+    let outcomes =
+        tried.iter().map(|(v, ok, err)| json!({"candidate":v,"feasible":ok,"reason":if *ok{Value::Null}else{json!(err)}})).collect::<Vec<_>>();
     Ok(json!({
         "operation":kind,
         "parameter":stem,
@@ -496,47 +515,59 @@ fn analyze_constraints(
         "notes":"Sampled successes do not prove a mathematical maximum or guarantee intermediate radii; use the reported tested value or run another probe over a tighter range."
     }))
 }
-fn constraints_fillet(s:&mut Session,p:&Value)->Result<Value>{
-    let id=uid(p,"id")?;
-    let indices=edge_indices(p)?;
-    let brep=get(s,id)?.brep.clone();
-    let t=tolerance(p)?;
-    analyze_constraints(s,p,"radius","fillet",move |r|{
-        json!({"op":"fillet","brep":brep.as_str(),"radius":r,"edge_indices":indices,"tolerance":t})
-    })
+fn constraints_fillet(s: &mut Session, p: &Value) -> Result<Value> {
+    let id = uid(p, "id")?;
+    let indices = edge_indices(p)?;
+    let brep = get(s, id)?.brep.clone();
+    let t = tolerance(p)?;
+    analyze_constraints(
+        s,
+        p,
+        "radius",
+        "fillet",
+        move |r| json!({"op":"fillet","brep":brep.as_str(),"radius":r,"edge_indices":indices,"tolerance":t}),
+    )
 }
-fn constraints_pipe(s:&mut Session,p:&Value)->Result<Value>{
-    rail_field(p,"rail")?;point_field(p,"up",3)?;
-    let t=tolerance(p)?;
-    analyze_constraints(s,p,"radius","pipe",move |r|{
-        json!({"op":"pipe","rail":p["rail"],"up":p["up"],"radius":r,"tolerance":t})
-    })
+fn constraints_pipe(s: &mut Session, p: &Value) -> Result<Value> {
+    rail_field(p, "rail")?;
+    point_field(p, "up", 3)?;
+    let t = tolerance(p)?;
+    analyze_constraints(s, p, "radius", "pipe", move |r| json!({"op":"pipe","rail":p["rail"],"up":p["up"],"radius":r,"tolerance":t}))
 }
-fn scale_section(p:&Value,r:f64)->Value{
-    Value::Array(p["section"].as_array().into_iter().flatten().map(|point|{
-        json!([point[0].as_f64().unwrap_or(0.)*r,point[1].as_f64().unwrap_or(0.)*r])
-    }).collect())
+fn scale_section(p: &Value, r: f64) -> Value {
+    Value::Array(
+        p["section"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|point| json!([point[0].as_f64().unwrap_or(0.) * r, point[1].as_f64().unwrap_or(0.) * r]))
+            .collect(),
+    )
 }
-fn constraints_sweep1(s:&mut Session,p:&Value)->Result<Value>{
-    rail_field(p,"rail")?;point_field(p,"up",3)?;section_field(p)?;
-    let t=tolerance(p)?;
-    analyze_constraints(s,p,"scale","sweep1",move |scale|{
+fn constraints_sweep1(s: &mut Session, p: &Value) -> Result<Value> {
+    rail_field(p, "rail")?;
+    point_field(p, "up", 3)?;
+    section_field(p)?;
+    let t = tolerance(p)?;
+    analyze_constraints(s, p, "scale", "sweep1", move |scale| {
         json!({"op":"sweep1","rail":p["rail"],"up":p["up"],
             "section":scale_section(p,scale),"tolerance":t})
     })
 }
-fn constraints_sweep2(s:&mut Session,p:&Value)->Result<Value>{
-    rail_field(p,"rail_a")?;rail_field(p,"rail_b")?;section_field(p)?;
-    if p["rail_a"].as_array().map(Vec::len)!=p["rail_b"].as_array().map(Vec::len){
+fn constraints_sweep2(s: &mut Session, p: &Value) -> Result<Value> {
+    rail_field(p, "rail_a")?;
+    rail_field(p, "rail_b")?;
+    section_field(p)?;
+    if p["rail_a"].as_array().map(Vec::len) != p["rail_b"].as_array().map(Vec::len) {
         return Err(fail("Sweep2 rails require matching station counts"));
     }
-    let t=tolerance(p)?;
+    let t = tolerance(p)?;
     // Sweep2 profile x=0 and x=1 must still touch both rails. Scale its
     // *height* (Y dimension) only; scaling X would detach it from the rails.
-    analyze_constraints(s,p,"scale","sweep2",move |scale|{
-        let section=Value::Array(p["section"].as_array().into_iter().flatten().map(|point|{
-            json!([point[0].clone(),point[1].as_f64().unwrap_or(0.)*scale])
-        }).collect());
+    analyze_constraints(s, p, "scale", "sweep2", move |scale| {
+        let section = Value::Array(
+            p["section"].as_array().into_iter().flatten().map(|point| json!([point[0].clone(), point[1].as_f64().unwrap_or(0.) * scale])).collect(),
+        );
         json!({"op":"sweep2","rail_a":p["rail_a"],"rail_b":p["rail_b"],
             "section":section,"tolerance":t})
     })
@@ -936,61 +967,76 @@ mod tests {
     }
     #[test]
     fn constraints_validate_ranges_before_native_worker_or_document_changes() {
-        let mut session=Session::new();
-        let before=session.state().unwrap().revision;
-        let rail=json!([[0.,0.,0.],[0.,0.,5.]]);
+        let mut session = Session::new();
+        let before = session.state().unwrap().revision;
+        let rail = json!([[0., 0., 0.], [0., 0., 5.]]);
         for parameters in [
             json!({"rail":rail,"up":[0.,1.,0.],"radius_min":1.,"radius_max":0.1}),
             json!({"rail":rail,"up":[0.,1.,0.],"radius_min":0.1,"radius_max":1.,"probe_count":100}),
             json!({"rail":rail,"up":[0.,1.,0.],"radius_min":0.1,"radius_max":1.,"refine_count":100}),
         ] {
-            assert!(session.execute("brep.constraints.pipe",&parameters).is_err());
+            assert!(session.execute("brep.constraints.pipe", &parameters).is_err());
         }
-        assert_eq!(session.state().unwrap().revision,before);
+        assert_eq!(session.state().unwrap().revision, before);
         assert!(session.doc().unwrap().exact_breps.is_empty());
     }
 
     #[test]
-    #[cfg(not(target_arch="wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     fn fillet_probe_reports_real_tested_feasible_radii_without_mutation_when_worker_installed() {
-        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none(){return;}
-        let mut s=Session::new();
-        let id=s.execute("brep.box",&json!({"name":"Rounded frame","min":[0.,0.,0.],"max":[4.,4.,4.]})).unwrap()["ids"][0].as_u64().unwrap();
-        let revision=s.state().unwrap().revision;
-        let report=s.execute("brep.constraints.fillet",&json!({
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
+        let mut s = Session::new();
+        let id = s.execute("brep.box", &json!({"name":"Rounded frame","min":[0.,0.,0.],"max":[4.,4.,4.]})).unwrap()["ids"][0].as_u64().unwrap();
+        let revision = s.state().unwrap().revision;
+        let report = s
+            .execute(
+                "brep.constraints.fillet",
+                &json!({
             "id":id,"radius_min":0.15,"radius_max":2.5,
             "probe_count":4,"refine_count":2,
-            "selected_revision":revision})).unwrap();
-        assert_eq!(report["geometry_modified"],false);
-        assert_eq!(report["maximality_proven"],false);
-        assert!(report["highest_tested_feasible"].as_f64().unwrap()>=0.15);
-        assert_eq!(report["outcomes"].as_array().unwrap().len(),report["probes_used"].as_u64().unwrap() as usize);
-        assert_eq!(s.state().unwrap().revision,revision);
-        assert_eq!(s.doc().unwrap().exact_breps.len(),1);
-        let chosen=report["suggested_value"].as_f64().unwrap();
-        let created=s.execute("brep.fillet",&json!({"name":"Verified fillet","id":id,"radius":chosen})).unwrap();
-        assert_eq!(created["representation"],"exact_occt_brep");
-        assert_eq!(s.doc().unwrap().exact_breps.len(),2);
+            "selected_revision":revision}),
+            )
+            .unwrap();
+        assert_eq!(report["geometry_modified"], false);
+        assert_eq!(report["maximality_proven"], false);
+        assert!(report["highest_tested_feasible"].as_f64().unwrap() >= 0.15);
+        assert_eq!(report["outcomes"].as_array().unwrap().len(), report["probes_used"].as_u64().unwrap() as usize);
+        assert_eq!(s.state().unwrap().revision, revision);
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 1);
+        let chosen = report["suggested_value"].as_f64().unwrap();
+        let created = s.execute("brep.fillet", &json!({"name":"Verified fillet","id":id,"radius":chosen})).unwrap();
+        assert_eq!(created["representation"], "exact_occt_brep");
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 2);
     }
     #[test]
-    #[cfg(not(target_arch="wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     fn pipe_and_sweep_profile_probes_report_without_baking_when_worker_installed() {
-        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none(){return;}
-        let mut s=Session::new();
-        let initial=s.state().unwrap().revision;
-        let rail=json!([[0.,0.,0.],[0.,0.,5.]]);
-        for (command,args) in [
-            ("brep.constraints.pipe",json!({"rail":rail,"up":[0.,1.,0.],
-                "radius_min":0.25,"radius_max":0.6,"probe_count":3,"refine_count":0})),
-            ("brep.constraints.sweep1",json!({"rail":rail,"up":[0.,1.,0.],
-                "section":[[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]],
-                "scale_min":0.3,"scale_max":1.2,"probe_count":3,"refine_count":0}))
-        ] {
-            let report=s.execute(command,&args).unwrap();
-            assert!(report["highest_tested_feasible"].as_f64().is_some());
-            assert_eq!(report["geometry_modified"],false);
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
         }
-        assert_eq!(s.state().unwrap().revision,initial);
+        let mut s = Session::new();
+        let initial = s.state().unwrap().revision;
+        let rail = json!([[0., 0., 0.], [0., 0., 5.]]);
+        for (command, args) in [
+            (
+                "brep.constraints.pipe",
+                json!({"rail":rail,"up":[0.,1.,0.],
+                "radius_min":0.25,"radius_max":0.6,"probe_count":3,"refine_count":0}),
+            ),
+            (
+                "brep.constraints.sweep1",
+                json!({"rail":rail,"up":[0.,1.,0.],
+                "section":[[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]],
+                "scale_min":0.3,"scale_max":1.2,"probe_count":3,"refine_count":0}),
+            ),
+        ] {
+            let report = s.execute(command, &args).unwrap();
+            assert!(report["highest_tested_feasible"].as_f64().is_some());
+            assert_eq!(report["geometry_modified"], false);
+        }
+        assert_eq!(s.state().unwrap().revision, initial);
         assert!(s.doc().unwrap().exact_breps.is_empty());
     }
     #[test]

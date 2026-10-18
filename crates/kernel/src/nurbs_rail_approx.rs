@@ -171,20 +171,24 @@ mod tests {
     }
     #[test]
     fn closed_loop_with_coincident_endpoints_refines_instead_of_rejecting_chord() {
-        let c = Curve::from_control(vec![
-            Vec3::new(1.,0.,0.),
-            Vec3::new(1.,1.,0.),
-            Vec3::new(-1.,1.,0.),
-            Vec3::new(-1.,-1.,0.),
-            Vec3::new(1.,-1.,0.),
-            Vec3::new(1.,0.,0.),
-        ],3).unwrap();
-        let out = nurbs_rails_with_chord_bound(&[&c],0.05,127).unwrap();
-        assert!(out.segment_count>4);
-        assert!((out.rails[0][0]-out.rails[0][out.segment_count]).len()<1e-10);
+        let c = Curve::from_control(
+            vec![
+                Vec3::new(1., 0., 0.),
+                Vec3::new(1., 1., 0.),
+                Vec3::new(-1., 1., 0.),
+                Vec3::new(-1., -1., 0.),
+                Vec3::new(1., -1., 0.),
+                Vec3::new(1., 0., 0.),
+            ],
+            3,
+        )
+        .unwrap();
+        let out = nurbs_rails_with_chord_bound(&[&c], 0.05, 127).unwrap();
+        assert!(out.segment_count > 4);
+        assert!((out.rails[0][0] - out.rails[0][out.segment_count]).len() < 1e-10);
         for i in 0..=300 {
-            let p=c.evaluate(i as f64/300.).unwrap();
-            assert!(point_to_chord(p,&out.rails[0])<=0.05+1e-8);
+            let p = c.evaluate(i as f64 / 300.).unwrap();
+            assert!(point_to_chord(p, &out.rails[0]) <= 0.05 + 1e-8);
         }
     }
     #[test]

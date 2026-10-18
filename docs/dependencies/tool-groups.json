@@ -569,6 +569,198 @@
       ]
     },
     {
+      "kernel_operation": "kernel.curve.join",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.join",
+      "orbweaver_node": "orbweaver.curve.join",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [
+        "tolerance",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.split",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.split",
+      "orbweaver_node": "orbweaver.curve.split",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [
+        "station",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.trim",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.trim",
+      "orbweaver_node": "orbweaver.curve.trim",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [
+        "start",
+        "end",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.extend",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.extend",
+      "orbweaver_node": "orbweaver.curve.extend",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [
+        "distance",
+        "at_start",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.rebuild",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.rebuild",
+      "orbweaver_node": "orbweaver.curve.rebuild",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "nurbs_control_fit_subset",
+      "modifiers": [
+        "controls",
+        "degree",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.offset",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.offset",
+      "orbweaver_node": "orbweaver.curve.offset",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "xy_polyline_only",
+      "modifiers": [
+        "distance",
+        "miter_limit",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.pipe",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.pipe",
+      "orbweaver_node": "orbweaver.curve.pipe",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polygonal_mesh_subset",
+      "modifiers": [
+        "radius",
+        "sides",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.sweep1",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.sweep1",
+      "orbweaver_node": "orbweaver.curve.sweep1",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polygonal_mesh_subset",
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.curve.sweep2",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.sweep2",
+      "orbweaver_node": "orbweaver.curve.sweep2",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polygonal_mesh_subset",
+      "modifiers": [
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
       "kernel_operation": "kernel.array.linear",
       "group": "geometry.transforms",
       "cad_command": "worldwright.array.linear",

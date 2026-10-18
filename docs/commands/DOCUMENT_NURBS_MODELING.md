@@ -1,3 +1,24 @@
+# Update — bounded adaptive rail tolerance
+
+The object-selected BRep commands now use adaptive **exact rational knot insertion** followed by a conservative, **one-sided curve-to-chord geometric deviation bound**. Instead of setting a fixed number of samples, pass `chord_tolerance` (default `0.01` document units) and optional `max_segments` (default 127, maximum 127). A legacy `segments` field is accepted as a **budget** for compatibility, no longer as a fixed count. Providing both fields is an error.
+
+For every accepted clamped rational NURBS segment, its positive weights guarantee the curve lies inside its control-point convex hull. Each control point is measured to its corresponding chord. The maximum control-to-chord distance provides a conservative bound for all curve points, rather than just checking a few sample points. Both rails of Sweep2 are subdivided at **identical normalized parameter values** for correct paired station correspondence.
+
+Results report `construction_spine:"adaptive_exact_knot_insertion_polyline"`, `spine_deviation_certified:true`, `spine_bound_kind:"one_sided_curve_to_chord_convex_hull"`, `max_curve_to_chord_bound`, `chord_tolerance`, `sample_segments`, and `max_segments`. The guarantee applies **only to source-curve-to-polyline deviation**, not inverse polyline-to-curve Hausdorff distance, surface deviation, twist/collision, or a sweeping manufacturing-tolerance certificate. `sweep_surface_deviation_certified:false` is explicit. Reject, without document mutation, if the tolerance cannot be met inside the budget, if the input is not a clamped positive-weight rational curve, or if the output has degenerate edges.
+
+**Example:**
+
+```json
+{"command":"brep.pipe_from_curve","params":{
+  "name":"Scenic rail","curve_id":123,"radius":0.125,"up":[0,0,1],
+  "chord_tolerance":0.002,"max_segments":127
+}}
+```
+
+This section supersedes the older *uniform-parameter sampling* notes further below. Document and OCCT worker behavior outside the rail sampling stage is unchanged.
+
+---
+
 # WorldWriter document-native NURBS editing and exact BRep construction
 
 This iteration connects the previously implemented **pure geometric kernel** to the **persistent, undoable CAD document**. The kernel's rational NURBS math remains authoritative; no mathematical operation is reimplemented in the document layer.

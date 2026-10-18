@@ -30,3 +30,13 @@ fn interactive_start_failure_reports_visible_status() {
     assert!(status.0.contains("this_command_is_not_registered"));
     assert!(app.session.log.last().is_some_and(|line| line.contains("this_command_is_not_registered")));
 }
+
+#[test]
+fn typed_ui_command_failure_is_visible_not_swallowed() {
+    let mut app = CadApp::new(Session::new(), Services::default());
+    // Restoring a layout before saving one is an ordinary UI validation error.
+    app.cmdline("ui.workspace.restore");
+    let status = app.status.as_ref().expect("typed UI command failure must be visible");
+    assert!(status.0.contains("No custom layout saved yet"), "unexpected status: {}", status.0);
+    assert!(app.session.log.last().is_some_and(|line| line.contains("No custom layout saved yet")));
+}

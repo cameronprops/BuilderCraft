@@ -701,12 +701,6 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
                 Ok(points.len().max(1))
             }
         }
-        ToolValue::Curve(curve) => {
-            if !curve.valid() {
-                return Err(KernelError::Invalid("invalid rational curve"));
-            }
-            Ok(curve.control.len().max(1))
-        }
         ToolValue::Surface(surface) => {
             if !surface.valid() {
                 return Err(KernelError::Invalid("invalid rational surface input"));

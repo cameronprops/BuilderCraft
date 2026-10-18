@@ -91,6 +91,17 @@ const CASES: &[Case] = &[
     ("pan.right", pan_right_moves_camera_right),
     ("pan.up", pan_up_moves_camera_up),
     ("pan.down", pan_down_moves_camera_down),
+    ("erase", erase_deletes_selected_line_and_undo_recovers),
+    ("arrayrect", rect_array_creates_correct_grid),
+    ("arraypolar", polar_array_rotates_copies),
+    ("draworder.front", draworder_front_moves_entity_to_end),
+    ("draworder.back", draworder_back_moves_entity_to_start),
+    ("break", break_removes_middle_segment),
+    ("breakatpoint", break_atpoint_splits_line_without_gap),
+    ("join", join_chains_two_segments),
+    ("explode", explode_splits_polyline_into_lines),
+    ("overkill", overkill_removes_duplicate_geometry),
+    ("offset", offset_circle_changes_radius),
 ];
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -849,6 +860,170 @@ fn helix_has_expected_height_and_turns() {
         }
         other => panic!("expected a 3D helix polyline, got {other:?}"),
     }
+}
+
+fn erase_deletes_selected_line_and_undo_recovers() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    assert_eq!(s.execute("erase", &json!({"handles":[h]})).unwrap()["erased"], 1);
+    assert_eq!(s.doc().unwrap().model.len(), 0);
+    s.undo().unwrap();
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+}
+
+fn rect_array_creates_correct_grid() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    let r = s.execute("arrayrect", &json!({"handles":[h], "rows":2, "cols":3, "rowSpacing":10, "colSpacing":5})).unwrap();
+    assert_eq!(r["created"], 5);
+    assert_eq!(s.doc().unwrap().model.len(), 6);
+    let starts: Vec<(f64, f64)> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Line(l) => Some((l.a.x, l.a.y)),
+            _ => None,
+        })
+        .collect();
+    for y in [0.0, 10.0] {
+        for x in [0.0, 5.0, 10.0] {
+            assert!(starts.contains(&(x, y)), "grid missing ({x},{y}): {starts:?}");
+        }
+    }
+}
+
+fn polar_array_rotates_copies() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    let r = s.execute("arraypolar", &json!({"handles":[h], "center":[0,0], "count":4, "angle":360})).unwrap();
+    assert_eq!(r["created"], 3);
+    assert_eq!(s.doc().unwrap().model.len(), 4);
+    let ends: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Line(l) => Some((l.b.x, l.b.y)),
+            _ => None,
+        })
+        .collect();
+    for (x, y) in [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)] {
+        assert!(ends.iter().any(|(a, b)| (a - x).abs() < 1e-9 && (b - y).abs() < 1e-9), "polar array missing ({x},{y}): {ends:?}");
+    }
+}
+
+fn draworder_front_moves_entity_to_end() {
+    let mut s = Session::new();
+    let a = line_handle(&mut s);
+    let b = line_handle(&mut s);
+    s.execute("draworder.front", &json!({"handles":[a.clone()]})).unwrap();
+    let order: Vec<_> = s.doc().unwrap().model.iter().map(|e| e.handle.hex()).collect();
+    assert_eq!(order, vec![b, a]);
+}
+
+fn draworder_back_moves_entity_to_start() {
+    let mut s = Session::new();
+    let a = line_handle(&mut s);
+    let b = line_handle(&mut s);
+    s.execute("draworder.back", &json!({"handles":[b.clone()]})).unwrap();
+    let order: Vec<_> = s.doc().unwrap().model.iter().map(|e| e.handle.hex()).collect();
+    assert_eq!(order, vec![b, a]);
+}
+
+fn break_removes_middle_segment() {
+    let mut s = Session::new();
+    let h = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let r = s.execute("break", &json!({"handle":h, "p1":[3,0], "p2":[7,0]})).unwrap();
+    assert_eq!(r["handles"].as_array().unwrap().len(), 2);
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    let endpoints: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Line(l) => Some((l.a.x, l.b.x)),
+            _ => None,
+        })
+        .collect();
+    assert!(endpoints.contains(&(0.0, 3.0)), "{endpoints:?}");
+    assert!(endpoints.contains(&(7.0, 10.0)), "{endpoints:?}");
+}
+
+fn break_atpoint_splits_line_without_gap() {
+    let mut s = Session::new();
+    let h = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let r = s.execute("breakatpoint", &json!({"handle":h, "at":[4,0]})).unwrap();
+    assert_eq!(r["handles"].as_array().unwrap().len(), 2);
+    let endpoints: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Line(l) => Some((l.a.x, l.b.x)),
+            _ => None,
+        })
+        .collect();
+    assert!(endpoints.contains(&(0.0, 4.0)), "{endpoints:?}");
+    assert!(endpoints.contains(&(4.0, 10.0)), "{endpoints:?}");
+}
+
+fn join_chains_two_segments() {
+    let mut s = Session::new();
+    let a = s.execute("line", &json!({"points":[[0,0],[3,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let b = s.execute("line", &json!({"points":[[3,0],[3,4]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let r = s.execute("join", &json!({"handles":[a,b]})).unwrap();
+    assert!(r["handle"].as_str().is_some());
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(p) => {
+            assert_eq!(p.vertices.len(), 3);
+            assert_eq!((p.vertices[1].p.x, p.vertices[1].p.y), (3.0, 0.0));
+        }
+        other => panic!("join produced {other:?} instead of a polyline"),
+    }
+}
+
+fn explode_splits_polyline_into_lines() {
+    let mut s = Session::new();
+    let h = s.execute("pline", &json!({"vertices":[[0,0],[3,0],[3,4]]})).unwrap()["handle"].as_str().unwrap().to_string();
+    let r = s.execute("explode", &json!({"handles":[h]})).unwrap();
+    assert_eq!(r["handles"].as_array().unwrap().len(), 2);
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    assert!(s.doc().unwrap().model.iter().all(|e| matches!(&e.kind, EntityKind::Line(_))));
+}
+
+fn overkill_removes_duplicate_geometry() {
+    let mut s = Session::new();
+    line_handle(&mut s);
+    line_handle(&mut s);
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    let r = s.execute("overkill", &json!({})).unwrap();
+    assert_eq!(r["deleted"], 1);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+}
+
+fn offset_circle_changes_radius() {
+    let mut s = Session::new();
+    let h = s.execute("circle", &json!({"center":[0,0],"radius":2})).unwrap()["handle"].as_str().unwrap().to_string();
+    let r = s.execute("offset", &json!({"handle":h, "distance":1, "side":[5,0]})).unwrap();
+    assert!(r["handle"].as_str().is_some());
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    let radii: Vec<f64> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Circle(c) => Some(c.radius),
+            _ => None,
+        })
+        .collect();
+    assert!(radii.contains(&2.0) && radii.contains(&3.0), "{radii:?}");
 }
 
 #[test]

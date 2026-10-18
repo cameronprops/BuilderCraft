@@ -80,6 +80,15 @@ const CASES: &[Case] = &[
     ("layerstate.restore", layer_state_restore_recovers_properties),
     ("layerstate.rename", layer_state_rename_updates_identity),
     ("layerstate.delete", layer_state_delete_removes_saved_state),
+    ("zoom", zoom_center_mode_sets_viewport),
+    ("zoom.window", zoom_window_uses_requested_bounds),
+    ("zoom.previous", zoom_previous_restores_last_camera),
+    ("zoom.object", zoom_object_centers_on_selected_geometry),
+    ("zoom.all", zoom_all_includes_drawing_limits),
+    ("pan.left", pan_left_moves_camera_left),
+    ("pan.right", pan_right_moves_camera_right),
+    ("pan.up", pan_up_moves_camera_up),
+    ("pan.down", pan_down_moves_camera_down),
 ];
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -736,6 +745,81 @@ fn layer_state_delete_removes_saved_state() {
     s.execute("layerstate.save", &json!({"name":"Scene1"})).unwrap();
     s.execute("layerstate.delete", &json!({"name":"Scene1"})).unwrap();
     assert!(s.doc().unwrap().layer_states.is_empty());
+}
+
+fn zoom_center_mode_sets_viewport() {
+    let mut s = Session::new();
+    s.execute("zoom", &json!({"mode":"center", "center":[3,4], "height":24})).unwrap();
+    let v = s.state().unwrap().view();
+    assert_eq!(v.center.x, 3.0);
+    assert_eq!(v.center.y, 4.0);
+    assert_eq!(v.height, 24.0);
+}
+
+fn zoom_window_uses_requested_bounds() {
+    let mut s = Session::new();
+    s.execute("zoom.window", &json!({"p1":[10, 20], "p2":[30, 40]})).unwrap();
+    let v = s.state().unwrap().view();
+    assert_eq!(v.center.x, 20.0);
+    assert_eq!(v.center.y, 30.0);
+    assert!(v.height >= 20.0);
+    assert!(v.height <= 40.0);
+}
+
+fn zoom_previous_restores_last_camera() {
+    let mut s = Session::new();
+    s.execute("view.set", &json!({"center":[2,3], "height":40})).unwrap();
+    s.execute("zoom.in", &json!({})).unwrap();
+    assert_eq!(s.state().unwrap().view().height, 20.0);
+    s.execute("zoom.previous", &json!({})).unwrap();
+    let v = s.state().unwrap().view();
+    assert_eq!(v.height, 40.0);
+    assert_eq!(v.center.x, 2.0);
+}
+
+fn zoom_object_centers_on_selected_geometry() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    s.execute("zoom.object", &json!({"handles":[h]})).unwrap();
+    let v = s.state().unwrap().view();
+    assert!((v.center.x - 0.5).abs() < 1e-9);
+    assert!(v.height > 0.0);
+}
+
+fn zoom_all_includes_drawing_limits() {
+    let mut s = Session::new();
+    s.execute("zoom.all", &json!({})).unwrap();
+    let v = s.state().unwrap().view();
+    assert!(v.height > 0.0 && v.height.is_finite());
+    assert!(v.center.is_finite());
+}
+
+fn pan_left_moves_camera_left() {
+    let mut s = Session::new();
+    let old = s.state().unwrap().view().center;
+    s.execute("pan.left", &json!({})).unwrap();
+    assert!(s.state().unwrap().view().center.x < old.x);
+}
+
+fn pan_right_moves_camera_right() {
+    let mut s = Session::new();
+    let old = s.state().unwrap().view().center;
+    s.execute("pan.right", &json!({})).unwrap();
+    assert!(s.state().unwrap().view().center.x > old.x);
+}
+
+fn pan_up_moves_camera_up() {
+    let mut s = Session::new();
+    let old = s.state().unwrap().view().center;
+    s.execute("pan.up", &json!({})).unwrap();
+    assert!(s.state().unwrap().view().center.y > old.y);
+}
+
+fn pan_down_moves_camera_down() {
+    let mut s = Session::new();
+    let old = s.state().unwrap().view().center;
+    s.execute("pan.down", &json!({})).unwrap();
+    assert!(s.state().unwrap().view().center.y < old.y);
 }
 
 #[test]

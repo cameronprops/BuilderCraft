@@ -99,6 +99,9 @@ fn run_line(s: &mut Session, p: &Value) -> Result<Value> {
     if pts.len() < 2 {
         return Err(bad("line", "need at least 2 points"));
     }
+    if pts.windows(2).any(|pair| pair[0] == pair[1]) {
+        return Err(bad("line", "consecutive line endpoints must not coincide"));
+    }
     let mut hs = Vec::new();
     for w in pts.windows(2) {
         if let [a, b] = w {
@@ -119,22 +122,33 @@ fn vertex_value(v: &Value) -> Option<PolyVertex> {
         return Some(PolyVertex::new(p));
     }
     let p = point_value(v.get("p")?)?;
+    if ["bulge", "startWidth", "endWidth"].iter().any(|key| v.get(*key).is_some_and(|n| !n.as_f64().is_some_and(f64::is_finite))) {
+        return None;
+    }
     Some(PolyVertex { p, bulge: f64_or(v, "bulge", 0.0), start_width: f64_or(v, "startWidth", 0.0), end_width: f64_or(v, "endWidth", 0.0) })
 }
 
 fn run_pline(s: &mut Session, p: &Value) -> Result<Value> {
-    let vs: Vec<PolyVertex> = p
+    let values = p
         .get("vertices")
         .or_else(|| p.get("points"))
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(vertex_value).collect())
-        .unwrap_or_default();
+        .ok_or_else(|| bad("pline", "`vertices` must be an array of at least two valid points"))?;
+    let vs: Vec<PolyVertex> = values
+        .iter()
+        .enumerate()
+        .map(|(i, value)| vertex_value(value).ok_or_else(|| bad("pline", format!("invalid vertex at index {i}"))))
+        .collect::<Result<_>>()?;
     if vs.len() < 2 {
         return Err(bad("pline", "`vertices` needs at least 2 points"));
     }
+    let width = match p.get("width") {
+        Some(value) => value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("pline", "`width` must be nonnegative and finite"))?,
+        None => 0.0,
+    };
     let mut k = lwpoly(vs, bool_or(p, "closed", false));
     if let EntityKind::LwPolyline(pl) = &mut k {
-        pl.const_width = f64_or(p, "width", 0.0).max(0.0);
+        pl.const_width = width;
     }
     added(s.add_entity(k)?)
 }
@@ -146,6 +160,9 @@ fn run_circle(s: &mut Session, p: &Value) -> Result<Value> {
             .and_then(Value::as_f64)
             .or_else(|| p.get("diameter").and_then(Value::as_f64).map(|d| d / 2.0))
             .ok_or_else(|| bad("circle", "`radius` or `diameter` is required"))?;
+        if !(r > 0.0 && r.is_finite()) {
+            return Err(bad("circle", "radius or diameter must be strictly positive and finite"));
+        }
         Circle::new(center, r)
     } else if let (Some(a), Some(b)) = (point_param(p, "p1"), point_param(p, "p2")) {
         match point_param(p, "p3") {

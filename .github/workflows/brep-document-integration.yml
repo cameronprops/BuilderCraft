@@ -66,6 +66,7 @@ jobs:
           test -f "$WORLDWRIGHT_BREP_WORKER"
           cargo test --locked -p cadcraft-engine exact_worker_document_undo_and_roundtrip_when_worker_is_installed -- --nocapture
           cargo test --locked -p cadcraft-engine exact_sweep_commands_preserve_native_breps_when_worker_is_installed -- --nocapture
+          cargo test --locked -p cadcraft-engine document_nurbs_spine_produces_real_exact_solid_when_worker_installed -- --nocapture
           cargo test --locked -p cadcraft-ui-egui solid_panel::tests -- --nocapture
       - name: Native project schema, legacy compatibility and corruption regressions
         run: cargo test --locked -p cadcraft-io project::tests

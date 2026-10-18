@@ -112,6 +112,36 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             }
         }
     });
+    // Both modeling perspectives use the same editable NURBS source objects.
+    // Multi-select exactly two 3D curve rails using viewport selection, then
+    // create one independent native surface through the shared document API.
+    let selected_curves: Vec<u64> = app
+        .session
+        .doc()
+        .map(|d| {
+            app.session
+                .selection()
+                .iter()
+                .filter(|handle| d.geometry3d.iter().any(|object| {
+                    object.id == handle.0 && matches!(object.shape, cadcraft_doc::organization::Shape::Curve(_))
+                }))
+                .map(|handle| handle.0)
+                .collect()
+        })
+        .unwrap_or_default();
+    if ui
+        .add_enabled(selected_curves.len() == 2, egui::Button::new("Ruled surface from 2 curves"))
+        .on_hover_text("Select exactly two compatible 3D NURBS curves. Creates an independent rational surface without replacing its rails.")
+        .clicked()
+        && let Some(revision) = app.session.state().ok().map(|state| state.revision)
+        && let Ok(result) = app.run(
+            "nurbs.surface.ruled",
+            json!({"name":"Ruled surface","a_id":selected_curves[0],"b_id":selected_curves[1],"selected_revision":revision}),
+        )
+        && let Some(id) = result["id"].as_u64()
+    {
+        app.session.set_selection(vec![cadcraft_doc::Handle(id)]);
+    }
     let nodes = app.session.doc().map(|d| d.organization.nodes.clone()).unwrap_or_default();
     if nodes.is_empty() {
         ui.label("Select geometry, then create a named body.");

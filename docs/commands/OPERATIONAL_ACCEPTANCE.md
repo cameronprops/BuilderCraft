@@ -30,10 +30,11 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**At authoring time:** 44 positive cases have been written. **321 of 365 still
+**At authoring time:** 51 positive cases have been written. **314 of 365 still
 lack individually declared positive cases**. The first 17 passed the
-focused Rust 1.95 suite on Linux. The 27 additional cases require their own
-validation on the current branch; do not count unexecuted cases as passing. Existing
+focused Rust 1.95 suite on Linux. The remaining 34 cases were incrementally authored, with previous groups tested
+on Linux; rerun CI against the most recent branch head before treating the
+complete 51-case set as passing. Existing
 unit tests also provide additional coverage that is not yet reconciled into
 this operational fixture ledger. This is not a claim that 348 commands are
 broken or that any newly authored test has run.

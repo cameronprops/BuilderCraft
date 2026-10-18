@@ -107,6 +107,8 @@ const CASES: &[Case] = &[
     ("flatten", flatten_projects_3d_polyline),
     ("align", align_translates_with_two_reference_points),
     ("lengthen", lengthen_changes_line_length),
+    ("fillet", fillet_creates_radius_within_reported_limits),
+    ("chamfer", chamfer_creates_requested_corner_bridge),
 ];
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -1091,6 +1093,26 @@ fn lengthen_changes_line_length() {
     let result = s.execute("lengthen", &json!({"handle":h, "total":5})).unwrap();
     assert_eq!(result["length"], 5.0);
     assert_eq!(first_line(&s), (0.0, 0.0, 5.0, 0.0));
+}
+
+fn fillet_creates_radius_within_reported_limits() {
+    let mut s = Session::new();
+    let first = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].clone();
+    let second = s.execute("line", &json!({"points":[[0,0],[0,8]]})).unwrap()["handles"][0].clone();
+    let result = s.execute("fillet", &json!({"h1":first,"h2":second,"p1":[8,0],"p2":[0,7],"radius":2})).unwrap();
+    assert!(result["arc"].as_str().is_some());
+    assert_eq!(s.doc().unwrap().model.len(), 3);
+    assert!(s.doc().unwrap().model.iter().any(|entity| matches!(&entity.kind, EntityKind::Arc(arc) if (arc.radius - 2.0).abs() < 1e-9)));
+}
+
+fn chamfer_creates_requested_corner_bridge() {
+    let mut s = Session::new();
+    let first = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].clone();
+    let second = s.execute("line", &json!({"points":[[0,0],[0,8]]})).unwrap()["handles"][0].clone();
+    let result = s.execute("chamfer", &json!({"h1":first,"h2":second,"p1":[8,0],"p2":[0,7],"d1":2,"d2":3})).unwrap();
+    assert!(result["line"].as_str().is_some());
+    assert_eq!(s.doc().unwrap().model.len(), 3);
+    assert!(s.doc().unwrap().model.iter().any(|entity| matches!(&entity.kind, EntityKind::Line(line) if ((line.a.x - 2.0).abs() < 1e-9 && (line.b.y - 3.0).abs() < 1e-9) || ((line.b.x - 2.0).abs() < 1e-9 && (line.a.y - 3.0).abs() < 1e-9))));
 }
 
 #[test]

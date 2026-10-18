@@ -107,24 +107,34 @@ pub fn specs() -> Vec<CommandSpec> {
 // ---------------- core operations ----------------
 
 pub(crate) fn transform_entities(s: &mut Session, hs: &[Handle], m: &Mat3, copy: bool) -> Result<Vec<Handle>> {
+    if ![m.a, m.b, m.c, m.d, m.e, m.f].into_iter().all(f64::is_finite) {
+        return Err(bad("transform", "transform matrix contains non-finite values"));
+    }
     let d = s.doc_mut()?;
+    // Validate every target before editing any object. A stale handle or a
+    // locked layer must not become a silent partial success in batch editing.
+    for h in hs {
+        let e = d.entity(*h).ok_or_else(|| bad("transform", format!("object {} no longer exists", h.hex())))?;
+        if d.space_of(*h).is_none() {
+            return Err(bad("transform", format!("object {} has no editable space", h.hex())));
+        }
+        if !copy && d.layer(&e.common.layer).is_some_and(|layer| layer.locked) {
+            return Err(bad("transform", format!("object {} is on locked layer {}", h.hex(), e.common.layer)));
+        }
+    }
     let mut out = Vec::new();
     for h in hs {
-        let Some(sp) = d.space_of(*h) else { continue };
+        let sp = d.space_of(*h).ok_or_else(|| bad("transform", format!("object {} no longer exists", h.hex())))?;
         if copy {
-            let Some(e) = d.entity(*h).map(|e| (**e).clone()) else { continue };
+            let e = d.entity(*h).ok_or_else(|| bad("transform", format!("object {} no longer exists", h.hex())))?;
+            let mut ne = (**e).clone();
             let nh = d.new_handle();
-            let mut ne = Entity { handle: nh, ..e };
+            ne.handle = nh;
             ne.kind.transform(m);
-            if let Some(st) = d.space_mut(&sp) {
-                st.push(ne);
-                out.push(nh);
-            }
+            let st = d.space_mut(&sp).ok_or_else(|| bad("transform", format!("object {} has no editable space", h.hex())))?;
+            st.push(ne);
+            out.push(nh);
         } else {
-            let locked = d.entity(*h).and_then(|e| d.layer(&e.common.layer)).is_some_and(|l| l.locked);
-            if locked {
-                continue;
-            }
             d.modify_entity(*h, |e| e.kind.transform(m))?;
             out.push(*h);
         }
@@ -157,7 +167,11 @@ fn delta_of(cmd: &str, p: &Value) -> Result<Vec2> {
     }
     let a = point_req(cmd, p, "from")?;
     let b = point_req(cmd, p, "to")?;
-    Ok(b - a)
+    let delta = b - a;
+    if !delta.is_finite() {
+        return Err(bad(cmd, "translation exceeds finite coordinate range"));
+    }
+    Ok(delta)
 }
 
 fn run_move(s: &mut Session, p: &Value) -> Result<Value> {

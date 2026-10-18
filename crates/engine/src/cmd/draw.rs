@@ -267,8 +267,10 @@ fn run_spline(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn donut(center: Vec2, inside: f64, outside: f64) -> EntityKind {
-    let r = (inside.abs() + outside.abs()) / 4.0;
-    let w = (outside.abs() - inside.abs()).abs() / 2.0;
+    // Scale before adding to avoid an intermediate overflow when both
+    // diameters are finite but their sum exceeds f64::MAX.
+    let r = inside * 0.25 + outside * 0.25;
+    let w = (outside - inside) * 0.5;
     let mut k = lwpoly(vec![PolyVertex::with_bulge(center - Vec2::X * r, 1.0), PolyVertex::with_bulge(center + Vec2::X * r, 1.0)], true);
     if let EntityKind::LwPolyline(pl) = &mut k {
         pl.const_width = w;
@@ -283,7 +285,13 @@ fn run_donut(s: &mut Session, p: &Value) -> Result<Value> {
     if !(inside >= 0.0 && outside > inside) {
         return Err(bad("donut", "outside diameter must be greater than nonnegative inside diameter"));
     }
-    added(s.add_entity(donut(c, inside, outside))?)
+    let outline = donut(c, inside, outside);
+    if let EntityKind::LwPolyline(poly) = &outline
+        && (!poly.const_width.is_finite() || poly.vertices.iter().any(|vertex| !vertex.p.is_finite()))
+    {
+        return Err(bad("donut", "donut construction exceeds finite drawing coordinates"));
+    }
+    added(s.add_entity(outline)?)
 }
 
 /// Justification code → (halign, valign).

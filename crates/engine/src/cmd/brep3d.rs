@@ -143,28 +143,40 @@ fn cylinder(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn point_field(p: &Value, key: &str, dimensions: usize) -> Result<()> {
-    let coords = p.get(key).and_then(Value::as_array).filter(|v| v.len() == dimensions
-        && v.iter().all(|n| n.as_f64().is_some_and(|v| v.is_finite() && v.abs() <= 1e9)));
-    if coords.is_none() { return Err(fail(format!("{key} must contain {dimensions} finite coordinates"))); }
+    let coords = p
+        .get(key)
+        .and_then(Value::as_array)
+        .filter(|v| v.len() == dimensions && v.iter().all(|n| n.as_f64().is_some_and(|v| v.is_finite() && v.abs() <= 1e9)));
+    if coords.is_none() {
+        return Err(fail(format!("{key} must contain {dimensions} finite coordinates")));
+    }
     Ok(())
 }
 fn rail_field(p: &Value, key: &str) -> Result<()> {
-    let points = p.get(key).and_then(Value::as_array).filter(|v| (2..=128).contains(&v.len()))
+    let points = p
+        .get(key)
+        .and_then(Value::as_array)
+        .filter(|v| (2..=128).contains(&v.len()))
         .ok_or_else(|| fail(format!("{key} rail must have 2..128 stations")))?;
     for v in points {
-        let values = v.as_array().filter(|xyz| xyz.len()==3 &&
-            xyz.iter().all(|n| n.as_f64().is_some_and(|n| n.is_finite() && n.abs() <= 1e9)))
+        let values = v
+            .as_array()
+            .filter(|xyz| xyz.len() == 3 && xyz.iter().all(|n| n.as_f64().is_some_and(|n| n.is_finite() && n.abs() <= 1e9)))
             .ok_or_else(|| fail(format!("{key} rail point must be [x,y,z]")))?;
         let _ = values;
     }
     Ok(())
 }
 fn section_field(p: &Value) -> Result<()> {
-    let points = p.get("section").and_then(Value::as_array).filter(|v| (3..=32).contains(&v.len()))
+    let points = p
+        .get("section")
+        .and_then(Value::as_array)
+        .filter(|v| (3..=32).contains(&v.len()))
         .ok_or_else(|| fail("section must have 3..32 planar coordinates"))?;
     for v in points {
-        let xyz = v.as_array().filter(|v| v.len()==2 &&
-            v.iter().all(|n| n.as_f64().is_some_and(|n| n.is_finite() && n.abs() <= 1e8)))
+        let xyz = v
+            .as_array()
+            .filter(|v| v.len() == 2 && v.iter().all(|n| n.as_f64().is_some_and(|n| n.is_finite() && n.abs() <= 1e8)))
             .ok_or_else(|| fail("section coordinates must be finite [u,v]"))?;
         let _ = xyz;
     }
@@ -184,7 +196,7 @@ fn sweep_one(s: &mut Session, p: &Value) -> Result<Value> {
     rail_field(p, "rail")?;
     section_field(p)?;
     point_field(p, "up", 3)?;
-    add_worker_shapes(s, p, call_worker(&worker_params(p,"sweep1")?)?)
+    add_worker_shapes(s, p, call_worker(&worker_params(p, "sweep1")?)?)
 }
 fn sweep_two(s: &mut Session, p: &Value) -> Result<Value> {
     name(p)?;
@@ -194,7 +206,7 @@ fn sweep_two(s: &mut Session, p: &Value) -> Result<Value> {
     if p["rail_a"].as_array().map(Vec::len) != p["rail_b"].as_array().map(Vec::len) {
         return Err(fail("two-rail Sweep2 requires equal station counts"));
     }
-    add_worker_shapes(s, p, call_worker(&worker_params(p,"sweep2")?)?)
+    add_worker_shapes(s, p, call_worker(&worker_params(p, "sweep2")?)?)
 }
 
 fn positive(p: &Value, key: &str) -> Result<f64> {
@@ -438,41 +450,54 @@ mod tests {
             json!({"name":"Bad","rail":[[0.,0.,0.]],"radius":1.,"up":[0.,1.,0.]}),
             json!({"name":"Bad","rail":[[0.,0.,0.],[0.,0.,4.]],"radius":0.,"up":[0.,1.,0.]}),
         ] {
-            assert!(s.execute("brep.pipe",&cmd).is_err());
+            assert!(s.execute("brep.pipe", &cmd).is_err());
         }
-        assert!(s.execute("brep.sweep2",&json!({"name":"Bad",
+        assert!(
+            s.execute(
+                "brep.sweep2",
+                &json!({"name":"Bad",
             "rail_a":[[0.,0.,0.],[0.,0.,1.]],
             "rail_b":[[2.,0.,0.]],
-            "section":[[0.,0.],[1.,0.],[0.,1.]]})).is_err());
+            "section":[[0.,0.],[1.,0.],[0.,1.]]})
+            )
+            .is_err()
+        );
         assert_eq!(s.state().unwrap().revision, before);
         assert!(s.doc().unwrap().exact_breps.is_empty());
     }
     #[test]
-    #[cfg(not(target_arch="wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     fn exact_sweep_commands_preserve_native_breps_when_worker_is_installed() {
-        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() { return; }
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
         let mut s = Session::new();
-        let rail = json!([[0.,0.,0.],[0.,0.,5.]]);
-        let section = json!([[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]]);
-        let a=s.execute("brep.pipe",&json!({"name":"Exact pipe","rail":rail,"radius":0.5,"up":[0.,1.,0.]})).unwrap();
-        let b=s.execute("brep.sweep1",&json!({"name":"Exact sweep","rail":rail,"section":section,"up":[0.,1.,0.]})).unwrap();
-        let c=s.execute("brep.sweep2",&json!({"name":"Two rail",
+        let rail = json!([[0., 0., 0.], [0., 0., 5.]]);
+        let section = json!([[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]]);
+        let a = s.execute("brep.pipe", &json!({"name":"Exact pipe","rail":rail,"radius":0.5,"up":[0.,1.,0.]})).unwrap();
+        let b = s.execute("brep.sweep1", &json!({"name":"Exact sweep","rail":rail,"section":section,"up":[0.,1.,0.]})).unwrap();
+        let c = s
+            .execute(
+                "brep.sweep2",
+                &json!({"name":"Two rail",
             "rail_a":[[0.,0.,0.],[0.,0.,5.]],
             "rail_b":[[2.,0.,0.],[2.,0.,5.]],
-            "section":[[0.,-0.5],[1.,-0.5],[1.,0.5],[0.,0.5]]})).unwrap();
-        for result in [&a,&b,&c] {
-            assert_eq!(result["representation"],"exact_occt_brep");
-            let id=result["ids"][0].as_u64().unwrap();
-            let summary=s.execute("brep.inspect",&json!({"id":id})).unwrap();
-            assert_eq!(summary["exact"],true);
-            assert!(summary["volume"].as_f64().unwrap()>0.);
+            "section":[[0.,-0.5],[1.,-0.5],[1.,0.5],[0.,0.5]]}),
+            )
+            .unwrap();
+        for result in [&a, &b, &c] {
+            assert_eq!(result["representation"], "exact_occt_brep");
+            let id = result["ids"][0].as_u64().unwrap();
+            let summary = s.execute("brep.inspect", &json!({"id":id})).unwrap();
+            assert_eq!(summary["exact"], true);
+            assert!(summary["volume"].as_f64().unwrap() > 0.);
         }
-        assert_eq!(s.doc().unwrap().exact_breps.len(),3);
-        let bytes=cadcraft_io::write(s.doc().unwrap(),"sweeps.dftba").unwrap();
-        let reopened=cadcraft_io::read(&bytes,"sweeps.dftba").unwrap();
-        assert_eq!(reopened.exact_breps,s.doc().unwrap().exact_breps);
-        s.execute("undo",&json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().exact_breps.len(),2);
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 3);
+        let bytes = cadcraft_io::write(s.doc().unwrap(), "sweeps.dftba").unwrap();
+        let reopened = cadcraft_io::read(&bytes, "sweeps.dftba").unwrap();
+        assert_eq!(reopened.exact_breps, s.doc().unwrap().exact_breps);
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 2);
     }
     #[test]
     fn native_worker_is_an_explicit_capability_not_a_mesh_fallback() {

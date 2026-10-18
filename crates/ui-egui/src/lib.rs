@@ -270,7 +270,14 @@ impl CadApp {
     pub fn cmdline(&mut self, text: &str) {
         if self.session.running.is_none() {
             let first = text.split_whitespace().next().unwrap_or("");
-            if !first.is_empty() && menus::run_ui_command(self, &first.to_ascii_lowercase(), &Value::Null).is_some() {
+            if !first.is_empty()
+                && let Some(result) = menus::run_ui_command(self, &first.to_ascii_lowercase(), &Value::Null)
+            {
+                if let Err(e) = result {
+                    let message = format!("{first}: {e}");
+                    self.session.echo(message.clone());
+                    self.set_status(message);
+                }
                 return;
             }
         }

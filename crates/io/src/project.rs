@@ -18,6 +18,8 @@ struct Project {
     #[serde(default)]
     exact_breps: Vec<cadcraft_doc::organization::ExactBrepObject>,
     #[serde(default)]
+    brep_dependencies: Vec<cadcraft_doc::organization::BrepDependency>,
+    #[serde(default)]
     production: buildercraft_kernel::ProductionModel,
     #[serde(default)]
     feature_timelines: Vec<buildercraft_kernel::FeatureTimeline>,
@@ -80,11 +82,61 @@ fn validate_breps(objects: &[cadcraft_doc::organization::ExactBrepObject]) -> Re
     Ok(())
 }
 
+fn validate_brep_dependencies(d:&Drawing)->Result<()> {
+    use cadcraft_doc::organization::{BrepDependencyRecipe,Shape};
+    let links=&d.brep_dependencies;
+    if links.len()>4096 { return Err(IoError::Format("too many associated solid links".into())); }
+    let mut seen=std::collections::HashSet::new();
+    for link in links {
+        if link.target_id==0 || !seen.insert(link.target_id)
+            || !d.exact_breps.iter().any(|b| b.id==link.target_id)
+            || link.source_ids.len()!=link.source_snapshots.len()
+            || !(1..=2).contains(&link.source_ids.len())
+            || link.source_ids.iter().any(|&id| id==0)
+            || link.source_snapshots.iter().any(|c| !c.valid()) {
+            return Err(IoError::Format("invalid associated solid references".into()));
+        }
+        // Missing source curves are allowed so the user can diagnose and
+        // repair an orphaned dependency, but existing IDs must be curves.
+        for &id in &link.source_ids {
+            if let Some(source)=d.geometry3d.iter().find(|g|g.id==id) {
+                if !matches!(source.shape,Shape::Curve(_)) {
+                    return Err(IoError::Format("associated source is not a NURBS curve".into()));
+                }
+            }
+        }
+        let (tolerance,budget,section,arity)=match &link.recipe {
+            BrepDependencyRecipe::Pipe{radius,up,chord_tolerance,max_segments,tolerance} => {
+                if !radius.is_finite() || *radius<=0. || up.iter().any(|x| !x.is_finite()) {
+                    return Err(IoError::Format("invalid associative pipe parameters".into()));
+                }
+                ( (*chord_tolerance,*max_segments,*tolerance),None,1usize)
+            }
+            BrepDependencyRecipe::Sweep1{section,up,chord_tolerance,max_segments,tolerance} => {
+                if up.iter().any(|x| !x.is_finite()) {return Err(IoError::Format("invalid sweep orientation".into()));}
+                ((*chord_tolerance,*max_segments,*tolerance),Some(section),1usize)
+            }
+            BrepDependencyRecipe::Sweep2{section,chord_tolerance,max_segments,tolerance} => {
+                ((*chord_tolerance,*max_segments,*tolerance),Some(section),2usize)
+            }
+        };
+        if link.source_ids.len()!=arity || !tolerance.0.is_finite()
+            || !(1e-7..=1e7).contains(&tolerance.0)
+            || !(1..=127).contains(&tolerance.1)
+            || tolerance.2.is_some_and(|x| !x.is_finite() || x<=0. || x>1.)
+            || section.is_some_and(|s| !(3..=32).contains(&s.len()) ||
+                s.iter().flatten().any(|v| !v.is_finite() || v.abs()>1e8)) {
+            return Err(IoError::Format("invalid associative BRep recipe bounds".into()));
+        }
+    }
+    Ok(())
+}
 pub fn write(d: &Drawing) -> Result<Vec<u8>> {
     d.production.validate().map_err(|e| IoError::Format(e.to_string()))?;
     d.validate_feature_histories().map_err(|e| IoError::Format(e.to_string()))?;
     validate_polygons(&d.mesh3d)?;
     validate_breps(&d.exact_breps)?;
+    validate_brep_dependencies(d)?;
     let mut organization = d.organization.clone();
     for node in &mut organization.nodes {
         node.entities.retain(|h| {
@@ -101,6 +153,7 @@ pub fn write(d: &Drawing) -> Result<Vec<u8>> {
         geometry3d: d.geometry3d.clone(),
         mesh3d: d.mesh3d.clone(),
         exact_breps: d.exact_breps.clone(),
+        brep_dependencies: d.brep_dependencies.clone(),
         production: d.production.clone(),
         feature_timelines: d.feature_timelines.clone(),
     })
@@ -193,6 +246,8 @@ pub fn read(bytes: &[u8]) -> Result<Drawing> {
     d.geometry3d = p.geometry3d;
     d.mesh3d = p.mesh3d;
     d.exact_breps = p.exact_breps;
+    d.brep_dependencies = p.brep_dependencies;
+    validate_brep_dependencies(&d)?;
     Ok(d)
 }
 #[cfg(test)]

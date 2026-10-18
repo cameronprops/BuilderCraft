@@ -442,7 +442,7 @@ mod tests {
         assert!(d.layer("Rockwork").is_some());
         assert_eq!(d.header.str("CLAYER", "0"), "Rockwork");
         assert_eq!(d.model.iter().next().unwrap().common.layer, "Rockwork");
-        assert_eq!(d.layouts[0].entities.iter().next().unwrap().common.layer, "Rockwork");
+        assert_eq!(d.layouts.iter().find(|l| l.name == "Sheet").unwrap().entities.iter().next().unwrap().common.layer, "Rockwork");
         assert_eq!(d.blocks["SetWall"].entities.iter().next().unwrap().common.layer, "Rockwork");
         assert!(s.execute("layer.delete", &json!({"name": "Rockwork"})).is_err());
     }

@@ -181,10 +181,8 @@ const CURVE_JOIN: &[ToolPort] = &[
     ToolPort { name: "b", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "tolerance", kind: ToolType::Number, modifier: true },
 ];
-const CURVE_STATION: &[ToolPort] = &[
-    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
-    ToolPort { name: "station", kind: ToolType::Number, modifier: true },
-];
+const CURVE_STATION: &[ToolPort] =
+    &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "station", kind: ToolType::Number, modifier: true }];
 const CURVE_TRIM: &[ToolPort] = &[
     ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "start", kind: ToolType::Number, modifier: true },
@@ -205,10 +203,8 @@ const CURVE_PIPE: &[ToolPort] = &[
     ToolPort { name: "radius", kind: ToolType::Number, modifier: true },
     ToolPort { name: "sides", kind: ToolType::Count, modifier: true },
 ];
-const CURVE_SWEEP1: &[ToolPort] = &[
-    ToolPort { name: "rail", kind: ToolType::Polyline, modifier: false },
-    ToolPort { name: "section", kind: ToolType::Polyline, modifier: false },
-];
+const CURVE_SWEEP1: &[ToolPort] =
+    &[ToolPort { name: "rail", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "section", kind: ToolType::Polyline, modifier: false }];
 const CURVE_SWEEP2: &[ToolPort] = &[
     ToolPort { name: "rail_a", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "rail_b", kind: ToolType::Polyline, modifier: false },
@@ -647,7 +643,9 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
             }
         }
         ToolValue::Curve(curve) => {
-            if !curve.valid() { return Err(KernelError::Invalid("invalid rational curve")); }
+            if !curve.valid() {
+                return Err(KernelError::Invalid("invalid rational curve"));
+            }
             Ok(curve.control.len().max(1))
         }
         ToolValue::Surface(surface) => {
@@ -894,41 +892,53 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
             number(&request.inputs, "miter_limit")?,
         )?)),
         "kernel.curve.join" => Ok(ToolValue::Polyline(crate::curve_join(
-            polyline(&request.inputs, "a")?, polyline(&request.inputs, "b")?, number(&request.inputs, "tolerance")?,
+            polyline(&request.inputs, "a")?,
+            polyline(&request.inputs, "b")?,
+            number(&request.inputs, "tolerance")?,
         )?)),
         "kernel.curve.split" => {
             let (a, b) = crate::curve_split(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?;
-            let output = DataTree { branches: vec![
-                TreeBranch { path: crate::TreePath(vec![0]), items: vec![ToolValue::Polyline(a)] },
-                TreeBranch { path: crate::TreePath(vec![1]), items: vec![ToolValue::Polyline(b)] },
-            ] };
+            let output = DataTree {
+                branches: vec![
+                    TreeBranch { path: crate::TreePath(vec![0]), items: vec![ToolValue::Polyline(a)] },
+                    TreeBranch { path: crate::TreePath(vec![1]), items: vec![ToolValue::Polyline(b)] },
+                ],
+            };
             tree_validate(&output)?;
             Ok(ToolValue::Tree(output))
         }
         "kernel.curve.trim" => Ok(ToolValue::Polyline(crate::curve_trim(
-            polyline(&request.inputs, "points")?, number(&request.inputs, "start")?, number(&request.inputs, "end")?,
+            polyline(&request.inputs, "points")?,
+            number(&request.inputs, "start")?,
+            number(&request.inputs, "end")?,
         )?)),
         "kernel.curve.extend" => {
             let at_start = count(&request.inputs, "at_start")?;
-            if at_start > 1 { return Err(KernelError::Invalid("at_start must be 0 or 1")); }
-            Ok(ToolValue::Polyline(crate::curve_extend(
-                polyline(&request.inputs, "points")?, number(&request.inputs, "distance")?, at_start == 1,
-            )?))
+            if at_start > 1 {
+                return Err(KernelError::Invalid("at_start must be 0 or 1"));
+            }
+            Ok(ToolValue::Polyline(crate::curve_extend(polyline(&request.inputs, "points")?, number(&request.inputs, "distance")?, at_start == 1)?))
         }
         "kernel.curve.rebuild" => Ok(ToolValue::Curve(crate::curve_rebuild(
-            polyline(&request.inputs, "points")?, count(&request.inputs, "controls")?, count(&request.inputs, "degree")?,
+            polyline(&request.inputs, "points")?,
+            count(&request.inputs, "controls")?,
+            count(&request.inputs, "degree")?,
         )?)),
         "kernel.curve.offset" => Ok(ToolValue::Polyline(crate::curve_offset(
-            polyline(&request.inputs, "points")?, number(&request.inputs, "distance")?, number(&request.inputs, "miter_limit")?,
+            polyline(&request.inputs, "points")?,
+            number(&request.inputs, "distance")?,
+            number(&request.inputs, "miter_limit")?,
         )?)),
         "kernel.curve.pipe" => Ok(ToolValue::Mesh(crate::curve_pipe(
-            polyline(&request.inputs, "rail")?, number(&request.inputs, "radius")?, count(&request.inputs, "sides")?,
+            polyline(&request.inputs, "rail")?,
+            number(&request.inputs, "radius")?,
+            count(&request.inputs, "sides")?,
         )?)),
-        "kernel.curve.sweep1" => Ok(ToolValue::Mesh(crate::curve_sweep1(
-            polyline(&request.inputs, "rail")?, polyline(&request.inputs, "section")?,
-        )?)),
+        "kernel.curve.sweep1" => Ok(ToolValue::Mesh(crate::curve_sweep1(polyline(&request.inputs, "rail")?, polyline(&request.inputs, "section")?)?)),
         "kernel.curve.sweep2" => Ok(ToolValue::Mesh(crate::curve_sweep2(
-            polyline(&request.inputs, "rail_a")?, polyline(&request.inputs, "rail_b")?, polyline(&request.inputs, "section")?,
+            polyline(&request.inputs, "rail_a")?,
+            polyline(&request.inputs, "rail_b")?,
+            polyline(&request.inputs, "section")?,
         )?)),
         "kernel.tree.validate" => {
             Ok(ToolValue::Count(u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?).map_err(|_| KernelError::Budget)?))

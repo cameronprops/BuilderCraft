@@ -71,6 +71,42 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{inputs:{points,distance,miter_limit}}")
             .enabled(always)
             .noundo(),
+        CommandSpec::new("worldwright.curve.join", "Join Open Polyline Curves", curve_join)
+            .params("{inputs:{a,b,tolerance}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.split", "Split Polyline Curve at Station", curve_split)
+            .params("{inputs:{points,station}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.trim", "Trim Polyline Curve to Interval", curve_trim)
+            .params("{inputs:{points,start,end}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.extend", "Extend Polyline Curve End", curve_extend)
+            .params("{inputs:{points,distance,at_start}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.rebuild", "Rebuild Curve As Nonrational NURBS", curve_rebuild)
+            .params("{inputs:{points,controls,degree}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.offset", "Offset Open Curve in XY Plane", curve_offset)
+            .params("{inputs:{points,distance,miter_limit}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.pipe", "Pipe Along Polyline Rail", curve_pipe)
+            .params("{inputs:{rail,radius,sides}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.sweep1", "Sweep Convex Section Along One Rail", curve_sweep1)
+            .params("{inputs:{rail,section}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.curve.sweep2", "Sweep Convex Section Between Two Rails", curve_sweep2)
+            .params("{inputs:{rail_a,rail_b,section}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.tree.validate", "Validate Data Tree", tree_validate).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.flatten", "Flatten Data Tree", tree_flatten).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.graft", "Graft Data Tree", tree_graft).enabled(always).noundo(),
@@ -136,6 +172,15 @@ paired_command!(polyline_divide_distance, "kernel.polyline.divide_distance");
 paired_command!(polyline_point_at_station, "kernel.polyline.point_at_station");
 paired_command!(polyline_tangent_at_station, "kernel.polyline.tangent_at_station");
 paired_command!(polyline_offset_xy, "kernel.polyline.offset_xy");
+paired_command!(curve_join, "kernel.curve.join");
+paired_command!(curve_split, "kernel.curve.split");
+paired_command!(curve_trim, "kernel.curve.trim");
+paired_command!(curve_extend, "kernel.curve.extend");
+paired_command!(curve_rebuild, "kernel.curve.rebuild");
+paired_command!(curve_offset, "kernel.curve.offset");
+paired_command!(curve_pipe, "kernel.curve.pipe");
+paired_command!(curve_sweep1, "kernel.curve.sweep1");
+paired_command!(curve_sweep2, "kernel.curve.sweep2");
 paired_command!(tree_validate, "kernel.tree.validate");
 paired_command!(tree_flatten, "kernel.tree.flatten");
 paired_command!(tree_graft, "kernel.tree.graft");
@@ -386,10 +431,55 @@ mod tests {
     }
 
     #[test]
+    fn nine_curve_commands_are_directly_executable_and_reuse_generic_tool() {
+        let mut session = Session::new();
+        let path = json!({"kind":"polyline","value":[
+            {"x":0.0,"y":0.0,"z":0.0},
+            {"x":4.0,"y":0.0,"z":0.0},
+            {"x":8.0,"y":0.0,"z":0.0}
+        ]});
+        let second = json!({"kind":"polyline","value":[{"x":8.0,"y":0.0,"z":0.0},{"x":10.0,"y":0.0,"z":0.0}]});
+        let section = json!({"kind":"polyline","value":[
+            {"x":0.0,"y":-0.2,"z":0.0},{"x":1.0,"y":-0.2,"z":0.0},
+            {"x":1.0,"y":0.2,"z":0.0},{"x":0.0,"y":0.2,"z":0.0}
+        ]});
+        let rail_b = json!({"kind":"polyline","value":[
+            {"x":0.0,"y":1.0,"z":0.0},
+            {"x":4.0,"y":1.0,"z":0.0},
+            {"x":8.0,"y":1.0,"z":0.0}
+        ]});
+        let n = |value: f64| json!({"kind":"number","value":value});
+        let cnt = |value: u64| json!({"kind":"count","value":value});
+        let cases = [
+            ("join",json!({"a":path,"b":second,"tolerance":n(0.01)}),"polyline"),
+            ("split",json!({"points":path,"station":n(5.0)}),"tree"),
+            ("trim",json!({"points":path,"start":n(1.0),"end":n(7.0)}),"polyline"),
+            ("extend",json!({"points":path,"distance":n(2.0),"at_start":cnt(0)}),"polyline"),
+            ("rebuild",json!({"points":path,"controls":cnt(6),"degree":cnt(3)}),"curve"),
+            ("offset",json!({"points":path,"distance":n(1.0),"miter_limit":n(4.0)}),"polyline"),
+            ("pipe",json!({"rail":path,"radius":n(0.3),"sides":cnt(12)}),"mesh"),
+            ("sweep1",json!({"rail":path,"section":section}),"mesh"),
+            ("sweep2",json!({"rail_a":path,"rail_b":rail_b,"section":section}),"mesh"),
+        ];
+        let revision = session.state().ok().map(|state| state.revision);
+        for (suffix, inputs, kind) in cases {
+            let command = format!("worldwright.curve.{suffix}");
+            let operation = format!("kernel.curve.{suffix}");
+            let direct = session.execute(&command,&json!({"inputs":inputs})).unwrap();
+            let generic = session.execute("worldwright.tool.run",&json!({
+                "operation":operation,"inputs":inputs
+            })).unwrap();
+            assert_eq!(direct,generic,"command mismatch: {suffix}");
+            assert_eq!(direct["output"]["kind"],kind,"wrong output type: {suffix}");
+        }
+        assert_eq!(session.state().ok().map(|state| state.revision),revision);
+    }
+
+    #[test]
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(29));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(38));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

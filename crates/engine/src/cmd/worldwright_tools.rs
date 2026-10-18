@@ -59,6 +59,18 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("worldwright.polyline.length", "Polyline Length", polyline_length).enabled(always).noundo(),
         CommandSpec::new("worldwright.polyline.divide_count", "Divide Polyline by Count", polyline_divide_count).enabled(always).noundo(),
         CommandSpec::new("worldwright.polyline.divide_distance", "Divide Polyline by Spacing", polyline_divide_distance).enabled(always).noundo(),
+        CommandSpec::new("worldwright.polyline.point_at_station", "Evaluate Point at Polyline Station", polyline_point_at_station)
+            .params("{inputs:{points:{kind:polyline,value:[{x,y,z},...]},station:{kind:number,value}}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.polyline.tangent_at_station", "Evaluate Tangent at Polyline Station", polyline_tangent_at_station)
+            .params("{inputs:{points,station}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.polyline.offset_xy", "Offset Planar Polyline", polyline_offset_xy)
+            .params("{inputs:{points,distance,miter_limit}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.tree.validate", "Validate Data Tree", tree_validate).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.flatten", "Flatten Data Tree", tree_flatten).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.graft", "Graft Data Tree", tree_graft).enabled(always).noundo(),
@@ -121,6 +133,9 @@ paired_command!(vector_cross, "kernel.vector.cross");
 paired_command!(polyline_length, "kernel.polyline.length");
 paired_command!(polyline_divide_count, "kernel.polyline.divide_count");
 paired_command!(polyline_divide_distance, "kernel.polyline.divide_distance");
+paired_command!(polyline_point_at_station, "kernel.polyline.point_at_station");
+paired_command!(polyline_tangent_at_station, "kernel.polyline.tangent_at_station");
+paired_command!(polyline_offset_xy, "kernel.polyline.offset_xy");
 paired_command!(tree_validate, "kernel.tree.validate");
 paired_command!(tree_flatten, "kernel.tree.flatten");
 paired_command!(tree_graft, "kernel.tree.graft");
@@ -334,10 +349,42 @@ mod tests {
     }
 
     #[test]
+    fn polyline_commands_share_a_kernel_and_preserve_the_document() {
+        let mut session = Session::new();
+        let revision = session.state().ok().map(|state| state.revision);
+        let points = json!({"kind":"polyline","value":[
+            {"x":0.,"y":0.,"z":0.},
+            {"x":10.,"y":0.,"z":0.},
+            {"x":10.,"y":10.,"z":0.}
+        ]});
+        let station_inputs = json!({"points":points, "station":{"kind":"number","value":15.0}});
+        for (cmd, operation, expected) in [
+            ("worldwright.polyline.point_at_station", "kernel.polyline.point_at_station", json!("point")),
+            ("worldwright.polyline.tangent_at_station", "kernel.polyline.tangent_at_station", json!("vector")),
+        ] {
+            let direct = session.execute(cmd, &json!({"inputs":station_inputs})).unwrap();
+            let generic = session.execute("worldwright.tool.run", &json!({
+                "operation":operation,"inputs":station_inputs
+            })).unwrap();
+            assert_eq!(direct, generic);
+            assert_eq!(direct["output"]["kind"], expected);
+        }
+        let offset_inputs = json!({
+            "points":points,
+            "distance":{"kind":"number","value":1.},
+            "miter_limit":{"kind":"number","value":4.}
+        });
+        let offset = session.execute("worldwright.polyline.offset_xy", &json!({"inputs":offset_inputs})).unwrap();
+        assert_eq!(offset["output"]["kind"], "polyline");
+        assert_eq!(offset["output"]["value"][1], json!({"x":9.,"y":1.,"z":0.}));
+        assert_eq!(session.state().ok().map(|state| state.revision), revision);
+    }
+
+    #[test]
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(26));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(29));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

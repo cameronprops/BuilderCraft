@@ -1949,6 +1949,25 @@ fn mline_defaults(s: &Session) -> (Just, f64) {
     (j, scale)
 }
 
+fn checked_mline_kinds(pts: &[Vec2], closed: bool, justification: Just, scale: f64) -> Result<Vec<EntityKind>> {
+    if !(scale > 0.0 && scale.is_finite()) {
+        return Err(bad("mline", "scale must be strictly positive and finite"));
+    }
+    let kinds = mline_kinds(pts, closed, justification, scale);
+    // MLINE is two complete parallel rails, never a best-effort subset. The
+    // offset generator may return None at an unsolvable corner: don't report
+    // partial geometry as success or publish non-finite coordinates.
+    if kinds.len() != 2
+        || kinds.iter().any(|kind| match kind {
+            EntityKind::LwPolyline(polyline) => polyline.vertices.iter().any(|v| !v.p.is_finite() || !v.bulge.is_finite()),
+            _ => true,
+        })
+    {
+        return Err(bad("mline", "unable to create two finite offset rails for this path and scale"));
+    }
+    Ok(kinds)
+}
+
 fn run_mline(s: &mut Session, p: &Value) -> Result<Value> {
     let pts = points_param(p, "points").ok_or_else(|| bad("mline", "`points` (2 or more) is required"))?;
     if pts.len() < 2 || pts.len() > MAX_GEN {
@@ -1959,9 +1978,13 @@ fn run_mline(s: &mut Session, p: &Value) -> Result<Value> {
         Some(t) => just_of(t).ok_or_else(|| bad("mline", "justification must be top, zero or bottom"))?,
         None => dj,
     };
-    let scale = f64_or(p, "scale", ds);
+    let scale = match p.get("scale") {
+        Some(value) => value.as_f64().ok_or_else(|| bad("mline", "scale must be numeric"))?,
+        None => ds,
+    };
+    let kinds = checked_mline_kinds(&pts, bool_or(p, "closed", false), j, scale)?;
     let mut hs = Vec::new();
-    for k in mline_kinds(&pts, bool_or(p, "closed", false), j, scale) {
+    for k in kinds {
         hs.push(s.add_entity(k)?.hex());
     }
     Ok(json!({ "handles": hs }))
@@ -1980,7 +2003,8 @@ impl MlineM {
         MlineM { pts: Vec::new(), just, scale, asking: 0 }
     }
     fn finish(&self, s: &mut Session, closed: bool) -> Result<Step> {
-        for k in mline_kinds(&self.pts, closed, self.just, self.scale) {
+        let kinds = checked_mline_kinds(&self.pts, closed, self.just, self.scale)?;
+        for k in kinds {
             s.add_entity(k)?;
         }
         Ok(Step::Done)

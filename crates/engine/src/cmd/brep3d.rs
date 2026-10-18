@@ -678,6 +678,7 @@ fn association_rebuild(s:&mut Session,p:&Value)->Result<Value>{
         cadcraft_doc::organization::BrepDependencyRecipe::Sweep1{..}=>"sweep1",
         cadcraft_doc::organization::BrepDependencyRecipe::Sweep2{..}=>"sweep2",
     };
+    if params["tolerance"].is_null() { params.as_object_mut().map(|m|m.remove("tolerance")); }
     let fresh=relay_document_curve(s,&params,operation)?;
     let temp=fresh["ids"][0].as_u64().ok_or_else(||fail("rebuild produced no native BRep"))?;
     let doc=s.doc_mut()?;

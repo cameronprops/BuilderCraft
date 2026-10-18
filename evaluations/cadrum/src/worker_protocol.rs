@@ -40,6 +40,7 @@ pub enum WorkerRequest {
     Pipe { rail: Vec<[f64; 3]>, radius: f64, up: [f64; 3], tolerance: Option<f64> },
     Sweep1 { rail: Vec<[f64; 3]>, section: Vec<[f64; 2]>, up: [f64; 3], tolerance: Option<f64> },
     Sweep2 { rail_a: Vec<[f64; 3]>, rail_b: Vec<[f64; 3]>, section: Vec<[f64; 2]>, tolerance: Option<f64> },
+    Fillet { brep: String, radius: f64, edge_indices: Vec<usize>, tolerance: Option<f64> },
     Boolean { operation: BooleanOp, left_brep: String, right_brep: String, tolerance: Option<f64> },
     Inspect { brep: String, tolerance: Option<f64> },
     Tessellate { brep: String, linear_deflection: f64, angular_deflection: f64, tolerance: Option<f64> },
@@ -239,6 +240,12 @@ pub fn execute(request: WorkerRequest) -> Result<WorkerResponse, String> {
             let solid = backend.sweep_two(&rail_a, &rail_b, &section).map_err(|e| e.to_string())?;
             encode_solids(&backend, vec![solid])
         }
+        WorkerRequest::Fillet { brep, radius, edge_indices, tolerance } => {
+            let backend = kernel(tolerance)?;
+            let solid = exact_one(&backend, &brep)?;
+            let rounded = backend.fillet_selected(&solid,radius,&edge_indices).map_err(|e| e.to_string())?;
+            encode_solids(&backend,vec![rounded])
+        }
         WorkerRequest::Boolean { operation, left_brep, right_brep, tolerance } => {
             let backend = kernel(tolerance)?;
             // Byte-identical OpenCascade shape serializations are provably the
@@ -371,6 +378,20 @@ mod tests {
             let inspect = call(json!({"op":"inspect","brep":encoded}));
             assert_eq!(inspect["ok"],true);
         }
+    }
+
+    #[test]
+    fn fillet_selected_creates_native_brep_and_rejects_invalid_indices() {
+        let cube = call(json!({"op":"box","min":[0.,0.,0.],"max":[4.,4.,4.]}));
+        assert_eq!(cube["ok"],true);
+        let brep = cube["solids"][0]["brep"].as_str().unwrap();
+        let accepted = call(json!({"op":"fillet","brep":brep,"radius":0.35,"edge_indices":[]}));
+        assert_eq!(accepted["ok"],true,"{accepted}");
+        assert!(accepted["solids"][0]["volume"].as_f64().unwrap()>0.);
+        let inspect=call(json!({"op":"inspect","brep":accepted["solids"][0]["brep"]}));
+        assert_eq!(inspect["ok"],true);
+        let rejected=call(json!({"op":"fillet","brep":brep,"radius":0.3,"edge_indices":[9999]}));
+        assert_eq!(rejected["ok"],false);
     }
 
     #[test]

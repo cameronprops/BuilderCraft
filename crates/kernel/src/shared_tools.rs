@@ -890,6 +890,18 @@ mod tests {
         assert_eq!(grafted_tree.branches.len(), 2);
     }
     #[test]
+    fn station_tangent_and_offset_share_the_cad_and_graph_registry() {
+        for operation in [
+            "kernel.polyline.point_at_station",
+            "kernel.polyline.tangent_at_station",
+            "kernel.polyline.offset_xy",
+        ] {
+            let contract = SHARED_TOOLS.iter().find(|contract| contract.operation == operation).expect("path operation must be registered");
+            assert!(contract.cad_command.starts_with("worldwright."));
+            assert!(contract.orbweaver_node.starts_with("orbweaver."));
+        }
+    }
+    #[test]
     fn tree_matching_modifier_keeps_branch_paths_and_pairs() {
         let make = |items| ToolValue::Tree(DataTree { branches: vec![TreeBranch { path: crate::TreePath(vec![7]), items }] });
         let matched = execute_shared_tool(&ToolRequest {

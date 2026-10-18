@@ -341,6 +341,30 @@ fn every_registered_command_error_preserves_drawing_and_undo() {
 }
 
 #[test]
+fn degenerate_drawing_commands_fail_without_silent_geometry() {
+    for (id, params) in [
+        ("polygon", json!({"sides": 5, "center": [0, 0], "radius": 0})),
+        ("polygon", json!({"sides": 5, "edge": [[1, 1], [1, 1]]})),
+        ("polygon", json!({"sides": 5, "edge": [[0, 0], [1e308, 1e308]]})),
+        ("arc", json!({"center": [0, 0], "radius": 0, "start": 0, "end": 90})),
+        ("ellipse", json!({"center": [0, 0], "major": [1e308, 1e308], "ratio": 0.5})),
+        ("point.multiple", json!({"points": []})),
+        ("donut", json!({"center": [0, 0], "inside": 5, "outside": 3})),
+        ("donut", json!({"center": [0, 0], "inside": -1, "outside": 3})),
+        ("donut", json!({"center": [0, 0], "inside": 2, "outside": 2})),
+        ("donut", json!({"center": [0, 0], "inside": 2})),
+    ] {
+        let mut s = Session::new();
+        let before = s.state().unwrap().doc.clone();
+        let revision = s.state().unwrap().revision;
+        assert!(s.execute(id, &params).is_err(), "{id} silently accepted degenerate input: {params}");
+        assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc), "{id} mutated the document on error");
+        assert_eq!(s.state().unwrap().revision, revision, "{id} unexpectedly changed revision");
+        assert!(s.doc().unwrap().model.is_empty(), "{id} created degenerate geometry");
+    }
+}
+
+#[test]
 fn hostile_params_never_panic() {
     let mut s = Session::new();
     for c in command_specs() {

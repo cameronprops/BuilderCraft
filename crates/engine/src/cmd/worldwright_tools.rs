@@ -363,9 +363,14 @@ mod tests {
             ("worldwright.polyline.tangent_at_station", "kernel.polyline.tangent_at_station", json!("vector")),
         ] {
             let direct = session.execute(cmd, &json!({"inputs":station_inputs})).unwrap();
-            let generic = session.execute("worldwright.tool.run", &json!({
-                "operation":operation,"inputs":station_inputs
-            })).unwrap();
+            let generic = session
+                .execute(
+                    "worldwright.tool.run",
+                    &json!({
+                        "operation":operation,"inputs":station_inputs
+                    }),
+                )
+                .unwrap();
             assert_eq!(direct, generic);
             assert_eq!(direct["output"]["kind"], expected);
         }

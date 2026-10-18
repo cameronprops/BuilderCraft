@@ -22,6 +22,7 @@ mod mesh_exchange;
 mod mesh_surface;
 mod modify;
 mod modify2;
+mod nurbs_document;
 mod picking3d;
 mod point3d;
 mod props;
@@ -164,6 +165,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(picking3d::specs());
         v.extend(snap3d::specs());
         v.extend(mesh3d::specs());
+        v.extend(nurbs_document::specs());
         v.extend(brep3d::specs());
         v.extend(mesh_surface::specs());
         v.extend(feature_history::specs());

@@ -3,8 +3,8 @@
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
     DataTree, KernelError, MAX_TREE_ITEMS, Result, TreeBranch, TreeMatchPolicy, point_distance, point_interpolate, point_midpoint,
-    polyline_divide_count, polyline_divide_distance, polyline_length, tree_flatten, tree_graft, tree_match, tree_simplify, tree_validate,
-    vector_cross, vector_dot, vector_length, vector_normalize,
+    polyline_divide_count, polyline_divide_distance, polyline_length, polyline_offset_xy, polyline_point_at_station, polyline_tangent_at_station,
+    tree_flatten, tree_graft, tree_match, tree_simplify, tree_validate, vector_cross, vector_dot, vector_length, vector_normalize,
 };
 use cadcraft_geom::Vec3;
 use serde::{Deserialize, Serialize};
@@ -170,6 +170,57 @@ const TREE_MATCH: &[ToolPort] = &[
 const POLYLINE_DISTANCE: &[ToolPort] =
     &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "spacing", kind: ToolType::Number, modifier: true }];
 
+const POLYLINE_STATION: &[ToolPort] =
+    &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "station", kind: ToolType::Number, modifier: true }];
+const POLYLINE_OFFSET_XY: &[ToolPort] = &[
+    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "distance", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "miter_limit", kind: ToolType::Number, modifier: true },
+];
+
+const CURVE_JOIN: &[ToolPort] = &[
+    ToolPort { name: "a", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "b", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "tolerance", kind: ToolType::Number, modifier: true },
+];
+const CURVE_STATION: &[ToolPort] =
+    &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "station", kind: ToolType::Number, modifier: true }];
+const CURVE_TRIM: &[ToolPort] = &[
+    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "start", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "end", kind: ToolType::Number, modifier: true },
+];
+const CURVE_EXTEND: &[ToolPort] = &[
+    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "distance", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "at_start", kind: ToolType::Count, modifier: true },
+];
+const CURVE_REBUILD: &[ToolPort] = &[
+    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "controls", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "degree", kind: ToolType::Count, modifier: true },
+];
+const CURVE_PIPE: &[ToolPort] = &[
+    ToolPort { name: "rail", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "radius", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "sides", kind: ToolType::Count, modifier: true },
+];
+const CURVE_SWEEP1: &[ToolPort] =
+    &[ToolPort { name: "rail", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "section", kind: ToolType::Polyline, modifier: false }];
+const CURVE_SWEEP2: &[ToolPort] = &[
+    ToolPort { name: "rail_a", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "rail_b", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "section", kind: ToolType::Polyline, modifier: false },
+];
+
+const NURBS_POINT: &[ToolPort] =
+    &[ToolPort { name: "curve", kind: ToolType::Curve, modifier: false }, ToolPort { name: "t", kind: ToolType::Number, modifier: true }];
+const NURBS_TRIM: &[ToolPort] = &[
+    ToolPort { name: "curve", kind: ToolType::Curve, modifier: false },
+    ToolPort { name: "start", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "end", kind: ToolType::Number, modifier: true },
+];
+
 /// One record per shared, executable operation. No copy of any algorithm exists
 /// in the CAD or Graph adapters.
 pub const SHARED_TOOLS: &[SharedToolContract] = &[
@@ -262,6 +313,141 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         prerequisites: &["kernel.polyline.length", "kernel.point.distance", "kernel.point.interpolate"],
         inputs: POLYLINE_DISTANCE,
         output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.polyline.point_at_station",
+        cad_command: "worldwright.polyline.point_at_station",
+        orbweaver_node: "orbweaver.polyline.point_at_station",
+        dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: POLYLINE_STATION,
+        output: ToolType::Point,
+    },
+    SharedToolContract {
+        operation: "kernel.polyline.tangent_at_station",
+        cad_command: "worldwright.polyline.tangent_at_station",
+        orbweaver_node: "orbweaver.polyline.tangent_at_station",
+        dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: POLYLINE_STATION,
+        output: ToolType::Vector,
+    },
+    SharedToolContract {
+        operation: "kernel.polyline.offset_xy",
+        cad_command: "worldwright.polyline.offset_xy",
+        orbweaver_node: "orbweaver.polyline.offset_xy",
+        dependency_group: "geometry.polyline",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: POLYLINE_OFFSET_XY,
+        output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.join",
+        cad_command: "worldwright.curve.join",
+        orbweaver_node: "orbweaver.curve.join",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: CURVE_JOIN,
+        output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.split",
+        cad_command: "worldwright.curve.split",
+        orbweaver_node: "orbweaver.curve.split",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.point_at_station"],
+        inputs: CURVE_STATION,
+        output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.trim",
+        cad_command: "worldwright.curve.trim",
+        orbweaver_node: "orbweaver.curve.trim",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.point_at_station"],
+        inputs: CURVE_TRIM,
+        output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.extend",
+        cad_command: "worldwright.curve.extend",
+        orbweaver_node: "orbweaver.curve.extend",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.length"],
+        inputs: CURVE_EXTEND,
+        output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.rebuild",
+        cad_command: "worldwright.curve.rebuild",
+        orbweaver_node: "orbweaver.curve.rebuild",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.point_at_station"],
+        inputs: CURVE_REBUILD,
+        output: ToolType::Curve,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.offset",
+        cad_command: "worldwright.curve.offset",
+        orbweaver_node: "orbweaver.curve.offset",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.offset_xy"],
+        inputs: POLYLINE_OFFSET_XY,
+        output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.pipe",
+        cad_command: "worldwright.curve.pipe",
+        orbweaver_node: "orbweaver.curve.pipe",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.curve.sweep1"],
+        inputs: CURVE_PIPE,
+        output: ToolType::Mesh,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.sweep1",
+        cad_command: "worldwright.curve.sweep1",
+        orbweaver_node: "orbweaver.curve.sweep1",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.length", "kernel.polygon.validate"],
+        inputs: CURVE_SWEEP1,
+        output: ToolType::Mesh,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.sweep2",
+        cad_command: "worldwright.curve.sweep2",
+        orbweaver_node: "orbweaver.curve.sweep2",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.polyline.length", "kernel.polygon.validate"],
+        inputs: CURVE_SWEEP2,
+        output: ToolType::Mesh,
+    },
+    SharedToolContract {
+        operation: "kernel.nurbs.evaluate",
+        cad_command: "worldwright.nurbs.evaluate",
+        orbweaver_node: "orbweaver.nurbs.evaluate",
+        dependency_group: "geometry.curve",
+        prerequisites: &[],
+        inputs: NURBS_POINT,
+        output: ToolType::Point,
+    },
+    SharedToolContract {
+        operation: "kernel.nurbs.split",
+        cad_command: "worldwright.nurbs.split",
+        orbweaver_node: "orbweaver.nurbs.split",
+        dependency_group: "geometry.curve",
+        prerequisites: &[],
+        inputs: NURBS_POINT,
+        output: ToolType::Tree,
+    },
+    SharedToolContract {
+        operation: "kernel.nurbs.trim",
+        cad_command: "worldwright.nurbs.trim",
+        orbweaver_node: "orbweaver.nurbs.trim",
+        dependency_group: "geometry.curve",
+        prerequisites: &[],
+        inputs: NURBS_TRIM,
+        output: ToolType::Curve,
     },
     SharedToolContract {
         operation: "kernel.array.linear",
@@ -460,6 +646,12 @@ fn polyline<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&
     }
 }
 
+fn nurbs_curve<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a cadcraft_geom::nurbs3d::Curve> {
+    match inputs.get(name) {
+        Some(ToolValue::Curve(value)) if value.valid() => Ok(value),
+        _ => Err(KernelError::Invalid("invalid rational NURBS curve port")),
+    }
+}
 fn mesh<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a crate::PolygonMesh> {
     match inputs.get(name) {
         Some(ToolValue::Mesh(mesh)) => Ok(mesh),
@@ -508,6 +700,12 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
             } else {
                 Ok(points.len().max(1))
             }
+        }
+        ToolValue::Curve(curve) => {
+            if !curve.valid() {
+                return Err(KernelError::Invalid("invalid rational curve"));
+            }
+            Ok(curve.control.len().max(1))
         }
         ToolValue::Surface(surface) => {
             if !surface.valid() {
@@ -751,6 +949,85 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.polyline.divide_distance" => {
             Ok(ToolValue::Polyline(polyline_divide_distance(polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?)?))
         }
+        "kernel.polyline.point_at_station" => {
+            Ok(ToolValue::Point(polyline_point_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?))
+        }
+        "kernel.polyline.tangent_at_station" => {
+            Ok(ToolValue::Vector(polyline_tangent_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?))
+        }
+        "kernel.polyline.offset_xy" => Ok(ToolValue::Polyline(polyline_offset_xy(
+            polyline(&request.inputs, "points")?,
+            number(&request.inputs, "distance")?,
+            number(&request.inputs, "miter_limit")?,
+        )?)),
+        "kernel.curve.join" => Ok(ToolValue::Polyline(crate::curve_join(
+            polyline(&request.inputs, "a")?,
+            polyline(&request.inputs, "b")?,
+            number(&request.inputs, "tolerance")?,
+        )?)),
+        "kernel.curve.split" => {
+            let (a, b) = crate::curve_split(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?;
+            let output = DataTree {
+                branches: vec![
+                    TreeBranch { path: crate::TreePath(vec![0]), items: vec![ToolValue::Polyline(a)] },
+                    TreeBranch { path: crate::TreePath(vec![1]), items: vec![ToolValue::Polyline(b)] },
+                ],
+            };
+            tree_validate(&output)?;
+            Ok(ToolValue::Tree(output))
+        }
+        "kernel.curve.trim" => Ok(ToolValue::Polyline(crate::curve_trim(
+            polyline(&request.inputs, "points")?,
+            number(&request.inputs, "start")?,
+            number(&request.inputs, "end")?,
+        )?)),
+        "kernel.curve.extend" => {
+            let at_start = count(&request.inputs, "at_start")?;
+            if at_start > 1 {
+                return Err(KernelError::Invalid("at_start must be 0 or 1"));
+            }
+            Ok(ToolValue::Polyline(crate::curve_extend(polyline(&request.inputs, "points")?, number(&request.inputs, "distance")?, at_start == 1)?))
+        }
+        "kernel.curve.rebuild" => Ok(ToolValue::Curve(crate::curve_rebuild(
+            polyline(&request.inputs, "points")?,
+            count(&request.inputs, "controls")?,
+            count(&request.inputs, "degree")?,
+        )?)),
+        "kernel.curve.offset" => Ok(ToolValue::Polyline(crate::curve_offset(
+            polyline(&request.inputs, "points")?,
+            number(&request.inputs, "distance")?,
+            number(&request.inputs, "miter_limit")?,
+        )?)),
+        "kernel.curve.pipe" => Ok(ToolValue::Mesh(crate::curve_pipe(
+            polyline(&request.inputs, "rail")?,
+            number(&request.inputs, "radius")?,
+            count(&request.inputs, "sides")?,
+        )?)),
+        "kernel.curve.sweep1" => Ok(ToolValue::Mesh(crate::curve_sweep1(polyline(&request.inputs, "rail")?, polyline(&request.inputs, "section")?)?)),
+        "kernel.curve.sweep2" => Ok(ToolValue::Mesh(crate::curve_sweep2(
+            polyline(&request.inputs, "rail_a")?,
+            polyline(&request.inputs, "rail_b")?,
+            polyline(&request.inputs, "section")?,
+        )?)),
+        "kernel.nurbs.evaluate" => {
+            Ok(ToolValue::Point(crate::nurbs_curve_evaluate(nurbs_curve(&request.inputs, "curve")?, number(&request.inputs, "t")?)?))
+        }
+        "kernel.nurbs.split" => {
+            let (a, b) = crate::nurbs_curve_split(nurbs_curve(&request.inputs, "curve")?, number(&request.inputs, "t")?)?;
+            let out = DataTree {
+                branches: vec![
+                    TreeBranch { path: crate::TreePath(vec![0]), items: vec![ToolValue::Curve(a)] },
+                    TreeBranch { path: crate::TreePath(vec![1]), items: vec![ToolValue::Curve(b)] },
+                ],
+            };
+            tree_validate(&out)?;
+            Ok(ToolValue::Tree(out))
+        }
+        "kernel.nurbs.trim" => Ok(ToolValue::Curve(crate::nurbs_curve_trim(
+            nurbs_curve(&request.inputs, "curve")?,
+            number(&request.inputs, "start")?,
+            number(&request.inputs, "end")?,
+        )?)),
         "kernel.tree.validate" => {
             Ok(ToolValue::Count(u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?).map_err(|_| KernelError::Budget)?))
         }
@@ -790,7 +1067,7 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 27);
+        assert_eq!(SHARED_TOOLS.len(), 42);
     }
     #[test]
     fn mesh_qem_is_one_algorithm_for_cad_and_orbweaver() {
@@ -865,7 +1142,8 @@ mod tests {
         let original = ToolValue::Tree(tree.clone());
         let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
-        assert_eq!(SHARED_TOOLS.len(), 27);
+        assert_eq!(SHARED_TOOLS.len(), 42);
+
         let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();
         assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());

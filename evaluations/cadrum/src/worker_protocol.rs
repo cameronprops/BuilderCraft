@@ -37,6 +37,9 @@ pub enum WorkerRequest {
     Box { min: [f64; 3], max: [f64; 3], tolerance: Option<f64> },
     Cylinder { radius: f64, height: [f64; 3], tolerance: Option<f64> },
     Sphere { radius: f64, tolerance: Option<f64> },
+    Pipe { rail: Vec<[f64; 3]>, radius: f64, up: [f64; 3], tolerance: Option<f64> },
+    Sweep1 { rail: Vec<[f64; 3]>, section: Vec<[f64; 2]>, up: [f64; 3], tolerance: Option<f64> },
+    Sweep2 { rail_a: Vec<[f64; 3]>, rail_b: Vec<[f64; 3]>, section: Vec<[f64; 2]>, tolerance: Option<f64> },
     Boolean { operation: BooleanOp, left_brep: String, right_brep: String, tolerance: Option<f64> },
     Inspect { brep: String, tolerance: Option<f64> },
     Tessellate { brep: String, linear_deflection: f64, angular_deflection: f64, tolerance: Option<f64> },
@@ -221,6 +224,21 @@ pub fn execute(request: WorkerRequest) -> Result<WorkerResponse, String> {
             let solid = backend.sphere(radius).map_err(|e| e.to_string())?;
             encode_solids(&backend, vec![solid])
         }
+        WorkerRequest::Pipe { rail, radius, up, tolerance } => {
+            let backend = kernel(tolerance)?;
+            let solid = backend.pipe_along_spine(&rail, radius, up).map_err(|e| e.to_string())?;
+            encode_solids(&backend, vec![solid])
+        }
+        WorkerRequest::Sweep1 { rail, section, up, tolerance } => {
+            let backend = kernel(tolerance)?;
+            let solid = backend.sweep_one(&rail, &section, up).map_err(|e| e.to_string())?;
+            encode_solids(&backend, vec![solid])
+        }
+        WorkerRequest::Sweep2 { rail_a, rail_b, section, tolerance } => {
+            let backend = kernel(tolerance)?;
+            let solid = backend.sweep_two(&rail_a, &rail_b, &section).map_err(|e| e.to_string())?;
+            encode_solids(&backend, vec![solid])
+        }
         WorkerRequest::Boolean { operation, left_brep, right_brep, tolerance } => {
             let backend = kernel(tolerance)?;
             // Byte-identical OpenCascade shape serializations are provably the
@@ -329,6 +347,44 @@ mod tests {
         let shapes = result["solids"].as_array().unwrap();
         assert_eq!(shapes.len(), 1);
         shapes[0]["brep"].as_str().unwrap().to_owned()
+    }
+
+    #[test]
+    fn exact_pipe_sweep_and_two_rail_loft_have_native_solid_payloads() {
+        let rail = [[0.0,0.0,0.0],[0.0,0.0,5.0]];
+        // Up must not be parallel to rail direction.
+        let up = [0.0,1.0,0.0];
+        let section = [[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]];
+        for cmd in [
+            json!({"op":"pipe","rail":rail,"radius":0.5,"up":up}),
+            json!({"op":"sweep1","rail":rail,"section":section,"up":up}),
+            json!({"op":"sweep2",
+                "rail_a":[[0.,0.,0.],[0.,0.,5.]],
+                "rail_b":[[2.,0.,0.],[2.,0.,5.]],
+                "section":[[0.,-0.5],[1.,-0.5],[1.,0.5],[0.,0.5]]}),
+        ] {
+            let result = call(cmd);
+            assert_eq!(result["ok"], true, "{result}");
+            assert_eq!(result["solids"].as_array().map(Vec::len), Some(1));
+            assert!(result["solids"][0]["volume"].as_f64().unwrap() > 0.01);
+            let encoded = result["solids"][0]["brep"].as_str().unwrap();
+            let inspect = call(json!({"op":"inspect","brep":encoded}));
+            assert_eq!(inspect["ok"],true);
+        }
+    }
+
+    #[test]
+    fn sweep_rejects_bad_rail_and_profile_without_publishing_shapes() {
+        for cmd in [
+            json!({"op":"pipe","rail":[[0.,0.,0.],[0.,0.,0.]],"radius":1.,"up":[0.,1.,0.]}),
+            json!({"op":"pipe","rail":[[0.,0.,0.],[0.,0.,5.]],"radius":1.,"up":[0.,0.,1.]}),
+            json!({"op":"sweep1","rail":[[0.,0.,0.],[0.,0.,5.]],"section":[[0.,0.],[1.,0.],[0.,0.]],"up":[0.,1.,0.]}),
+            json!({"op":"sweep2","rail_a":[[0.,0.,0.],[0.,0.,5.]],"rail_b":[[2.,0.,0.]],"section":[[0.,0.],[1.,0.],[0.,1.]]}),
+        ] {
+            let result = call(cmd);
+            assert_eq!(result["ok"],false,"{result}");
+            assert!(result.get("solids").is_none() || result["solids"].is_null());
+        }
     }
 
     #[test]

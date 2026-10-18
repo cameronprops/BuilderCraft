@@ -29,5 +29,5 @@ fn stale_or_locked_draworder_target_preserves_order_and_undo() {
     assert_eq!(order, vec![b.clone(), a.clone()]);
     s.execute("draworder.back", &json!({"handles":[a.clone()]})).unwrap();
     let order: Vec<_> = s.doc().unwrap().model.iter().map(|e| e.handle.hex()).collect();
-    assert_eq!(order, vec![a,b]);
+    assert_eq!(order, vec![a, b]);
 }

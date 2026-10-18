@@ -109,7 +109,7 @@ fn validate_brep_dependencies(d: &Drawing) -> Result<()> {
                 }
             }
         }
-        let (tolerance, budget, section, arity) = match &link.recipe {
+        let (tolerance, section, arity) = match &link.recipe {
             BrepDependencyRecipe::Pipe { radius, up, chord_tolerance, max_segments, tolerance } => {
                 if !radius.is_finite() || *radius <= 0. || up.iter().any(|x| !x.is_finite()) {
                     return Err(IoError::Format("invalid associative pipe parameters".into()));

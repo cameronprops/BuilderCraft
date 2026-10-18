@@ -107,6 +107,18 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{inputs:{rail_a,rail_b,section}}")
             .enabled(always)
             .noundo(),
+        CommandSpec::new("worldwright.nurbs.evaluate", "Evaluate Exact Rational NURBS", nurbs_evaluate)
+            .params("{inputs:{curve:{kind:curve,value:{degree,control,weights,knots}},t:{kind:number,value}}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.nurbs.split", "Split Rational NURBS Without Tessellation", nurbs_split)
+            .params("{inputs:{curve,t}}")
+            .enabled(always)
+            .noundo(),
+        CommandSpec::new("worldwright.nurbs.trim", "Trim Rational NURBS Interval", nurbs_trim)
+            .params("{inputs:{curve,start,end}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.tree.validate", "Validate Data Tree", tree_validate).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.flatten", "Flatten Data Tree", tree_flatten).enabled(always).noundo(),
         CommandSpec::new("worldwright.tree.graft", "Graft Data Tree", tree_graft).enabled(always).noundo(),
@@ -181,6 +193,9 @@ paired_command!(curve_offset, "kernel.curve.offset");
 paired_command!(curve_pipe, "kernel.curve.pipe");
 paired_command!(curve_sweep1, "kernel.curve.sweep1");
 paired_command!(curve_sweep2, "kernel.curve.sweep2");
+paired_command!(nurbs_evaluate, "kernel.nurbs.evaluate");
+paired_command!(nurbs_split, "kernel.nurbs.split");
+paired_command!(nurbs_trim, "kernel.nurbs.trim");
 paired_command!(tree_validate, "kernel.tree.validate");
 paired_command!(tree_flatten, "kernel.tree.flatten");
 paired_command!(tree_graft, "kernel.tree.graft");
@@ -481,10 +496,36 @@ mod tests {
     }
 
     #[test]
+    fn exact_rational_nurbs_commands_share_generic_adapter_without_scene_changes() {
+        let mut session=Session::new();
+        let curve=json!({"kind":"curve","value":{
+            "degree":2,
+            "control":[{"x":0.,"y":0.,"z":0.},{"x":2.,"y":4.,"z":0.},{"x":4.,"y":0.,"z":0.}],
+            "weights":[1.,0.5,1.],
+            "knots":[0.,0.,0.,1.,1.,1.]
+        }});
+        let n=|v:f64| json!({"kind":"number","value":v});
+        let original=session.state().ok().map(|s|s.revision);
+        for (action,inputs,kind) in [
+            ("evaluate",json!({"curve":curve,"t":n(0.5)}),"point"),
+            ("split",json!({"curve":curve,"t":n(0.25)}),"tree"),
+            ("trim",json!({"curve":curve,"start":n(0.2),"end":n(0.8)}),"curve")
+        ] {
+            let direct=session.execute(&format!("worldwright.nurbs.{action}"),&json!({"inputs":inputs})).unwrap();
+            let generic=session.execute("worldwright.tool.run",&json!({
+                "operation":format!("kernel.nurbs.{action}"),"inputs":inputs
+            })).unwrap();
+            assert_eq!(direct,generic);
+            assert_eq!(direct["output"]["kind"],kind);
+        }
+        assert_eq!(session.state().ok().map(|s|s.revision),original);
+    }
+
+    #[test]
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(38));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(41));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

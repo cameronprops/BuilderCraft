@@ -395,13 +395,8 @@ mod tests {
         let mut d = EditorDocument::new();
         let before = d.clone();
         for spec in native_components() {
-            if let Some(port) = spec.inputs.iter().find(|p| {
-                matches!(p.kind, ToolType::Mesh | ToolType::Surface | ToolType::Curve)
-            }) {
-                assert_eq!(
-                    d.add(spec.orbweaver_node, place(0.0)),
-                    Err(EditorError::Port { node: before.next_id, port: port.name.into() }),
-                );
+            if let Some(port) = spec.inputs.iter().find(|p| matches!(p.kind, ToolType::Mesh | ToolType::Surface | ToolType::Curve)) {
+                assert_eq!(d.add(spec.orbweaver_node, place(0.0)), Err(EditorError::Port { node: before.next_id, port: port.name.into() }),);
                 assert_eq!(d, before);
                 break;
             }

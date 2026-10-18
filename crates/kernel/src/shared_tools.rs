@@ -23,6 +23,7 @@ pub enum ToolType {
     Pair,
     Mesh,
     Surface,
+    Curve,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -39,6 +40,7 @@ pub enum ToolValue {
     Pair(Box<(ToolValue, ToolValue)>),
     Mesh(crate::PolygonMesh),
     Surface(cadcraft_geom::nurbs3d::Surface),
+    Curve(cadcraft_geom::nurbs3d::Curve),
 }
 
 impl ToolValue {
@@ -54,6 +56,7 @@ impl ToolValue {
             Self::Pair(_) => ToolType::Pair,
             Self::Mesh(_) => ToolType::Mesh,
             Self::Surface(_) => ToolType::Surface,
+            Self::Curve(_) => ToolType::Curve,
         }
     }
 }
@@ -130,6 +133,10 @@ const NURBS_FLOW: &[ToolPort] = &[
     ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "base", kind: ToolType::Surface, modifier: true },
     ToolPort { name: "target", kind: ToolType::Surface, modifier: true },
+];
+const NURBS_RULED: &[ToolPort] = &[
+    ToolPort { name: "a", kind: ToolType::Curve, modifier: false },
+    ToolPort { name: "b", kind: ToolType::Curve, modifier: false },
 ];
 /// QEM options have explicit required ports for reproducible graph evaluation.
 /// crease_degrees=180 disables original crease protection, preserve_boundary is 0 or 1.
@@ -349,6 +356,15 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         output: ToolType::Polyline,
     },
     SharedToolContract {
+        operation: "kernel.surface.ruled",
+        cad_command: "worldwright.surface.ruled",
+        orbweaver_node: "orbweaver.surface.ruled",
+        dependency_group: "geometry.surface",
+        prerequisites: &[],
+        inputs: NURBS_RULED,
+        output: ToolType::Surface,
+    },
+    SharedToolContract {
         operation: "kernel.tree.validate",
         cad_command: "worldwright.tree.validate",
         orbweaver_node: "orbweaver.tree.validate",
@@ -458,6 +474,13 @@ fn surface<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'
         _ => Err(KernelError::Invalid("NURBS surface input")),
     }
 }
+fn curve<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a cadcraft_geom::nurbs3d::Curve> {
+    match inputs.get(name) {
+        Some(ToolValue::Curve(value)) => Ok(value),
+        _ => Err(KernelError::Invalid("curve input")),
+    }
+}
+
 fn tree<'a>(inputs: &'a BTreeMap<String, ToolValue>, name: &str) -> Result<&'a DataTree<ToolValue>> {
     match inputs.get(name) {
         Some(ToolValue::Tree(value)) => Ok(value),
@@ -494,6 +517,12 @@ fn value_cost(value: &ToolValue, depth: usize) -> Result<usize> {
             }
             let count = surface.rows.iter().try_fold(0usize, |n, row| n.checked_add(row.control.len()).ok_or(KernelError::Budget))?;
             if count > MAX_TREE_ITEMS { Err(KernelError::Budget) } else { Ok(count) }
+        }
+        ToolValue::Curve(curve) => {
+            if !curve.valid() {
+                return Err(KernelError::Invalid("invalid rational curve input"));
+            }
+            if curve.control.len() > MAX_TREE_ITEMS { Err(KernelError::Budget) } else { Ok(curve.control.len()) }
         }
         ToolValue::Mesh(mesh) => {
             crate::polygon_mesh_validate(mesh)?;
@@ -704,6 +733,10 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
             surface(&request.inputs, "base")?,
             surface(&request.inputs, "target")?,
         )?)),
+        "kernel.surface.ruled" => Ok(ToolValue::Surface(
+            cadcraft_geom::nurbs3d::ruled_surface(curve(&request.inputs, "a")?, curve(&request.inputs, "b")?)
+                .ok_or(KernelError::Invalid("ruled surface needs compatible, distinct rational curves"))?,
+        )),
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.midpoint" => Ok(ToolValue::Point(point_midpoint(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.interpolate" => {

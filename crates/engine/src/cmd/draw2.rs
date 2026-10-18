@@ -1808,15 +1808,29 @@ fn point3_value(v: &Value) -> Option<Vec3> {
     let a = v.as_array()?;
     let x = a.first()?.as_f64()?;
     let y = a.get(1)?.as_f64()?;
-    let z = a.get(2).and_then(Value::as_f64).unwrap_or(0.0);
+    if !(2..=3).contains(&a.len()) {
+        return None;
+    }
+    let z = match a.get(2) {
+        Some(value) => value.as_f64()?,
+        None => 0.0,
+    };
     let p = Vec3::new(x, y, z);
     p.is_finite().then_some(p)
 }
 
 fn run_3dpoly(s: &mut Session, p: &Value) -> Result<Value> {
-    let pts: Vec<Vec3> = p.get("points").and_then(Value::as_array).map(|a| a.iter().filter_map(point3_value).collect()).unwrap_or_default();
-    if pts.len() < 2 || pts.len() > MAX_GEN {
+    let values = p.get("points").and_then(Value::as_array).ok_or_else(|| bad("3dpoly", "`points` must be an array"))?;
+    if values.len() < 2 || values.len() > MAX_GEN {
         return Err(bad("3dpoly", "`points` needs 2 or more [x,y,z] points"));
+    }
+    let pts: Vec<Vec3> = values
+        .iter()
+        .enumerate()
+        .map(|(i, value)| point3_value(value).ok_or_else(|| bad("3dpoly", format!("invalid 3D vertex at index {i}"))))
+        .collect::<Result<_>>()?;
+    if pts.windows(2).any(|pair| pair[0] == pair[1]) {
+        return Err(bad("3dpoly", "consecutive 3D vertices must not coincide"));
     }
     added(s.add_entity(EntityKind::Polyline3d(Polyline3d { points: pts, closed: bool_or(p, "closed", false) }))?)
 }
@@ -2090,6 +2104,9 @@ fn run_helix(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("helix", "radii must be positive and turns in (0, 500]"));
     }
     let pts = helix_points(c, rb, rt, f64_or(p, "height", 1.0), turns, bool_or(p, "ccw", true), f64_or(p, "startAngle", 0.0).to_radians());
+    if pts.iter().any(|point| !point.is_finite()) {
+        return Err(bad("helix", "helix coordinates exceed the finite drawing range"));
+    }
     added(s.add_entity(EntityKind::Polyline3d(Polyline3d { points: pts, closed: false }))?)
 }
 

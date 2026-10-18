@@ -355,6 +355,7 @@ fn degenerate_drawing_commands_fail_without_silent_geometry() {
         ("donut", json!({"center": [0, 0], "inside": -1, "outside": 3})),
         ("donut", json!({"center": [0, 0], "inside": 2, "outside": 2})),
         ("donut", json!({"center": [0, 0], "inside": 2})),
+        ("donut", json!({"center": [1.7e308, 0], "inside": 1e308, "outside": 1.1e308})),
     ] {
         let mut s = Session::new();
         let before = s.state().unwrap().doc.clone();

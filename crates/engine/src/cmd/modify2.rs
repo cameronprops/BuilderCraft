@@ -294,13 +294,19 @@ fn pedit_apply(s: &mut Session, h: Handle, opt: &str, p: &Value) -> Result<Value
         "reverse" | "r" => pl.vertices = curves::reverse_vertices(&pl.vertices, pl.closed),
         "ltypegen" | "l" => pl.plinegen = bool_or(p, "on", !pl.plinegen),
         "join" | "j" => {
+            let others: Vec<Handle> = match p.get("handles2").or_else(|| p.get("join")) {
+                Some(value) => value
+                    .as_array()
+                    .ok_or_else(|| bad("pedit", "`handles2` must be an array of valid handles"))?
+                    .iter()
+                    .enumerate()
+                    .map(|(i, value)| {
+                        curves::handle_value(value).ok_or_else(|| bad("pedit", format!("invalid join handle at index {i}")))
+                    })
+                    .collect::<Result<_>>()?,
+                None => Vec::new(),
+            };
             set_kind(s, h, EntityKind::LwPolyline(pl))?;
-            let others: Vec<Handle> = p
-                .get("handles2")
-                .or_else(|| p.get("join"))
-                .and_then(Value::as_array)
-                .map(|a| a.iter().filter_map(curves::handle_value).collect())
-                .unwrap_or_default();
             let n = pedit_join(s, h, &others, f64_or(p, "fuzz", 0.0))?;
             return Ok(json!({ "handle": h.hex(), "joined": n }));
         }

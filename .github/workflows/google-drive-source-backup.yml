@@ -11,7 +11,10 @@ permissions:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      GDRIVE_SA_JSON: ${{ secrets.BUILDERCRAFT_DRIVE_SA_JSON }}
+      GDRIVE_FOLDER_ID: ${{ vars.BUILDERCRAFT_DRIVE_FOLDER_ID }}
     steps:
       - name: Checkout all branch and tag history
         uses: actions/checkout@v4
@@ -37,3 +40,23 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 1
+      - name: Mirror verified backup to Google Drive (when configured)
+        if: ${{ env.GDRIVE_SA_JSON != '' && env.GDRIVE_FOLDER_ID != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rclone
+          credential_file="$(mktemp)"
+          trap 'rm -f "$credential_file"' EXIT
+          chmod 600 "$credential_file"
+          printf '%s' "$GDRIVE_SA_JSON" > "$credential_file"
+          unset GDRIVE_SA_JSON
+          export RCLONE_CONFIG_BC_TYPE=drive
+          export RCLONE_CONFIG_BC_SCOPE=drive
+          export RCLONE_CONFIG_BC_ROOT_FOLDER_ID="$GDRIVE_FOLDER_ID"
+          export RCLONE_CONFIG_BC_SERVICE_ACCOUNT_FILE="$credential_file"
+          destination="bc:BuilderCraft/${GITHUB_REF_NAME}/${GITHUB_SHA}"
+          rclone copy backups/ "$destination" --transfers 2 --checkers 2
+          rclone check backups/ "$destination" --one-way
+          echo "Verified Drive mirror for ${GITHUB_SHA}"

@@ -788,8 +788,7 @@ struct LineCorner {
 }
 
 fn line_corner(l1: &Line, p1: Vec2, l2: &Line, p2: Vec2) -> Result<LineCorner> {
-    let (intersection, _, _) =
-        line_line_infinite(l1.a, l1.b, l2.a, l2.b).ok_or_else(|| bad("fillet", "lines are parallel or degenerate"))?;
+    let (intersection, _, _) = line_line_infinite(l1.a, l1.b, l2.a, l2.b).ok_or_else(|| bad("fillet", "lines are parallel or degenerate"))?;
     let keep = |l: &Line, pick: Vec2| {
         let ta = (l.a - intersection).dot(pick - intersection);
         let tb = (l.b - intersection).dot(pick - intersection);

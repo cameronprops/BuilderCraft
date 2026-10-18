@@ -168,6 +168,20 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
     let new_name = str_param(p, "newName").map(str::to_string);
     let d = s.doc_mut()?;
     let cur = d.header.str("CLAYER", "0");
+    // Validate the target before mutating the layer. A duplicate name leaves two
+    // table entries with ambiguous entity lookup and can corrupt later exports.
+    if let Some(nn) = &new_name {
+        if !valid_name(nn) {
+            return Err(bad("layer.set", "invalid layer name"));
+        }
+        let current = d.layer(&name).ok_or_else(|| bad("layer.set", format!("no layer `{name}`")))?;
+        if current.name == "0" || current.name.eq_ignore_ascii_case("Defpoints") {
+            return Err(bad("layer.set", "cannot rename layer 0 or Defpoints"));
+        }
+        if !current.name.eq_ignore_ascii_case(nn) && d.layer(nn).is_some() {
+            return Err(bad("layer.set", format!("layer `{nn}` already exists")));
+        }
+    }
     let l = d.layer_mut(&name).ok_or_else(|| bad("layer.set", format!("no layer `{name}`")))?;
     apply(l, p)?;
     if p.get("frozen").and_then(Value::as_bool) == Some(true) && l.name.eq_ignore_ascii_case(&cur) {
@@ -175,18 +189,28 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("layer.set", "cannot freeze the current layer"));
     }
     if let Some(nn) = new_name {
-        if l.name == "0" || l.name.eq_ignore_ascii_case("Defpoints") {
-            return Err(bad("layer.set", "cannot rename layer 0 or Defpoints"));
-        }
-        if !valid_name(&nn) {
-            return Err(bad("layer.set", "invalid layer name"));
-        }
         let old = l.name.clone();
         l.name = nn.clone();
-        // Re-point entities.
+        // The layer table is shared by model, paper and block definitions.
+        // Updating only model-space entities leaves orphaned references on export.
         let hs: Vec<_> = d.model.iter().filter(|e| e.common.layer.eq_ignore_ascii_case(&old)).map(|e| e.handle).collect();
         for h in hs {
             d.model.modify(h, |e| e.common.layer = nn.clone());
+        }
+        for layout in &mut d.layouts {
+            let hs: Vec<_> = layout.entities.iter().filter(|e| e.common.layer.eq_ignore_ascii_case(&old)).map(|e| e.handle).collect();
+            for h in hs {
+                layout.entities.modify(h, |e| e.common.layer = nn.clone());
+            }
+        }
+        for block in d.blocks.values_mut() {
+            let hs: Vec<_> = block.entities.iter().filter(|e| e.common.layer.eq_ignore_ascii_case(&old)).map(|e| e.handle).collect();
+            if !hs.is_empty() {
+                let entities = &mut std::sync::Arc::make_mut(block).entities;
+                for h in hs {
+                    entities.modify(h, |e| e.common.layer = nn.clone());
+                }
+            }
         }
         if cur.eq_ignore_ascii_case(&old) {
             d.header.set_str("CLAYER", &nn);
@@ -225,8 +249,12 @@ fn run_delete(s: &mut Session, p: &Value) -> Result<Value> {
     if name == "0" || name.eq_ignore_ascii_case("Defpoints") || d.header.str("CLAYER", "0").eq_ignore_ascii_case(&name) {
         return Err(bad("layer.delete", "cannot delete layer 0, Defpoints or the current layer"));
     }
+    if d.layer(&name).is_none() {
+        return Err(bad("layer.delete", format!("no layer `{name}`")));
+    }
     let used = d.model.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name))
-        || d.layouts.iter().any(|l| l.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name)));
+        || d.layouts.iter().any(|l| l.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name)))
+        || d.blocks.values().any(|b| b.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name)));
     if used {
         return Err(bad("layer.delete", "layer has objects on it"));
     }

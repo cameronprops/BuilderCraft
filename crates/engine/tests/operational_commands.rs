@@ -55,6 +55,7 @@ const CASES: &[Case] = &[
     ("time", time_query_reports_drawing_revision),
     ("status", status_query_reports_current_layer),
     ("count", count_query_on_empty_blocks),
+    ("donut", donut_creates_width_controlled_closed_outline),
 ];
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -470,6 +471,19 @@ fn count_query_on_empty_blocks() {
     let mut s = Session::new();
     let report = s.execute("count", &json!({"block": "NotPresent"})).unwrap();
     assert_eq!(report["count"], 0);
+}
+
+fn donut_creates_width_controlled_closed_outline() {
+    let mut s = Session::new();
+    s.execute("donut", &json!({"center": [10, 20], "inside": 2, "outside": 4})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(poly) => {
+            assert_eq!(poly.vertices.len(), 2);
+            assert!(poly.closed);
+            assert!((poly.const_width - 1.0).abs() < 1e-9);
+        }
+        other => panic!("expected donut polyline, got {other:?}"),
+    }
 }
 
 #[test]

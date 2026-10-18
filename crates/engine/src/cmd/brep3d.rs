@@ -1215,7 +1215,7 @@ mod tests {
             )
             .is_err()
         );
-        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep, &initial);
+        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep, initial);
         let rebuilt = s
             .execute(
                 "brep.dependency.rebuild",
@@ -1235,7 +1235,7 @@ mod tests {
         let reopened = cadcraft_io::read(&bytes, "linked.dftba").unwrap();
         assert_eq!(reopened.brep_dependencies, s.doc().unwrap().brep_dependencies);
         s.execute("undo", &json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep, &initial);
+        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep, initial);
         assert_eq!(s.execute("brep.dependency.status", &json!({"id":id})).unwrap()["status"], "stale");
     }
 

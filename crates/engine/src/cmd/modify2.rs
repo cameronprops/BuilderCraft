@@ -216,7 +216,13 @@ pub(crate) fn pedit_join(s: &mut Session, h: Handle, others: &[Handle], fuzz: f6
         if *o == h {
             continue;
         }
-        let Ok(oe) = curves::entity(s, *o) else { continue };
+        let oe = curves::entity(s, *o)?;
+        if s.doc()?.space_of(*o).as_ref() != Some(&s.space()) {
+            return Err(bad("pedit", format!("join object {} is outside the current drawing space", o.hex())));
+        }
+        if curves::is_locked(s, *o) {
+            return Err(bad("pedit", format!("join object {} is on a locked layer", o.hex())));
+        }
         let ok = matches!(&oe.kind, EntityKind::Line(_) | EntityKind::Arc(_)) || matches!(&oe.kind, EntityKind::LwPolyline(p) if !p.closed);
         if ok && let Some(c) = Chain::of(&oe.kind) {
             pool.push((*o, c));

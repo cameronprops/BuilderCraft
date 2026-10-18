@@ -1,25 +1,35 @@
 {
-  "schema_version": 1,
-  "review_date": "2026-10-09",
-  "canonical_backend_decision": "UNDECIDED_PENDING_ACCURACY_TESTS",
-  "target_contract": "one exact trimmed BRep backend; separate explicit mesh CSG; reusable curve evaluator; no silent conversions",
+  "schema_version": 2,
+  "review_date": "2026-10-17",
+  "canonical_backend_decision": "OCCT_EXACT_BREP_CURRENT_AUTHORITY__SOLIDCRAFT_TRUCK_COMPARISON_PENDING",
+  "target_contract": "One authoritative exact trimmed BRep backend (OCCT today), native rational curve/surface source with explicit conversion, separate typed mesh/implicit geometry; benchmark all promoted algorithms and never silently downgrade exact solids.",
   "alternatives": [
+    {
+      "name": "SolidCraft (full independent Rust CAD engine with patched Truck)",
+      "url": "https://github.com/tangency-labs/solidcraft",
+      "license": "MIT OR Apache-2.0 (upstream; verify dependent/vendor files separately)",
+      "role": "Highest priority reference/adaptation candidate for sketch solver, parametric modeling features, surface construction, topology identity and bounded incremental recomputation; Truck BRep backend is an alternative to OCCT, not yet adopted",
+      "status": "source_reviewed_not_integrated",
+      "reviewed_commit": "a11446fd17d64ba7661da86407cb04d8432cbb7a",
+      "upstream_evidence": "docs/oracle.md reports 82/82 passing cases (61 analytic, 21 FreeCAD/OCCT); self-reported only, NOT Worldwright differential results",
+      "gate": "Reproduce comparable oracle subset against Worldwright OCCT; publish error/runtime/memory/STEP parity; adapt only reusable operations, do not duplicate geometry authority"
+    },
     {
       "name": "Truck / truck-topology, truck-modeling, truck-shapeops",
       "url": "https://github.com/ricosjp/truck",
       "license": "Apache-2.0",
-      "role": "Rust-native exact BRep topology, NURBS/modeling, and conservative transversal solid boolean",
-      "status": "initial_candidate_under_compilation_in_feature_brep_truck_topology_acceptance",
-      "gate": "Shapeops explicitly excludes tangential face intersections and calls may panic; must pass fixture matrix and compare OpenCascade before promotion",
+      "role": "Truck underlying SolidCraft's patched Rust BRep engine; controlled independent differential evaluation against Worldwright OCCT",
+      "status": "separate_upstream_solidcraft_uses_truck__worldwright_replacement_not_accepted",
+      "gate": "Match SolidCraft vendor-patched truck behavior in benchmark; validate tangent/tolerance/topology/healing and exact STEP plus full memory/platform costs",
       "duplicate_policy": "may become primary exact BRep backend only after full acceptance; do not rebuild topology locally"
     },
     {
       "name": "Open CASCADE Technology",
       "url": "https://dev.opencascade.org/",
       "license": "LGPL-2.1 with special exception, validate distribution source requirements",
-      "role": "mature production exact BRep, STEP/IGES, boolean/healing reference; fallback candidate if Truck fails",
-      "status": "evaluation_pending",
-      "gate": "C++ FFI/macos/windows/linux/haiku packaging, API coverage, native error/trap strategy, licensing"
+      "role": "Current authoritative persisted exact OCCT BRep backend with transactional isolated worker and derived view mesh; STEP, basic booleans, primitives; not yet full trimmed surfacing",
+      "status": "integrated_exact_worker_on_main__broad_qualification_pending",
+      "gate": "Tangencies/slivers/curvature/trimmed NURBS conversion/scale tolerance and STEP differential fixture corpus; native packaging and license compliance"
     },
     {
       "name": "opencascade-rs",
@@ -34,8 +44,8 @@
       "url": "https://github.com/mattatz/curvo",
       "license": "MIT",
       "role": "rational NURBS curves/surfaces, intersections, closest point and fitting if better than existing",
-      "status": "existing_evaluation_pr_14",
-      "gate": "differential golden NURBS fixtures, memory and CPU versus existing evaluator; don't duplicate"
+      "status": "candidate_for_nurbs_operations__no_replacement_benchmark",
+      "gate": "Differential local rational basis/evaluate, dense weighted surface, trims, closest point, loft, tolerance and performance against current Worldwright NURBS"
     },
     {
       "name": "Manifold",
@@ -85,5 +95,6 @@
       "status": "reference_only",
       "gate": "recreate independent graphs; do not copy proprietary .gh component implementations"
     }
-  ]
+  ],
+  "qualification_reference": "docs/architecture/GEOMETRY_ENGINE_QUALIFICATION.md"
 }

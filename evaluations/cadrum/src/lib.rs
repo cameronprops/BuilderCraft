@@ -30,6 +30,38 @@ mod tests {
     }
 
     #[test]
+    fn solidcraft_oracle_01_to_03_analytic_baselines() -> Result<(), cadrum::Error> {
+        // Independent geometry checks using the first three dimensions/formulas
+        // published in SolidCraft's MIT/Apache-2.0 docs/oracle.md at
+        // tangency-labs/solidcraft a11446fd. This exercises Worldwright OCCT,
+        // not SolidCraft's patched Truck backend. A matched numeric baseline
+        // is NOT an overall engine benchmark.
+        let block = Solid::cube(DVec3::ZERO, DVec3::new(40.0, 30.0, 20.0));
+        near("oracle 01 box volume", block.volume(), 40.0 * 30.0 * 20.0, 1e-7);
+        assert_eq!(face_count(&block), 6);
+
+        let cylinder = Solid::cylinder(15.0, DVec3::Z * 50.0);
+        near(
+            "oracle 02 cylinder volume",
+            cylinder.volume(),
+            std::f64::consts::PI * 15.0_f64.powi(2) * 50.0,
+            1e-6,
+        );
+
+        let stock = Solid::cube(DVec3::ZERO, DVec3::new(60.0, 40.0, 20.0));
+        let drill = Solid::cylinder(6.0, DVec3::Z * 24.0).translate(DVec3::new(30.0, 20.0, -2.0));
+        let drilled = (&stock - &drill).build()?;
+        near(
+            "oracle 03 centered through-hole volume",
+            drilled.volume(),
+            60.0 * 40.0 * 20.0 - std::f64::consts::PI * 6.0_f64.powi(2) * 20.0,
+            1e-5,
+        );
+        assert!(face_count(&drilled) >= 7, "through-hole boundary must retain cylindrical trim");
+        Ok(())
+    }
+
+    #[test]
     fn transverse_box_boolean_volume_and_topology() -> Result<(), cadrum::Error> {
         // A: [0,2]^3, B: [1,3]^3, overlap = unit cube.
         let a = Solid::cube(DVec3::ZERO, DVec3::splat(2.0));

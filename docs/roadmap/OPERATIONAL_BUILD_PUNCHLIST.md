@@ -37,8 +37,8 @@ This register explicitly audits **all 39 PRs open at the start of the stabilizat
 | [#25](../../pull/25) | Oriented arrays | **MERGED** | Post-merge shared CAD/OrbWeaver command smoke. |
 | [#27](../../pull/27) | Rail frames + mesh stage | **MERGED** | Post-merge rail-frame and Pipe/Sweep acceptance; distinguish mesh-stage from exact BRep output. |
 | [#28](../../pull/28) | OpenSCAD CLI bridge | DEFER / conflicts | Opt-in executable security acceptance, sandbox limitations and importer tests; optional after core alpha. |
-| [#30](../../pull/30) | Truck boolean crash proof | RESEARCH CLOSE CANDIDATE | Record failure and merged #65 backend choice; never import crashing experimental production topology; archive reproducible tests. |
-| [#31](../../pull/31) | Isolated OCCT proof | RESEARCH CLOSE CANDIDATE | Verify equivalent tests in merged #42 native worker; preserve provenance, close superseded experiment if covered. |
+| [#30](../../pull/30) | Truck boolean crash proof | **CLOSED: experimental, deliberately not merged** | Record failure and merged #65 backend choice; never import crashing experimental production topology; archive reproducible tests. |
+| [#31](../../pull/31) | Isolated OCCT proof | **CLOSED: research superseded by #42/#65** | Verify equivalent tests in merged #42 native worker; preserve provenance, close superseded experiment if covered. |
 | [#34](../../pull/34) | Analytic NURBS derivatives | **MERGED** | Post-merge analytic normal/derivative numerical regression. |
 | [#39](../../pull/39) | Topology defect overlay | REBASE / conflicts | Target current viewport with revision/visibility-scoped highlight tests. |
 | [#40](../../pull/40) | Quad-strip subdivision | REBASE / conflicts | Check quad winding, stable ID maps, neighbor propagation and undo integration. |
@@ -58,12 +58,12 @@ This register explicitly audits **all 39 PRs open at the start of the stabilizat
 | [#62](../../pull/62) | FreeCAD LGPL dependency walker | LEGAL/TECH REVIEW | Verify LGPL license/relink obligations, source manifest and measured benefit; not a CAD alpha blocker. |
 | [#63](../../pull/63) | Exact BRep move/rotate/scale | **MERGED** | Post-merge OCCT STEP, transform and Inspector smoke. |
 | [#66](../../pull/66) | Rational ruled surface | REVALIDATE / merge conflicts fluctuating | Reconcile shared NURBS files with merged #34 and current main; cross-platform CI before merge. |
-| [#67](../../pull/67) | Station/tangent/offset | REPAIR / CI failure | Read native/acceptance logs, fix tests, align with merged #27; do not merge into broken main. |
+| [#67](../../pull/67) | Station/tangent/offset | REPAIRED test + retriggered CI; merge pending | Read native/acceptance logs, fix tests, align with merged #27; do not merge into broken main. |
 | [#68](../../pull/68) | Nine Rhino-style commands | BLOCKED on #67 | Rebase onto fixed #67, preserve Partial accuracy labels, verify CAD/OrbWeaver operation parity. |
 | [#69](../../pull/69) | Exact OCCT sweep + NURBS | BLOCKED on #68 | Validate native worker Pipe/Sweep BReps and rational curve operations, avoid duplicate kernel. |
 | [#70](../../pull/70) | Undoable NURBS object edits | BLOCKED on #69 | Check stable document ID, undo/save, source-relative approximated sweep rail qualification. |
 | [#71](../../pull/71) | Certified adaptive rail tessellation | BLOCKED on #70, previously green | Preserve one-sided chord certification and explicit limitations; full native CI after rebase. |
-| [#72](../../pull/72) | Fillet/Pipe/Sweep feasibility probes | **REPAIR**, CI failed | Fix Clippy needless borrow at `crates/engine/src/cmd/brep3d.rs` lines ~421/426 and `hostile_constraint_params_never_panic` test; rerun all three workflows. |
+| [#72](../../pull/72) | Fillet/Pipe/Sweep feasibility probes | **REPAIRED** lint and test scope; CI pending | Fix Clippy needless borrow at `crates/engine/src/cmd/brep3d.rs` lines ~421/426 and `hostile_constraint_params_never_panic` test; rerun all three workflows. |
 | [#73](../../pull/73) | Associative sweep recipes | BLOCKED on #72 and preceding stack | Validate source snapshot, stale tracking, stable-ID opt-in rebuild and failure rollback; no auto rebuild during editing. |
 
 ## Critical-path order
@@ -89,3 +89,7 @@ This register explicitly audits **all 39 PRs open at the start of the stabilizat
 - 2026-10-17 Pacific: Merged #34 (analytic derivatives), #53 (undoable mesh bake), #63 (exact-solid transforms), #25 (oriented arrays), and #27 (rail frames). **Combined native post-merge build is not yet verified.**
 
 Update this document as each PR reaches *merged*, *closed with rationale*, *repaired*, or *deferred with owner and gate*. The goal is a reproducible working product, not zero open PRs.
+
+- 2026-10-17 Pacific (continued): Closed #30 (known Truck Boolean crash proof) and #31 (isolated OCCT evaluation) after documenting why these candidate implementations should not be merged alongside the selected OCCT kernel. Branch evidence retained.
+- 2026-10-17 Pacific (continued): Fixed `main` compilation regression from #34 on top of #65: the derivative routine still called removed global `basis()`; it now expands the existing span-local `local_basis()` into the coefficient vector. Commit `205feed2`. Native combined-build CI still requires readback.
+- 2026-10-17 Pacific (continued): PR #67 removes hardcoded registry count and now tests native path operation registry parity; PR #72 fixes two strict-Clippy borrows and avoids routing exact BRep constraint commands through the legacy 2D interactive fuzz test. Their validations are not yet accepted as green.

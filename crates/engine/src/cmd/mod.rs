@@ -255,13 +255,17 @@ pub(crate) fn targets(s: &Session, p: &Value) -> Result<Vec<Handle>> {
     let parse = |v: &Value| v.as_str().and_then(Handle::parse_hex).or_else(|| v.as_u64().map(Handle));
     if let Some(value) = p.get("handles") {
         let values = value.as_array().ok_or_else(|| bad("targets", "`handles` must be an array"))?;
-        return values
+        let handles: Vec<Handle> = values
             .iter()
             .enumerate()
             .map(|(index, value)| {
                 parse(value).ok_or_else(|| bad("targets", format!("`handles[{index}]` must be a hexadecimal handle or unsigned integer")))
             })
-            .collect();
+            .collect::<Result<_>>()?;
+        // Treat explicit targets as a set, like pick-first selections. Without
+        // this, a repeated handle translates the same object multiple times.
+        let mut unique = std::collections::HashSet::new();
+        return Ok(handles.into_iter().filter(|handle| unique.insert(*handle)).collect());
     }
     if let Some(value) = p.get("handle") {
         return Ok(vec![parse(value).ok_or_else(|| bad("targets", "`handle` must be a hexadecimal handle or unsigned integer"))?]);

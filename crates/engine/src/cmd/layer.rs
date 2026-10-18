@@ -415,6 +415,57 @@ mod tests {
     use crate::Session;
 
     #[test]
+    fn layer_rename_updates_every_entity_store_and_rejects_collisions() {
+        let mut s = Session::new();
+        s.execute("layer.new", &json!({ "name": "Scenic", "current": true })).unwrap();
+        s.execute("layer.new", &json!({ "name": "Lighting" })).unwrap();
+        s.execute("line", &json!({ "points": [[0, 0], [5, 0]] })).unwrap();
+        let exemplar = s.doc().unwrap().model.iter().next().unwrap().clone();
+        {
+            let d = s.doc_mut().unwrap();
+            let mut sheet = cadcraft_doc::Layout::new("Sheet", 1);
+            sheet.entities.push(exemplar.clone());
+            d.layouts.push(sheet);
+            let mut block = cadcraft_doc::Block::new("SetWall");
+            block.entities.push(exemplar);
+            d.blocks.insert("SetWall".into(), std::sync::Arc::new(block));
+        }
+        let doc_before = s.state().unwrap().doc.clone();
+        assert!(s.execute("layer.set", &json!({"name": "Scenic", "newName": "lighting", "color": 2})).is_err());
+        assert!(std::sync::Arc::ptr_eq(&doc_before, &s.state().unwrap().doc));
+        assert_eq!(s.doc().unwrap().layers.iter().filter(|l| l.name.eq_ignore_ascii_case("Lighting")).count(), 1);
+        assert!(s.execute("layer.delete", &json!({"name": "missing"})).is_err());
+
+        s.execute("layer.set", &json!({"name": "Scenic", "newName": "Rockwork"})).unwrap();
+        let d = s.doc().unwrap();
+        assert!(d.layer("Scenic").is_none());
+        assert!(d.layer("Rockwork").is_some());
+        assert_eq!(d.header.str("CLAYER", "0"), "Rockwork");
+        assert_eq!(d.model.iter().next().unwrap().common.layer, "Rockwork");
+        assert_eq!(d.layouts[0].entities.iter().next().unwrap().common.layer, "Rockwork");
+        assert_eq!(d.blocks["SetWall"].entities.iter().next().unwrap().common.layer, "Rockwork");
+        assert!(s.execute("layer.delete", &json!({"name": "Rockwork"})).is_err());
+    }
+
+    #[test]
+    fn block_definition_entities_prevent_layer_deletion() {
+        let mut s = Session::new();
+        s.execute("layer.new", &json!({"name": "BlockOnly", "current": true})).unwrap();
+        s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap();
+        let exemplar = s.doc().unwrap().model.iter().next().unwrap().clone();
+        {
+            let d = s.doc_mut().unwrap();
+            let mut block = cadcraft_doc::Block::new("OnlyReference");
+            block.entities.push(exemplar);
+            d.blocks.insert("OnlyReference".into(), std::sync::Arc::new(block));
+            d.model.clear();
+            d.header.set_str("CLAYER", "0");
+        }
+        assert!(s.execute("layer.delete", &json!({"name": "BlockOnly"})).is_err());
+        assert!(s.doc().unwrap().layer("BlockOnly").is_some());
+    }
+
+    #[test]
     fn layer_states_save_list_restore_delete() {
         let mut s = Session::new();
         s.execute("layer.new", &json!({ "name": "A", "color": 1 })).unwrap();

@@ -134,10 +134,8 @@ const NURBS_FLOW: &[ToolPort] = &[
     ToolPort { name: "base", kind: ToolType::Surface, modifier: true },
     ToolPort { name: "target", kind: ToolType::Surface, modifier: true },
 ];
-const NURBS_RULED: &[ToolPort] = &[
-    ToolPort { name: "a", kind: ToolType::Curve, modifier: false },
-    ToolPort { name: "b", kind: ToolType::Curve, modifier: false },
-];
+const NURBS_RULED: &[ToolPort] =
+    &[ToolPort { name: "a", kind: ToolType::Curve, modifier: false }, ToolPort { name: "b", kind: ToolType::Curve, modifier: false }];
 /// QEM options have explicit required ports for reproducible graph evaluation.
 /// crease_degrees=180 disables original crease protection, preserve_boundary is 0 or 1.
 const MESH_DECIMATE: &[ToolPort] = &[

@@ -80,6 +80,8 @@ pub struct Drawing {
     pub mesh3d: Vec<organization::PolygonGeometryObject>,
     /// Persistent exact trimmed BRep solids, separate from polygon display proxies.
     pub exact_breps: Vec<organization::ExactBrepObject>,
+    /// Explicit, manually rebuilt links from source NURBS to native BRep outputs.
+    pub brep_dependencies: Vec<organization::BrepDependency>,
     /// Optional ordered feature histories, independent per document, component, or block.
     pub feature_timelines: Vec<buildercraft_kernel::FeatureTimeline>,
 }
@@ -133,6 +135,7 @@ impl Drawing {
             geometry3d: Vec::new(),
             mesh3d: Vec::new(),
             exact_breps: Vec::new(),
+            brep_dependencies: Vec::new(),
             feature_timelines: Vec::new(),
         }
     }

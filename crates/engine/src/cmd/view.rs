@@ -24,11 +24,11 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("zoom.window", "Zoom Window", |s, p| {
             zoom(s, &json!({"mode": "window", "p1": p.get("p1").cloned().unwrap_or(Value::Null), "p2": p.get("p2").cloned().unwrap_or(Value::Null)}))
         })
-            .menu(&["View", "Zoom", "Window"])
-            .params("{p1, p2}")
-            .noundo()
-            .transparent()
-            .interactive(|_| Ok(Box::new(ZoomM { window: true, ..Default::default() }))),
+        .menu(&["View", "Zoom", "Window"])
+        .params("{p1, p2}")
+        .noundo()
+        .transparent()
+        .interactive(|_| Ok(Box::new(ZoomM { window: true, ..Default::default() }))),
         CommandSpec::new("zoom.in", "Zoom In", |s, _| zoom(s, &json!({"mode":"in"}))).menu(&["View", "Zoom", "In"]).noundo().transparent(),
         CommandSpec::new("zoom.out", "Zoom Out", |s, _| zoom(s, &json!({"mode":"out"}))).menu(&["View", "Zoom", "Out"]).noundo().transparent(),
         CommandSpec::new("zoom.all", "Zoom All", |s, _| zoom(s, &json!({"mode":"all"}))).menu(&["View", "Zoom", "All"]).noundo().transparent(),

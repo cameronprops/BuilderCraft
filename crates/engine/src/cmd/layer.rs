@@ -168,6 +168,20 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
     let new_name = str_param(p, "newName").map(str::to_string);
     let d = s.doc_mut()?;
     let cur = d.header.str("CLAYER", "0");
+    // Validate the target before mutating the layer. A duplicate name leaves two
+    // table entries with ambiguous entity lookup and can corrupt later exports.
+    if let Some(nn) = &new_name {
+        if !valid_name(nn) {
+            return Err(bad("layer.set", "invalid layer name"));
+        }
+        let current = d.layer(&name).ok_or_else(|| bad("layer.set", format!("no layer `{name}`")))?;
+        if current.name == "0" || current.name.eq_ignore_ascii_case("Defpoints") {
+            return Err(bad("layer.set", "cannot rename layer 0 or Defpoints"));
+        }
+        if !current.name.eq_ignore_ascii_case(nn) && d.layer(nn).is_some() {
+            return Err(bad("layer.set", format!("layer `{nn}` already exists")));
+        }
+    }
     let l = d.layer_mut(&name).ok_or_else(|| bad("layer.set", format!("no layer `{name}`")))?;
     apply(l, p)?;
     if p.get("frozen").and_then(Value::as_bool) == Some(true) && l.name.eq_ignore_ascii_case(&cur) {
@@ -175,18 +189,28 @@ fn run_set(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("layer.set", "cannot freeze the current layer"));
     }
     if let Some(nn) = new_name {
-        if l.name == "0" || l.name.eq_ignore_ascii_case("Defpoints") {
-            return Err(bad("layer.set", "cannot rename layer 0 or Defpoints"));
-        }
-        if !valid_name(&nn) {
-            return Err(bad("layer.set", "invalid layer name"));
-        }
         let old = l.name.clone();
         l.name = nn.clone();
-        // Re-point entities.
+        // The layer table is shared by model, paper and block definitions.
+        // Updating only model-space entities leaves orphaned references on export.
         let hs: Vec<_> = d.model.iter().filter(|e| e.common.layer.eq_ignore_ascii_case(&old)).map(|e| e.handle).collect();
         for h in hs {
             d.model.modify(h, |e| e.common.layer = nn.clone());
+        }
+        for layout in &mut d.layouts {
+            let hs: Vec<_> = layout.entities.iter().filter(|e| e.common.layer.eq_ignore_ascii_case(&old)).map(|e| e.handle).collect();
+            for h in hs {
+                layout.entities.modify(h, |e| e.common.layer = nn.clone());
+            }
+        }
+        for block in d.blocks.values_mut() {
+            let hs: Vec<_> = block.entities.iter().filter(|e| e.common.layer.eq_ignore_ascii_case(&old)).map(|e| e.handle).collect();
+            if !hs.is_empty() {
+                let entities = &mut std::sync::Arc::make_mut(block).entities;
+                for h in hs {
+                    entities.modify(h, |e| e.common.layer = nn.clone());
+                }
+            }
         }
         if cur.eq_ignore_ascii_case(&old) {
             d.header.set_str("CLAYER", &nn);
@@ -225,8 +249,12 @@ fn run_delete(s: &mut Session, p: &Value) -> Result<Value> {
     if name == "0" || name.eq_ignore_ascii_case("Defpoints") || d.header.str("CLAYER", "0").eq_ignore_ascii_case(&name) {
         return Err(bad("layer.delete", "cannot delete layer 0, Defpoints or the current layer"));
     }
+    if d.layer(&name).is_none() {
+        return Err(bad("layer.delete", format!("no layer `{name}`")));
+    }
     let used = d.model.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name))
-        || d.layouts.iter().any(|l| l.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name)));
+        || d.layouts.iter().any(|l| l.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name)))
+        || d.blocks.values().any(|b| b.entities.iter().any(|e| e.common.layer.eq_ignore_ascii_case(&name)));
     if used {
         return Err(bad("layer.delete", "layer has objects on it"));
     }
@@ -385,6 +413,58 @@ mod tests {
     use serde_json::json;
 
     use crate::Session;
+
+    #[test]
+    fn layer_rename_updates_every_entity_store_and_rejects_collisions() {
+        let mut s = Session::new();
+        s.execute("layer.new", &json!({ "name": "Scenic", "current": true })).unwrap();
+        s.execute("layer.new", &json!({ "name": "Lighting" })).unwrap();
+        s.execute("line", &json!({ "points": [[0, 0], [5, 0]] })).unwrap();
+        let exemplar = s.doc().unwrap().model.iter().next().unwrap().as_ref().clone();
+        {
+            let d = s.doc_mut().unwrap();
+            let mut sheet = cadcraft_doc::Layout::new("Sheet", 1);
+            sheet.entities.push(exemplar.clone());
+            d.layouts.push(sheet);
+            let mut block = cadcraft_doc::Block::new("SetWall");
+            block.entities.push(exemplar);
+            d.blocks.insert("SetWall".into(), std::sync::Arc::new(block));
+        }
+        let doc_before = s.state().unwrap().doc.clone();
+        assert!(s.execute("layer.set", &json!({"name": "Scenic", "newName": "lighting", "color": 2})).is_err());
+        assert!(std::sync::Arc::ptr_eq(&doc_before, &s.state().unwrap().doc));
+        assert_eq!(s.doc().unwrap().layers.iter().filter(|l| l.name.eq_ignore_ascii_case("Lighting")).count(), 1);
+        assert!(s.execute("layer.delete", &json!({"name": "missing"})).is_err());
+
+        s.execute("layer.set", &json!({"name": "Scenic", "newName": "Rockwork"})).unwrap();
+        let d = s.doc().unwrap();
+        assert!(d.layer("Scenic").is_none());
+        assert!(d.layer("Rockwork").is_some());
+        assert_eq!(d.header.str("CLAYER", "0"), "Rockwork");
+        assert_eq!(d.model.iter().next().unwrap().common.layer, "Rockwork");
+        assert_eq!(d.layouts.iter().find(|l| l.name == "Sheet").unwrap().entities.iter().next().unwrap().common.layer, "Rockwork");
+        assert_eq!(d.blocks["SetWall"].entities.iter().next().unwrap().common.layer, "Rockwork");
+        assert!(s.execute("layer.delete", &json!({"name": "Rockwork"})).is_err());
+    }
+
+    #[test]
+    fn block_definition_entities_prevent_layer_deletion() {
+        let mut s = Session::new();
+        s.execute("layer.new", &json!({"name": "BlockOnly", "current": true})).unwrap();
+        s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap();
+        let exemplar = s.doc().unwrap().model.iter().next().unwrap().as_ref().clone();
+        {
+            let d = s.doc_mut().unwrap();
+            let mut block = cadcraft_doc::Block::new("OnlyReference");
+            let handle = exemplar.handle;
+            block.entities.push(exemplar);
+            d.blocks.insert("OnlyReference".into(), std::sync::Arc::new(block));
+            d.model.remove(handle);
+            d.header.set_str("CLAYER", "0");
+        }
+        assert!(s.execute("layer.delete", &json!({"name": "BlockOnly"})).is_err());
+        assert!(s.doc().unwrap().layer("BlockOnly").is_some());
+    }
 
     #[test]
     fn layer_states_save_list_restore_delete() {

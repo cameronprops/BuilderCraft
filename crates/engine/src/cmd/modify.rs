@@ -67,12 +67,12 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("fillet", "Fillet", run_fillet)
             .menu(&["Modify", "Fillet"])
             .alias(&["f"])
-            .params("{h1, p1, h2, p2, radius?} (lines, arcs, circles) | {handle, polyline: true, radius?}")
+            .params("{h1, p1, h2, p2, radius?, limitsOnly?:bool} (lines, arcs, circles) | {handle, polyline: true, radius?}")
             .interactive(|s| Ok(Box::new(FilletM::new(s, false)))),
         CommandSpec::new("chamfer", "Chamfer", run_chamfer)
             .menu(&["Modify", "Chamfer"])
             .alias(&["cha"])
-            .params("{h1, p1, h2, p2, d1?, d2?}")
+            .params("{h1, p1, h2, p2, d1?, d2?, limitsOnly?:bool}")
             .interactive(|s| Ok(Box::new(FilletM::new(s, true)))),
         CommandSpec::new("explode", "Explode", run_explode)
             .menu(&["Modify", "Explode"])
@@ -772,6 +772,76 @@ fn as_line(e: &Entity) -> Option<Line> {
     }
 }
 
+/// For finite lines, the fillet's tangent point must fit on both kept legs.
+/// Reporting these limits before modifying the drawing avoids silent extension
+/// or a fillet that consumes an entire source segment.
+struct LineCorner {
+    intersection: Vec2,
+    kept1: Vec2,
+    kept2: Vec2,
+    direction1: Vec2,
+    direction2: Vec2,
+    length1: f64,
+    length2: f64,
+    half_angle: f64,
+    max_radius: f64,
+}
+
+fn line_corner(l1: &Line, p1: Vec2, l2: &Line, p2: Vec2) -> Result<LineCorner> {
+    let (intersection, _, _) =
+        line_line_infinite(l1.a, l1.b, l2.a, l2.b).ok_or_else(|| bad("fillet", "lines are parallel or degenerate"))?;
+    let keep = |l: &Line, pick: Vec2| {
+        let ta = (l.a - intersection).dot(pick - intersection);
+        let tb = (l.b - intersection).dot(pick - intersection);
+        if ta >= tb { l.a } else { l.b }
+    };
+    let kept1 = keep(l1, p1);
+    let kept2 = keep(l2, p2);
+    let length1 = (kept1 - intersection).len();
+    let length2 = (kept2 - intersection).len();
+    if !(length1 > 1e-12 && length2 > 1e-12 && length1.is_finite() && length2.is_finite()) {
+        return Err(bad("fillet", "picked corner has no finite segment length; select the outer ends of both lines"));
+    }
+    let direction1 = (kept1 - intersection).normalized();
+    let direction2 = (kept2 - intersection).normalized();
+    let half_angle = direction1.dot(direction2).clamp(-1.0, 1.0).acos() / 2.0;
+    let tangent = half_angle.tan();
+    let max_radius = length1.min(length2) * tangent;
+    if !(tangent > 1e-12 && max_radius > 0.0 && max_radius.is_finite()) {
+        return Err(bad("fillet", "selected legs do not define a finite fillet radius"));
+    }
+    Ok(LineCorner { intersection, kept1, kept2, direction1, direction2, length1, length2, half_angle, max_radius })
+}
+
+fn checked_corner_targets(s: &Session, h1: Handle, h2: Handle, command: &str) -> Result<()> {
+    if h1 == h2 {
+        return Err(bad(command, "select two distinct objects"));
+    }
+    let d = s.doc()?;
+    let space = s.space();
+    for handle in [h1, h2] {
+        let entity = d.entity(handle).ok_or_else(|| bad(command, format!("object {} does not exist", handle.hex())))?;
+        if d.space_of(handle).as_ref() != Some(&space) {
+            return Err(bad(command, format!("object {} is outside the current drawing space", handle.hex())));
+        }
+        if d.layer(&entity.common.layer).is_some_and(|layer| layer.locked) {
+            return Err(bad(command, format!("object {} is on locked layer {}", handle.hex(), entity.common.layer)));
+        }
+    }
+    Ok(())
+}
+
+fn checked_fillet_radius(s: &Session, p: &Value) -> Result<f64> {
+    let r = match p.get("radius") {
+        Some(value) => value.as_f64().ok_or_else(|| bad("fillet", "radius must be a finite nonnegative number"))?,
+        None => s.doc()?.header.f64("FILLETRAD", 0.0),
+    };
+    if !r.is_finite() || r < 0.0 {
+        return Err(bad("fillet", "radius must be a finite nonnegative number"));
+    }
+    Ok(r)
+}
+
 /// Fillet (or chamfer) two lines. `p1`/`p2` mark the kept side of each line.
 pub(crate) fn fillet_lines(
     s: &mut Session,
@@ -782,41 +852,49 @@ pub(crate) fn fillet_lines(
     radius: f64,
     chamfer: Option<(f64, f64)>,
 ) -> Result<Option<Handle>> {
+    checked_corner_targets(s, h1, h2, if chamfer.is_some() { "chamfer" } else { "fillet" })?;
+    if !radius.is_finite() || radius < 0.0 {
+        return Err(bad("fillet", "radius must be finite and nonnegative"));
+    }
     let d = s.doc()?;
-    let e1 = d.entity(h1).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
-    let e2 = d.entity(h2).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
+    let e1 = d.entity(h1).map(|e| (**e).clone()).ok_or_else(|| bad("fillet", "first object is missing"))?;
+    let e2 = d.entity(h2).map(|e| (**e).clone()).ok_or_else(|| bad("fillet", "second object is missing"))?;
     let (Some(l1), Some(l2)) = (as_line(&e1), as_line(&e2)) else {
         if chamfer.is_none() {
             return super::modify2::fillet_curves(s, h1, p1, h2, p2, radius);
         }
         return Err(EngineError::Other("Chamfer currently works on lines.".into()));
     };
-    let (x, _, _) = line_line_infinite(l1.a, l1.b, l2.a, l2.b).ok_or_else(|| EngineError::Other("Lines are parallel.".into()))?;
-    // Keep the far end on the picked side of the corner.
-    let keep = |l: &Line, p: Vec2| -> Vec2 {
-        let ta = (l.a - x).dot(p - x);
-        let tb = (l.b - x).dot(p - x);
-        if ta >= tb { l.a } else { l.b }
-    };
-    let k1 = keep(&l1, p1);
-    let k2 = keep(&l2, p2);
-    let u1 = (k1 - x).normalized();
-    let u2 = (k2 - x).normalized();
+    let corner = line_corner(&l1, p1, &l2, p2)?;
+    let x = corner.intersection;
+    let (k1, k2) = (corner.kept1, corner.kept2);
+    let (u1, u2) = (corner.direction1, corner.direction2);
     let mut new_arc = None;
     let (t1, t2) = if let Some((d1, d2)) = chamfer {
+        if !d1.is_finite() || !d2.is_finite() || d1 < 0.0 || d2 < 0.0 {
+            return Err(bad("chamfer", "both distances must be finite and nonnegative"));
+        }
+        if d1 > corner.length1 || d2 > corner.length2 {
+            return Err(bad(
+                "chamfer",
+                format!("requested distances exceed available lengths; max d1 = {:.6}, max d2 = {:.6}", corner.length1, corner.length2),
+            ));
+        }
         (x + u1 * d1, x + u2 * d2)
     } else if radius <= 1e-12 {
         (x, x)
     } else {
-        let half = u1.dot(u2).clamp(-1.0, 1.0).acos() / 2.0;
-        if half.sin().abs() < 1e-12 {
-            return Err(EngineError::Other("Lines are parallel.".into()));
+        if radius > corner.max_radius {
+            return Err(bad("fillet", format!("radius exceeds the finite line segments; maximum radius = {:.6}", corner.max_radius)));
         }
-        let dist = radius / half.tan();
+        let dist = radius / corner.half_angle.tan();
         let t1 = x + u1 * dist;
         let t2 = x + u2 * dist;
         let bis = (u1 + u2).normalized();
-        let c = x + bis * (radius / half.sin());
+        let c = x + bis * (radius / corner.half_angle.sin());
+        if ![t1.x, t1.y, t2.x, t2.y, c.x, c.y].into_iter().all(f64::is_finite) {
+            return Err(bad("fillet", "fillet calculation exceeded finite coordinate range"));
+        }
         let a1 = c.angle_to(t1);
         let a2 = c.angle_to(t2);
         let ar = if ccw_sweep(a1, a2) <= std::f64::consts::PI { Arc::new(c, radius, a1, a2) } else { Arc::new(c, radius, a2, a1) };
@@ -851,15 +929,23 @@ fn h_param(p: &Value, k: &str) -> Option<Handle> {
 fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
     if bool_or(p, "polyline", false) {
         let h = h_param(p, "handle").or_else(|| h_param(p, "h1")).ok_or_else(|| bad("fillet", "`handle` (polyline) is required"))?;
-        let r = f64_or(p, "radius", s.doc()?.header.f64("FILLETRAD", 0.0));
+        let r = checked_fillet_radius(s, p)?;
         let n = super::modify2::fillet_polyline(s, h, r)?;
         return Ok(json!({ "filleted": n }));
     }
     let h1 = h_param(p, "h1").ok_or_else(|| bad("fillet", "`h1` is required"))?;
     let h2 = h_param(p, "h2").ok_or_else(|| bad("fillet", "`h2` is required"))?;
-    let r = f64_or(p, "radius", s.doc()?.header.f64("FILLETRAD", 0.0));
+    let r = checked_fillet_radius(s, p)?;
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
+    if bool_or(p, "limitsOnly", false) {
+        checked_corner_targets(s, h1, h2, "fillet")?;
+        let d = s.doc()?;
+        let l1 = d.entity(h1).and_then(|e| as_line(e)).ok_or_else(|| bad("fillet", "limits query requires two lines"))?;
+        let l2 = d.entity(h2).and_then(|e| as_line(e)).ok_or_else(|| bad("fillet", "limits query requires two lines"))?;
+        let corner = line_corner(&l1, p1, &l2, p2)?;
+        return Ok(json!({ "maxRadius": corner.max_radius, "availableFirst": corner.length1, "availableSecond": corner.length2 }));
+    }
     let a = fillet_lines(s, h1, p1, h2, p2, r, None)?;
     Ok(json!({ "arc": a.map(|h| h.hex()) }))
 }
@@ -867,10 +953,28 @@ fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
 fn run_chamfer(s: &mut Session, p: &Value) -> Result<Value> {
     let h1 = h_param(p, "h1").ok_or_else(|| bad("chamfer", "`h1` is required"))?;
     let h2 = h_param(p, "h2").ok_or_else(|| bad("chamfer", "`h2` is required"))?;
-    let d1 = f64_or(p, "d1", s.doc()?.header.f64("CHAMFERA", 0.0));
-    let d2 = f64_or(p, "d2", d1);
+    let numeric = |key: &str, default: f64| -> Result<f64> {
+        let d = match p.get(key) {
+            Some(value) => value.as_f64().ok_or_else(|| bad("chamfer", format!("`{key}` must be a nonnegative finite number")))?,
+            None => default,
+        };
+        if !d.is_finite() || d < 0.0 {
+            return Err(bad("chamfer", format!("`{key}` must be a nonnegative finite number")));
+        }
+        Ok(d)
+    };
+    let d1 = numeric("d1", s.doc()?.header.f64("CHAMFERA", 0.0))?;
+    let d2 = numeric("d2", d1)?;
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
+    if bool_or(p, "limitsOnly", false) {
+        checked_corner_targets(s, h1, h2, "chamfer")?;
+        let d = s.doc()?;
+        let l1 = d.entity(h1).and_then(|e| as_line(e)).ok_or_else(|| bad("chamfer", "limits query requires two lines"))?;
+        let l2 = d.entity(h2).and_then(|e| as_line(e)).ok_or_else(|| bad("chamfer", "limits query requires two lines"))?;
+        let corner = line_corner(&l1, p1, &l2, p2)?;
+        return Ok(json!({ "maxD1": corner.length1, "maxD2": corner.length2 }));
+    }
     let a = fillet_lines(s, h1, p1, h2, p2, 0.0, Some((d1, d2)))?;
     Ok(json!({ "line": a.map(|h| h.hex()) }))
 }

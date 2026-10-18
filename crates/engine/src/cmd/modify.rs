@@ -181,10 +181,22 @@ fn run_move(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "moved": moved.len() }))
 }
 
+// Keep user-controlled replication bounded before any entity is inserted.
+// This is a total output budget, not an arbitrary per-axis clamp.
+const MAX_ARRAY_ENTITIES: u64 = 20_000;
+
+fn check_replication_budget(command: &str, input_count: usize, copies: u64) -> Result<()> {
+    if (input_count as u64).saturating_mul(copies) > MAX_ARRAY_ENTITIES {
+        return Err(bad(command, format!("operation would create more than {MAX_ARRAY_ENTITIES} entities; reduce the count or split the array")));
+    }
+    Ok(())
+}
+
 fn run_copy(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
     let d = delta_of("copy", p)?;
     let n = p.get("count").and_then(Value::as_u64).unwrap_or(1).clamp(1, 10_000);
+    check_replication_budget("copy", hs.len(), n)?;
     let mut out = Vec::new();
     for k in 1..=n {
         out.extend(transform_entities(s, &hs, &Mat3::translate(d * k as f64), true)?.into_iter().map(|h| h.hex()));
@@ -1013,6 +1025,7 @@ fn run_arrayrect(s: &mut Session, p: &Value) -> Result<Value> {
     let cols = p.get("cols").and_then(Value::as_u64).unwrap_or(4).clamp(1, 1000);
     let rs = f64_or(p, "rowSpacing", 1.0);
     let cs = f64_or(p, "colSpacing", 1.0);
+    check_replication_budget("arrayrect", hs.len(), rows.saturating_mul(cols).saturating_sub(1))?;
     let mut out = Vec::new();
     for r in 0..rows {
         for c in 0..cols {
@@ -1031,6 +1044,7 @@ fn run_arraypolar(s: &mut Session, p: &Value) -> Result<Value> {
     let n = p.get("count").and_then(Value::as_u64).unwrap_or(6).clamp(1, 10_000);
     let total = f64_or(p, "angle", 360.0).to_radians();
     let rotate = bool_or(p, "rotate", true);
+    check_replication_budget("arraypolar", hs.len(), n.saturating_sub(1))?;
     let step = if (total - TAU).abs() < 1e-9 { total / n as f64 } else { total / (n.saturating_sub(1).max(1)) as f64 };
     let mut out = Vec::new();
     for k in 1..n {

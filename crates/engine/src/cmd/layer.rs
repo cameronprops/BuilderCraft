@@ -420,7 +420,7 @@ mod tests {
         s.execute("layer.new", &json!({ "name": "Scenic", "current": true })).unwrap();
         s.execute("layer.new", &json!({ "name": "Lighting" })).unwrap();
         s.execute("line", &json!({ "points": [[0, 0], [5, 0]] })).unwrap();
-        let exemplar = s.doc().unwrap().model.iter().next().unwrap().clone();
+        let exemplar = s.doc().unwrap().model.iter().next().unwrap().as_ref().clone();
         {
             let d = s.doc_mut().unwrap();
             let mut sheet = cadcraft_doc::Layout::new("Sheet", 1);
@@ -452,13 +452,14 @@ mod tests {
         let mut s = Session::new();
         s.execute("layer.new", &json!({"name": "BlockOnly", "current": true})).unwrap();
         s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap();
-        let exemplar = s.doc().unwrap().model.iter().next().unwrap().clone();
+        let exemplar = s.doc().unwrap().model.iter().next().unwrap().as_ref().clone();
         {
             let d = s.doc_mut().unwrap();
             let mut block = cadcraft_doc::Block::new("OnlyReference");
+            let handle = exemplar.handle;
             block.entities.push(exemplar);
             d.blocks.insert("OnlyReference".into(), std::sync::Arc::new(block));
-            d.model.clear();
+            d.model.remove(handle);
             d.header.set_str("CLAYER", "0");
         }
         assert!(s.execute("layer.delete", &json!({"name": "BlockOnly"})).is_err());

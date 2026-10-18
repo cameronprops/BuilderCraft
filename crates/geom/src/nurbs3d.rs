@@ -214,7 +214,9 @@ mod tests {
 ///
 /// The external curve domain is [0,1]; the knot domain may be elsewhere.
 fn basis_with_derivative(count: usize, degree: usize, knots: &[f64], t: f64) -> Option<(Vec<f64>, Vec<f64>)> {
-    let primary = basis(count, degree, knots, t)?;
+    let (first, local) = local_basis(count, degree, knots, t)?;
+    let mut primary = vec![0.0; count];
+    primary[first..first + degree + 1].copy_from_slice(&local[..=degree]);
     let lo = *knots.get(degree)?;
     let hi = *knots.get(count)?;
     let span = hi - lo;

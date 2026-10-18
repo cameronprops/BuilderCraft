@@ -34,6 +34,9 @@ jobs:
           set -euo pipefail
           git merge --no-commit --no-ff stack-old || test -n "$(git ls-files -u)"
           python3 tools/reconcile_archived_modeling_stack.py
+          # CI's token cannot rewrite repository workflow definitions.
+          # Leave the protected mainline workflow files unchanged.
+          git restore --source=HEAD --staged --worktree .github/workflows/brep-document-integration.yml .github/workflows/google-drive-source-backup.yml
           cargo fmt --all
           python3 tools/check_paired_tools.py
           git add -A

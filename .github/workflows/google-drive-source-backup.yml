@@ -2,7 +2,8 @@ name: WorldWriter source backup for Drive
 on:
   push:
     branches:
-      - feature/worldwriter-associative-brep-rebuild-20261018
+      - main
+      - 'feature/**'
   workflow_dispatch:
 
 permissions:

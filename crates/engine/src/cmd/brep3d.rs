@@ -223,35 +223,51 @@ fn document_curve(s: &Session, p: &Value, id_key: &str) -> Result<(u64, std::syn
     let cadcraft_doc::organization::Shape::Curve(curve) = &object.shape else {
         return Err(fail("selected geometry must be a 3D rational NURBS curve"));
     };
-    if !curve.valid() { return Err(fail("NURBS rail is invalid")); }
-    Ok((id,curve.clone()))
+    if !curve.valid() {
+        return Err(fail("NURBS rail is invalid"));
+    }
+    Ok((id, curve.clone()))
 }
-fn rail_sampling_config(p: &Value) -> Result<(f64,usize)> {
-    let chord_tolerance = p.get("chord_tolerance")
-        .map(|v| v.as_f64().filter(|v| v.is_finite() && (1e-7..=1e7).contains(v))
-            .ok_or_else(|| fail("chord_tolerance must be finite in document units, between 1e-7 and 1e7")))
-        .transpose()?.unwrap_or(0.01);
+fn rail_sampling_config(p: &Value) -> Result<(f64, usize)> {
+    let chord_tolerance = p
+        .get("chord_tolerance")
+        .map(|v| {
+            v.as_f64()
+                .filter(|v| v.is_finite() && (1e-7..=1e7).contains(v))
+                .ok_or_else(|| fail("chord_tolerance must be finite in document units, between 1e-7 and 1e7"))
+        })
+        .transpose()?
+        .unwrap_or(0.01);
     if p.get("max_segments").is_some() && p.get("segments").is_some() {
         return Err(fail("use max_segments, not both max_segments and deprecated segments"));
     }
-    let budget = p.get("max_segments").or_else(|| p.get("segments"))
-        .map(|v| v.as_u64().and_then(|n| usize::try_from(n).ok())
-            .filter(|n| (1..=127).contains(n))
-            .ok_or_else(|| fail("NURBS rail max_segments must be 1..127")))
-        .transpose()?.unwrap_or(127);
-    Ok((chord_tolerance,budget))
+    let budget = p
+        .get("max_segments")
+        .or_else(|| p.get("segments"))
+        .map(|v| {
+            v.as_u64()
+                .and_then(|n| usize::try_from(n).ok())
+                .filter(|n| (1..=127).contains(n))
+                .ok_or_else(|| fail("NURBS rail max_segments must be 1..127"))
+        })
+        .transpose()?
+        .unwrap_or(127);
+    Ok((chord_tolerance, budget))
 }
-fn certified_worker_rails(curves:&[&cadcraft_geom::nurbs3d::Curve],tolerance:f64,budget:usize)
-    -> Result<buildercraft_kernel::CertifiedRailApproximation> {
-    let output=buildercraft_kernel::nurbs_rails_with_chord_bound(curves,tolerance,budget)
+fn certified_worker_rails(
+    curves: &[&cadcraft_geom::nurbs3d::Curve],
+    tolerance: f64,
+    budget: usize,
+) -> Result<buildercraft_kernel::CertifiedRailApproximation> {
+    let output = buildercraft_kernel::nurbs_rails_with_chord_bound(curves, tolerance, budget)
         .map_err(|e| fail(format!("NURBS rail chord tolerance could not be satisfied: {e}")))?;
-    if output.rails.iter().flatten().any(|p| p.x.abs()>1e9 || p.y.abs()>1e9 || p.z.abs()>1e9) {
+    if output.rails.iter().flatten().any(|p| p.x.abs() > 1e9 || p.y.abs() > 1e9 || p.z.abs() > 1e9) {
         return Err(fail("rail coordinate outside bounded native worker range"));
     }
     Ok(output)
 }
-fn triplets(points:&[cadcraft_geom::Vec3])->Vec<[f64;3]> {
-    points.iter().map(|p| [p.x,p.y,p.z]).collect()
+fn triplets(points: &[cadcraft_geom::Vec3]) -> Vec<[f64; 3]> {
+    points.iter().map(|p| [p.x, p.y, p.z]).collect()
 }
 fn check_curve_revision(s: &Session, p: &Value) -> Result<()> {
     if let Some(value) = p.get("selected_revision") {
@@ -264,58 +280,64 @@ fn check_curve_revision(s: &Session, p: &Value) -> Result<()> {
 }
 fn relay_document_curve(s: &mut Session, p: &Value, mode: &str) -> Result<Value> {
     name(p)?;
-    check_curve_revision(s,p)?;
-    let (id_a,curve_a)=document_curve(s,p,if mode=="sweep2"{"curve_a_id"}else{"curve_id"})?;
-    let (chord_tolerance,max_segments)=rail_sampling_config(p)?;
+    check_curve_revision(s, p)?;
+    let (id_a, curve_a) = document_curve(s, p, if mode == "sweep2" { "curve_a_id" } else { "curve_id" })?;
+    let (chord_tolerance, max_segments) = rail_sampling_config(p)?;
     let id_b;
-    let (worker,approximation) = match mode {
+    let (worker, approximation) = match mode {
         "pipe" => {
-            id_b=None;
-            let radius=positive(p,"radius")?;
-            point_field(p,"up",3)?;
-            let approximated=certified_worker_rails(&[curve_a.as_ref()],chord_tolerance,max_segments)?;
-            let rail=triplets(&approximated.rails[0]);
-            (json!({"op":"pipe","rail":rail,"up":p["up"],"radius":radius,"tolerance":tolerance(p)?}),approximated)
+            id_b = None;
+            let radius = positive(p, "radius")?;
+            point_field(p, "up", 3)?;
+            let approximated = certified_worker_rails(&[curve_a.as_ref()], chord_tolerance, max_segments)?;
+            let rail = triplets(&approximated.rails[0]);
+            (json!({"op":"pipe","rail":rail,"up":p["up"],"radius":radius,"tolerance":tolerance(p)?}), approximated)
         }
         "sweep1" => {
-            id_b=None;
+            id_b = None;
             section_field(p)?;
-            point_field(p,"up",3)?;
-            let approximated=certified_worker_rails(&[curve_a.as_ref()],chord_tolerance,max_segments)?;
-            let rail=triplets(&approximated.rails[0]);
-            (json!({"op":"sweep1","rail":rail,"section":p["section"],"up":p["up"],"tolerance":tolerance(p)?}),approximated)
+            point_field(p, "up", 3)?;
+            let approximated = certified_worker_rails(&[curve_a.as_ref()], chord_tolerance, max_segments)?;
+            let rail = triplets(&approximated.rails[0]);
+            (json!({"op":"sweep1","rail":rail,"section":p["section"],"up":p["up"],"tolerance":tolerance(p)?}), approximated)
         }
         "sweep2" => {
             section_field(p)?;
-            let (second_id,curve_b)=document_curve(s,p,"curve_b_id")?;
-            if id_a==second_id { return Err(fail("Sweep2 requires distinct rails")); }
-            id_b=Some(second_id);
+            let (second_id, curve_b) = document_curve(s, p, "curve_b_id")?;
+            if id_a == second_id {
+                return Err(fail("Sweep2 requires distinct rails"));
+            }
+            id_b = Some(second_id);
             // Critical: subdivide both curves at the same parameter stations.
-            let approximated=certified_worker_rails(
-                &[curve_a.as_ref(),curve_b.as_ref()],chord_tolerance,max_segments)?;
-            let rail_a=triplets(&approximated.rails[0]);
-            let rail_b=triplets(&approximated.rails[1]);
-            (json!({"op":"sweep2","rail_a":rail_a,"rail_b":rail_b,
-                "section":p["section"],"tolerance":tolerance(p)?}),approximated)
+            let approximated = certified_worker_rails(&[curve_a.as_ref(), curve_b.as_ref()], chord_tolerance, max_segments)?;
+            let rail_a = triplets(&approximated.rails[0]);
+            let rail_b = triplets(&approximated.rails[1]);
+            (
+                json!({"op":"sweep2","rail_a":rail_a,"rail_b":rail_b,
+                "section":p["section"],"tolerance":tolerance(p)?}),
+                approximated,
+            )
         }
         _ => return Err(fail("unrecognized document NURBS construction")),
     };
     // All exact rail qualification and native processing precedes mutation.
-    let reply=call_worker(&worker)?;
-    let mut output=add_worker_shapes(s,p,reply)?;
-    if let Some(map)=output.as_object_mut() {
-        map.insert("source_curve_id".into(),json!(id_a));
-        if let Some(second_id)=id_b { map.insert("source_curve_b_id".into(),json!(second_id)); }
-        map.insert("source_representation".into(),json!("rational_nurbs"));
-        map.insert("construction_spine".into(),json!("adaptive_exact_knot_insertion_polyline"));
-        map.insert("spine_deviation_certified".into(),json!(true));
-        map.insert("spine_bound_kind".into(),json!("one_sided_curve_to_chord_convex_hull"));
-        map.insert("max_curve_to_chord_bound".into(),json!(approximation.max_curve_to_chord_bound));
-        map.insert("chord_tolerance".into(),json!(chord_tolerance));
-        map.insert("sample_segments".into(),json!(approximation.segment_count));
-        map.insert("max_segments".into(),json!(max_segments));
-        map.insert("sweep_surface_deviation_certified".into(),json!(false));
-        map.insert("associative".into(),json!(false));
+    let reply = call_worker(&worker)?;
+    let mut output = add_worker_shapes(s, p, reply)?;
+    if let Some(map) = output.as_object_mut() {
+        map.insert("source_curve_id".into(), json!(id_a));
+        if let Some(second_id) = id_b {
+            map.insert("source_curve_b_id".into(), json!(second_id));
+        }
+        map.insert("source_representation".into(), json!("rational_nurbs"));
+        map.insert("construction_spine".into(), json!("adaptive_exact_knot_insertion_polyline"));
+        map.insert("spine_deviation_certified".into(), json!(true));
+        map.insert("spine_bound_kind".into(), json!("one_sided_curve_to_chord_convex_hull"));
+        map.insert("max_curve_to_chord_bound".into(), json!(approximation.max_curve_to_chord_bound));
+        map.insert("chord_tolerance".into(), json!(chord_tolerance));
+        map.insert("sample_segments".into(), json!(approximation.segment_count));
+        map.insert("max_segments".into(), json!(max_segments));
+        map.insert("sweep_surface_deviation_certified".into(), json!(false));
+        map.insert("associative".into(), json!(false));
     }
     Ok(output)
 }
@@ -639,22 +661,21 @@ mod tests {
     }
     #[test]
     fn curved_nurbs_rejects_inadequate_certification_budget_without_worker_or_mutation() {
-        let mut s=Session::new();
-        let curved=cadcraft_geom::nurbs3d::Curve{
-            degree:2, control:vec![
-                cadcraft_geom::Vec3::new(1.,0.,0.),
-                cadcraft_geom::Vec3::new(1.,1.,0.),
-                cadcraft_geom::Vec3::new(0.,1.,0.)],
-            weights:vec![1.,2.0_f64.sqrt().recip(),1.],
-            knots:vec![0.,0.,0.,1.,1.,1.]};
-        let id=s.execute("nurbs.curve3d",&json!({"name":"Arc Rail","curve":curved})).unwrap()["id"].as_u64().unwrap();
-        let revision=s.state().unwrap().revision;
-        let args=json!({"name":"Guarded Pipe","curve_id":id,"radius":0.2,"up":[0.,0.,1.],
+        let mut s = Session::new();
+        let curved = cadcraft_geom::nurbs3d::Curve {
+            degree: 2,
+            control: vec![cadcraft_geom::Vec3::new(1., 0., 0.), cadcraft_geom::Vec3::new(1., 1., 0.), cadcraft_geom::Vec3::new(0., 1., 0.)],
+            weights: vec![1., 2.0_f64.sqrt().recip(), 1.],
+            knots: vec![0., 0., 0., 1., 1., 1.],
+        };
+        let id = s.execute("nurbs.curve3d", &json!({"name":"Arc Rail","curve":curved})).unwrap()["id"].as_u64().unwrap();
+        let revision = s.state().unwrap().revision;
+        let args = json!({"name":"Guarded Pipe","curve_id":id,"radius":0.2,"up":[0.,0.,1.],
             "chord_tolerance":0.000001,"max_segments":2});
-        let error=s.execute("brep.pipe_from_curve",&args);
+        let error = s.execute("brep.pipe_from_curve", &args);
         assert!(error.is_err());
         assert!(format!("{error:?}").contains("tolerance"));
-        assert_eq!(s.state().unwrap().revision,revision);
+        assert_eq!(s.state().unwrap().revision, revision);
         assert!(s.doc().unwrap().exact_breps.is_empty());
     }
 
@@ -686,7 +707,7 @@ mod tests {
         assert_eq!(result["construction_spine"], "adaptive_exact_knot_insertion_polyline");
         assert_eq!(result["spine_deviation_certified"], true);
         assert_eq!(result["sweep_surface_deviation_certified"], false);
-        assert!(result["max_curve_to_chord_bound"].as_f64().unwrap()<=0.01);
+        assert!(result["max_curve_to_chord_bound"].as_f64().unwrap() <= 0.01);
         let solid = result["ids"][0].as_u64().unwrap();
         let summary = s.execute("brep.inspect", &json!({"id":solid})).unwrap();
         assert!((summary["volume"].as_f64().unwrap() - std::f64::consts::PI * 0.25 * 5.).abs() < 1e-3);

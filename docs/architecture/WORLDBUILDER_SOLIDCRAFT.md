@@ -43,6 +43,17 @@ Do not silently discard a SolidCraft recipe when editing its derived geometry. A
 5. **No mode data duplication:** A workspace switch must not regenerate a BRep, clone document data, change units, bump revision or consume a new undo record.
 6. **Explicit conversions:** Mesh-to-BRep reconstruction and driven-solid-to-direct geometry require verifiable fidelity, provenance and opt-in. A rendered or triangulated preview is not a manufacturing solid.
 
+## First tested surface-construction integration (branch)
+
+The SolidCraft open-source source tree (`tangency-labs/solidcraft`) was examined for its actual `truck`-based BRep, surface construction and sketch modules. **No SolidCraft or Truck source code is imported in this increment**: the shared mathematical rule is independently implemented in existing `cadcraft_geom::nurbs3d::ruled_surface`. Two distinct, compatible rational NURBS rails construct an exact degree-one *untrimmed* ruled patch, retaining original control points, weights and knot vectors. Mixed knot vectors, unequal degrees/control counts and identical curves reject rather than silently resample.
+
+- Direct document command: `nurbs.surface.ruled` with `{"name":"Skin","a_id":12,"b_id":13,"selected_revision":4}`. It preflights inputs, appends one new native NURBS surface and is undoable; the two rail objects remain intact.
+- Pure CAD/headless command: `worldwright.surface.ruled` with typed `curve` values through the shared dispatcher (`kernel.surface.ruled`).
+- OrbWeaver node: `orbweaver.surface.ruled` uses that *same* shared operation and returns a typed rational `surface` value.
+- Geometric regression fixtures: rational quarter-circle rails yield a cylinder patch with exact radius and endpoints; invalid inputs and stale document revisions fail without mutation; native file save/reopen and graph serialization are checked.
+
+The resulting surface is a **detached exact control patch**, not yet a dynamically linked history feature or a trimmed OCCT BRep face. It does not claim SolidCraft's extensive edge-chain ruled surface options, G1/G2 blending, gap sewing, conversion, adaptive meshing or performance parity. Do not silently turn its display triangles into a BRep. See [geometry qualification](GEOMETRY_ENGINE_QUALIFICATION.md).
+
 ## Next implementation gate
 
 Implement a constrained sketch profile and a single history-driven exact `extrude` feature through the existing OCCT worker, with stable body ownership and published output IDs. Test parameter edits, rebuild/rollback/suppression, undo/redo, save/reopen and failed-Boolean preservation; expose the same shared operation in OrbWeaver and headless API. This depends on exact sketch/profile validation, stable topology references and worker IPC admission, not a second separate SolidCraft kernel.

@@ -46,6 +46,10 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{inputs:{geometry,base,target}}")
             .enabled(always)
             .noundo(),
+        CommandSpec::new("worldwright.surface.ruled", "Construct Rational Ruled Surface", ruled_surface)
+            .params("{inputs:{a:{kind:curve,value:{degree,control,weights,knots}},b:{kind:curve,value:{...}}}}")
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.point.distance", "Distance Between 3D Points", point_distance)
             .params("{inputs:{a:{kind:point,value:{x,y,z}},b:{kind:point,value:{x,y,z}}}}")
             .enabled(always)
@@ -111,6 +115,7 @@ paired_command!(pushpull, "kernel.solid.pushpull_quad");
 paired_command!(project_mesh, "kernel.project.mesh");
 paired_command!(project_nurbs, "kernel.project.nurbs");
 paired_command!(flow_along_nurbs, "kernel.surface.flow_nurbs");
+paired_command!(ruled_surface, "kernel.surface.ruled");
 paired_command!(point_distance, "kernel.point.distance");
 paired_command!(point_midpoint, "kernel.point.midpoint");
 paired_command!(point_interpolate, "kernel.point.interpolate");
@@ -131,6 +136,25 @@ paired_command!(mesh_decimate, "kernel.mesh.decimate");
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ruled_surface_direct_command_uses_shared_exact_geometry() {
+        use cadcraft_geom::{Vec3, nurbs3d::Curve};
+        let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(5., 0., 0.)], 1).unwrap();
+        let b = Curve::from_control(vec![Vec3::new(0., 0., 2.), Vec3::new(5., 0., 2.)], 1).unwrap();
+        let inputs = json!({"a":{"kind":"curve","value":a},"b":{"kind":"curve","value":b}});
+        let mut session = Session::new();
+        let revision = session.state().unwrap().revision;
+        let direct = session.execute("worldwright.surface.ruled", &json!({"inputs":inputs})).unwrap();
+        let generic = session.execute("worldwright.tool.run", &json!({"operation":"orbweaver.surface.ruled","inputs":inputs})).unwrap();
+        assert_eq!(direct["output"], generic["output"]);
+        assert_eq!(direct["output"]["kind"], "surface");
+        assert_eq!(direct["output"]["value"]["degree_v"], 1);
+        assert_eq!(session.state().unwrap().revision, revision);
+        let mut invalid = inputs.clone();
+        invalid["b"]["value"]["knots"] = json!([0., 0., 0.5, 1.]);
+        assert!(session.execute("worldwright.surface.ruled", &json!({"inputs":invalid})).is_err());
+        assert_eq!(session.state().unwrap().revision, revision);
+    }
     #[test]
     fn qem_cad_and_generic_api_are_non_mutating_and_identical() {
         use buildercraft_kernel::{PolygonFace, PolygonMesh};
@@ -337,7 +361,7 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(26));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(27));
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }
 }

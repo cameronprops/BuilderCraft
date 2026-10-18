@@ -1,3 +1,15 @@
+## Shared native rational ruled surfaces
+
+Use `nurbs.curve3d` to create two distinct compatible rational rail curves, then create an undoable surface object:
+
+```json
+{"command":"nurbs.surface.ruled","params":{"name":"Ride skin","a_id":12,"b_id":13,"selected_revision":4}}
+```
+
+The rail curves must have identical degree, knot vector and control-point count. Their weights and control positions may differ. The resulting untrimmed NURBS patch has degree one between the rails; original rails are unchanged. It is *not* yet a trimmed BRep or a live parametric dependency.
+
+The same exact constructor is exposed as non-mutating `worldwright.surface.ruled` / `kernel.surface.ruled` and OrbWeaver `orbweaver.surface.ruled`, using input values `{"kind":"curve","value":{"degree":2,"control":[{"x":0,"y":0,"z":0}, ...],"weights":[...],"knots":[...]}}` for ports `a` and `b`, and output `{"kind":"surface","value":{...}}`. This shared operation does not create document geometry until explicitly baked or created via the direct document command.
+
 # BuilderCraft alpha API
 
 The inherited JSON-line control channel dispatches the same commands as the desktop and CLI. Protocol details: control-protocol.md. The native app enables it explicitly with `--control PORT`, on loopback only. No public HTTP endpoint or network collaboration is included.

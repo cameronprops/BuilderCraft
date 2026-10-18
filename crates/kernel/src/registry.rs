@@ -491,6 +491,14 @@ pub const OPERATIONS: &[OperationDescriptor] = &[
         status: OperationStatus::Implemented,
     },
     OperationDescriptor {
+        id: "kernel.surface.ruled",
+        label: "Ruled Rational NURBS Surface",
+        category: "surface",
+        inputs: &["a", "b"],
+        outputs: &["surface"],
+        status: OperationStatus::Implemented,
+    },
+    OperationDescriptor {
         id: "kernel.mesh.decimate",
         label: "Conservative QEM Mesh Simplification",
         category: "mesh",

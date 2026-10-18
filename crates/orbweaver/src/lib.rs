@@ -238,6 +238,43 @@ mod tests {
         }
     }
     #[test]
+    fn ruled_surface_node_matches_headless_cad_and_preserves_rational_boundary() {
+        use cadcraft_geom::nurbs3d::Curve;
+        let lower = Curve {
+            degree: 2,
+            control: vec![Vec3::new(1., 0., 0.), Vec3::new(1., 1., 0.), Vec3::new(0., 1., 0.)],
+            weights: vec![1., 0.5_f64.sqrt(), 1.],
+            knots: vec![0., 0., 0., 1., 1., 1.],
+        };
+        let mut upper = lower.clone();
+        for control in &mut upper.control {
+            control.z = 8.;
+        }
+        let inputs: BTreeMap<String, ToolValue> =
+            BTreeMap::from([("a".into(), ToolValue::Curve(lower.clone())), ("b".into(), ToolValue::Curve(upper.clone()))]);
+        let graph = Graph {
+            version: GRAPH_SCHEMA_VERSION,
+            nodes: vec![Node {
+                id: 44,
+                component: "orbweaver.surface.ruled".into(),
+                matching: TreeMatchPolicy::Shortest,
+                inputs: inputs.iter().map(|(name, value)| (name.clone(), constant(value.clone()))).collect(),
+            }],
+            outputs: vec![44],
+        };
+        let from_node = evaluate(&graph).unwrap().values.get(&44).cloned();
+        let from_cad = execute_shared_tool(&ToolRequest { operation: "worldwright.surface.ruled".into(), inputs }).ok();
+        assert_eq!(from_node, from_cad);
+        let Some(ToolValue::Surface(surface)) = from_node else { panic!("expected native rational surface") };
+        let at = surface.evaluate(0.5, 0.5).unwrap();
+        assert!((at.x * at.x + at.y * at.y - 1.).abs() < 1e-12);
+        assert!((at.z - 4.).abs() < 1e-12);
+        let encoded = serde_json::to_vec(&graph).unwrap();
+        let decoded: Graph = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(evaluate(&graph), evaluate(&decoded));
+    }
+
+    #[test]
     fn distance_node_matches_direct_cad_and_kernel_dispatch() {
         let a = Vec3::ZERO;
         let b = Vec3::new(3., 4., 12.);

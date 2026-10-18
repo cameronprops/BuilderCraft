@@ -11,12 +11,10 @@ fn malformed_pedit_join_handles_fail_without_converting_or_mutating_base() {
     let before = s.state().unwrap().doc.clone();
     let revision = s.state().unwrap().revision;
     let undo_len = s.state().unwrap().undo.len();
-    for handles2 in [
-        json!([other.clone(), "malformed handle"]),
-        json!([other.clone(), null]),
-        json!({"not": "an array"}),
-    ] {
-        let err = s.execute("pedit", &json!({"handle":base, "option":"join", "handles2":handles2})).expect_err("invalid handle must reject entire join request");
+    for handles2 in [json!([other.clone(), "malformed handle"]), json!([other.clone(), null]), json!({"not": "an array"})] {
+        let err = s
+            .execute("pedit", &json!({"handle":base, "option":"join", "handles2":handles2}))
+            .expect_err("invalid handle must reject entire join request");
         assert!(err.to_string().contains("handle"), "unexpected error: {err}");
         assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
         assert_eq!(s.state().unwrap().revision, revision);

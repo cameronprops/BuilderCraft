@@ -451,28 +451,33 @@ mod tests {
         let n = |value: f64| json!({"kind":"number","value":value});
         let cnt = |value: u64| json!({"kind":"count","value":value});
         let cases = [
-            ("join",json!({"a":path,"b":second,"tolerance":n(0.01)}),"polyline"),
-            ("split",json!({"points":path,"station":n(5.0)}),"tree"),
-            ("trim",json!({"points":path,"start":n(1.0),"end":n(7.0)}),"polyline"),
-            ("extend",json!({"points":path,"distance":n(2.0),"at_start":cnt(0)}),"polyline"),
-            ("rebuild",json!({"points":path,"controls":cnt(6),"degree":cnt(3)}),"curve"),
-            ("offset",json!({"points":path,"distance":n(1.0),"miter_limit":n(4.0)}),"polyline"),
-            ("pipe",json!({"rail":path,"radius":n(0.3),"sides":cnt(12)}),"mesh"),
-            ("sweep1",json!({"rail":path,"section":section}),"mesh"),
-            ("sweep2",json!({"rail_a":path,"rail_b":rail_b,"section":section}),"mesh"),
+            ("join", json!({"a":path,"b":second,"tolerance":n(0.01)}), "polyline"),
+            ("split", json!({"points":path,"station":n(5.0)}), "tree"),
+            ("trim", json!({"points":path,"start":n(1.0),"end":n(7.0)}), "polyline"),
+            ("extend", json!({"points":path,"distance":n(2.0),"at_start":cnt(0)}), "polyline"),
+            ("rebuild", json!({"points":path,"controls":cnt(6),"degree":cnt(3)}), "curve"),
+            ("offset", json!({"points":path,"distance":n(1.0),"miter_limit":n(4.0)}), "polyline"),
+            ("pipe", json!({"rail":path,"radius":n(0.3),"sides":cnt(12)}), "mesh"),
+            ("sweep1", json!({"rail":path,"section":section}), "mesh"),
+            ("sweep2", json!({"rail_a":path,"rail_b":rail_b,"section":section}), "mesh"),
         ];
         let revision = session.state().ok().map(|state| state.revision);
         for (suffix, inputs, kind) in cases {
             let command = format!("worldwright.curve.{suffix}");
             let operation = format!("kernel.curve.{suffix}");
-            let direct = session.execute(&command,&json!({"inputs":inputs})).unwrap();
-            let generic = session.execute("worldwright.tool.run",&json!({
-                "operation":operation,"inputs":inputs
-            })).unwrap();
-            assert_eq!(direct,generic,"command mismatch: {suffix}");
-            assert_eq!(direct["output"]["kind"],kind,"wrong output type: {suffix}");
+            let direct = session.execute(&command, &json!({"inputs":inputs})).unwrap();
+            let generic = session
+                .execute(
+                    "worldwright.tool.run",
+                    &json!({
+                        "operation":operation,"inputs":inputs
+                    }),
+                )
+                .unwrap();
+            assert_eq!(direct, generic, "command mismatch: {suffix}");
+            assert_eq!(direct["output"]["kind"], kind, "wrong output type: {suffix}");
         }
-        assert_eq!(session.state().ok().map(|state| state.revision),revision);
+        assert_eq!(session.state().ok().map(|state| state.revision), revision);
     }
 
     #[test]

@@ -259,7 +259,7 @@ fn relay_document_curve(s: &mut Session, p: &Value, mode: &str) -> Result<Value>
     name(p)?;
     check_curve_revision(s,p)?;
     let (id_a,rail_a,segments) = sampled_document_curve(s,p,if mode=="sweep2"{"curve_a_id"}else{"curve_id"})?;
-    let mut worker = match mode {
+    let worker = match mode {
         "pipe" => {
             let radius=positive(p,"radius")?;
             point_field(p,"up",3)?;
@@ -280,7 +280,6 @@ fn relay_document_curve(s: &mut Session, p: &Value, mode: &str) -> Result<Value>
         }
         _ => return Err(fail("unrecognized document NURBS construction")),
     };
-    let _=&mut worker;
     // All input checks and native processing must finish before document mutates.
     let reply=call_worker(&worker)?;
     let mut output=add_worker_shapes(s,p,reply)?;

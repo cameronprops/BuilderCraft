@@ -249,13 +249,26 @@ pub(crate) fn points_param(p: &Value, key: &str) -> Option<Vec<Vec2>> {
     p.get(key)?.as_array()?.iter().map(point_value).collect()
 }
 /// Handles from `handles` (hex strings or numbers) or the current selection.
+/// Explicitly supplied invalid handles must not silently fall back to selection
+/// or shrink a batch: that could act on the wrong subset of a user's drawing.
 pub(crate) fn targets(s: &Session, p: &Value) -> Result<Vec<Handle>> {
-    if let Some(a) = p.get("handles").and_then(Value::as_array) {
-        let hs: Vec<Handle> = a.iter().filter_map(|v| v.as_str().and_then(Handle::parse_hex).or_else(|| v.as_u64().map(Handle))).collect();
-        return Ok(hs);
+    let parse = |v: &Value| v.as_str().and_then(Handle::parse_hex).or_else(|| v.as_u64().map(Handle));
+    if let Some(value) = p.get("handles") {
+        let values = value.as_array().ok_or_else(|| bad("targets", "`handles` must be an array"))?;
+        let handles: Vec<Handle> = values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                parse(value).ok_or_else(|| bad("targets", format!("`handles[{index}]` must be a hexadecimal handle or unsigned integer")))
+            })
+            .collect::<Result<_>>()?;
+        // Treat explicit targets as a set, like pick-first selections. Without
+        // this, a repeated handle translates the same object multiple times.
+        let mut unique = std::collections::HashSet::new();
+        return Ok(handles.into_iter().filter(|handle| unique.insert(*handle)).collect());
     }
-    if let Some(h) = p.get("handle").and_then(|v| v.as_str().and_then(Handle::parse_hex).or_else(|| v.as_u64().map(Handle))) {
-        return Ok(vec![h]);
+    if let Some(value) = p.get("handle") {
+        return Ok(vec![parse(value).ok_or_else(|| bad("targets", "`handle` must be a hexadecimal handle or unsigned integer"))?]);
     }
     Ok(s.selection())
 }

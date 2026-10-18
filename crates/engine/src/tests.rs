@@ -310,6 +310,64 @@ fn failed_registered_command_restores_document_selection_and_redo() {
 }
 
 #[test]
+fn explicitly_malformed_target_handles_never_silently_edit_selection() {
+    let mut s = Session::new();
+    let result = s.execute("line", &json!({"points": [[0, 0], [5, 0]]})).unwrap();
+    let valid = result["handles"][0].as_str().unwrap().to_string();
+    s.set_selection(vec![cadcraft_doc::Handle::parse_hex(&valid).unwrap()]);
+    let original = s.state().unwrap().doc.clone();
+    let selection = s.selection();
+    let revision = s.state().unwrap().revision;
+    let undo_count = s.state().unwrap().undo.len();
+
+    // A bad item must reject the WHOLE batch. A wrong type or a null
+    // explicit handle must not accidentally operate on the pick-first selection.
+    for params in [
+        json!({"handles": [valid.clone(), "not-a-handle"], "delta": [2, 3]}),
+        json!({"handles": {"bad": valid.clone()}, "delta": [2, 3]}),
+        json!({"handles": [valid.clone(), -1], "delta": [2, 3]}),
+        json!({"handles": [valid.clone(), null], "delta": [2, 3]}),
+        json!({"handle": null, "delta": [2, 3]}),
+        json!({"handle": {"bad": valid.clone()}, "delta": [2, 3]}),
+    ] {
+        assert!(s.execute("move", &params).is_err(), "move accepted malformed targets: {params}");
+        assert!(std::sync::Arc::ptr_eq(&original, &s.state().unwrap().doc));
+        assert_eq!(s.selection(), selection);
+        assert_eq!(s.state().unwrap().revision, revision);
+        assert_eq!(s.state().unwrap().undo.len(), undo_count);
+    }
+
+    // The normal valid explicit target still works, regardless of selection.
+    s.set_selection(Vec::new());
+    let changed = s.execute("move", &json!({"handle": valid, "delta": [2, 3]})).unwrap();
+    assert_eq!(changed["moved"], 1);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Line(line) => {
+            assert_eq!((line.a.x, line.a.y), (2.0, 3.0));
+            assert_eq!((line.b.x, line.b.y), (7.0, 3.0));
+        }
+        other => panic!("expected translated line, got {other:?}"),
+    }
+}
+
+#[test]
+fn duplicated_explicit_handles_transform_each_entity_only_once() {
+    let mut s = Session::new();
+    let result = s.execute("line", &json!({"points": [[0, 0], [5, 0]]})).unwrap();
+    let handle = result["handles"][0].as_str().unwrap();
+    let moved = s.execute("move", &json!({"handles": [handle, handle], "delta": [2, 3]})).unwrap();
+    assert_eq!(moved["moved"], 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Line(line) => {
+            assert_eq!((line.a.x, line.a.y), (2.0, 3.0));
+            assert_eq!((line.b.x, line.b.y), (7.0, 3.0));
+        }
+        other => panic!("expected a single translated line, got {other:?}"),
+    }
+}
+
+#[test]
 fn every_registered_command_error_preserves_drawing_and_undo() {
     // This cross-cutting safety test does not certify successful command behavior.
     // Invalid requests must be atomic even when they fail late in a multi-step edit.

@@ -30,11 +30,11 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 69 positive success-path fixtures have been
-authored against 365 registered commands. **296 still lack positive entries in
+**Current tranche (2026-10-18):** 78 positive success-path fixtures have been
+authored against 365 registered commands. **287 still lack positive entries in
 this ledger.** The initial 51 were verified by the complete focused CI suite
-on Linux and by Windows/macOS native validation in PR #78. The 18 new
-layer-management cases on this branch require their own run before they can
+on Linux and by Windows/macOS native validation in PR #78. The 27 new
+layer and viewport cases on this branch require their own run before they can
 be marked passing. Existing unit tests provide more un-reconciled coverage.
 A success-path case is not full per-command operational certification; see
 the five criteria below.

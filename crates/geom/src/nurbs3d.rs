@@ -137,9 +137,71 @@ impl Surface {
         if weight > 0.0 { Some(point * (1.0 / weight)) } else { None }
     }
 }
+/// Construct a non-trimmed degree-one ruled NURBS surface between compatible
+/// rational rail curves, retaining their exact control points, weights and knots.
+/// Equal parameterizations are required: knot refinement/reparameterization is
+/// a separate operation, never an implicit geometric approximation.
+pub fn ruled_surface(a: &Curve, b: &Curve) -> Option<Surface> {
+    if !a.valid()
+        || !b.valid()
+        || a.degree != b.degree
+        || a.control.len() != b.control.len()
+        || a.knots != b.knots
+        || (a.control == b.control && a.weights == b.weights)
+    {
+        return None;
+    }
+    let surface = Surface {
+        rows: vec![a.clone(), b.clone()],
+        degree_v: 1,
+        knots_v: uniform_knots(2, 1),
+    };
+    surface.valid().then_some(surface)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ruled_surface_preserves_exact_rational_rails() {
+        let rail = |z| Curve {
+            degree: 2,
+            control: vec![Vec3::new(1., 0., z), Vec3::new(1., 1., z), Vec3::new(0., 1., z)],
+            weights: vec![1., 0.5_f64.sqrt(), 1.],
+            knots: uniform_knots(3, 2),
+        };
+        let bottom = rail(0.);
+        let top = rail(10.);
+        let surface = ruled_surface(&bottom, &top).unwrap();
+        assert_eq!(surface.degree_v, 1);
+        assert_eq!(surface.rows, vec![bottom.clone(), top.clone()]);
+        for &u in &[0., 0.125, 0.5, 0.875, 1.] {
+            for &v in &[0., 0.3, 0.5, 1.] {
+                let p = surface.evaluate(u, v).unwrap();
+                assert!((p.x * p.x + p.y * p.y - 1.).abs() < 1e-12);
+                assert!((p.z - 10. * v).abs() < 1e-12);
+            }
+            let at_start = surface.evaluate(u, 0.).unwrap();
+            let at_end = surface.evaluate(u, 1.).unwrap();
+            let a = bottom.evaluate(u).unwrap();
+            let b = top.evaluate(u).unwrap();
+            assert!((at_start - a).len() < 1e-12);
+            assert!((at_end - b).len() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn ruled_surface_rejects_incompatible_or_identical_rails() {
+        let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1., 0., 0.)], 1).unwrap();
+        assert!(ruled_surface(&a, &a).is_none());
+        let b = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1., 0., 1.), Vec3::new(2., 0., 1.)], 1).unwrap();
+        assert!(ruled_surface(&a, &b).is_none());
+        let mut invalid = a.clone();
+        invalid.weights[0] = f64::NAN;
+        assert!(ruled_surface(&invalid, &b).is_none());
+        assert!(ruled_surface(&a, &invalid).is_none());
+    }
+
     #[test]
     fn rational_quarter_circle() {
         let c = Curve {

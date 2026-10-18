@@ -32,3 +32,28 @@ fn malformed_pedit_join_handles_fail_without_converting_or_mutating_base() {
         other => panic!("expected joined polyline, got {other:?}"),
     }
 }
+
+#[test]
+fn locked_or_deleted_pedit_join_source_does_not_mutate_any_curve() {
+    let mut s = Session::new();
+    let base = s.execute("pline", &json!({"vertices":[[0,0],[2,0]]})).unwrap()["handle"].as_str().unwrap().to_string();
+    let other = s.execute("line", &json!({"points":[[2,0],[4,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    s.execute("layer.new", &json!({"name":"LockedCandidates"})).unwrap();
+    s.execute("laymch", &json!({"handles":[other], "layer":"LockedCandidates"})).unwrap();
+    s.execute("layer.set", &json!({"name":"LockedCandidates", "locked":true})).unwrap();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo_len = s.state().unwrap().undo.len();
+
+    for candidate in [json!(other), json!("FFFFFFFFFFFFFFFF")] {
+        assert!(s.execute("pedit", &json!({"handle":base,"option":"join","handles2":[candidate]})).is_err());
+        assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+        assert_eq!(s.state().unwrap().revision, revision);
+        assert_eq!(s.state().unwrap().undo.len(), undo_len);
+        assert_eq!(s.doc().unwrap().model.len(), 2);
+    }
+    s.execute("layer.set", &json!({"name":"LockedCandidates", "locked":false})).unwrap();
+    let r = s.execute("pedit", &json!({"handle":base, "option":"join", "handles2":[other]})).unwrap();
+    assert_eq!(r["joined"], 1);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+}

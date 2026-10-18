@@ -673,7 +673,8 @@ fn run_ellipse_arc(s: &mut Session, p: &Value) -> Result<Value> {
     let mut e = if let Some(c) = point_param(p, "center") {
         let m = point_req("ellipse.arc", p, "major")?;
         let ratio = f64_req("ellipse.arc", p, "ratio")?;
-        if !(ratio > 0.0 && ratio <= 1.0) || !m.len().is_finite() || m.len() < 1e-12 {
+        let major_length = m.len();
+        if !(ratio > 0.0 && ratio <= 1.0 && major_length.is_finite() && major_length >= 1e-12) {
             return Err(bad("ellipse.arc", "ratio must be in (0, 1] and major non-zero"));
         }
         Ellipse::full(c, m, ratio)

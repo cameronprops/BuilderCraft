@@ -58,3 +58,14 @@ This is an administrative closure snapshot, **not** proof that all proposed feat
 ## Return-to-development protocol
 
 The next development PR should reference the affected PR numbers and preserved head SHAs here, explain which implementation won when duplicates exist, and explicitly list what functionality was *not* carried forward. Update this file and the operational alpha punch list on merge. A zero PR count is only clean triage; it is **not** a declared alpha.
+
+## Zero-open-PR closure verification
+
+- **Verified open PR count: 0** using the GitHub open pull request query, after this reconciliation.
+- **PR #66 was merged** as main commit `b47d3058e10069a1334f9148898cd228309d27aa` (rational ruled NURBS surfaces).
+- PRs **#8 and #21 also merged concurrently** during the stabilization sprint (Haiku/platform foundations and OrbWeaver transactional graph editor).
+- All other PRs listed in this register were closed **unmerged** (some by other concurrent work); a closed PR alone is not evidence of feature integration.
+- The original 39-PR stabilization sprint also merged #25, #27, #34, #53, #63 earlier. New #74 was closed unmerged. Source head commits for original archive candidates are listed above and must not be deleted.
+- The authoritative unmerged-feature follow-up is [issue #75](https://github.com/cameronprops/BuilderCraft/issues/75). Finish its acceptance gates before declaring a production-operational alpha.
+- **Native build status at closure:** local container has no `cargo`/`rustc`; full post-merge `main` CI validation is not asserted here. The latest changes require cross-platform CI and interactive smoke verification. A zero-PR count is administrative hygiene, not a successful executable.
+

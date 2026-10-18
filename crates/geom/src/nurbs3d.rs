@@ -151,11 +151,7 @@ pub fn ruled_surface(a: &Curve, b: &Curve) -> Option<Surface> {
     {
         return None;
     }
-    let surface = Surface {
-        rows: vec![a.clone(), b.clone()],
-        degree_v: 1,
-        knots_v: uniform_knots(2, 1),
-    };
+    let surface = Surface { rows: vec![a.clone(), b.clone()], degree_v: 1, knots_v: uniform_knots(2, 1) };
     surface.valid().then_some(surface)
 }
 

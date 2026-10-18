@@ -275,6 +275,40 @@ fn cancel_keeps_partial_line_as_one_undo() {
     assert_eq!(s.doc().unwrap().model.len(), 0);
 }
 
+fn partially_writes_then_fails(s: &mut Session, _: &serde_json::Value) -> Result<serde_json::Value> {
+    s.add_entity(crate::cmd::helpers::line(Vec2::new(2.0, 2.0), Vec2::new(7.0, 2.0)))?;
+    s.set_selection(Vec::new());
+    Err(EngineError::Other("intentional transactional test failure".into()))
+}
+
+#[test]
+fn failed_registered_command_restores_document_selection_and_redo() {
+    let mut s = Session::new();
+    let line = s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap();
+    s.execute("circle", &json!({"center": [3, 3], "radius": 2})).unwrap();
+    s.undo().unwrap();
+    let h = cadcraft_doc::Handle::parse_hex(line["handles"][0].as_str().unwrap()).unwrap();
+    s.set_selection(vec![h]);
+
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo_count = s.state().unwrap().undo.len();
+    let redo_count = s.state().unwrap().redo.len();
+    assert!(redo_count > 0);
+
+    let spec = CommandSpec::new("test.partial_write", "Partial Write Fixture", partially_writes_then_fails);
+    assert!(matches!(s.execute_spec(&spec, &json!({})), Err(EngineError::Other(_))));
+    let state = s.state().unwrap();
+    assert!(std::sync::Arc::ptr_eq(&before, &state.doc), "failed command must restore the same drawing");
+    assert_eq!(state.selection, vec![h], "failed command must restore selection");
+    assert_eq!(state.revision, revision, "failure must not advance document revision");
+    assert_eq!(state.undo.len(), undo_count, "failure must not create a false undo step");
+    assert_eq!(state.redo.len(), redo_count, "failure must preserve available redo");
+
+    s.redo().unwrap();
+    assert_eq!(s.doc().unwrap().model.len(), 2, "redo must still restore the prior valid circle");
+}
+
 #[test]
 fn hostile_params_never_panic() {
     let mut s = Session::new();

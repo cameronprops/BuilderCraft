@@ -447,6 +447,10 @@ impl Session {
     /// Run a command with JSON parameters (no dialogs). Records undo when the drawing changes.
     pub fn execute(&mut self, id: &str, params: &Value) -> Result<Value> {
         let spec = find_command(id).ok_or_else(|| EngineError::UnknownCommand(id.to_string()))?;
+        self.execute_spec(spec, params)
+    }
+
+    fn execute_spec(&mut self, spec: &CommandSpec, params: &Value) -> Result<Value> {
         (spec.enabled)(self).map_err(|m| EngineError::Disabled(spec.id.into(), m))?;
         let before = self.state().ok().map(|s| (s.doc.clone(), s.selection.clone(), s.uid));
         let run = spec.run;
@@ -456,17 +460,22 @@ impl Session {
             Err(p) => {
                 let msg =
                     p.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| p.downcast_ref::<String>().cloned()).unwrap_or_else(|| "panic".into());
-                // Restore the drawing as it was.
-                if let Some((doc, sel, uid)) = &before
-                    && let Some(st) = self.docs.iter_mut().find(|d| d.uid == *uid)
-                {
-                    st.doc = doc.clone();
-                    st.selection = sel.clone();
-                }
-                return Err(EngineError::Internal(id.into(), msg));
+                Err(EngineError::Internal(spec.id.into(), msg))
             }
         };
-        cmd::constraints::after_command(self, before.as_ref().map(|b| &b.0), spec.undoable && result.is_ok());
+        // A failed command is not an undo step. Restore the original document and
+        // selection before constraint/association hooks can observe partial writes.
+        // Apply this to ordinary Result::Err as well as caught panics.
+        if result.is_err() {
+            if let Some((doc, sel, uid)) = &before
+                && let Some(st) = self.docs.iter_mut().find(|d| d.uid == *uid)
+            {
+                st.doc = doc.clone();
+                st.selection = sel.clone();
+            }
+            return result;
+        }
+        cmd::constraints::after_command(self, before.as_ref().map(|b| &b.0), spec.undoable);
         assoc::after_command(self, before.as_ref().map(|b| &b.0), before.as_ref().map(|b| b.2));
         if spec.undoable
             && let Some((doc, sel, uid)) = before

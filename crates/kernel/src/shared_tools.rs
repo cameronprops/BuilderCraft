@@ -3,9 +3,8 @@
 //! only validates named inputs and dispatches to that one implementation.
 use crate::{
     DataTree, KernelError, MAX_TREE_ITEMS, Result, TreeBranch, TreeMatchPolicy, point_distance, point_interpolate, point_midpoint,
-    polyline_divide_count, polyline_divide_distance, polyline_length, polyline_point_at_station,
-    polyline_tangent_at_station, polyline_offset_xy, tree_flatten, tree_graft, tree_match, tree_simplify, tree_validate,
-    vector_cross, vector_dot, vector_length, vector_normalize,
+    polyline_divide_count, polyline_divide_distance, polyline_length, polyline_offset_xy, polyline_point_at_station, polyline_tangent_at_station,
+    tree_flatten, tree_graft, tree_match, tree_simplify, tree_validate, vector_cross, vector_dot, vector_length, vector_normalize,
 };
 use cadcraft_geom::Vec3;
 use serde::{Deserialize, Serialize};
@@ -166,10 +165,8 @@ const TREE_MATCH: &[ToolPort] = &[
 const POLYLINE_DISTANCE: &[ToolPort] =
     &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "spacing", kind: ToolType::Number, modifier: true }];
 
-const POLYLINE_STATION: &[ToolPort] = &[
-    ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
-    ToolPort { name: "station", kind: ToolType::Number, modifier: true },
-];
+const POLYLINE_STATION: &[ToolPort] =
+    &[ToolPort { name: "points", kind: ToolType::Polyline, modifier: false }, ToolPort { name: "station", kind: ToolType::Number, modifier: true }];
 const POLYLINE_OFFSET_XY: &[ToolPort] = &[
     ToolPort { name: "points", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "distance", kind: ToolType::Number, modifier: true },
@@ -758,15 +755,17 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
         "kernel.polyline.divide_distance" => {
             Ok(ToolValue::Polyline(polyline_divide_distance(polyline(&request.inputs, "points")?, number(&request.inputs, "spacing")?)?))
         }
-        "kernel.polyline.point_at_station" => Ok(ToolValue::Point(
-            polyline_point_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?
-        )),
-        "kernel.polyline.tangent_at_station" => Ok(ToolValue::Vector(
-            polyline_tangent_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?
-        )),
-        "kernel.polyline.offset_xy" => Ok(ToolValue::Polyline(
-            polyline_offset_xy(polyline(&request.inputs, "points")?, number(&request.inputs, "distance")?, number(&request.inputs, "miter_limit")?)?
-        )),
+        "kernel.polyline.point_at_station" => {
+            Ok(ToolValue::Point(polyline_point_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?))
+        }
+        "kernel.polyline.tangent_at_station" => {
+            Ok(ToolValue::Vector(polyline_tangent_at_station(polyline(&request.inputs, "points")?, number(&request.inputs, "station")?)?))
+        }
+        "kernel.polyline.offset_xy" => Ok(ToolValue::Polyline(polyline_offset_xy(
+            polyline(&request.inputs, "points")?,
+            number(&request.inputs, "distance")?,
+            number(&request.inputs, "miter_limit")?,
+        )?)),
         "kernel.tree.validate" => {
             Ok(ToolValue::Count(u64::try_from(tree_validate(tree(&request.inputs, "tree")?)?).map_err(|_| KernelError::Budget)?))
         }

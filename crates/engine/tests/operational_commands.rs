@@ -171,9 +171,7 @@ fn generic_dispatch_matches_direct_command() {
     let mut s = Session::new();
     let inputs = point_inputs();
     let direct = s.execute("worldwright.point.distance", &json!({"inputs": inputs.clone()})).unwrap();
-    let generic = s
-        .execute("worldwright.tool.run", &json!({"operation": "kernel.point.distance", "inputs": inputs}))
-        .unwrap();
+    let generic = s.execute("worldwright.tool.run", &json!({"operation": "kernel.point.distance", "inputs": inputs})).unwrap();
     assert_eq!(direct, generic);
 }
 
@@ -228,11 +226,7 @@ fn release_gate_no_command_without_operational_case() {
     // Extend CASES with genuine positive fixtures, not name-only placeholders.
     positive_operational_cases();
     let proven: HashSet<_> = CASES.iter().map(|(id, _)| *id).collect();
-    let mut missing: Vec<_> = command_specs()
-        .iter()
-        .map(|spec| spec.id)
-        .filter(|id| !proven.contains(id))
-        .collect();
+    let mut missing: Vec<_> = command_specs().iter().map(|spec| spec.id).filter(|id| !proven.contains(id)).collect();
     missing.sort_unstable();
     assert!(missing.is_empty(), "{} commands lack positive operational fixtures:\n{}", missing.len(), missing.join(", "));
 }

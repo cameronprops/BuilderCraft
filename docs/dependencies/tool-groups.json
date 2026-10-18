@@ -761,6 +761,67 @@
       ]
     },
     {
+      "kernel_operation": "kernel.nurbs.evaluate",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.nurbs.evaluate",
+      "orbweaver_node": "orbweaver.nurbs.evaluate",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "exact_rational_nurbs_parameter",
+      "modifiers": [
+        "t"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.nurbs.split",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.nurbs.split",
+      "orbweaver_node": "orbweaver.nurbs.split",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "exact_rational_nurbs_knot_insertion",
+      "modifiers": [
+        "t"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.nurbs.trim",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.nurbs.trim",
+      "orbweaver_node": "orbweaver.nurbs.trim",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "exact_rational_nurbs_knot_insertion",
+      "modifiers": [
+        "start",
+        "end"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
       "kernel_operation": "kernel.array.linear",
       "group": "geometry.transforms",
       "cad_command": "worldwright.array.linear",

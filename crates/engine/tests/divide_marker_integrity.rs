@@ -10,10 +10,16 @@ fn divide_five_equal_sections_generates_four_exact_interior_markers() {
     let result = s.execute("divide", &json!({"handle":h, "segments":5})).unwrap();
     assert_eq!(result["handles"].as_array().unwrap().len(), 4);
     assert_eq!(s.doc().unwrap().model.len(), 5);
-    let mut positions: Vec<_> = s.doc().unwrap().model.iter().filter_map(|e| match &e.kind {
-        EntityKind::Point(p) => Some(p.p.x),
-        _ => None,
-    }).collect();
+    let mut positions: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Point(p) => Some(p.p.x),
+            _ => None,
+        })
+        .collect();
     positions.sort_by(f64::total_cmp);
     assert_eq!(positions, vec![2.0, 4.0, 6.0, 8.0]);
 }

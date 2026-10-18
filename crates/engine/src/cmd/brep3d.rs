@@ -435,21 +435,24 @@ fn analyze_constraints(
 )->Result<Value>{
     selected_revision(s,p)?;
     let window=probe_window(p,stem)?;
-    let mut tried:Vec<(f64,bool,String)>=Vec::new();
-    let mut evaluate=|value:f64|->Result<()>{
-        let req=request(value);
-        match call_worker(&req){
+    fn evaluate_probe(
+        tried:&mut Vec<(f64,bool,String)>,
+        request:&impl Fn(f64)->Value,
+        value:f64
+    )->Result<()>{
+        match call_worker(&request(value)){
             Ok(_)=>tried.push((value,true,String::new())),
             Err(e) if worker_failure_is_technical(&e)=>return Err(e),
             Err(e)=>tried.push((value,false,e.to_string())),
         }
         Ok(())
-    };
+    }
+    let mut tried:Vec<(f64,bool,String)>=Vec::new();
     // Probe the entire requested range. A fillet/sweep may have several
     // disconnected feasible intervals; never blindly assume monotonicity.
     for i in 0..window.samples {
         let v=window.min+(window.max-window.min)*i as f64/(window.samples-1) as f64;
-        evaluate(v)?;
+        evaluate_probe(&mut tried,&request,v)?;
     }
     // Refine the transition immediately above the highest passing probe.
     // This is a local tested boundary, not a proof of a global maximum.
@@ -460,7 +463,7 @@ fn analyze_constraints(
             .min_by(f64::total_cmp);
         let Some(failed)=failure else {break};
         if failed-passed<1e-9*(1.0+passed.abs()) {break;}
-        evaluate((passed+failed)*0.5)?;
+        evaluate_probe(&mut tried,&request,(passed+failed)*0.5)?;
     }
     tried.sort_by(|a,b|a.0.total_cmp(&b.0));
     let highest=tried.iter().filter(|item|item.1).map(|item|item.0).max_by(f64::total_cmp);
@@ -930,6 +933,65 @@ mod tests {
         assert_eq!(s.doc().unwrap().exact_breps.len(), 3);
         s.execute("undo", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().exact_breps.len(), 2);
+    }
+    #[test]
+    fn constraints_validate_ranges_before_native_worker_or_document_changes() {
+        let mut session=Session::new();
+        let before=session.state().unwrap().revision;
+        let rail=json!([[0.,0.,0.],[0.,0.,5.]]);
+        for parameters in [
+            json!({"rail":rail,"up":[0.,1.,0.],"radius_min":1.,"radius_max":0.1}),
+            json!({"rail":rail,"up":[0.,1.,0.],"radius_min":0.1,"radius_max":1.,"probe_count":100}),
+            json!({"rail":rail,"up":[0.,1.,0.],"radius_min":0.1,"radius_max":1.,"refine_count":100}),
+        ] {
+            assert!(session.execute("brep.constraints.pipe",&parameters).is_err());
+        }
+        assert_eq!(session.state().unwrap().revision,before);
+        assert!(session.doc().unwrap().exact_breps.is_empty());
+    }
+
+    #[test]
+    #[cfg(not(target_arch="wasm32"))]
+    fn fillet_probe_reports_real_tested_feasible_radii_without_mutation_when_worker_installed() {
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none(){return;}
+        let mut s=Session::new();
+        let id=s.execute("brep.box",&json!({"name":"Rounded frame","min":[0.,0.,0.],"max":[4.,4.,4.]})).unwrap()["ids"][0].as_u64().unwrap();
+        let revision=s.state().unwrap().revision;
+        let report=s.execute("brep.constraints.fillet",&json!({
+            "id":id,"radius_min":0.15,"radius_max":2.5,
+            "probe_count":4,"refine_count":2,
+            "selected_revision":revision})).unwrap();
+        assert_eq!(report["geometry_modified"],false);
+        assert_eq!(report["maximality_proven"],false);
+        assert!(report["highest_tested_feasible"].as_f64().unwrap()>=0.15);
+        assert_eq!(report["outcomes"].as_array().unwrap().len(),report["probes_used"].as_u64().unwrap() as usize);
+        assert_eq!(s.state().unwrap().revision,revision);
+        assert_eq!(s.doc().unwrap().exact_breps.len(),1);
+        let chosen=report["suggested_value"].as_f64().unwrap();
+        let created=s.execute("brep.fillet",&json!({"name":"Verified fillet","id":id,"radius":chosen})).unwrap();
+        assert_eq!(created["representation"],"exact_occt_brep");
+        assert_eq!(s.doc().unwrap().exact_breps.len(),2);
+    }
+    #[test]
+    #[cfg(not(target_arch="wasm32"))]
+    fn pipe_and_sweep_profile_probes_report_without_baking_when_worker_installed() {
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none(){return;}
+        let mut s=Session::new();
+        let initial=s.state().unwrap().revision;
+        let rail=json!([[0.,0.,0.],[0.,0.,5.]]);
+        for (command,args) in [
+            ("brep.constraints.pipe",json!({"rail":rail,"up":[0.,1.,0.],
+                "radius_min":0.25,"radius_max":0.6,"probe_count":3,"refine_count":0})),
+            ("brep.constraints.sweep1",json!({"rail":rail,"up":[0.,1.,0.],
+                "section":[[-0.5,-0.5],[0.5,-0.5],[0.5,0.5],[-0.5,0.5]],
+                "scale_min":0.3,"scale_max":1.2,"probe_count":3,"refine_count":0}))
+        ] {
+            let report=s.execute(command,&args).unwrap();
+            assert!(report["highest_tested_feasible"].as_f64().is_some());
+            assert_eq!(report["geometry_modified"],false);
+        }
+        assert_eq!(s.state().unwrap().revision,initial);
+        assert!(s.doc().unwrap().exact_breps.is_empty());
     }
     #[test]
     fn native_worker_is_an_explicit_capability_not_a_mesh_fallback() {

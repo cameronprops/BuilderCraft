@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 58,
-    "explicit_dependencies_mapped": 40,
+    "total": 61,
+    "explicit_dependencies_mapped": 43,
     "pending_source_review": 18,
-    "paired": 26
+    "paired": 29
   },
   "entries": [
     {
@@ -318,6 +318,36 @@
         "kernel.polyline.length",
         "kernel.point.distance",
         "kernel.point.interpolate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.point_at_station",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.tangent_at_station",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.offset_xy",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length"
       ],
       "dependency_basis": "source_inspected_or_dataflow",
       "registry_category": "polyline",

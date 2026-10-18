@@ -142,9 +142,6 @@ fn run_pline(s: &mut Session, p: &Value) -> Result<Value> {
     if vs.len() < 2 {
         return Err(bad("pline", "`vertices` needs at least 2 points"));
     }
-    if vs.windows(2).any(|pair| pair[0].p == pair[1].p) {
-        return Err(bad("pline", "consecutive polyline vertices must not coincide"));
-    }
     let width = match p.get("width") {
         Some(value) => value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("pline", "`width` must be nonnegative and finite"))?,
         None => 0.0,

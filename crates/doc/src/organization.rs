@@ -66,26 +66,9 @@ pub struct ExactBrepObject {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum BrepDependencyRecipe {
-    Pipe {
-        radius: f64,
-        up: [f64; 3],
-        chord_tolerance: f64,
-        max_segments: usize,
-        tolerance: Option<f64>,
-    },
-    Sweep1 {
-        section: Vec<[f64; 2]>,
-        up: [f64; 3],
-        chord_tolerance: f64,
-        max_segments: usize,
-        tolerance: Option<f64>,
-    },
-    Sweep2 {
-        section: Vec<[f64; 2]>,
-        chord_tolerance: f64,
-        max_segments: usize,
-        tolerance: Option<f64>,
-    },
+    Pipe { radius: f64, up: [f64; 3], chord_tolerance: f64, max_segments: usize, tolerance: Option<f64> },
+    Sweep1 { section: Vec<[f64; 2]>, up: [f64; 3], chord_tolerance: f64, max_segments: usize, tolerance: Option<f64> },
+    Sweep2 { section: Vec<[f64; 2]>, chord_tolerance: f64, max_segments: usize, tolerance: Option<f64> },
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BrepDependency {

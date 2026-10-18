@@ -275,6 +275,98 @@ fn cancel_keeps_partial_line_as_one_undo() {
     assert_eq!(s.doc().unwrap().model.len(), 0);
 }
 
+fn partially_writes_then_fails(s: &mut Session, _: &serde_json::Value) -> Result<serde_json::Value> {
+    s.add_entity(crate::cmd::helpers::line(Vec2::new(2.0, 2.0), Vec2::new(7.0, 2.0)))?;
+    s.set_selection(Vec::new());
+    Err(EngineError::Other("intentional transactional test failure".into()))
+}
+
+#[test]
+fn failed_registered_command_restores_document_selection_and_redo() {
+    let mut s = Session::new();
+    let line = s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap();
+    s.execute("circle", &json!({"center": [3, 3], "radius": 2})).unwrap();
+    s.undo().unwrap();
+    let h = cadcraft_doc::Handle::parse_hex(line["handles"][0].as_str().unwrap()).unwrap();
+    s.set_selection(vec![h]);
+
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo_count = s.state().unwrap().undo.len();
+    let redo_count = s.state().unwrap().redo.len();
+    assert!(redo_count > 0);
+
+    let spec = CommandSpec::new("test.partial_write", "Partial Write Fixture", partially_writes_then_fails);
+    assert!(matches!(s.execute_spec(&spec, &json!({})), Err(EngineError::Other(_))));
+    let state = s.state().unwrap();
+    assert!(std::sync::Arc::ptr_eq(&before, &state.doc), "failed command must restore the same drawing");
+    assert_eq!(state.selection, vec![h], "failed command must restore selection");
+    assert_eq!(state.revision, revision, "failure must not advance document revision");
+    assert_eq!(state.undo.len(), undo_count, "failure must not create a false undo step");
+    assert_eq!(state.redo.len(), redo_count, "failure must preserve available redo");
+
+    s.redo().unwrap();
+    assert_eq!(s.doc().unwrap().model.len(), 2, "redo must still restore the prior valid circle");
+}
+
+#[test]
+fn every_registered_command_error_preserves_drawing_and_undo() {
+    // This cross-cutting safety test does not certify successful command behavior.
+    // Invalid requests must be atomic even when they fail late in a multi-step edit.
+    for spec in command_specs() {
+        for request in [json!(null), json!({"invalid_probe": [1e308, -1e308]})] {
+            let mut s = Session::new();
+            let state = s.state().unwrap();
+            let uid = state.uid;
+            let document = state.doc.clone();
+            let revision = state.revision;
+            let undo_len = state.undo.len();
+            let redo_len = state.redo.len();
+            let selection = state.selection.clone();
+
+            if s.execute(spec.id, &request).is_err() {
+                let state = s
+                    .docs
+                    .iter()
+                    .find(|doc| doc.uid == uid)
+                    .unwrap_or_else(|| panic!("{} discarded the open document when rejecting invalid params", spec.id));
+                assert!(std::sync::Arc::ptr_eq(&document, &state.doc), "{} changed the document despite returning an error", spec.id);
+                assert_eq!(state.selection, selection, "{} changed selection on error", spec.id);
+                assert_eq!(state.revision, revision, "{} advanced revision on error", spec.id);
+                assert_eq!(state.undo.len(), undo_len, "{} changed undo on error", spec.id);
+                assert_eq!(state.redo.len(), redo_len, "{} changed redo on error", spec.id);
+            }
+        }
+    }
+}
+
+#[test]
+fn degenerate_drawing_commands_fail_without_silent_geometry() {
+    for (id, params) in [
+        ("polygon", json!({"sides": 5, "center": [0, 0], "radius": 0})),
+        ("polygon", json!({"sides": 5, "edge": [[1, 1], [1, 1]]})),
+        ("polygon", json!({"sides": 5, "edge": [[0, 0], [1e308, 1e308]]})),
+        ("arc", json!({"center": [0, 0], "radius": 0, "start": 0, "end": 90})),
+        ("ellipse", json!({"center": [0, 0], "major": [1.7e308, 1.7e308], "ratio": 0.5})),
+        ("ellipse.arc", json!({"center": [0, 0], "major": [1.7e308, 1.7e308], "ratio": 0.5, "start": 0, "end": 90})),
+        ("ellipse.axis", json!({"p1": [-1e308, 0], "p2": [1e308, 0], "distance": 2})),
+        ("point.multiple", json!({"points": []})),
+        ("donut", json!({"center": [0, 0], "inside": 5, "outside": 3})),
+        ("donut", json!({"center": [0, 0], "inside": -1, "outside": 3})),
+        ("donut", json!({"center": [0, 0], "inside": 2, "outside": 2})),
+        ("donut", json!({"center": [0, 0], "inside": 2})),
+        ("donut", json!({"center": [1.7e308, 0], "inside": 1e308, "outside": 1.1e308})),
+    ] {
+        let mut s = Session::new();
+        let before = s.state().unwrap().doc.clone();
+        let revision = s.state().unwrap().revision;
+        assert!(s.execute(id, &params).is_err(), "{id} silently accepted degenerate input: {params}");
+        assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc), "{id} mutated the document on error");
+        assert_eq!(s.state().unwrap().revision, revision, "{id} unexpectedly changed revision");
+        assert!(s.doc().unwrap().model.is_empty(), "{id} created degenerate geometry");
+    }
+}
+
 #[test]
 fn hostile_params_never_panic() {
     let mut s = Session::new();

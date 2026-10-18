@@ -641,7 +641,7 @@ fn ellipse_from_axis(p1: Vec2, p2: Vec2, half: f64) -> Option<Ellipse> {
     let m = p2 - c;
     let ml = m.len();
     let half = half.abs();
-    if ml < 1e-12 || half < 1e-12 || !half.is_finite() {
+    if ml < 1e-12 || half < 1e-12 || !ml.is_finite() || !half.is_finite() || !c.is_finite() {
         return None;
     }
     Some(if half > ml { Ellipse::full(c, m.normalized().perp() * half, ml / half) } else { Ellipse::full(c, m, half / ml) })
@@ -673,7 +673,8 @@ fn run_ellipse_arc(s: &mut Session, p: &Value) -> Result<Value> {
     let mut e = if let Some(c) = point_param(p, "center") {
         let m = point_req("ellipse.arc", p, "major")?;
         let ratio = f64_req("ellipse.arc", p, "ratio")?;
-        if !(ratio > 0.0 && ratio <= 1.0) || m.len() < 1e-12 {
+        let major_length = m.len();
+        if !(ratio > 0.0 && ratio <= 1.0 && major_length.is_finite() && major_length >= 1e-12) {
             return Err(bad("ellipse.arc", "ratio must be in (0, 1] and major non-zero"));
         }
         Ellipse::full(c, m, ratio)
@@ -690,6 +691,9 @@ fn run_ellipse_arc(s: &mut Session, p: &Value) -> Result<Value> {
     let en = to_param(f64_req("ellipse.arc", p, "end")?);
     e.start = st;
     e.end = en;
+    if !e.center.is_finite() || !e.major.is_finite() || !e.ratio.is_finite() || e.ratio <= 0.0 || !e.start.is_finite() || !e.end.is_finite() {
+        return Err(bad("ellipse.arc", "ellipse construction produced non-finite geometry"));
+    }
     added(s.add_entity(ellipse_kind(&e))?)
 }
 

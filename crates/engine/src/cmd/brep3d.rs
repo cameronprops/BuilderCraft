@@ -1031,6 +1031,52 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch="wasm32"))]
+    fn associated_pipe_tracks_source_updates_rebuilds_in_place_and_roundtrips() {
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() { return; }
+        let mut s=Session::new();
+        let curve=cadcraft_geom::nurbs3d::Curve::from_control(vec![
+            cadcraft_geom::Vec3::new(0.,0.,0.),
+            cadcraft_geom::Vec3::new(0.,0.,5.)
+        ],1).unwrap();
+        let curve_id=s.execute("nurbs.curve3d",&json!({"name":"Rail","curve":curve}))
+            .unwrap()["id"].as_u64().unwrap();
+        let built=s.execute("brep.pipe_from_curve",&json!({
+            "name":"Attached rail","curve_id":curve_id,"radius":0.3,"up":[0.,1.,0.]
+        })).unwrap();
+        let id=built["ids"][0].as_u64().unwrap();
+        assert_eq!(built["associative"],true);
+        let initial=s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep.clone();
+        let state=s.execute("brep.dependency.status",&json!({"id":id})).unwrap();
+        assert_eq!(state["status"],"current");
+        s.execute("nurbs.trim_object",&json!({
+            "id":curve_id,"start":0.2,"end":0.8,"copy":false
+        })).unwrap();
+        assert_eq!(s.execute("brep.dependency.status",&json!({"id":id})).unwrap()["status"],"stale");
+        let revision=s.state().unwrap().revision;
+        assert!(s.execute("brep.dependency.rebuild",&json!({
+            "id":id,"selected_revision":revision+1
+        })).is_err());
+        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep,&initial);
+        let rebuilt=s.execute("brep.dependency.rebuild",&json!({
+            "id":id,"selected_revision":revision
+        })).unwrap();
+        assert_eq!(rebuilt["id"],id);
+        assert_eq!(rebuilt["id_preserved"],true);
+        assert_eq!(s.doc().unwrap().exact_breps.len(),1);
+        assert_eq!(s.doc().unwrap().brep_dependencies.len(),1);
+        let after=s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep.clone();
+        assert_ne!(after,initial);
+        assert_eq!(s.execute("brep.dependency.status",&json!({"id":id})).unwrap()["status"],"current");
+        let bytes=cadcraft_io::write(s.doc().unwrap(),"linked.dftba").unwrap();
+        let reopened=cadcraft_io::read(&bytes,"linked.dftba").unwrap();
+        assert_eq!(reopened.brep_dependencies,s.doc().unwrap().brep_dependencies);
+        s.execute("undo",&json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep,&initial);
+        assert_eq!(s.execute("brep.dependency.status",&json!({"id":id})).unwrap()["status"],"stale");
+    }
+
+    #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn document_nurbs_spine_produces_real_exact_solid_when_worker_installed() {
         if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {

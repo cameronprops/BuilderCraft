@@ -300,9 +300,7 @@ fn pedit_apply(s: &mut Session, h: Handle, opt: &str, p: &Value) -> Result<Value
                     .ok_or_else(|| bad("pedit", "`handles2` must be an array of valid handles"))?
                     .iter()
                     .enumerate()
-                    .map(|(i, value)| {
-                        curves::handle_value(value).ok_or_else(|| bad("pedit", format!("invalid join handle at index {i}")))
-                    })
+                    .map(|(i, value)| curves::handle_value(value).ok_or_else(|| bad("pedit", format!("invalid join handle at index {i}"))))
                     .collect::<Result<_>>()?,
                 None => Vec::new(),
             };

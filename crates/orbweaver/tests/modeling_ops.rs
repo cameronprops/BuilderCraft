@@ -159,3 +159,59 @@ fn cad_and_orbweaver_oriented_path_arrays_have_identical_outputs() {
     let evaluation = evaluate(&graph).unwrap();
     assert_eq!(evaluation.values.get(&1), Some(&direct));
 }
+
+#[test]
+fn pipe_sweep1_sweep2_share_registered_geometry_engine() {
+    let rail = ToolValue::Polyline(vec![p(0., 0., 0.), p(6., 0., 0.)]);
+    let pipe = std::collections::BTreeMap::from([
+        ("rail".into(), rail.clone()),
+        ("up".into(), ToolValue::Vector(Vec3::Z)),
+        ("start_radius".into(), ToolValue::Number(1.)),
+        ("end_radius".into(), ToolValue::Number(1.)),
+        ("wall".into(), ToolValue::Number(0.)),
+        ("stations".into(), ToolValue::Count(4)),
+        ("sides".into(), ToolValue::Count(12)),
+        ("flat_caps".into(), ToolValue::Count(1)),
+    ]);
+    let direct = execute_shared_tool(&ToolRequest { operation: "worldwright.pipe".into(), inputs: pipe.clone() }).unwrap();
+    let node = Node {
+        id: 12,
+        component: "orbweaver.pipe.mesh".into(),
+        inputs: pipe.into_iter().map(|(k, value)| (k, InputBinding::Constant { value })).collect(),
+        matching: TreeMatchPolicy::Shortest,
+    };
+    let graph = Graph { version: GRAPH_SCHEMA_VERSION, nodes: vec![node], outputs: vec![12] };
+    let result = evaluate(&graph).unwrap();
+    assert_eq!(result.values.get(&12), Some(&direct));
+    let ToolValue::Mesh(mesh) = direct else { panic!("expected native polygon pipe mesh") };
+    assert_eq!(mesh.vertices.len(), 50);
+
+    let sweep1 = Node {
+        id: 13,
+        component: "orbweaver.sweep1.mesh".into(),
+        inputs: std::collections::BTreeMap::from([
+            ("rail".into(), literal(rail.clone())),
+            ("up".into(), literal(ToolValue::Vector(Vec3::Z))),
+            ("profile".into(), literal(ToolValue::Polyline(vec![p(0., 1., 0.), p(0., 0., 1.), p(0., -1., 0.), p(0., 0., -1.)]))),
+            ("stations".into(), literal(ToolValue::Count(4))),
+            ("closed_profile".into(), literal(ToolValue::Count(1))),
+        ]),
+        matching: TreeMatchPolicy::Shortest,
+    };
+    let first = evaluate(&Graph { version: GRAPH_SCHEMA_VERSION, nodes: vec![sweep1], outputs: vec![13] }).unwrap();
+    assert!(matches!(first.values.get(&13), Some(ToolValue::Mesh(_))));
+
+    let sweep2 = Node {
+        id: 14,
+        component: "orbweaver.sweep2.mesh".into(),
+        inputs: std::collections::BTreeMap::from([
+            ("rail_a".into(), literal(rail)),
+            ("rail_b".into(), literal(ToolValue::Polyline(vec![p(0., 2., 0.), p(6., 2., 0.)]))),
+            ("section".into(), literal(ToolValue::Polyline(vec![p(0., 0., 0.), p(0.5, 1., 0.), p(1., 0., 0.)]))),
+            ("stations".into(), literal(ToolValue::Count(4))),
+        ]),
+        matching: TreeMatchPolicy::Shortest,
+    };
+    let second = evaluate(&Graph { version: GRAPH_SCHEMA_VERSION, nodes: vec![sweep2], outputs: vec![14] }).unwrap();
+    assert!(matches!(second.values.get(&14), Some(ToolValue::Mesh(_))));
+}

@@ -105,6 +105,29 @@ const PATH_ARRAY: &[ToolPort] = &[
     ToolPort { name: "path", kind: ToolType::Polyline, modifier: true },
     ToolPort { name: "count", kind: ToolType::Count, modifier: true },
 ];
+const PIPE_INPUTS: &[ToolPort] = &[
+    ToolPort { name: "rail", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "up", kind: ToolType::Vector, modifier: true },
+    ToolPort { name: "start_radius", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "end_radius", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "wall", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "stations", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "sides", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "flat_caps", kind: ToolType::Count, modifier: true },
+];
+const SWEEP1_INPUTS: &[ToolPort] = &[
+    ToolPort { name: "rail", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "up", kind: ToolType::Vector, modifier: true },
+    ToolPort { name: "profile", kind: ToolType::Polyline, modifier: true },
+    ToolPort { name: "stations", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "closed_profile", kind: ToolType::Count, modifier: true },
+];
+const SWEEP2_INPUTS: &[ToolPort] = &[
+    ToolPort { name: "rail_a", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "rail_b", kind: ToolType::Polyline, modifier: false },
+    ToolPort { name: "section", kind: ToolType::Polyline, modifier: true },
+    ToolPort { name: "stations", kind: ToolType::Count, modifier: true },
+];
 const PATH_ARRAY_ORIENTED: &[ToolPort] = &[
     ToolPort { name: "geometry", kind: ToolType::Polyline, modifier: false },
     ToolPort { name: "path", kind: ToolType::Polyline, modifier: true },
@@ -353,6 +376,33 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         prerequisites: &["kernel.vector.cross", "kernel.vector.dot"],
         inputs: NURBS_FLOW,
         output: ToolType::Polyline,
+    },
+    SharedToolContract {
+        operation: "kernel.pipe.mesh",
+        cad_command: "worldwright.pipe",
+        orbweaver_node: "orbweaver.pipe.mesh",
+        dependency_group: "geometry.surface",
+        prerequisites: &["kernel.rail.frames", "kernel.polygon.validate"],
+        inputs: PIPE_INPUTS,
+        output: ToolType::Mesh,
+    },
+    SharedToolContract {
+        operation: "kernel.sweep1.mesh",
+        cad_command: "worldwright.sweep1",
+        orbweaver_node: "orbweaver.sweep1.mesh",
+        dependency_group: "geometry.surface",
+        prerequisites: &["kernel.rail.frames", "kernel.polygon.validate"],
+        inputs: SWEEP1_INPUTS,
+        output: ToolType::Mesh,
+    },
+    SharedToolContract {
+        operation: "kernel.sweep2.mesh",
+        cad_command: "worldwright.sweep2",
+        orbweaver_node: "orbweaver.sweep2.mesh",
+        dependency_group: "geometry.surface",
+        prerequisites: &["kernel.rail.frames", "kernel.polygon.validate"],
+        inputs: SWEEP2_INPUTS,
+        output: ToolType::Mesh,
     },
     SharedToolContract {
         operation: "kernel.tree.validate",
@@ -685,6 +735,41 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
             surface(&request.inputs, "base")?,
             surface(&request.inputs, "target")?,
         )?)),
+        "kernel.pipe.mesh" => {
+            let cap = count(&request.inputs, "flat_caps")?;
+            if cap > 1 {
+                return Err(KernelError::Invalid("pipe flat_caps must be zero or one"));
+            }
+            Ok(ToolValue::Mesh(crate::pipe_mesh(
+                polyline(&request.inputs, "rail")?,
+                vector(&request.inputs, "up")?,
+                number(&request.inputs, "start_radius")?,
+                number(&request.inputs, "end_radius")?,
+                number(&request.inputs, "wall")?,
+                count(&request.inputs, "stations")?,
+                count(&request.inputs, "sides")?,
+                cap == 1,
+            )?))
+        }
+        "kernel.sweep1.mesh" => {
+            let closed = count(&request.inputs, "closed_profile")?;
+            if closed > 1 {
+                return Err(KernelError::Invalid("closed_profile must be zero or one"));
+            }
+            Ok(ToolValue::Mesh(crate::sweep1_mesh(
+                polyline(&request.inputs, "rail")?,
+                vector(&request.inputs, "up")?,
+                polyline(&request.inputs, "profile")?,
+                count(&request.inputs, "stations")?,
+                closed == 1,
+            )?))
+        }
+        "kernel.sweep2.mesh" => Ok(ToolValue::Mesh(crate::sweep2_mesh(
+            polyline(&request.inputs, "rail_a")?,
+            polyline(&request.inputs, "rail_b")?,
+            polyline(&request.inputs, "section")?,
+            count(&request.inputs, "stations")?,
+        )?)),
         "kernel.point.distance" => Ok(ToolValue::Number(point_distance(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.midpoint" => Ok(ToolValue::Point(point_midpoint(point(&request.inputs, "a")?, point(&request.inputs, "b")?)?)),
         "kernel.point.interpolate" => {
@@ -740,7 +825,7 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 26);
+        assert_eq!(SHARED_TOOLS.len(), 29);
     }
     #[test]
     fn distance_is_shared_across_both_entry_points() {
@@ -771,7 +856,7 @@ mod tests {
         let original = ToolValue::Tree(tree.clone());
         let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
-        assert_eq!(SHARED_TOOLS.len(), 26);
+        assert_eq!(SHARED_TOOLS.len(), 29);
         let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();
         assert_eq!(graft, cmd("orbweaver.tree.graft").unwrap());

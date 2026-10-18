@@ -1,0 +1,40 @@
+name: Worldwright rail and sweep acceptance
+on:
+  push:
+    branches:
+      - feature/rail-evaluator-pipe-sweep-foundation
+  pull_request:
+    paths:
+      - crates/kernel/**
+      - crates/engine/**
+      - crates/orbweaver/**
+      - docs/dependencies/**
+      - .github/workflows/rail-sweep-acceptance.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: worldwright-rail-sweep-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  rail-sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Static CAD/OrbWeaver and dependency graph gate
+        run: python3 tools/check_paired_tools.py
+      - name: Pinned Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Run kernel, OrbWeaver and CAD regression tests
+        run: cargo test --locked -p buildercraft-kernel -p orbweaver -p cadcraft-engine
+      - name: Strict no-warning Rust checks
+        run: cargo clippy --locked -p buildercraft-kernel -p orbweaver -p cadcraft-engine --all-targets -- -D warnings
+      - name: Compile command-line application
+        run: cargo build --locked -p cadcraft-cli
+      - name: Execute native Pipe, Sweep1 and Sweep2 from the CLI
+        run: python3 tools/tests/smoke_rail_cli.py

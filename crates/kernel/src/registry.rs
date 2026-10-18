@@ -25,6 +25,38 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.rail.frames",
+        label: "Shared Rail Sampling and Transport Frames",
+        category: "transform",
+        inputs: &["rail", "stations", "up"],
+        outputs: &["stations"],
+        status: OperationStatus::Partial,
+    },
+    OperationDescriptor {
+        id: "kernel.pipe.mesh",
+        label: "Pipe / Hollow Pipe Mesh Sweep",
+        category: "surface",
+        inputs: &["rail", "up", "start_radius", "end_radius", "wall", "stations", "sides", "flat_caps"],
+        outputs: &["mesh"],
+        status: OperationStatus::Partial,
+    },
+    OperationDescriptor {
+        id: "kernel.sweep1.mesh",
+        label: "Sweep1 Rail Profile Mesh",
+        category: "surface",
+        inputs: &["rail", "up", "profile", "stations", "closed_profile"],
+        outputs: &["mesh"],
+        status: OperationStatus::Partial,
+    },
+    OperationDescriptor {
+        id: "kernel.sweep2.mesh",
+        label: "Sweep2 Twin Rail Surface Mesh",
+        category: "surface",
+        inputs: &["rail_a", "rail_b", "section", "stations"],
+        outputs: &["mesh"],
+        status: OperationStatus::Partial,
+    },
+    OperationDescriptor {
         id: "kernel.array.path_oriented",
         label: "Tangent-Aligned Path Array",
         category: "transform",

@@ -95,7 +95,7 @@ fn validate_brep_dependencies(d: &Drawing) -> Result<()> {
             || !d.exact_breps.iter().any(|b| b.id == link.target_id)
             || link.source_ids.len() != link.source_snapshots.len()
             || !(1..=2).contains(&link.source_ids.len())
-            || link.source_ids.iter().any(|&id| id == 0)
+            || link.source_ids.contains(&0)
             || link.source_snapshots.iter().any(|c| !c.valid())
         {
             return Err(IoError::Format("invalid associated solid references".into()));
@@ -103,10 +103,10 @@ fn validate_brep_dependencies(d: &Drawing) -> Result<()> {
         // Missing source curves are allowed so the user can diagnose and
         // repair an orphaned dependency, but existing IDs must be curves.
         for &id in &link.source_ids {
-            if let Some(source) = d.geometry3d.iter().find(|g| g.id == id) {
-                if !matches!(source.shape, Shape::Curve(_)) {
-                    return Err(IoError::Format("associated source is not a NURBS curve".into()));
-                }
+            if let Some(source) = d.geometry3d.iter().find(|g| g.id == id)
+                && !matches!(source.shape, Shape::Curve(_))
+            {
+                return Err(IoError::Format("associated source is not a NURBS curve".into()));
             }
         }
         let (tolerance, section, arity) = match &link.recipe {

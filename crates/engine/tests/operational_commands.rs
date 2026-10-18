@@ -942,7 +942,7 @@ fn explode_splits_polyline_into_lines() {
     let r = s.execute("explode", &json!({"handles":[h]})).unwrap();
     assert_eq!(r["handles"].as_array().unwrap().len(), 2);
     assert_eq!(s.doc().unwrap().model.len(), 2);
-    assert!(s.doc().unwrap().model.iter().all(|e| matches!(e.kind,EntityKind::Line(_))));
+    assert!(s.doc().unwrap().model.iter().all(|e| matches!(&e.kind, EntityKind::Line(_))));
 }
 
 fn overkill_removes_duplicate_geometry() {

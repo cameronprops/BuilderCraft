@@ -18,8 +18,14 @@ pub struct CertifiedRailApproximation {
 fn distance_to_segment(point: Vec3, a: Vec3, b: Vec3) -> Result<f64> {
     let delta = b - a;
     let denom = delta.dot(delta);
-    if !denom.is_finite() || denom <= 1e-18 {
-        return Err(KernelError::Invalid("rail chord has zero or nonfinite length"));
+    if !denom.is_finite() {
+        return Err(KernelError::Invalid("rail chord has nonfinite length"));
+    }
+    if denom <= 1e-18 {
+        // A closed rail may have coincident endpoints but a nontrivial arc.
+        // Bound it against the point and let subdivision open its chords.
+        let distance = (point - a).len();
+        return if distance.is_finite() { Ok(distance) } else { Err(KernelError::Invalid("nonfinite rail deviation")) };
     }
     let t = ((point - a).dot(delta) / denom).clamp(0.0, 1.0);
     let distance = (point - (a + delta * t)).len();
@@ -161,6 +167,24 @@ mod tests {
             let t = i as f64 / 500.;
             assert!(point_to_chord(curve.evaluate(t).unwrap(), &approx.rails[0]) <= 0.02 + 1e-8);
             assert!(point_to_chord(companion.evaluate(t).unwrap(), &approx.rails[1]) <= 0.02 + 1e-8);
+        }
+    }
+    #[test]
+    fn closed_loop_with_coincident_endpoints_refines_instead_of_rejecting_chord() {
+        let c = Curve::from_control(vec![
+            Vec3::new(1.,0.,0.),
+            Vec3::new(1.,1.,0.),
+            Vec3::new(-1.,1.,0.),
+            Vec3::new(-1.,-1.,0.),
+            Vec3::new(1.,-1.,0.),
+            Vec3::new(1.,0.,0.),
+        ],3).unwrap();
+        let out = nurbs_rails_with_chord_bound(&[&c],0.05,127).unwrap();
+        assert!(out.segment_count>4);
+        assert!((out.rails[0][0]-out.rails[0][out.segment_count]).len()<1e-10);
+        for i in 0..=300 {
+            let p=c.evaluate(i as f64/300.).unwrap();
+            assert!(point_to_chord(p,&out.rails[0])<=0.05+1e-8);
         }
     }
     #[test]

@@ -360,7 +360,8 @@ fn ruled_surface3d(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(error("unsupported ruled surface option"));
     }
     let a_id = p.get("a_id").and_then(Value::as_u64).filter(|id| *id != 0).ok_or_else(|| error("a_id must be a curve ID"))?;
-    let b_id = p.get("b_id").and_then(Value::as_u64).filter(|id| *id != 0 && *id != a_id).ok_or_else(|| error("b_id must be a different curve ID"))?;
+    let b_id =
+        p.get("b_id").and_then(Value::as_u64).filter(|id| *id != 0 && *id != a_id).ok_or_else(|| error("b_id must be a different curve ID"))?;
     if let Some(revision) = p.get("selected_revision") {
         let revision = revision.as_u64().ok_or_else(|| error("selected_revision must be numeric"))?;
         if revision != s.state()?.revision {
@@ -377,8 +378,8 @@ fn ruled_surface3d(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let a = find_curve(a_id)?;
     let b = find_curve(b_id)?;
-    let patch = cadcraft_geom::nurbs3d::ruled_surface(&a, &b)
-        .ok_or_else(|| error("ruled surface needs compatible, distinct rational NURBS rails"))?;
+    let patch =
+        cadcraft_geom::nurbs3d::ruled_surface(&a, &b).ok_or_else(|| error("ruled surface needs compatible, distinct rational NURBS rails"))?;
     add3d(s, p, cadcraft_doc::organization::Shape::Surface(patch.into()))
 }
 
@@ -534,7 +535,9 @@ mod tests {
         let id = result["id"].as_u64().unwrap();
         assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
         let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
-        let cadcraft_doc::organization::Shape::Surface(patch) = &object.shape else { panic!("ruled surface should persist exact rational control geometry") };
+        let cadcraft_doc::organization::Shape::Surface(patch) = &object.shape else {
+            panic!("ruled surface should persist exact rational control geometry")
+        };
         assert_eq!(patch.rows.len(), 2);
         assert!((patch.evaluate(0.5, 0.5).unwrap() - Vec3::new(2., 0., 1.5)).len() < 1e-12);
         let bytes = cadcraft_io::write(s.doc().unwrap(), "ruled-fixture.dftba").unwrap();

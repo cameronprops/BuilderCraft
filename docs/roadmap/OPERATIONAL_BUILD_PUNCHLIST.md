@@ -93,3 +93,11 @@ Update this document as each PR reaches *merged*, *closed with rationale*, *repa
 - 2026-10-17 Pacific (continued): Closed #30 (known Truck Boolean crash proof) and #31 (isolated OCCT evaluation) after documenting why these candidate implementations should not be merged alongside the selected OCCT kernel. Branch evidence retained.
 - 2026-10-17 Pacific (continued): Fixed `main` compilation regression from #34 on top of #65: the derivative routine still called removed global `basis()`; it now expands the existing span-local `local_basis()` into the coefficient vector. Commit `205feed2`. Native combined-build CI still requires readback.
 - 2026-10-17 Pacific (continued): PR #67 removes hardcoded registry count and now tests native path operation registry parity; PR #72 fixes two strict-Clippy borrows and avoids routing exact BRep constraint commands through the legacy 2D interactive fuzz test. Their validations are not yet accepted as green.
+
+## 2026-10-17 PR-zero resolution checkpoint
+
+- **Open PR count: 0** (verified with GitHub after resolution). This is backlog hygiene, **not** completion of the operational alpha build.
+- Additional merged PRs in this closure sequence: #8 Haiku/platform foundation, #21 OrbWeaver transactional editor, #66 rational ruled surface. They require post-merge `main` CI and application smoke validation.
+- Other previously open PRs were closed **without merging**, with source head SHAs preserved in [PR reconciliation register](PR_RECONCILIATION_2026-10-17.md). Integration tasks, model-space acceptance and tests remain in [GitHub issue #75](https://github.com/cameronprops/BuilderCraft/issues/75).
+- Work still required: native build (Rust 1.95 workspace and exact OpenCascade worker), UI and viewport integration, complete command stack, graph UI, mesh repair, file save/restore and alpha packaging. These checks are intentionally left incomplete until independently verified.
+

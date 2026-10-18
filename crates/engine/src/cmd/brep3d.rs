@@ -46,12 +46,10 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("brep.constraints.sweep2", "Probe Sweep2 Section Scale Feasibility", constraints_sweep2)
             .params("{rail_a:[[x,y,z],...],rail_b:[[x,y,z],...],section:[[u,v],...],scale_min,scale_max,probe_count?:8,refine_count?:4,tolerance?}")
             .noundo(),
-        CommandSpec::new("brep.dependency.status", "Inspect Associative BRep Source Status", association_status)
-            .params("{id}").noundo(),
+        CommandSpec::new("brep.dependency.status", "Inspect Associative BRep Source Status", association_status).params("{id}").noundo(),
         CommandSpec::new("brep.dependency.rebuild", "Rebuild Associative BRep from Source Curves", association_rebuild)
             .params("{id,selected_revision?}"),
-        CommandSpec::new("brep.dependency.list", "List Associative BRep Links", association_list)
-            .noundo(),
+        CommandSpec::new("brep.dependency.list", "List Associative BRep Links", association_list).noundo(),
         CommandSpec::new("brep.boolean", "Exact BRep Boolean (OCCT)", boolean)
             .params("{name,left_id,right_id,operation:union|difference|intersection,tolerance?}"),
         CommandSpec::new("brep.from_step", "Import Exact Solids from STEP", from_step).params("{name,step:base64,tolerance?}"),
@@ -345,33 +343,42 @@ fn relay_document_curve(s: &mut Session, p: &Value, mode: &str) -> Result<Value>
     let mut output = add_worker_shapes(s, p, reply)?;
     // Native construction succeeded. Capture source geometry and an exact
     // rebuild recipe in the SAME document/undo transaction as the BRep.
-    let target=output["ids"][0].as_u64().ok_or_else(|| fail("missing generated BRep identity"))?;
-    let mut snapshots=vec![curve_a.as_ref().clone()];
-    let mut sources=vec![id_a];
-    if let Some(second_id)=id_b {
-        let (_,curve_b)=document_curve(s,p,"curve_b_id")?;
+    let target = output["ids"][0].as_u64().ok_or_else(|| fail("missing generated BRep identity"))?;
+    let mut snapshots = vec![curve_a.as_ref().clone()];
+    let mut sources = vec![id_a];
+    if let Some(second_id) = id_b {
+        let (_, curve_b) = document_curve(s, p, "curve_b_id")?;
         sources.push(second_id);
         snapshots.push(curve_b.as_ref().clone());
     }
-    let recipe=match mode{
-        "pipe"=>cadcraft_doc::organization::BrepDependencyRecipe::Pipe{
-            radius:positive(p,"radius")?,
-            up:serde_json::from_value(p["up"].clone()).map_err(|_|fail("invalid pipe orientation"))?,
-            chord_tolerance,max_segments,tolerance:tolerance(p)?,
+    let recipe = match mode {
+        "pipe" => cadcraft_doc::organization::BrepDependencyRecipe::Pipe {
+            radius: positive(p, "radius")?,
+            up: serde_json::from_value(p["up"].clone()).map_err(|_| fail("invalid pipe orientation"))?,
+            chord_tolerance,
+            max_segments,
+            tolerance: tolerance(p)?,
         },
-        "sweep1"=>cadcraft_doc::organization::BrepDependencyRecipe::Sweep1{
-            section:serde_json::from_value(p["section"].clone()).map_err(|_|fail("invalid sweep section"))?,
-            up:serde_json::from_value(p["up"].clone()).map_err(|_|fail("invalid sweep orientation"))?,
-            chord_tolerance,max_segments,tolerance:tolerance(p)?,
+        "sweep1" => cadcraft_doc::organization::BrepDependencyRecipe::Sweep1 {
+            section: serde_json::from_value(p["section"].clone()).map_err(|_| fail("invalid sweep section"))?,
+            up: serde_json::from_value(p["up"].clone()).map_err(|_| fail("invalid sweep orientation"))?,
+            chord_tolerance,
+            max_segments,
+            tolerance: tolerance(p)?,
         },
-        "sweep2"=>cadcraft_doc::organization::BrepDependencyRecipe::Sweep2{
-            section:serde_json::from_value(p["section"].clone()).map_err(|_|fail("invalid two-rail section"))?,
-            chord_tolerance,max_segments,tolerance:tolerance(p)?,
+        "sweep2" => cadcraft_doc::organization::BrepDependencyRecipe::Sweep2 {
+            section: serde_json::from_value(p["section"].clone()).map_err(|_| fail("invalid two-rail section"))?,
+            chord_tolerance,
+            max_segments,
+            tolerance: tolerance(p)?,
         },
-        _=>return Err(fail("invalid associative BRep operation")),
+        _ => return Err(fail("invalid associative BRep operation")),
     };
-    s.doc_mut()?.brep_dependencies.push(cadcraft_doc::organization::BrepDependency{
-        target_id:target,source_ids:sources,source_snapshots:snapshots,recipe,
+    s.doc_mut()?.brep_dependencies.push(cadcraft_doc::organization::BrepDependency {
+        target_id: target,
+        source_ids: sources,
+        source_snapshots: snapshots,
+        recipe,
     });
     if let Some(map) = output.as_object_mut() {
         map.insert("source_curve_id".into(), json!(id_a));
@@ -611,27 +618,28 @@ fn constraints_sweep2(s: &mut Session, p: &Value) -> Result<Value> {
 }
 /// A dependency becomes stale whenever its stored source snapshot differs
 /// from the current selected NURBS. This check is cheap and does not call OCCT.
-fn dependency_state(s:&Session,link:&cadcraft_doc::organization::BrepDependency)->Result<&'static str>{
-    let doc=s.doc()?;
-    for (&source,snapshot) in link.source_ids.iter().zip(&link.source_snapshots){
-        let Some(obj)=doc.geometry3d.iter().find(|o|o.id==source) else{return Ok("missing_source")};
-        let cadcraft_doc::organization::Shape::Curve(current)=&obj.shape else{return Ok("invalid_source")};
-        if current.as_ref()!=snapshot{return Ok("stale");}
+fn dependency_state(s: &Session, link: &cadcraft_doc::organization::BrepDependency) -> Result<&'static str> {
+    let doc = s.doc()?;
+    for (&source, snapshot) in link.source_ids.iter().zip(&link.source_snapshots) {
+        let Some(obj) = doc.geometry3d.iter().find(|o| o.id == source) else { return Ok("missing_source") };
+        let cadcraft_doc::organization::Shape::Curve(current) = &obj.shape else { return Ok("invalid_source") };
+        if current.as_ref() != snapshot {
+            return Ok("stale");
+        }
     }
     Ok("current")
 }
-fn association_status(s:&mut Session,p:&Value)->Result<Value>{
-    let id=uid(p,"id")?;
-    let link=s.doc()?.brep_dependencies.iter().find(|d|d.target_id==id)
-        .ok_or_else(||fail("BRep has no associative recipe"))?;
-    let status=dependency_state(s,link)?;
+fn association_status(s: &mut Session, p: &Value) -> Result<Value> {
+    let id = uid(p, "id")?;
+    let link = s.doc()?.brep_dependencies.iter().find(|d| d.target_id == id).ok_or_else(|| fail("BRep has no associative recipe"))?;
+    let status = dependency_state(s, link)?;
     Ok(json!({"id":id,"status":status,"source_ids":link.source_ids,
         "rebuild_available":status!="missing_source"&&status!="invalid_source",
         "automatic_rebuild":false,"source_revision":s.state()?.revision}))
 }
-fn association_list(s:&mut Session,_:&Value)->Result<Value>{
-    let mut entries=Vec::new();
-    for link in &s.doc()?.brep_dependencies{
+fn association_list(s: &mut Session, _: &Value) -> Result<Value> {
+    let mut entries = Vec::new();
+    for link in &s.doc()?.brep_dependencies {
         entries.push(json!({"target_id":link.target_id,"source_ids":link.source_ids,
             "status":dependency_state(s,link)?}));
     }
@@ -641,62 +649,59 @@ fn association_list(s:&mut Session,_:&Value)->Result<Value>{
 /// Native worker failure leaves old topology and snapshots unchanged; after
 /// successful validation the previous object's stable ID and display metadata
 /// survive, and the temporary result is discarded within one undo operation.
-fn association_rebuild(s:&mut Session,p:&Value)->Result<Value>{
-    selected_revision(s,p)?;
-    let id=uid(p,"id")?;
-    let link=s.doc()?.brep_dependencies.iter().find(|d|d.target_id==id)
-        .cloned().ok_or_else(||fail("selected BRep has no associative recipe"))?;
-    let status=dependency_state(s,&link)?;
-    if status=="missing_source"||status=="invalid_source"{
+fn association_rebuild(s: &mut Session, p: &Value) -> Result<Value> {
+    selected_revision(s, p)?;
+    let id = uid(p, "id")?;
+    let link =
+        s.doc()?.brep_dependencies.iter().find(|d| d.target_id == id).cloned().ok_or_else(|| fail("selected BRep has no associative recipe"))?;
+    let status = dependency_state(s, &link)?;
+    if status == "missing_source" || status == "invalid_source" {
         return Err(fail("cannot rebuild BRep: an input curve is missing or invalid"));
     }
-    let current=s.doc()?.exact_breps.iter().find(|o|o.id==id)
-        .cloned().ok_or_else(||fail("associated BRep target is missing"))?;
+    let current = s.doc()?.exact_breps.iter().find(|o| o.id == id).cloned().ok_or_else(|| fail("associated BRep target is missing"))?;
     // Build the same typed command parameters as the initial user invocation.
-    let mut params=match &link.recipe{
-        cadcraft_doc::organization::BrepDependencyRecipe::Pipe{radius,up,chord_tolerance,max_segments,tolerance}=>{
+    let mut params = match &link.recipe {
+        cadcraft_doc::organization::BrepDependencyRecipe::Pipe { radius, up, chord_tolerance, max_segments, tolerance } => {
             json!({"name":current.name,"curve_id":link.source_ids[0],
                 "radius":radius,"up":up,"chord_tolerance":chord_tolerance,
                 "max_segments":max_segments,"tolerance":tolerance})
-        },
-        cadcraft_doc::organization::BrepDependencyRecipe::Sweep1{section,up,chord_tolerance,max_segments,tolerance}=>{
+        }
+        cadcraft_doc::organization::BrepDependencyRecipe::Sweep1 { section, up, chord_tolerance, max_segments, tolerance } => {
             json!({"name":current.name,"curve_id":link.source_ids[0],
                 "section":section,"up":up,"chord_tolerance":chord_tolerance,
                 "max_segments":max_segments,"tolerance":tolerance})
-        },
-        cadcraft_doc::organization::BrepDependencyRecipe::Sweep2{section,chord_tolerance,max_segments,tolerance}=>{
+        }
+        cadcraft_doc::organization::BrepDependencyRecipe::Sweep2 { section, chord_tolerance, max_segments, tolerance } => {
             json!({"name":current.name,"curve_a_id":link.source_ids[0],
                 "curve_b_id":link.source_ids[1],"section":section,
                 "chord_tolerance":chord_tolerance,"max_segments":max_segments,"tolerance":tolerance})
-        },
+        }
     };
     // Parameter admission and native OCCT processing happen in relay before
     // changing the original. A relay-created replacement is provisional until
     // it is spliced into the existing ID below.
-    let operation=match &link.recipe{
-        cadcraft_doc::organization::BrepDependencyRecipe::Pipe{..}=>"pipe",
-        cadcraft_doc::organization::BrepDependencyRecipe::Sweep1{..}=>"sweep1",
-        cadcraft_doc::organization::BrepDependencyRecipe::Sweep2{..}=>"sweep2",
+    let operation = match &link.recipe {
+        cadcraft_doc::organization::BrepDependencyRecipe::Pipe { .. } => "pipe",
+        cadcraft_doc::organization::BrepDependencyRecipe::Sweep1 { .. } => "sweep1",
+        cadcraft_doc::organization::BrepDependencyRecipe::Sweep2 { .. } => "sweep2",
     };
-    if params["tolerance"].is_null() { params.as_object_mut().map(|m|m.remove("tolerance")); }
-    let fresh=relay_document_curve(s,&params,operation)?;
-    let temp=fresh["ids"][0].as_u64().ok_or_else(||fail("rebuild produced no native BRep"))?;
-    let doc=s.doc_mut()?;
-    let updated=doc.exact_breps.iter().find(|o|o.id==temp)
-        .cloned().ok_or_else(||fail("rebuilt BRep temporary result missing"))?;
-    let original=doc.exact_breps.iter_mut().find(|o|o.id==id)
-        .ok_or_else(||fail("associated target disappeared"))?;
-    original.brep=updated.brep;
-    original.volume=updated.volume;
-    original.faces=updated.faces;
-    original.edges=updated.edges;
-    doc.exact_breps.retain(|o|o.id!=temp);
-    let fresh_link=doc.brep_dependencies.iter().find(|d|d.target_id==temp)
-        .cloned().ok_or_else(||fail("rebuild dependency missing"))?;
-    let target=doc.brep_dependencies.iter_mut().find(|d|d.target_id==id)
-        .ok_or_else(||fail("associated dependency disappeared"))?;
-    target.source_snapshots=fresh_link.source_snapshots;
-    doc.brep_dependencies.retain(|d|d.target_id!=temp);
+    if params["tolerance"].is_null() {
+        params.as_object_mut().map(|m| m.remove("tolerance"));
+    }
+    let fresh = relay_document_curve(s, &params, operation)?;
+    let temp = fresh["ids"][0].as_u64().ok_or_else(|| fail("rebuild produced no native BRep"))?;
+    let doc = s.doc_mut()?;
+    let updated = doc.exact_breps.iter().find(|o| o.id == temp).cloned().ok_or_else(|| fail("rebuilt BRep temporary result missing"))?;
+    let original = doc.exact_breps.iter_mut().find(|o| o.id == id).ok_or_else(|| fail("associated target disappeared"))?;
+    original.brep = updated.brep;
+    original.volume = updated.volume;
+    original.faces = updated.faces;
+    original.edges = updated.edges;
+    doc.exact_breps.retain(|o| o.id != temp);
+    let fresh_link = doc.brep_dependencies.iter().find(|d| d.target_id == temp).cloned().ok_or_else(|| fail("rebuild dependency missing"))?;
+    let target = doc.brep_dependencies.iter_mut().find(|d| d.target_id == id).ok_or_else(|| fail("associated dependency disappeared"))?;
+    target.source_snapshots = fresh_link.source_snapshots;
+    doc.brep_dependencies.retain(|d| d.target_id != temp);
     Ok(json!({"id":id,"rebuilt":true,"previous_status":status,
         "source_ids":link.source_ids,"representation":"exact_occt_brep",
         "source_revision_checked":true,"id_preserved":true,"associative":true}))
@@ -1031,49 +1036,68 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_arch="wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     fn associated_pipe_tracks_source_updates_rebuilds_in_place_and_roundtrips() {
-        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() { return; }
-        let mut s=Session::new();
-        let curve=cadcraft_geom::nurbs3d::Curve::from_control(vec![
-            cadcraft_geom::Vec3::new(0.,0.,0.),
-            cadcraft_geom::Vec3::new(0.,0.,5.)
-        ],1).unwrap();
-        let curve_id=s.execute("nurbs.curve3d",&json!({"name":"Rail","curve":curve}))
-            .unwrap()["id"].as_u64().unwrap();
-        let built=s.execute("brep.pipe_from_curve",&json!({
-            "name":"Attached rail","curve_id":curve_id,"radius":0.3,"up":[0.,1.,0.]
-        })).unwrap();
-        let id=built["ids"][0].as_u64().unwrap();
-        assert_eq!(built["associative"],true);
-        let initial=s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep.clone();
-        let state=s.execute("brep.dependency.status",&json!({"id":id})).unwrap();
-        assert_eq!(state["status"],"current");
-        s.execute("nurbs.trim_object",&json!({
-            "id":curve_id,"start":0.2,"end":0.8,"copy":false
-        })).unwrap();
-        assert_eq!(s.execute("brep.dependency.status",&json!({"id":id})).unwrap()["status"],"stale");
-        let revision=s.state().unwrap().revision;
-        assert!(s.execute("brep.dependency.rebuild",&json!({
-            "id":id,"selected_revision":revision+1
-        })).is_err());
-        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep,&initial);
-        let rebuilt=s.execute("brep.dependency.rebuild",&json!({
-            "id":id,"selected_revision":revision
-        })).unwrap();
-        assert_eq!(rebuilt["id"],id);
-        assert_eq!(rebuilt["id_preserved"],true);
-        assert_eq!(s.doc().unwrap().exact_breps.len(),1);
-        assert_eq!(s.doc().unwrap().brep_dependencies.len(),1);
-        let after=s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep.clone();
-        assert_ne!(after,initial);
-        assert_eq!(s.execute("brep.dependency.status",&json!({"id":id})).unwrap()["status"],"current");
-        let bytes=cadcraft_io::write(s.doc().unwrap(),"linked.dftba").unwrap();
-        let reopened=cadcraft_io::read(&bytes,"linked.dftba").unwrap();
-        assert_eq!(reopened.brep_dependencies,s.doc().unwrap().brep_dependencies);
-        s.execute("undo",&json!({})).unwrap();
-        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b|b.id==id).unwrap().brep,&initial);
-        assert_eq!(s.execute("brep.dependency.status",&json!({"id":id})).unwrap()["status"],"stale");
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
+        let mut s = Session::new();
+        let curve =
+            cadcraft_geom::nurbs3d::Curve::from_control(vec![cadcraft_geom::Vec3::new(0., 0., 0.), cadcraft_geom::Vec3::new(0., 0., 5.)], 1).unwrap();
+        let curve_id = s.execute("nurbs.curve3d", &json!({"name":"Rail","curve":curve})).unwrap()["id"].as_u64().unwrap();
+        let built = s
+            .execute(
+                "brep.pipe_from_curve",
+                &json!({
+                    "name":"Attached rail","curve_id":curve_id,"radius":0.3,"up":[0.,1.,0.]
+                }),
+            )
+            .unwrap();
+        let id = built["ids"][0].as_u64().unwrap();
+        assert_eq!(built["associative"], true);
+        let initial = s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep.clone();
+        let state = s.execute("brep.dependency.status", &json!({"id":id})).unwrap();
+        assert_eq!(state["status"], "current");
+        s.execute(
+            "nurbs.trim_object",
+            &json!({
+                "id":curve_id,"start":0.2,"end":0.8,"copy":false
+            }),
+        )
+        .unwrap();
+        assert_eq!(s.execute("brep.dependency.status", &json!({"id":id})).unwrap()["status"], "stale");
+        let revision = s.state().unwrap().revision;
+        assert!(
+            s.execute(
+                "brep.dependency.rebuild",
+                &json!({
+                    "id":id,"selected_revision":revision+1
+                })
+            )
+            .is_err()
+        );
+        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep, &initial);
+        let rebuilt = s
+            .execute(
+                "brep.dependency.rebuild",
+                &json!({
+                    "id":id,"selected_revision":revision
+                }),
+            )
+            .unwrap();
+        assert_eq!(rebuilt["id"], id);
+        assert_eq!(rebuilt["id_preserved"], true);
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 1);
+        assert_eq!(s.doc().unwrap().brep_dependencies.len(), 1);
+        let after = s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep.clone();
+        assert_ne!(after, initial);
+        assert_eq!(s.execute("brep.dependency.status", &json!({"id":id})).unwrap()["status"], "current");
+        let bytes = cadcraft_io::write(s.doc().unwrap(), "linked.dftba").unwrap();
+        let reopened = cadcraft_io::read(&bytes, "linked.dftba").unwrap();
+        assert_eq!(reopened.brep_dependencies, s.doc().unwrap().brep_dependencies);
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().exact_breps.iter().find(|b| b.id == id).unwrap().brep, &initial);
+        assert_eq!(s.execute("brep.dependency.status", &json!({"id":id})).unwrap()["status"], "stale");
     }
 
     #[test]

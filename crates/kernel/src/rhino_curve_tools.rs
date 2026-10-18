@@ -23,7 +23,7 @@ fn valid_path(points: &[Vec3]) -> Result<()> {
     Ok(())
 }
 fn length_ok(value: f64) -> bool {
-    value.is_finite() && value >= 0.0 && value <= 1e12
+    value.is_finite() && (0.0..=1e12).contains(&value)
 }
 
 /// Connect two open polylines by their nearest matching endpoints.
@@ -153,7 +153,7 @@ pub fn curve_extend(points: &[Vec3], distance: f64, at_start: bool) -> Result<Ve
 /// not a least-squares/interpolating Rebuild with guaranteed deviation.
 pub fn curve_rebuild(points: &[Vec3], controls: usize, degree: usize) -> Result<Curve> {
     valid_path(points)?;
-    if controls < 2 || controls > 4_096 || degree == 0 || degree > 5 || degree >= controls {
+    if !(2..=4_096).contains(&controls) || degree == 0 || degree > 5 || degree >= controls {
         return Err(KernelError::Invalid("NURBS rebuild controls/degree"));
     }
     let total = polyline_length(points)?;

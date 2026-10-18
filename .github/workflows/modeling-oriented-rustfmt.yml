@@ -1,0 +1,29 @@
+name: Worldwright oriented array rustfmt
+on:
+  push:
+    branches:
+      - feature/modeling-oriented-path-arrays
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt
+      - name: Format native Rust and OrbWeaver tests
+        run: cargo fmt --all
+      - name: Commit pinned rustfmt changes
+        shell: bash
+        run: |
+          git add crates/kernel/src/modeling_path_oriented.rs crates/kernel/src/lib.rs crates/kernel/src/shared_tools.rs crates/kernel/src/registry.rs crates/engine/src/cmd/mesh3d.rs crates/engine/src/cmd/worldwright_tools.rs crates/orbweaver/tests/modeling_ops.rs
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'style(modeling): apply Rust 1.95 formatting to oriented path array'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

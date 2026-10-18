@@ -25,6 +25,14 @@ pub struct OperationDescriptor {
 /// Deliberately small: add entries only alongside matching implementation/tests.
 pub const OPERATIONS: &[OperationDescriptor] = &[
     OperationDescriptor {
+        id: "kernel.array.path_oriented",
+        label: "Tangent-Aligned Path Array",
+        category: "transform",
+        inputs: &["geometry", "path", "count", "up", "anchor"],
+        outputs: &["instances"],
+        status: OperationStatus::Partial,
+    },
+    OperationDescriptor {
         id: "kernel.project.mesh",
         label: "Project to Polygon Mesh",
         category: "intersection",

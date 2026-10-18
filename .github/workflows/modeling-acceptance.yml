@@ -4,6 +4,7 @@ on:
     branches:
       - feature/paired-transform-project-flow-pushpull
       - feature/modeling-document-surface-edit
+      - feature/modeling-oriented-path-arrays
   pull_request:
     paths:
       - crates/kernel/**

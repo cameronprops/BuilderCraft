@@ -571,6 +571,23 @@
       "tree_item_broadcast": false
     },
     {
+      "kernel_operation": "kernel.array.path_oriented",
+      "group": "geometry.transforms",
+      "cad_command": "worldwright.array.path_oriented",
+      "orbweaver_node": "orbweaver.array.path_oriented",
+      "reference_inventory_id": null,
+      "reference_name": "Array Along Path, Aligned",
+      "relation": "tangent_aligned_polyline_subset",
+      "modifiers": [
+        "path",
+        "count",
+        "up",
+        "anchor"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false
+    },
+    {
       "kernel_operation": "kernel.project.plane",
       "group": "geometry.intersections",
       "cad_command": "worldwright.project",

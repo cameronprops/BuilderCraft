@@ -310,6 +310,60 @@ fn failed_registered_command_restores_document_selection_and_redo() {
 }
 
 #[test]
+fn transform_rejects_stale_or_locked_batch_without_partial_geometry() {
+    let mut s = Session::new();
+    let a = s.execute("line", &json!({"points": [[0, 0], [5, 0]]})).unwrap();
+    let first = a["handles"][0].as_str().unwrap().to_string();
+    let b = s.execute("line", &json!({"points": [[0, 2], [5, 2]]})).unwrap();
+    let second = b["handles"][0].as_str().unwrap().to_string();
+    let stale = format!("{:X}", u64::MAX);
+
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo_len = s.state().unwrap().undo.len();
+    assert!(s.execute("move", &json!({"handles": [first.clone(), stale], "delta": [10, 0]})).is_err());
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo_len);
+
+    // Lock only the second line's layer. The first line must not move when
+    // the second line is rejected.
+    s.execute("layer.new", &json!({"name": "Locked"})).unwrap();
+    s.execute("laymch", &json!({"handles": [second.clone()], "layer": "Locked"})).unwrap();
+    s.execute("layer.set", &json!({"name": "Locked", "locked": true})).unwrap();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo_len = s.state().unwrap().undo.len();
+    assert!(s.execute("move", &json!({"handles": [first.clone(), second.clone()], "delta": [10, 0]})).is_err());
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo_len);
+
+    // A genuinely valid transform still edits the editable target.
+    assert_eq!(s.execute("move", &json!({"handles": [first], "delta": [2, 0]})).unwrap()["moved"], 1);
+}
+
+#[test]
+fn transform_rejects_coordinate_overflow_without_mutation() {
+    let mut s = Session::new();
+    let h = s.execute("line", &json!({"points": [[0, 0], [1, 0]]})).unwrap()["handles"][0]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    for params in [
+        json!({"handles":[h.clone()], "from":[-1e308, 0], "to":[1e308, 0]}),
+        json!({"handles":[h.clone()], "delta":[1e308, 1e308], "count": 2}),
+    ] {
+        let command = if params.get("count").is_some() { "copy" } else { "move" };
+        assert!(s.execute(command, &params).is_err(), "{command} accepted numeric overflow: {params}");
+        assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+        assert_eq!(s.state().unwrap().revision, revision);
+    }
+}
+
+#[test]
 fn explicitly_malformed_target_handles_never_silently_edit_selection() {
     let mut s = Session::new();
     let result = s.execute("line", &json!({"points": [[0, 0], [5, 0]]})).unwrap();

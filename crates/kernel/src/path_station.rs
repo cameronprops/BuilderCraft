@@ -18,13 +18,19 @@ fn valid_station(points: &[Vec3], station: f64) -> Result<f64> {
 /// WorldBuilder / ride-track station coordinates; corners retain an exact vertex.
 pub fn polyline_point_at_station(points: &[Vec3], station: f64) -> Result<Vec3> {
     let total = valid_station(points, station)?;
-    if station == 0.0 { return Ok(points[0]); }
-    if station == total { return Ok(points[points.len() - 1]); }
+    if station == 0.0 {
+        return Ok(points[0]);
+    }
+    if station == total {
+        return Ok(points[points.len() - 1]);
+    }
     let mut traveled = 0.0;
     for pair in points.windows(2) {
         let delta = pair[1] - pair[0];
         let length = delta.len();
-        if length == 0.0 { continue; }
+        if length == 0.0 {
+            continue;
+        }
         if station <= traveled + length {
             let t = ((station - traveled) / length).clamp(0.0, 1.0);
             return Ok(pair[0] + delta * t);
@@ -44,9 +50,13 @@ pub fn polyline_tangent_at_station(points: &[Vec3], station: f64) -> Result<Vec3
     for pair in points.windows(2) {
         let delta = pair[1] - pair[0];
         let length = delta.len();
-        if length == 0.0 { continue; }
+        if length == 0.0 {
+            continue;
+        }
         let tangent = delta * (1.0 / length);
-        if station == 0.0 { return Ok(tangent); }
+        if station == 0.0 {
+            return Ok(tangent);
+        }
         if station <= traveled + length || station == total && traveled + length >= total {
             return Ok(tangent);
         }
@@ -64,9 +74,10 @@ pub fn polyline_tangent_at_station(points: &[Vec3], station: f64) -> Result<Vec3
 /// closed loops, reversals, and near-vertical XY edges are rejected.
 pub fn polyline_offset_xy(points: &[Vec3], distance: f64, miter_limit: f64) -> Result<Vec<Vec3>> {
     polyline_length(points)?; // coordinate and point-count validation
-    if points.len() > MAX_OFFSET_POINTS { return Err(KernelError::Budget); }
-    if !distance.is_finite() || distance.abs() > 1e12 || !miter_limit.is_finite()
-        || !(1.0..=20.0).contains(&miter_limit) {
+    if points.len() > MAX_OFFSET_POINTS {
+        return Err(KernelError::Budget);
+    }
+    if !distance.is_finite() || distance.abs() > 1e12 || !miter_limit.is_finite() || !(1.0..=20.0).contains(&miter_limit) {
         return Err(KernelError::Invalid("offset distance or miter limit"));
     }
     if points.first() == points.last() {
@@ -83,7 +94,9 @@ pub fn polyline_offset_xy(points: &[Vec3], distance: f64, miter_limit: f64) -> R
         }
         directions.push((dx / length, dy / length));
     }
-    if distance == 0.0 { return Ok(points.to_vec()); }
+    if distance == 0.0 {
+        return Ok(points.to_vec());
+    }
     let mut output = Vec::new();
     output.try_reserve_exact(points.len()).map_err(|_| KernelError::Budget)?;
     for i in 0..points.len() {
@@ -97,7 +110,9 @@ pub fn polyline_offset_xy(points: &[Vec3], distance: f64, miter_limit: f64) -> R
             let cross = ax * by - ay * bx;
             let dot = ax * bx + ay * by;
             if cross.abs() <= EPS {
-                if dot < 0.0 { return Err(KernelError::Invalid("offset hairpin reversal")); }
+                if dot < 0.0 {
+                    return Err(KernelError::Invalid("offset hairpin reversal"));
+                }
                 (-ay, ax)
             } else {
                 let (na_x, na_y) = (-ay, ax);
@@ -108,8 +123,7 @@ pub fn polyline_offset_xy(points: &[Vec3], distance: f64, miter_limit: f64) -> R
                 let travel = (shift_x * by - shift_y * bx) / cross;
                 let ox = distance * na_x + travel * ax;
                 let oy = distance * na_y + travel * ay;
-                if !ox.is_finite() || !oy.is_finite() ||
-                    ox.hypot(oy) > distance.abs() * miter_limit + 1e-9 {
+                if !ox.is_finite() || !oy.is_finite() || ox.hypot(oy) > distance.abs() * miter_limit + 1e-9 {
                     return Err(KernelError::Invalid("offset miter limit exceeded"));
                 }
                 output.push(Vec3::new(p.x + ox, p.y + oy, p.z));
@@ -118,7 +132,9 @@ pub fn polyline_offset_xy(points: &[Vec3], distance: f64, miter_limit: f64) -> R
         };
         output.push(Vec3::new(p.x + nx * distance, p.y + ny * distance, p.z));
     }
-    if output.iter().any(|p| !p.is_finite()) { return Err(KernelError::Invalid("offset coordinate overflow")); }
+    if output.iter().any(|p| !p.is_finite()) {
+        return Err(KernelError::Invalid("offset coordinate overflow"));
+    }
     Ok(output)
 }
 

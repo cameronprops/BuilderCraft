@@ -83,3 +83,20 @@ tolerance equivalence; topological naming across revisions; edit-in-place and
 model browser/selection; native shaded viewport caching and depth; complex
 self-intersection/tangency/manifoldness stress cases; standalone Haiku native
 worker support. No routine should claim the full alpha closed before those gates.
+
+## Exact transform increment
+
+`brep.transform` replaces one solid in place through the same OCCT worker and
+bounded result decoder as primitive creation. Required inputs: `id`,
+`translation:[x,y,z]`, `origin:[x,y,z]`, `axis:[x,y,z]`, `radians`, `scale`.
+Order is uniform scale about origin, rotation about origin/axis, then translation.
+Positive scale is bounded to 1e-6..1e6; zero axes and nonfinite values are rejected.
+ID, name, layer and visibility are preserved. CAD Inspector Move/Rotate/Scale
+buttons invoke this command; rotation is entered in degrees in the UI.
+
+Implemented; native acceptance results are tracked in [PR #63](https://github.com/cameronprops/BuilderCraft/pull/63). Tests cover
+nonzero pivot/order, exact volume, STEP/native round-trip, identity, Undo/Redo,
+and pointer buttons. No new runtime dependencies. This does not add gizmo
+support, nonuniform scaling, reflections, or OrbWeaver exact-solid references.
+OrbWeaver integration awaits its document-reference/Bake boundary and must
+reuse this worker service rather than implementing another transform engine.

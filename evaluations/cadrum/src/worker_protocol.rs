@@ -38,6 +38,7 @@ pub enum WorkerRequest {
     Cylinder { radius: f64, height: [f64; 3], tolerance: Option<f64> },
     Sphere { radius: f64, tolerance: Option<f64> },
     Boolean { operation: BooleanOp, left_brep: String, right_brep: String, tolerance: Option<f64> },
+    Transform { brep: String, translation: [f64; 3], origin: [f64; 3], axis: [f64; 3], radians: f64, scale: f64, tolerance: Option<f64> },
     Inspect { brep: String, tolerance: Option<f64> },
     Tessellate { brep: String, linear_deflection: f64, angular_deflection: f64, tolerance: Option<f64> },
     ToStep { breps: Vec<String>, tolerance: Option<f64> },
@@ -245,6 +246,13 @@ pub fn execute(request: WorkerRequest) -> Result<WorkerResponse, String> {
             let solids = backend.boolean(op, &left, &right).map_err(|e| e.to_string())?;
             encode_solids(&backend, solids)
         }
+        WorkerRequest::Transform { brep, translation, origin, axis, radians, scale, tolerance } => {
+            let backend = kernel(tolerance)?;
+            let source = exact_one(&backend, &brep)?;
+            let solid = backend.transform(&source, vector(translation), vector(origin), vector(axis), radians, scale)
+                .map_err(|e| e.to_string())?;
+            encode_solids(&backend, vec![solid])
+        }
         WorkerRequest::Inspect { brep, tolerance } => {
             let backend = kernel(tolerance)?;
             let solid = exact_one(&backend, &brep)?;
@@ -329,6 +337,31 @@ mod tests {
         let shapes = result["solids"].as_array().unwrap();
         assert_eq!(shapes.len(), 1);
         shapes[0]["brep"].as_str().unwrap().to_owned()
+    }
+
+    #[test]
+    fn transform_checks_bounds_volume_and_step() {
+        let source = one_brep(json!({"op":"box","min":[0.,0.,0.],"max":[2.,3.,4.]}));
+        let request = json!({"op":"transform","brep":source,"translation":[10.,0.,0.],
+            "origin":[1.,1.,0.],"axis":[0.,0.,2.],"radians":std::f64::consts::FRAC_PI_2,"scale":2.});
+        let transformed = one_brep(request.clone());
+        let checked = call(json!({"op":"inspect","brep":transformed}));
+        assert!((checked["solids"][0]["volume"].as_f64().unwrap()-192.).abs()<1e-7);
+        let proxy = call(json!({"op":"tessellate","brep":transformed,"linear_deflection":0.1,"angular_deflection":0.4}));
+        let vertices = proxy["mesh"]["vertices"].as_array().unwrap();
+        for (axis, lower, upper) in [(0,7.,13.), (1,-1.,3.), (2,0.,8.)] {
+            let min = vertices.iter().map(|v| v[axis].as_f64().unwrap()).fold(f64::INFINITY,f64::min);
+            let max = vertices.iter().map(|v| v[axis].as_f64().unwrap()).fold(f64::NEG_INFINITY,f64::max);
+            assert!((min-lower).abs()<1e-7 && (max-upper).abs()<1e-7,"{axis}: {min}..{max}");
+        }
+        let step = call(json!({"op":"to_step","breps":[transformed]}));
+        let restored = call(json!({"op":"from_step","step":step["step"]}));
+        assert!((restored["solids"][0]["volume"].as_f64().unwrap()-192.).abs()<1e-7);
+        assert!((call(json!({"op":"inspect","brep":source}))["solids"][0]["volume"].as_f64().unwrap()-24.).abs()<1e-7);
+        for (field, value) in [("scale",json!(0.)),("scale",json!(-1.)),("scale",json!(1e12)),("axis",json!([0.,0.,0.]))] {
+            let mut invalid = request.clone(); invalid[field] = value;
+            assert_eq!(call(invalid)["ok"],false);
+        }
     }
 
     #[test]

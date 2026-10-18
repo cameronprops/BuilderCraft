@@ -22,6 +22,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("brep.cylinder", "Exact BRep Cylinder (OCCT)", cylinder).params("{name,radius,height:[dx,dy,dz],tolerance?}"),
         CommandSpec::new("brep.boolean", "Exact BRep Boolean (OCCT)", boolean)
             .params("{name,left_id,right_id,operation:union|difference|intersection,tolerance?}"),
+        CommandSpec::new("brep.transform", "Transform Exact Solid (OCCT)", transform)
+            .params("{id,translation:[x,y,z],origin:[x,y,z],axis:[x,y,z],radians,scale,tolerance?}; scale then rotate about origin, then translate; replaces solid"),
         CommandSpec::new("brep.from_step", "Import Exact Solids from STEP", from_step).params("{name,step:base64,tolerance?}"),
         CommandSpec::new("brep.to_step", "Export Exact Solids to STEP", to_step).params("{ids:[id,...],tolerance?}").noundo(),
         CommandSpec::new("brep.inspect", "Inspect Exact Solid Topology", inspect).params("{id,tolerance?}").noundo(),
@@ -157,6 +159,32 @@ fn boolean(s: &mut Session, p: &Value) -> Result<Value> {
     add_worker_shapes(s, p, call_worker(&req)?)
 }
 
+fn transform(s: &mut Session, p: &Value) -> Result<Value> {
+    let id = uid(p, "id")?;
+    for field in ["translation", "origin", "axis"] {
+        if !p.get(field).and_then(Value::as_array).is_some_and(|v| v.len() == 3 && v.iter().all(|n| n.as_f64().is_some_and(f64::is_finite))) {
+            return Err(fail(format!("{field} must be a finite 3-vector")));
+        }
+    }
+    let length = p["axis"].as_array().into_iter().flatten().filter_map(Value::as_f64).fold(0.0_f64, f64::hypot);
+    if !length.is_finite() || length <= 1e-12 {
+        return Err(fail("rotation axis must be nonzero"));
+    }
+    if !p.get("radians").and_then(Value::as_f64).is_some_and(f64::is_finite) {
+        return Err(fail("rotation radians must be finite"));
+    }
+    let scale = positive(p, "scale")?;
+    if !(1e-6..=1e6).contains(&scale) {
+        return Err(fail("uniform scale must be between 1e-6 and 1e6"));
+    }
+    let source = get(s, id)?;
+    let req = json!({"op":"transform","brep":source.brep.as_str(),
+        "translation":p["translation"],"origin":p["origin"],"axis":p["axis"],
+        "radians":p["radians"],"scale":scale,"tolerance":tolerance(p)?});
+    let parameters = json!({"name":source.name});
+    store_worker_shapes(s, &parameters, call_worker(&req)?, Some(id))
+}
+
 fn from_step(s: &mut Session, p: &Value) -> Result<Value> {
     name(p)?;
     let step = p
@@ -215,17 +243,27 @@ fn preview(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn add_worker_shapes(s: &mut Session, p: &Value, reply: Value) -> Result<Value> {
+    store_worker_shapes(s, p, reply, None)
+}
+
+fn store_worker_shapes(s: &mut Session, p: &Value, reply: Value, replace: Option<u64>) -> Result<Value> {
     let label = name(p)?.to_string();
     let before = s.state()?.revision;
     let solids =
         reply.get("solids").and_then(Value::as_array).filter(|v| v.len() <= MAX_SOLIDS).ok_or_else(|| fail("bounded worker solids array missing"))?;
-    if object_count(s)?.checked_add(solids.len()).is_none_or(|n| n > MAX_MODEL_OBJECTS) {
+    if replace.is_some() && solids.len() != 1 {
+        return Err(fail("transform must return exactly one solid"));
+    }
+    if object_count(s)?.checked_add(if replace.is_some() { 0 } else { solids.len() }).is_none_or(|n| n > MAX_MODEL_OBJECTS) {
         return Err(fail("3D object budget exceeded"));
     }
     let mut total = 0usize;
     let mut staged = Vec::with_capacity(solids.len());
     let source = s.doc()?;
     for original in &source.exact_breps {
+        if replace == Some(original.id) {
+            continue;
+        }
         total = total.checked_add(original.brep.len().saturating_mul(3) / 4).ok_or_else(|| fail("BRep storage budget overflow"))?;
     }
     for (index, item) in solids.iter().enumerate() {
@@ -272,6 +310,17 @@ fn add_worker_shapes(s: &mut Session, p: &Value, reply: Value) -> Result<Value> 
     }
     if s.state()?.revision != before {
         return Err(fail("document revision changed during BRep execution"));
+    }
+    if let Some(id) = replace {
+        let updated = staged.pop().ok_or_else(|| fail("transformed solid missing"))?;
+        let object = s.doc_mut()?.exact_breps.iter_mut().find(|o| o.id == id).ok_or_else(|| fail("transformed object was removed"))?;
+        // Identity and organization survive an exact geometry replacement.
+        object.brep = updated.brep;
+        object.volume = updated.volume;
+        object.faces = updated.faces;
+        object.edges = updated.edges;
+        return Ok(json!({"ids":[id],"count":1,"representation":"exact_occt_brep",
+            "source_revision":before,"undoable":true}));
     }
     let existing_handseed = s.doc()?.handseed;
     if existing_handseed == u64::MAX || existing_handseed.checked_add(staged.len() as u64).is_none() {
@@ -369,6 +418,47 @@ fn call_worker(request: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn invalid_transforms_leave_document_unchanged() {
+        let mut s = Session::new();
+        let before = format!("{:?}", s.state().unwrap());
+        let p = json!({"id":1,"translation":[0.,0.,0.],"origin":[0.,0.,0.],"axis":[0.,0.,1.],"radians":0.,"scale":1.});
+        for (field, value) in [("scale", json!(0.)), ("axis", json!([0., 0., 0.])), ("translation", json!([0., 0.])), ("radians", Value::Null)] {
+            let mut invalid = p.clone();
+            invalid[field] = value;
+            assert!(s.execute("brep.transform", &invalid).is_err());
+            assert_eq!(before, format!("{:?}", s.state().unwrap()));
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn exact_transform_preserves_identity_and_undo_when_worker_is_installed() {
+        if std::env::var_os("WORLDWRIGHT_BREP_WORKER").is_none() {
+            return;
+        }
+        let mut s = Session::new();
+        let result = s.execute("brep.box", &json!({"name":"Source","min":[0.,0.,0.],"max":[2.,3.,4.]})).unwrap();
+        let id = result["ids"][0].as_u64().unwrap();
+        let before = get(&s, id).unwrap().clone();
+        let seed = s.doc().unwrap().handseed;
+        s.execute("brep.transform", &json!({"id":id,"translation":[5.,0.,0.],"origin":[1.,1.,0.],"axis":[0.,0.,1.],"radians":1.,"scale":2.}))
+            .unwrap();
+        let after = get(&s, id).unwrap().clone();
+        assert_eq!(s.doc().unwrap().exact_breps.len(), 1);
+        assert_eq!(s.doc().unwrap().handseed, seed);
+        assert_eq!((&before.name, &before.layer, before.visible), (&after.name, &after.layer, after.visible));
+        assert!((after.volume - 192.).abs() < 1e-7);
+        assert_ne!(before.brep, after.brep);
+        let bytes = cadcraft_io::write(s.doc().unwrap(), "transformed.dftba").unwrap();
+        let reopened = cadcraft_io::read(&bytes, "transformed.dftba").unwrap();
+        assert_eq!(reopened.exact_breps[0].brep, after.brep);
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(get(&s, id).unwrap().brep, before.brep);
+        s.execute("redo", &json!({})).unwrap();
+        assert_eq!(get(&s, id).unwrap().brep, after.brep);
+    }
+
     #[test]
     fn native_worker_is_an_explicit_capability_not_a_mesh_fallback() {
         let mut s = Session::new();

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "operation": "brep.transform",
+  "status": "implemented_native_acceptance_tracked_by_ci",
+  "backend": "existing OCCT worker via Cadrum 0.8.20",
+  "requires": [
+    "exact BRep persistence",
+    "bounded worker protocol",
+    "document undo transactions"
+  ],
+  "interfaces": [
+    "CAD Inspector",
+    "engine JSON API/CLI"
+  ],
+  "orbweaver": "Pending exact-solid document reference and Bake boundary; must reuse worker transform",
+  "remaining": [
+    "gizmo",
+    "multi-selection",
+    "nonuniform scaling",
+    "reflection"
+  ],
+  "validation": "https://github.com/cameronprops/BuilderCraft/pull/63"
+}

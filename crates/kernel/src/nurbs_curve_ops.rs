@@ -54,12 +54,8 @@ fn insert_once(knots: &mut Vec<f64>, points: &mut Vec<Weighted>, p: usize, u: f6
         return Err(KernelError::Invalid("knot already at maximum interior multiplicity"));
     }
     let mut result = vec![Weighted { xyz: Vec3::ZERO, weight: 0.0 }; points.len() + 1];
-    for i in 0..=(k - p) {
-        result[i] = points[i];
-    }
-    for i in (k - s)..=n {
-        result[i + 1] = points[i];
-    }
+    result[..(k - p + 1)].copy_from_slice(&points[..(k - p + 1)]);
+    result[(k - s + 1)..(n + 2)].copy_from_slice(&points[(k - s)..(n + 1)]);
     for i in (k - p + 1)..=(k - s) {
         let denominator = knots[i + p] - knots[i];
         if denominator <= 0.0 {

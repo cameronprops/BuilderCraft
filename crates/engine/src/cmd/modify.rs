@@ -1062,8 +1062,24 @@ fn run_arraypolar(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({ "created": out.len() }))
 }
 
+fn check_draworder_targets(s: &Session, hs: &[Handle], command: &str) -> Result<()> {
+    let space = s.space();
+    let doc = s.doc()?;
+    for h in hs {
+        let entity = doc.entity(*h).ok_or_else(|| bad(command, format!("object {} does not exist", h.hex())))?;
+        if doc.space_of(*h).as_ref() != Some(&space) {
+            return Err(bad(command, format!("object {} is outside the current drawing space", h.hex())));
+        }
+        if doc.layer(&entity.common.layer).is_some_and(|layer| layer.locked) {
+            return Err(bad(command, format!("object {} is on locked layer {}", h.hex(), entity.common.layer)));
+        }
+    }
+    Ok(())
+}
+
 fn run_front(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
+    check_draworder_targets(s, &hs, "draworder.front")?;
     let space = s.space();
     let d = s.doc_mut()?;
     if let Some(st) = d.space_mut(&space) {
@@ -1076,6 +1092,7 @@ fn run_front(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn run_back(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
+    check_draworder_targets(s, &hs, "draworder.back")?;
     let space = s.space();
     let d = s.doc_mut()?;
     if let Some(st) = d.space_mut(&space) {

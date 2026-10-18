@@ -216,7 +216,8 @@ fn run_ellipse(s: &mut Session, p: &Value) -> Result<Value> {
     let c = point_req("ellipse", p, "center")?;
     let m = point_req("ellipse", p, "major")?;
     let ratio = f64_req("ellipse", p, "ratio")?;
-    if !(ratio > 0.0 && ratio <= 1.0) || !m.len().is_finite() || m.len() < 1e-12 {
+    let major_length = m.len();
+    if !(ratio > 0.0 && ratio <= 1.0 && major_length.is_finite() && major_length >= 1e-12) {
         return Err(bad("ellipse", "ratio must be in (0, 1] and major non-zero"));
     }
     let start = f64_or(p, "start", 0.0).to_radians();

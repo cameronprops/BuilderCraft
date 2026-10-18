@@ -56,6 +56,12 @@ const CASES: &[Case] = &[
     ("status", status_query_reports_current_layer),
     ("count", count_query_on_empty_blocks),
     ("donut", donut_creates_width_controlled_closed_outline),
+    ("circle.cd", circle_cd_uses_half_the_diameter),
+    ("circle.2p", circle_two_points_are_diameter_ends),
+    ("circle.3p", circle_three_points_finds_circumcircle),
+    ("arc.sce", arc_start_center_end_keeps_radius),
+    ("ellipse.axis", ellipse_axis_uses_half_minor_axis),
+    ("ellipse.arc", elliptical_arc_keeps_ratio),
 ];
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -483,6 +489,81 @@ fn donut_creates_width_controlled_closed_outline() {
             assert!((poly.const_width - 1.0).abs() < 1e-9);
         }
         other => panic!("expected donut polyline, got {other:?}"),
+    }
+}
+
+fn circle_cd_uses_half_the_diameter() {
+    let mut s = Session::new();
+    s.execute("circle.cd", &json!({"center": [1, 2], "diameter": 6})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Circle(c) => {
+            assert_eq!(c.radius, 3.0);
+            assert_eq!(c.center.x, 1.0);
+        }
+        other => panic!("expected circle, got {other:?}"),
+    }
+}
+
+fn circle_two_points_are_diameter_ends() {
+    let mut s = Session::new();
+    s.execute("circle.2p", &json!({"p1": [0, 0], "p2": [0, 6]})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Circle(c) => {
+            assert_eq!(c.radius, 3.0);
+            assert_eq!(c.center.y, 3.0);
+        }
+        other => panic!("expected circle, got {other:?}"),
+    }
+}
+
+fn circle_three_points_finds_circumcircle() {
+    let mut s = Session::new();
+    s.execute("circle.3p", &json!({"p1": [0, 0], "p2": [0, 4], "p3": [4, 0]})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Circle(c) => {
+            assert!((c.center.x - 2.0).abs() < 1e-9);
+            assert!((c.center.y - 2.0).abs() < 1e-9);
+            assert!((c.radius - 2.0 * 2.0_f64.sqrt()).abs() < 1e-9);
+        }
+        other => panic!("expected circle, got {other:?}"),
+    }
+}
+
+fn arc_start_center_end_keeps_radius() {
+    let mut s = Session::new();
+    s.execute("arc.sce", &json!({"start": [3, 0], "center": [0, 0], "end": [0, 3]})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Arc(a) => {
+            assert_eq!(a.radius, 3.0);
+            assert_eq!(a.center.x, 0.0);
+            assert_eq!(a.center.y, 0.0);
+        }
+        other => panic!("expected arc, got {other:?}"),
+    }
+}
+
+fn ellipse_axis_uses_half_minor_axis() {
+    let mut s = Session::new();
+    s.execute("ellipse.axis", &json!({"p1": [-4, 0], "p2": [4, 0], "distance": 2})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Ellipse(el) => {
+            assert!((el.major.x - 4.0).abs() < 1e-9);
+            assert!((el.ratio - 0.5).abs() < 1e-9);
+        }
+        other => panic!("expected ellipse, got {other:?}"),
+    }
+}
+
+fn elliptical_arc_keeps_ratio() {
+    let mut s = Session::new();
+    s.execute("ellipse.arc", &json!({"center": [0, 0], "major": [5, 0], "ratio": 0.5, "start": 0, "end": 90})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Ellipse(el) => {
+            assert_eq!(el.major.x, 5.0);
+            assert_eq!(el.ratio, 0.5);
+            assert!(el.start.is_finite() && el.end.is_finite());
+        }
+        other => panic!("expected elliptical arc, got {other:?}"),
     }
 }
 

@@ -352,6 +352,22 @@ fn explicitly_malformed_target_handles_never_silently_edit_selection() {
 }
 
 #[test]
+fn duplicated_explicit_handles_transform_each_entity_only_once() {
+    let mut s = Session::new();
+    let result = s.execute("line", &json!({"points": [[0, 0], [5, 0]]})).unwrap();
+    let handle = result["handles"][0].as_str().unwrap();
+    let moved = s.execute("move", &json!({"handles": [handle, handle], "delta": [2, 3]})).unwrap();
+    assert_eq!(moved["moved"], 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Line(line) => {
+            assert_eq!((line.a.x, line.a.y), (2.0, 3.0));
+            assert_eq!((line.b.x, line.b.y), (7.0, 3.0));
+        }
+        other => panic!("expected a single translated line, got {other:?}"),
+    }
+}
+
+#[test]
 fn every_registered_command_error_preserves_drawing_and_undo() {
     // This cross-cutting safety test does not certify successful command behavior.
     // Invalid requests must be atomic even when they fail late in a multi-step edit.

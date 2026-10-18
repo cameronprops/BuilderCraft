@@ -70,8 +70,8 @@ pub fn polyline_tangent_at_station(points: &[Vec3], station: f64) -> Result<Vec3
 /// offsets to the left of vertex order, negative to the right. Z values are
 /// preserved at each original station. A corner exceeding miter_limit fails
 /// rather than silently producing giant spikes. Output is an untrimmed
-/// polyline: it is NOT a planar-curve offset/region Boolean. Self-intersection,
-/// closed loops, reversals, and near-vertical XY edges are rejected. Global
+/// polyline: it is NOT a planar-curve offset/region Boolean. Closed loops,
+/// reversals and near-vertical XY edges are rejected. Global
 /// self-intersections are not detected or resolved.
 pub fn polyline_offset_xy(points: &[Vec3], distance: f64, miter_limit: f64) -> Result<Vec<Vec3>> {
     polyline_length(points)?; // coordinate and point-count validation

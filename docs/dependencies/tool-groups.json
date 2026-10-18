@@ -661,6 +661,18 @@
       "tree_item_broadcast": false
     },
     {
+      "kernel_operation": "kernel.surface.ruled",
+      "group": "geometry.surface",
+      "cad_command": "worldwright.surface.ruled",
+      "orbweaver_node": "orbweaver.surface.ruled",
+      "reference_inventory_id": null,
+      "reference_name": "Ruled Surface from Two NURBS Rails",
+      "relation": "exact_untrimmed_rational_subset",
+      "modifiers": [],
+      "graph_tree_parity": "regression_added_ci_pending",
+      "tree_item_broadcast": false
+    },
+    {
       "kernel_operation": "kernel.tree.validate",
       "group": "graph.list_tree",
       "cad_command": "worldwright.tree.validate",

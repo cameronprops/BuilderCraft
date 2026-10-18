@@ -310,6 +310,39 @@ fn failed_registered_command_restores_document_selection_and_redo() {
 }
 
 #[test]
+fn every_registered_command_error_preserves_drawing_and_undo() {
+    // This cross-cutting safety test does not certify successful command behavior.
+    // Invalid requests must be atomic even when they fail late in a multi-step edit.
+    for spec in command_specs() {
+        for request in [json!(null), json!({"invalid_probe": [1e308, -1e308]})] {
+            let mut s = Session::new();
+            let state = s.state().unwrap();
+            let uid = state.uid;
+            let document = state.doc.clone();
+            let revision = state.revision;
+            let undo_len = state.undo.len();
+            let redo_len = state.redo.len();
+            let selection = state.selection.clone();
+
+            if s.execute(spec.id, &request).is_err() {
+                let state = s.docs.iter().find(|doc| doc.uid == uid).unwrap_or_else(|| {
+                    panic!("{} discarded the open document when rejecting invalid params", spec.id)
+                });
+                assert!(
+                    std::sync::Arc::ptr_eq(&document, &state.doc),
+                    "{} changed the document despite returning an error",
+                    spec.id
+                );
+                assert_eq!(state.selection, selection, "{} changed selection on error", spec.id);
+                assert_eq!(state.revision, revision, "{} advanced revision on error", spec.id);
+                assert_eq!(state.undo.len(), undo_len, "{} changed undo on error", spec.id);
+                assert_eq!(state.redo.len(), redo_len, "{} changed redo on error", spec.id);
+            }
+        }
+    }
+}
+
+#[test]
 fn hostile_params_never_panic() {
     let mut s = Session::new();
     for c in command_specs() {

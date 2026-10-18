@@ -33,15 +33,25 @@ fn invalid_3d_polyline_point_does_not_disappear_silently() {
 fn overflowed_helix_rejects_without_publishing_geometry() {
     let mut s = Session::new();
     let before = s.state().unwrap().doc.clone();
-    assert!(s.execute("helix", &json!({
-        "center": [1.7e308, 0], "baseRadius": 1.7e308,
-        "topRadius": 1.7e308, "height": 3, "turns": 1
-    })).is_err());
+    assert!(
+        s.execute(
+            "helix",
+            &json!({
+                "center": [1.7e308, 0], "baseRadius": 1.7e308,
+                "topRadius": 1.7e308, "height": 3, "turns": 1
+            })
+        )
+        .is_err()
+    );
     assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
-    s.execute("helix", &json!({
-        "center": [0, 0], "baseRadius": 2,
-        "topRadius": 2, "height": 7, "turns": 1
-    })).unwrap();
+    s.execute(
+        "helix",
+        &json!({
+            "center": [0, 0], "baseRadius": 2,
+            "topRadius": 2, "height": 7, "turns": 1
+        }),
+    )
+    .unwrap();
     match &s.doc().unwrap().model.iter().next().unwrap().kind {
         EntityKind::Polyline3d(pl) => {
             assert!(pl.points.len() >= 36);

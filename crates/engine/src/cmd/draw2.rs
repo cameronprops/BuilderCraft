@@ -754,7 +754,16 @@ fn run_divide(s: &mut Session, p: &Value) -> Result<Value> {
     let block = str_param(p, "block").map(str::to_string);
     check_block(s, block.as_deref())?;
     let c = chain_of(s, h)?;
+    let expected = if c.closed { n } else { n - 1 };
+    // The command reports each division marker it creates. Never silently
+    // drop unresolvable stations or allocate an unbounded marker set.
+    if expected > MAX_GEN as u64 {
+        return Err(bad("divide", format!("requested division would generate more than {MAX_GEN} markers")));
+    }
     let pts = divide_points(&c, n as usize);
+    if pts.len() != expected as usize {
+        return Err(bad("divide", format!("could place only {} of {expected} requested markers; drawing unchanged", pts.len())));
+    }
     let hs = place_markers(s, &pts, block.as_deref(), bool_or(p, "align", true))?;
     Ok(json!({ "handles": hs }))
 }

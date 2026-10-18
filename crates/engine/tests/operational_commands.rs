@@ -232,7 +232,6 @@ fn mesh_listing_finds_created_object() {
     assert_eq!(listed["objects"][0]["id"], r["id"]);
 }
 
-
 fn polyline_maintains_closed_shape() {
     let mut s = Session::new();
     s.execute("pline", &json!({"vertices": [[0, 0], [4, 0], [4, 3]], "closed": true})).unwrap();
@@ -371,9 +370,10 @@ fn properties_set_changes_entity_color() {
     let mut s = Session::new();
     let h = line_handle(&mut s);
     s.execute("properties.set", &json!({"handles": [h], "color": 3})).unwrap();
-    let result = s.execute("properties", &json!({"handles": [h]})).unwrap();
+    let result = s.execute("properties", &json!({"handles": [h.clone()]})).unwrap();
     assert_eq!(result["count"], 1);
-    assert_eq!(s.doc().unwrap().model.len(), 1);
+    let handle = cadcraft_doc::Handle::parse_hex(&h).unwrap();
+    assert_eq!(s.doc().unwrap().entity(handle).unwrap().common.color, cadcraft_color::Color::Index(3));
 }
 
 fn drawing_inspection_counts_entities() {

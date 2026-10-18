@@ -62,6 +62,24 @@ const CASES: &[Case] = &[
     ("arc.sce", arc_start_center_end_keeps_radius),
     ("ellipse.axis", ellipse_axis_uses_half_minor_axis),
     ("ellipse.arc", elliptical_arc_keeps_ratio),
+    ("layer.delete", unused_layer_can_be_deleted),
+    ("laymcur", object_layer_becomes_current),
+    ("laymch", layer_match_moves_entity),
+    ("laycur", layer_current_moves_entities),
+    ("layiso", isolate_hides_other_layers),
+    ("layuniso", unisolate_restores_hidden_layers),
+    ("layoff", layer_off_hides_object_layer),
+    ("layon", all_layers_on_restores_visibility),
+    ("laylck", lock_object_layer),
+    ("layulk", unlock_object_layer),
+    ("layfrz", freeze_object_layer),
+    ("laythw", thaw_all_layers),
+    ("layerp", previous_layer_restores_prior_layer_flags),
+    ("layerstate.save", layer_state_save_records_snapshot),
+    ("layerstate.list", layer_state_list_reports_saved_name),
+    ("layerstate.restore", layer_state_restore_recovers_properties),
+    ("layerstate.rename", layer_state_rename_updates_identity),
+    ("layerstate.delete", layer_state_delete_removes_saved_state),
 ];
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -565,6 +583,160 @@ fn elliptical_arc_keeps_ratio() {
         }
         other => panic!("expected elliptical arc, got {other:?}"),
     }
+}
+
+
+fn model_layer(s: &Session) -> String {
+    s.doc().unwrap().model.iter().next().unwrap().common.layer.clone()
+}
+
+fn line_on_layer(s: &mut Session, name: &str) -> String {
+    s.execute("layer.new", &json!({"name": name, "current": true})).unwrap();
+    line_handle(s)
+}
+
+fn unused_layer_can_be_deleted() {
+    let mut s = Session::new();
+    s.execute("layer.new", &json!({"name":"Temp"})).unwrap();
+    s.execute("layer.delete", &json!({"name":"Temp"})).unwrap();
+    assert!(s.doc().unwrap().layer("Temp").is_none());
+}
+
+fn object_layer_becomes_current() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Scenic");
+    s.execute("layer.current", &json!({"name":"0"})).unwrap();
+    s.execute("laymcur", &json!({"handles":[h]})).unwrap();
+    assert_eq!(s.doc().unwrap().header.str("CLAYER", "0"), "Scenic");
+}
+
+fn layer_match_moves_entity() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    s.execute("laymch", &json!({"handles":[h], "layer":"Rigging"})).unwrap();
+    assert_eq!(model_layer(&s), "Rigging");
+    assert!(s.doc().unwrap().layer("Rigging").is_some());
+}
+
+fn layer_current_moves_entities() {
+    let mut s = Session::new();
+    let h = line_handle(&mut s);
+    s.execute("layer.new", &json!({"name":"Rockwork", "current":true})).unwrap();
+    s.execute("laycur", &json!({"handles":[h]})).unwrap();
+    assert_eq!(model_layer(&s), "Rockwork");
+}
+
+fn isolate_hides_other_layers() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Foreground");
+    s.execute("layer.new", &json!({"name":"Background"})).unwrap();
+    s.execute("layiso", &json!({"handles":[h]})).unwrap();
+    assert!(s.doc().unwrap().layer("Foreground").unwrap().on);
+    assert!(!s.doc().unwrap().layer("Background").unwrap().on);
+}
+
+fn unisolate_restores_hidden_layers() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Foreground");
+    s.execute("layer.new", &json!({"name":"Background"})).unwrap();
+    s.execute("layiso", &json!({"handles":[h]})).unwrap();
+    s.execute("layuniso", &json!({})).unwrap();
+    assert!(s.doc().unwrap().layer("Background").unwrap().on);
+}
+
+fn layer_off_hides_object_layer() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Effects");
+    s.execute("layoff", &json!({"handles":[h]})).unwrap();
+    assert!(!s.doc().unwrap().layer("Effects").unwrap().on);
+}
+
+fn all_layers_on_restores_visibility() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Effects");
+    s.execute("layoff", &json!({"handles":[h]})).unwrap();
+    s.execute("layon", &json!({})).unwrap();
+    assert!(s.doc().unwrap().layer("Effects").unwrap().on);
+}
+
+fn lock_object_layer() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Safe");
+    s.execute("laylck", &json!({"handles":[h]})).unwrap();
+    assert!(s.doc().unwrap().layer("Safe").unwrap().locked);
+}
+
+fn unlock_object_layer() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Safe");
+    s.execute("laylck", &json!({"handles":[h.clone()]})).unwrap();
+    s.execute("layulk", &json!({"handles":[h]})).unwrap();
+    assert!(!s.doc().unwrap().layer("Safe").unwrap().locked);
+}
+
+fn freeze_object_layer() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Scenic");
+    s.execute("layer.current", &json!({"name":"0"})).unwrap();
+    s.execute("layfrz", &json!({"handles":[h]})).unwrap();
+    assert!(s.doc().unwrap().layer("Scenic").unwrap().frozen);
+}
+
+fn thaw_all_layers() {
+    let mut s = Session::new();
+    s.execute("layer.new", &json!({"name":"Closed", "frozen":true})).unwrap();
+    assert!(s.doc().unwrap().layer("Closed").unwrap().frozen);
+    s.execute("laythw", &json!({})).unwrap();
+    assert!(!s.doc().unwrap().layer("Closed").unwrap().frozen);
+}
+
+fn previous_layer_restores_prior_layer_flags() {
+    let mut s = Session::new();
+    let h = line_on_layer(&mut s, "Draft");
+    s.execute("layoff", &json!({"handles":[h]})).unwrap();
+    assert!(!s.doc().unwrap().layer("Draft").unwrap().on);
+    s.execute("layerp", &json!({})).unwrap();
+    assert!(s.doc().unwrap().layer("Draft").unwrap().on);
+}
+
+fn layer_state_save_records_snapshot() {
+    let mut s = Session::new();
+    s.execute("layer.new", &json!({"name":"Set"})).unwrap();
+    s.execute("layerstate.save", &json!({"name":"Opening"})).unwrap();
+    assert_eq!(s.doc().unwrap().layer_states[0].name, "Opening");
+    assert!(s.doc().unwrap().layer_states[0].layers.iter().any(|l| l.name=="Set"));
+}
+
+fn layer_state_list_reports_saved_name() {
+    let mut s = Session::new();
+    s.execute("layerstate.save", &json!({"name":"Reveal"})).unwrap();
+    let v = s.execute("layerstate.list", &json!({})).unwrap();
+    assert_eq!(v["states"][0]["name"], "Reveal");
+}
+
+fn layer_state_restore_recovers_properties() {
+    let mut s = Session::new();
+    s.execute("layer.new", &json!({"name":"Ambient", "color":2})).unwrap();
+    s.execute("layerstate.save", &json!({"name":"Clean"})).unwrap();
+    s.execute("layer.set", &json!({"name":"Ambient", "color":3, "on":false})).unwrap();
+    s.execute("layerstate.restore", &json!({"name":"Clean"})).unwrap();
+    let l = s.doc().unwrap().layer("Ambient").unwrap();
+    assert!(l.on);
+    assert_eq!(l.color, cadcraft_color::Color::Index(2));
+}
+
+fn layer_state_rename_updates_identity() {
+    let mut s = Session::new();
+    s.execute("layerstate.save", &json!({"name":"Scene1"})).unwrap();
+    s.execute("layerstate.rename", &json!({"from":"Scene1", "to":"Scene2"})).unwrap();
+    assert_eq!(s.doc().unwrap().layer_states[0].name, "Scene2");
+}
+
+fn layer_state_delete_removes_saved_state() {
+    let mut s = Session::new();
+    s.execute("layerstate.save", &json!({"name":"Scene1"})).unwrap();
+    s.execute("layerstate.delete", &json!({"name":"Scene1"})).unwrap();
+    assert!(s.doc().unwrap().layer_states.is_empty());
 }
 
 #[test]

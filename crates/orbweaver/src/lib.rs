@@ -248,10 +248,7 @@ mod tests {
         for control in &mut upper.control {
             control.z = 8.;
         }
-        let inputs = BTreeMap::from([
-            ("a".into(), ToolValue::Curve(lower.clone())),
-            ("b".into(), ToolValue::Curve(upper.clone())),
-        ]);
+        let inputs = BTreeMap::from([("a".into(), ToolValue::Curve(lower.clone())), ("b".into(), ToolValue::Curve(upper.clone()))]);
         let graph = Graph {
             version: GRAPH_SCHEMA_VERSION,
             nodes: vec![Node {

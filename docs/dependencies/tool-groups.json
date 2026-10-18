@@ -505,6 +505,70 @@
       ]
     },
     {
+      "kernel_operation": "kernel.polyline.point_at_station",
+      "group": "geometry.polyline",
+      "cad_command": "worldwright.polyline.point_at_station",
+      "orbweaver_node": "orbweaver.polyline.point_at_station",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [
+        "station",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.polyline.tangent_at_station",
+      "group": "geometry.polyline",
+      "cad_command": "worldwright.polyline.tangent_at_station",
+      "orbweaver_node": "orbweaver.polyline.tangent_at_station",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [
+        "station",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
+      "kernel_operation": "kernel.polyline.offset_xy",
+      "group": "geometry.polyline",
+      "cad_command": "worldwright.polyline.offset_xy",
+      "orbweaver_node": "orbweaver.polyline.offset_xy",
+      "reference_inventory_id": null,
+      "reference_name": null,
+      "relation": "polyline_only",
+      "modifiers": [
+        "distance",
+        "miter_limit",
+        "matching"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": true,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
       "kernel_operation": "kernel.array.linear",
       "group": "geometry.transforms",
       "cad_command": "worldwright.array.linear",

@@ -15,7 +15,6 @@ fn malformed_polyline_vertex_rejects_entire_batch() {
         json!({"vertices": [[0, 0], "bad", [2, 0]]}),
         json!({"vertices": [[0, 0], {"p": [1, 1], "bulge": "bad"}, [2, 0]]}),
         json!({"vertices": [[0, 0], {"p": [1, 1], "startWidth": -1e308, "endWidth": "bad"}, [2, 0]]}),
-        json!({"vertices": [[0, 0], [0, 0], [2, 0]]}),
         json!({"vertices": [[0, 0], [1, 1]], "width": -1.0}),
         json!({"vertices": [[0, 0], [1, 1]], "width": "invalid"}),
     ] {

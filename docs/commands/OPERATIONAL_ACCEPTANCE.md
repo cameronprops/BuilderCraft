@@ -30,14 +30,14 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**At authoring time:** 51 positive cases have been written. **314 of 365 still
-lack individually declared positive cases**. The first 17 passed the
-focused Rust 1.95 suite on Linux. The remaining 34 cases were incrementally authored, with previous groups tested
-on Linux; rerun CI against the most recent branch head before treating the
-complete 51-case set as passing. Existing
-unit tests also provide additional coverage that is not yet reconciled into
-this operational fixture ledger. This is not a claim that 348 commands are
-broken or that any newly authored test has run.
+**Current tranche (2026-10-18):** 69 positive success-path fixtures have been
+authored against 365 registered commands. **296 still lack positive entries in
+this ledger.** The initial 51 were verified by the complete focused CI suite
+on Linux and by Windows/macOS native validation in PR #78. The 18 new
+layer-management cases on this branch require their own run before they can
+be marked passing. Existing unit tests provide more un-reconciled coverage.
+A success-path case is not full per-command operational certification; see
+the five criteria below.
 
 ## Completion criteria for EACH command
 

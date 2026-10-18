@@ -1,0 +1,39 @@
+name: WorldWriter source backup for Drive
+on:
+  push:
+    branches:
+      - feature/worldwriter-associative-brep-rebuild-20261018
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout all branch and tag history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Make full Git bundle and exact source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backups
+          git bundle create backups/BuilderCraft-all-refs.bundle --all
+          git archive --format=tar HEAD | gzip -9 > backups/BuilderCraft-source-head.tar.gz
+          git rev-parse HEAD > backups/COMMIT.txt
+          git branch --show-current > backups/BRANCH.txt
+          (cd backups && sha256sum BuilderCraft-all-refs.bundle BuilderCraft-source-head.tar.gz > SHA256SUMS.txt)
+          git bundle verify backups/BuilderCraft-all-refs.bundle
+      - name: Publish verified portable repository backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: BuilderCraft-full-source-and-git-bundle
+          path: backups/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 1

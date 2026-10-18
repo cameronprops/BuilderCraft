@@ -20,6 +20,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface","polygonMesh","exactOcctBrep"],"nativeProject":"dftba","legacyNativeProject":"bcraft","solids":"nativeOCCTWorkerOptional","meshTools":true,"meshViewport":true,"viewportPicking":"orthographicPreviewWires","transient3dSelection":true,"changeSubscriptions":false,"constructionPlanePointInput":"orthographic","endpointSnapping":"exactCurveEndsAndSurfaceCorners","meshExchange":["stl","triangularObj"],"controlCurveFromPoints":true}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
         CommandSpec::new("nurbs.surface", "NURBS Control Surface", surface3d).params("{name, surface:{rows:[curve,...],degree_v,knots_v}}"),
+        CommandSpec::new("nurbs.surface.ruled", "Ruled Rational NURBS Surface", ruled_surface3d)
+            .params("{name, a_id, b_id, selected_revision?: number}"),
         CommandSpec::new("geometry3d.controlpoint", "Edit NURBS Control Point", controlpoint).params("{id,row?:0,index,point:[x,y,z]}"),
         CommandSpec::new("geometry3d.set", "Edit 3D Body", geometry3d_set).params("{id,name?,visible?}"),
         CommandSpec::new("geometry3d.list", "List 3D Geometry", |s, _| Ok(json!({"objects":s.doc()?.geometry3d}))).noundo(),
@@ -348,6 +350,38 @@ fn surface3d(s: &mut Session, p: &Value) -> Result<Value> {
     add3d(s, p, cadcraft_doc::organization::Shape::Surface(surface.into()))
 }
 
+/// Construct an untrimmed rational ruled patch from two document NURBS rails.
+/// The exact same kernel constructor is exposed to OrbWeaver, without mesh
+/// sampling or an alternate BRep authority. Sources remain untouched.
+fn ruled_surface3d(s: &mut Session, p: &Value) -> Result<Value> {
+    let _ = name(p)?;
+    let obj = p.as_object().ok_or_else(|| error("ruled surface options must be an object"))?;
+    if obj.keys().any(|key| !["name", "a_id", "b_id", "selected_revision"].contains(&key.as_str())) {
+        return Err(error("unsupported ruled surface option"));
+    }
+    let a_id = p.get("a_id").and_then(Value::as_u64).filter(|id| *id != 0).ok_or_else(|| error("a_id must be a curve ID"))?;
+    let b_id = p.get("b_id").and_then(Value::as_u64).filter(|id| *id != 0 && *id != a_id).ok_or_else(|| error("b_id must be a different curve ID"))?;
+    if let Some(revision) = p.get("selected_revision") {
+        let revision = revision.as_u64().ok_or_else(|| error("selected_revision must be numeric"))?;
+        if revision != s.state()?.revision {
+            return Err(error("selected geometry revision is stale"));
+        }
+    }
+    let source = s.doc()?;
+    let find_curve = |id| -> Result<std::sync::Arc<cadcraft_geom::nurbs3d::Curve>> {
+        let object = source.geometry3d.iter().find(|o| o.id == id).ok_or_else(|| error("NURBS rail not found"))?;
+        match &object.shape {
+            cadcraft_doc::organization::Shape::Curve(curve) => Ok(curve.clone()),
+            cadcraft_doc::organization::Shape::Surface(_) => Err(error("ruled surface rail must be a curve")),
+        }
+    };
+    let a = find_curve(a_id)?;
+    let b = find_curve(b_id)?;
+    let patch = cadcraft_geom::nurbs3d::ruled_surface(&a, &b)
+        .ok_or_else(|| error("ruled surface needs compatible, distinct rational NURBS rails"))?;
+    add3d(s, p, cadcraft_doc::organization::Shape::Surface(patch.into()))
+}
+
 fn geometry3d_set(s: &mut Session, p: &Value) -> Result<Value> {
     let id = id(p)?;
     let name = if p.get("name").is_some() { Some(name(p)?) } else { None };
@@ -486,6 +520,40 @@ mod tests {
             )
             .unwrap();
         (s, result["id"].clone())
+    }
+    #[test]
+    fn ruled_nurbs_document_roundtrip_undo_and_failure_are_atomic() {
+        use cadcraft_geom::{Vec3, nurbs3d::Curve};
+        let mut s = Session::new();
+        let first = Curve::from_control(vec![Vec3::new(0., 0., 0.), Vec3::new(4., 0., 0.)], 1).unwrap();
+        let second = Curve::from_control(vec![Vec3::new(0., 0., 3.), Vec3::new(4., 0., 3.)], 1).unwrap();
+        let a = s.execute("nurbs.curve3d", &json!({"name":"Lower rail","curve":first})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("nurbs.curve3d", &json!({"name":"Upper rail","curve":second})).unwrap()["id"].as_u64().unwrap();
+        let revision = s.state().unwrap().revision;
+        let result = s.execute("nurbs.surface.ruled", &json!({"name":"Skin","a_id":a,"b_id":b,"selected_revision":revision})).unwrap();
+        let id = result["id"].as_u64().unwrap();
+        assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
+        let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+        let cadcraft_doc::organization::Shape::Surface(patch) = &object.shape else { panic!("ruled surface should persist exact rational control geometry") };
+        assert_eq!(patch.rows.len(), 2);
+        assert!((patch.evaluate(0.5, 0.5).unwrap() - Vec3::new(2., 0., 1.5)).len() < 1e-12);
+        let bytes = cadcraft_io::write(s.doc().unwrap(), "ruled-fixture.dftba").unwrap();
+        let reopened = cadcraft_io::read(&bytes, "ruled-fixture.dftba").unwrap();
+        assert_eq!(reopened.geometry3d.len(), 3);
+        assert_eq!(reopened.geometry3d[2].shape, object.shape);
+        let revision = s.state().unwrap().revision;
+        for invalid in [
+            json!({"name":"Bad","a_id":a,"b_id":a}),
+            json!({"name":"Bad","a_id":a,"b_id":999999}),
+            json!({"name":"Bad","a_id":a,"b_id":b,"selected_revision":0}),
+            json!({"name":"Bad","a_id":a,"b_id":b,"extra_option":true}),
+        ] {
+            assert!(s.execute("nurbs.surface.ruled", &invalid).is_err());
+            assert_eq!(s.state().unwrap().revision, revision);
+            assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
+        }
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().geometry3d.len(), 2);
     }
     #[test]
     fn capabilities_match_native_format_and_viewport_scope() {

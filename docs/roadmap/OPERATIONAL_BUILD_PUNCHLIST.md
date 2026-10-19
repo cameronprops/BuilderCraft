@@ -32,8 +32,10 @@ before parents, do not bypass failing CI, and verify `main` after every merge.
 **Certification starts with PR #126, independent of fixture-count expansion.**
 On merged `main`, 166 / 396 registered commands have a positive-path
 acceptance fixture. **0 are yet proven to satisfy all five certification
-gates across the required CI platforms.** Three read-only foundational point
-operations are certification candidates, not certified releases.
+gates across the required CI platforms.** Three read-only point operations from merged #126 and three stateful 2D
+operations from proposed #127 are certification candidates, not certified
+releases. The latter must still validate interactive command flows in a
+real application before promotion.
 
 - Automated certification suite:
   `cargo test --locked -p cadcraft-engine --test command_certification`
@@ -46,6 +48,13 @@ operations are certification candidates, not certified releases.
   checks, plus explicit interface applicability review
 - Stateful geometry commands require a second certification tranche with
   actual undo/redo and saved/reopened geometry, not read-only exemptions
+
+**Stateful certification PR #127:** Line, Move and Copy are tested by
+`crates/engine/tests/stateful_command_certification.rs`, with exact geometry
+and handles, failure-state preservation, native `.dftba` roundtrips,
+undo/redo, command parameters/aliases, and bounded repetition. This is
+an engineering certification **candidate**, not a desktop interaction
+certification or a claim that all five gates passed across platforms.
 
 ## Definition of "operational alpha" (release-blocking)
 

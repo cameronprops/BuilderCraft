@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 59,
-    "explicit_dependencies_mapped": 41,
-    "pending_source_review": 18,
-    "paired": 26
+    "total": 74,
+    "explicit_dependencies_mapped": 55,
+    "pending_source_review": 19,
+    "paired": 42
   },
   "entries": [
     {
@@ -321,6 +321,152 @@
       ],
       "dependency_basis": "source_inspected_or_dataflow",
       "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.point_at_station",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.tangent_at_station",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.polyline.offset_xy",
+      "group": "geometry.polyline",
+      "depends_on": [
+        "kernel.polyline.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "polyline",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.join",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.split",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.point_at_station"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.trim",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.point_at_station"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.extend",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.length"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.rebuild",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.point_at_station"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.offset",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.offset_xy"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.pipe",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.curve.sweep1"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.sweep1",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.length",
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.sweep2",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.polyline.length",
+        "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.nurbs.evaluate",
+      "group": "geometry.curve",
+      "depends_on": [],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.nurbs.split",
+      "group": "geometry.curve",
+      "depends_on": [],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.nurbs.trim",
+      "group": "geometry.curve",
+      "depends_on": [],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
       "paired_cad_graph": true
     },
     {

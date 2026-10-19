@@ -53,6 +53,17 @@
       "scope": "Variable-radius curvature-continuous BRep edge blend with exact topology"
     },
     {
+      "rhino_command": "VariableBlendSrf",
+      "status": "planned",
+      "requires": [
+        "surface_edge_correspondence",
+        "surface_derivatives",
+        "variable_radius_section_solver",
+        "brep_intersection_trim_join"
+      ],
+      "scope": "Two intersecting surface edges; variable-radius handles, rolling-ball/distance-between-rails modes, preview, trim-and-join, local maximum feasible-radius feedback"
+    },
+    {
       "rhino_command": "BlendCrv tangent/curvature/G3/G4 modifiers",
       "status": "planned",
       "requires": [

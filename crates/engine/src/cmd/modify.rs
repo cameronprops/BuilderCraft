@@ -823,8 +823,19 @@ pub(crate) fn fillet_lines(
     let k2 = keep(&l2, p2);
     let u1 = (k1 - x).normalized();
     let u2 = (k2 - x).normalized();
+    // A fillet is restricted to the two existing finite segment portions on
+    // the picked sides of their infinite-line intersection. Report the maximum
+    // radius instead of silently extending the lines or creating inverted ends.
+    let leg1 = (k1 - x).len();
+    let leg2 = (k2 - x).len();
     let mut new_arc = None;
     let (t1, t2) = if let Some((d1, d2)) = chamfer {
+        if d1 > leg1 + 1e-9 || d2 > leg2 + 1e-9 {
+            return Err(bad(
+                command,
+                format!("chamfer distances exceed selected segments; maximum d1={leg1:.6}, d2={leg2:.6} drawing units"),
+            ));
+        }
         (x + u1 * d1, x + u2 * d2)
     } else if radius <= 1e-12 {
         (x, x)
@@ -832,6 +843,16 @@ pub(crate) fn fillet_lines(
         let half = u1.dot(u2).clamp(-1.0, 1.0).acos() / 2.0;
         if half.sin().abs() < 1e-12 {
             return Err(EngineError::Other("Lines are parallel.".into()));
+        }
+        let max_radius = leg1.min(leg2) * half.tan();
+        if !max_radius.is_finite() || max_radius <= 1e-12 {
+            return Err(bad(command, "no positive-radius fillet fits the selected segment lengths and angle"));
+        }
+        if radius > max_radius + 1e-9 {
+            return Err(bad(
+                command,
+                format!("requested radius {radius:.6} exceeds maximum feasible radius {max_radius:.6} drawing units for the selected line segments"),
+            ));
         }
         let dist = radius / half.tan();
         let t1 = x + u1 * dist;
@@ -882,7 +903,9 @@ fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
     let h1 = h_param(p, "h1").ok_or_else(|| bad("fillet", "`h1` is required"))?;
     let h2 = h_param(p, "h2").ok_or_else(|| bad("fillet", "`h2` is required"))?;
     let r = match p.get("radius") {
-        Some(value) => value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("fillet", "radius must be a finite non-negative number"))?,
+        Some(value) => {
+            value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("fillet", "radius must be a finite non-negative number"))?
+        }
         None => s.doc()?.header.f64("FILLETRAD", 0.0),
     };
     let p1 = point_param(p, "p1").unwrap_or_default();
@@ -895,11 +918,15 @@ fn run_chamfer(s: &mut Session, p: &Value) -> Result<Value> {
     let h1 = h_param(p, "h1").ok_or_else(|| bad("chamfer", "`h1` is required"))?;
     let h2 = h_param(p, "h2").ok_or_else(|| bad("chamfer", "`h2` is required"))?;
     let d1 = match p.get("d1") {
-        Some(value) => value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("chamfer", "d1 must be a finite non-negative number"))?,
+        Some(value) => {
+            value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("chamfer", "d1 must be a finite non-negative number"))?
+        }
         None => s.doc()?.header.f64("CHAMFERA", 0.0),
     };
     let d2 = match p.get("d2") {
-        Some(value) => value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("chamfer", "d2 must be a finite non-negative number"))?,
+        Some(value) => {
+            value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("chamfer", "d2 must be a finite non-negative number"))?
+        }
         None => d1,
     };
     let p1 = point_param(p, "p1").unwrap_or_default();

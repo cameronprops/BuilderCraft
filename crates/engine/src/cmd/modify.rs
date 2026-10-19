@@ -67,12 +67,12 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("fillet", "Fillet", run_fillet)
             .menu(&["Modify", "Fillet"])
             .alias(&["f"])
-            .params("{h1, p1, h2, p2, radius?} (lines, arcs, circles) | {handle, polyline: true, radius?}")
+            .params("{h1, p1, h2, p2, radius?, limitsOnly?:bool} (lines, arcs, circles) | {handle, polyline: true, radius?}")
             .interactive(|s| Ok(Box::new(FilletM::new(s, false)))),
         CommandSpec::new("chamfer", "Chamfer", run_chamfer)
             .menu(&["Modify", "Chamfer"])
             .alias(&["cha"])
-            .params("{h1, p1, h2, p2, d1?, d2?}")
+            .params("{h1, p1, h2, p2, d1?, d2?, limitsOnly?:bool}")
             .interactive(|s| Ok(Box::new(FilletM::new(s, true)))),
         CommandSpec::new("explode", "Explode", run_explode)
             .menu(&["Modify", "Explode"])
@@ -772,6 +772,46 @@ fn as_line(e: &Entity) -> Option<Line> {
     }
 }
 
+/// Non-destructive maximums for the two finite line legs selected by pick points.
+/// Uses the same kept-end and half-angle convention as fillet_lines.
+fn finite_line_corner_limits(s: &Session, h1: Handle, p1: Vec2, h2: Handle, p2: Vec2, command: &str) -> Result<(f64, f64, f64)> {
+    if h1 == h2 {
+        return Err(bad(command, "select two different objects"));
+    }
+    let drawing = s.doc()?;
+    for h in [h1, h2] {
+        let entity = drawing.entity(h).ok_or_else(|| bad(command, format!("object {} does not exist", h.hex())))?;
+        if drawing.space_of(h).as_ref() != Some(&s.space()) {
+            return Err(bad(command, format!("object {} is outside the active drawing space", h.hex())));
+        }
+        if drawing.layer(&entity.common.layer).is_some_and(|layer| layer.locked) {
+            return Err(bad(command, format!("object {} is on locked layer {}", h.hex(), entity.common.layer)));
+        }
+    }
+    let l1 = drawing.entity(h1).and_then(|e| as_line(e)).ok_or_else(|| bad(command, "limits query requires two finite lines"))?;
+    let l2 = drawing.entity(h2).and_then(|e| as_line(e)).ok_or_else(|| bad(command, "limits query requires two finite lines"))?;
+    let (intersection, _, _) = line_line_infinite(l1.a, l1.b, l2.a, l2.b).ok_or_else(|| bad(command, "lines are parallel or degenerate"))?;
+    let kept = |line: &Line, pick: Vec2| {
+        let a = (line.a - intersection).dot(pick - intersection);
+        let b = (line.b - intersection).dot(pick - intersection);
+        if a >= b { line.a } else { line.b }
+    };
+    let leg1 = kept(&l1, p1) - intersection;
+    let leg2 = kept(&l2, p2) - intersection;
+    let length1 = leg1.len();
+    let length2 = leg2.len();
+    if !length1.is_finite() || !length2.is_finite() || length1 <= 1e-12 || length2 <= 1e-12 {
+        return Err(bad(command, "selected legs do not have positive finite lengths"));
+    }
+    let half = leg1.normalized().dot(leg2.normalized()).clamp(-1.0, 1.0).acos() / 2.0;
+    let tangent = half.tan();
+    let max_radius = length1.min(length2) * tangent;
+    if !max_radius.is_finite() || max_radius <= 1e-12 {
+        return Err(bad(command, "selected legs do not define a positive finite fillet radius"));
+    }
+    Ok((length1, length2, max_radius))
+}
+
 /// Fillet (or chamfer) two lines. `p1`/`p2` mark the kept side of each line.
 pub(crate) fn fillet_lines(
     s: &mut Session,
@@ -912,6 +952,10 @@ fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
+    if bool_or(p, "limitsOnly", false) {
+        let (available_first, available_second, max_radius) = finite_line_corner_limits(s, h1, p1, h2, p2, "fillet")?;
+        return Ok(json!({ "maxRadius": max_radius, "availableFirst": available_first, "availableSecond": available_second }));
+    }
     let a = fillet_lines(s, h1, p1, h2, p2, r, None)?;
     Ok(json!({ "arc": a.map(|h| h.hex()) }))
 }
@@ -933,6 +977,10 @@ fn run_chamfer(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
+    if bool_or(p, "limitsOnly", false) {
+        let (max_d1, max_d2, _) = finite_line_corner_limits(s, h1, p1, h2, p2, "chamfer")?;
+        return Ok(json!({ "maxD1": max_d1, "maxD2": max_d2 }));
+    }
     let a = fillet_lines(s, h1, p1, h2, p2, 0.0, Some((d1, d2)))?;
     Ok(json!({ "line": a.map(|h| h.hex()) }))
 }

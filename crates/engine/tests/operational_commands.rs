@@ -592,7 +592,9 @@ fn ruled_surface_preserves_exact_control_rails() {
         .unwrap();
     assert_eq!(direct["output"], graph["output"]);
     assert_eq!(direct["output"]["kind"], "surface");
-    assert_eq!(direct["output"]["value"]["degree_u"], 1);
+    assert_eq!(direct["output"]["value"]["rows"][0]["degree"], 1);
+    assert_eq!(direct["output"]["value"]["rows"][1]["degree"], 1);
+    assert_eq!(direct["output"]["value"]["rows"].as_array().unwrap().len(), 2);
     assert_eq!(direct["output"]["value"]["degree_v"], 1);
     assert_eq!(s.state().unwrap().revision, revision);
     assert!(s.doc().unwrap().model.is_empty());

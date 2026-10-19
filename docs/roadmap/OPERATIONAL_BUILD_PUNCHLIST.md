@@ -17,25 +17,26 @@ snapshot is retained for traceability and must not be treated as live GitHub sta
 | #121 | #120 | 159 / 396 | Covered by consolidated #122; close only after verified merge |
 | #122 | `main` | 166 / 396 | **MERGED** `66d4b4c`, post-merge CI passed |
 | #123 | `main` | unchanged | **MERGED** `f0b0e87`, indexed command lookup and CI de-duplication |
-| #124/#125 | `main` consolidated via #125 | 175 / 396 proposed | 9 new geometry fixtures; complete fresh native/OCCT CI required |
+| #124/#125 | `main`, consolidated via #125 | 175 / 396 | **MERGED** `743681f`, nine geometry acceptance fixtures |
 
 Reconciliation proof: the #122 fixture table contains all 149 IDs now on
 `main` plus 17 distinct new command IDs from #120-#122. Merge #122 only
 after fresh native, modeling, and exact BRep checks on the `main`-based
 commit; then verify post-merge `main` before closing #120/#121.
 
-**230 / 396** registered commands lack merged positive-path fixtures;
-**221 / 396** would remain without positive-path fixtures after #125 merges. New fixtures check real results
+**221 / 396** registered commands lack merged positive-path fixtures
+following the successful nine-case merge of #125. New fixtures check real results
 and do not constitute full operational certification. Do not merge descendants
 before parents, do not bypass failing CI, and verify `main` after every merge.
 
 ## Command-certification pipeline (2026-10-19)
 
 **Certification starts with PR #126, independent of fixture-count expansion.**
-On merged `main`, 166 / 396 registered commands have a positive-path
-acceptance fixture. **0 are yet proven to satisfy all five certification
-gates across the required CI platforms.** Three read-only foundational point
-operations are certification candidates, not certified releases.
+On merged `main`, 175 / 396 registered commands have a positive-path
+acceptance fixture. **Three read-only point-query operations have complete headless-specific
+evidence across required CI platforms.** Six stateful editing commands are
+still candidates pending native UI/host validation and final CI. Do not
+confuse the three certified headless interfaces with desktop commands.
 
 - Automated certification suite:
   `cargo test --locked -p cadcraft-engine --test command_certification`
@@ -48,6 +49,30 @@ operations are certification candidates, not certified releases.
   checks, plus explicit interface applicability review
 - Stateful geometry commands require a second certification tranche with
   actual undo/redo and saved/reopened geometry, not read-only exemptions
+
+**Stateful certification PR #127:** Line, Move and Copy are tested by
+`crates/engine/tests/stateful_command_certification.rs`, with exact geometry
+and handles, failure-state preservation, native `.dftba` roundtrips,
+undo/redo, command parameters/aliases, and bounded repetition. This is
+an engineering certification **candidate**, not a desktop interaction
+certification or a claim that all five gates passed across platforms.
+
+**Next certification tranche #128:** Rotate, Scale and Mirror extend #127's
+stateful Rust test suite and machine-readable ledger to **nine candidates**
+(three point-query operations, six stateful 2D modeling commands).
+The headless-certified count is **3** based on merged point-query evidence;
+all six stateful commands remain candidates until post-merge validation and
+applicable interactive desktop UI evidence are complete.
+The workflow is incremental and must not duplicate transform math.
+
+**Interactive engine tranche #129:** Six stateful command candidates now have
+executable prompt-engine acceptance tests for command-line aliases,
+selection, preview, invalid-input re-prompting, copy/erase choices,
+undo/redo, and `.dftba` persistence. The native engine test does not
+replace desktop UI click/keyboard/rendering integration. The certification
+ledger retains all six as candidates pending host UI verification and
+cross-platform CI. Legacy Line partial-cancel behavior remains preserved
+as one undoable edit until explicitly redesigned.
 
 ## Definition of "operational alpha" (release-blocking)
 

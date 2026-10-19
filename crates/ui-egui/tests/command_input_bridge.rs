@@ -65,9 +65,14 @@ fn cadapp_command_line_and_world_pointer_create_undoable_line() {
 fn cadapp_pointer_picking_then_move_respects_selection_history_and_cancel() {
     let ctx = egui::Context::default();
     let mut app = CadApp::new(Session::new(), Services::default());
-    let result = send(&mut app, &ctx, "engine.execute", json!({
-        "command": "line", "params": {"points": [[0.0, 0.0], [3.0, 4.0]]}
-    }));
+    let result = send(
+        &mut app,
+        &ctx,
+        "engine.execute",
+        json!({
+            "command": "line", "params": {"points": [[0.0, 0.0], [3.0, 4.0]]}
+        }),
+    );
     let handle = Handle::parse_hex(result["handles"][0].as_str().unwrap()).unwrap();
 
     // Real idle pointer hit-testing, not a hard-coded selected handle.
@@ -100,9 +105,14 @@ fn cadapp_pointer_picking_then_move_respects_selection_history_and_cancel() {
 fn cadapp_pointer_copy_retains_source_and_one_undo_group() {
     let ctx = egui::Context::default();
     let mut app = CadApp::new(Session::new(), Services::default());
-    let result = send(&mut app, &ctx, "engine.execute", json!({
-        "command":"line","params":{"points":[[0.0,0.0],[3.0,4.0]]}
-    }));
+    let result = send(
+        &mut app,
+        &ctx,
+        "engine.execute",
+        json!({
+            "command":"line","params":{"points":[[0.0,0.0],[3.0,4.0]]}
+        }),
+    );
     let source = Handle::parse_hex(result["handles"][0].as_str().unwrap()).unwrap();
     point(&mut app, &ctx, 1.5, 2.0);
     let started = send(&mut app, &ctx, "cmdline.input", json!({"text":"co"}));

@@ -7,12 +7,15 @@ API names, menu visibility or registration as functionality.
 
 ## Five-gate command certification begins now
 
-The positive-case registry covers **166 / 396** live engine command IDs on
+The positive-case registry covers **175 / 396** live engine command IDs on
 merged `main`. It does **not** certify them. The explicit certification ledger
 is [`certification-registry.json`](certification-registry.json). It currently
-records **0 fully certified commands** and three candidates in PR #126:
-`worldwright.point.distance`, `worldwright.point.midpoint`, and
-`worldwright.point.interpolate`.
+records **3 headless-certified commands** (Point Distance, Midpoint,
+Interpolate), plus **6 stateful command candidates** (Line, Move, Copy,
+Rotate, Scale, Mirror). Point-query certification is limited to their
+applicable read-only CAD/API/OrbWeaver interfaces; no desktop UI is claimed.
+Certification evidence is stored in the registry with the post-merge main
+commit and Linux/macOS/Windows workflow IDs.
 
 Each candidate is executable in
 `crates/engine/tests/command_certification.rs`, with five distinct gates:
@@ -25,11 +28,69 @@ parity; and bounded deterministic input stress. This establishes a
 cargo test --locked -p cadcraft-engine --test command_certification
 ```
 
-The three entries remain `candidate_ci_pending` until pinned Rust checks,
-all required platform CI, post-merge `main` checks, and applicability review
-are green. Do not silently promote candidates based on the existence of a
+The three point-query entries are now `certified_headless`, following
+successful pinned Rust, full post-merge Linux/macOS/Windows CI on commit
+`37d19b5`, and a headless interface applicability review. Do not silently promote candidates based on the existence of a
 test, or imply that read-only output persists in a drawing. Stateful commands
 must add meaningful undo, redo, save/reopen and UI tests before certification.
+
+**Transform certification tranche #128 (stacked on #127):**
+Rotate, Scale, and Mirror reuse the exact same stateful engine document
+transactions and certification helper. They check analytical geometry,
+copy and erase-source modifiers, source and generated object identities,
+invalid parameters, native save/reopen and undo/redo for 24 translated
+fixtures. These are **headless candidates**, not UI-certified operations.
+
+**Stateful certification tranche #127:**
+`crates/engine/tests/stateful_command_certification.rs` runs dimensioned
+Line, Move, Copy operations at multiple positions, checks generated and
+retained handles, rejects invalid input and replication over budget, asserts
+preserved selection/revision/undo/redo on failure, and tests undo/redo plus
+`.dftba` reopening for the modified model. CAD command registration, aliases,
+JSON parameters and interactive factory are checked as contract evidence;
+actual interactive mouse/keyboard UI verification remains a separate required
+gate. Passing this headless suite must not be presented as completed UI
+certification.
+
+
+## Signed-off headless certification (three commands)
+
+Point Distance, Midpoint and Interpolate are certified **for the read-only,
+headless CAD/API/OrbWeaver contract only**. Exact numerical expectations,
+malformed-input recovery, unchanged document/selection/history, native
+`.dftba` reopening, and 64 deterministic translated fixtures are checked
+by `command_certification.rs`. The merge commit `37d19b5` has passing
+post-merge native Rust run `39272999336` and exact OpenCascade run
+`39272999189`, including Linux, macOS and Windows.
+
+This scope does not certify viewport mouse/keyboard operations or desktop UI.
+The registry's `certified_count` counts only this explicitly labeled scope.
+All six stateful candidates remain pending host desktop integration.
+
+## Interactive engine certification (PR #129)
+
+`crates/engine/tests/interactive_command_certification.rs` exercises the
+real `Session::start`, `Session::input`, and `Session::preview` paths
+for Line, Move, Copy, Rotate, Scale, and Mirror. It validates aliases,
+point and number prompts, pick-first and explicit handle selection,
+live Line preview without document mutation, error re-prompting,
+interactive copy/erase decisions, native `.dftba` roundtrips, and undo/redo.
+
+```sh
+cargo test --locked -p cadcraft-engine --test interactive_command_certification
+```
+
+The inherited Line behavior deliberately **keeps partially created segments
+when Escape cancels** and records one undoable edit. Its regression test
+matches that documented legacy contract; changing cancellation semantics
+requires an explicit behavior decision rather than silently asserting
+rollback. Cancel before any Line geometry is created leaves no edit.
+
+The prompts are exercised in the native engine but **not yet verified via
+the desktop window's click, keyboard and rendering pipeline**. That host
+interaction gate remains pending for every stateful candidate. The
+machine-readable certification ledger links each command to its
+specific prompt tests, while preserving the `candidate_ci_pending` status.
 
 ## Automated first pass
 
@@ -56,13 +117,10 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current main:** 166 / 396 independently asserted success-path
-fixtures after merged PR #122. PR #123 merged the command index and CI
-optimizations. The consolidated #125 proposes nine additional geometry
-fixtures from #124 and #125, reaching **175 / 396** when merged. These
-numbers are not certification counts. PR #126 merged the initial point
-certification harness; stateful Line/Move/Copy certification is proposed in
-#127. Full five-gate certification is tracked separately above.
+**Current main:** 175 / 396 independently asserted positive-path fixtures
+after merged #125 (`743681f`). Nine certification candidates are tracked
+in the #129 consolidated stack; zero are formally promoted. The native
+prompt-engine suite is not a desktop mouse/keyboard/render certification.
 
 ## Completion criteria for EACH command
 

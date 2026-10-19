@@ -893,7 +893,12 @@ fn h_param(p: &Value, k: &str) -> Option<Handle> {
 fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
     if bool_or(p, "polyline", false) {
         let h = h_param(p, "handle").or_else(|| h_param(p, "h1")).ok_or_else(|| bad("fillet", "`handle` (polyline) is required"))?;
-        let r = f64_or(p, "radius", s.doc()?.header.f64("FILLETRAD", 0.0));
+        let r = match p.get("radius") {
+            Some(value) => {
+                value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("fillet", "radius must be a finite non-negative number"))?
+            }
+            None => s.doc()?.header.f64("FILLETRAD", 0.0),
+        };
         let n = super::modify2::fillet_polyline(s, h, r)?;
         return Ok(json!({ "filleted": n }));
     }

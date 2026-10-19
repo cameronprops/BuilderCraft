@@ -357,6 +357,75 @@
         "exact_occt_when_applicable",
         "post_merge_main"
       ]
+    },
+    {
+      "command": "worldwright.polyline.length",
+      "operation": "kernel.polyline.length",
+      "orbweaver_node": "orbweaver.polyline.length",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "scope": "read_only_headless_cad_api_orbweaver_pending",
+      "test_file": "crates/engine/tests/polyline_command_certification.rs",
+      "test": "certify_polyline_length_candidate",
+      "gates": {
+        "correctness": "Independent polyline length of L-shaped 3+4 segments across translated coordinates; assert numeric output at strict coordinate tolerance.",
+        "failure_preservation": "Missing/mistyped/extra/malformed ports and invalid division limits rejected atomically.",
+        "persistence": "Source .dftba file bytes, document identity/revision, selection, undo/redo unchanged after queries; reopen and undo/redo remain valid.",
+        "interface": "CAD command, kernel tool API and OrbWeaver alias emit identical typed results.",
+        "stability": "64 independent translated path cases plus bounded invalid input and division-budget regressions."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    },
+    {
+      "command": "worldwright.polyline.divide_count",
+      "operation": "kernel.polyline.divide_count",
+      "orbweaver_node": "orbweaver.polyline.divide_count",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "scope": "read_only_headless_cad_api_orbweaver_pending",
+      "test_file": "crates/engine/tests/polyline_command_certification.rs",
+      "test": "certify_polyline_divide_count_candidate",
+      "gates": {
+        "correctness": "Independent equal arc-length count=2 stations at 0, 3.5 and 7 along L path; assert numeric output at strict coordinate tolerance.",
+        "failure_preservation": "Missing/mistyped/extra/malformed ports and invalid division limits rejected atomically.",
+        "persistence": "Source .dftba file bytes, document identity/revision, selection, undo/redo unchanged after queries; reopen and undo/redo remain valid.",
+        "interface": "CAD command, kernel tool API and OrbWeaver alias emit identical typed results.",
+        "stability": "64 independent translated path cases plus bounded invalid input and division-budget regressions."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    },
+    {
+      "command": "worldwright.polyline.divide_distance",
+      "operation": "kernel.polyline.divide_distance",
+      "orbweaver_node": "orbweaver.polyline.divide_distance",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "scope": "read_only_headless_cad_api_orbweaver_pending",
+      "test_file": "crates/engine/tests/polyline_command_certification.rs",
+      "test": "certify_polyline_divide_distance_candidate",
+      "gates": {
+        "correctness": "Independent regular spacing=2 stations at 0, 2, 4, 6 and final endpoint 7 along L path; assert numeric output at strict coordinate tolerance.",
+        "failure_preservation": "Missing/mistyped/extra/malformed ports and invalid division limits rejected atomically.",
+        "persistence": "Source .dftba file bytes, document identity/revision, selection, undo/redo unchanged after queries; reopen and undo/redo remain valid.",
+        "interface": "CAD command, kernel tool API and OrbWeaver alias emit identical typed results.",
+        "stability": "64 independent translated path cases plus bounded invalid input and division-budget regressions."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
     }
   ],
   "certification_scope": "certified_count counts certified_headless commands only at this revision. State-changing desktop commands remain candidates until visual host interaction passes."

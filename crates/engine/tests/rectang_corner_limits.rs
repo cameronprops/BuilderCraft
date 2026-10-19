@@ -11,15 +11,9 @@ fn oversized_fillet_and_chamfer_report_maximums_without_edits() {
     let undo = s.state().unwrap().undo.len();
 
     let too_large_fillet = s.execute("rectang", &json!({"p1":[0,0],"p2":[10,8],"fillet":5})).unwrap_err();
-    assert!(
-        too_large_fillet.to_string().contains("maximum feasible radius 4.000000"),
-        "unexpected fillet limit: {too_large_fillet}"
-    );
+    assert!(too_large_fillet.to_string().contains("maximum feasible radius 4.000000"), "unexpected fillet limit: {too_large_fillet}");
     let too_large_chamfer = s.execute("rectang", &json!({"p1":[0,0],"p2":[10,8],"chamfer":[6,2]})).unwrap_err();
-    assert!(
-        too_large_chamfer.to_string().contains("maximum d1=5.000000, d2=4.000000"),
-        "unexpected chamfer limit: {too_large_chamfer}"
-    );
+    assert!(too_large_chamfer.to_string().contains("maximum d1=5.000000, d2=4.000000"), "unexpected chamfer limit: {too_large_chamfer}");
     for options in [
         json!({"fillet":-1}),
         json!({"fillet":null}),

@@ -134,6 +134,11 @@ const CASES: &[Case] = &[
     ("geometry3d.list", geometry3d_list_returns_real_curve_object),
     ("geometry3d.set", geometry3d_set_updates_name_and_visibility),
     ("geometry3d.controlpoint", geometry3d_controlpoint_edits_exact_geometry),
+    ("model.create", model_create_places_owned_body_in_hierarchy),
+    ("model.list", model_list_displays_assembly_component_and_body),
+    ("model.rename", model_rename_changes_requested_node_only),
+    ("model.select", model_select_resolves_nested_body_geometry),
+    ("model.visible", model_visible_hides_owned_geometry_and_undo_restores),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1691,6 +1696,66 @@ fn geometry3d_controlpoint_edits_exact_geometry() {
     assert_ne!(edited.evaluate(0.5), original.evaluate(0.5));
     s.execute("undo", &json!({})).unwrap();
     assert_eq!(exact_quadratic(&s, id), original);
+}
+
+fn model_fixture_hierarchy(s: &mut Session) -> (u64, u64, u64, String) {
+    let handle = line_handle(s);
+    let assembly = s.execute("model.create", &json!({"name":"Ride","kind":"assembly"})).unwrap()["id"].as_u64().unwrap();
+    let component = s.execute("model.create", &json!({"name":"Vehicle","kind":"component","parent":assembly})).unwrap()["id"].as_u64().unwrap();
+    let body =
+        s.execute("model.create", &json!({"name":"Body","kind":"body","parent":component,"handles":[handle]})).unwrap()["id"].as_u64().unwrap();
+    (assembly, component, body, handle)
+}
+
+fn model_create_places_owned_body_in_hierarchy() {
+    let mut s = Session::new();
+    let (assembly, component, body, handle) = model_fixture_hierarchy(&mut s);
+    let nodes = &s.doc().unwrap().organization.nodes;
+    assert_eq!(nodes.len(), 3);
+    assert_eq!(nodes.iter().find(|n| n.id == component).unwrap().parent, Some(assembly));
+    let owned = nodes.iter().find(|n| n.id == body).unwrap();
+    assert_eq!(owned.parent, Some(component));
+    assert_eq!(owned.entities, vec![cadcraft_doc::Handle::parse_hex(&handle).unwrap()]);
+}
+
+fn model_list_displays_assembly_component_and_body() {
+    let mut s = Session::new();
+    let (_, _, body, _) = model_fixture_hierarchy(&mut s);
+    let rev = s.state().unwrap().revision;
+    let result = s.execute("model.list", &json!({})).unwrap();
+    let nodes = result["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 3);
+    assert!(nodes.iter().any(|node| node["id"] == body && node["name"] == "Body"));
+    assert_eq!(s.state().unwrap().revision, rev);
+}
+
+fn model_rename_changes_requested_node_only() {
+    let mut s = Session::new();
+    let (_, _, body, _) = model_fixture_hierarchy(&mut s);
+    let result = s.execute("model.rename", &json!({"id":body,"name":"Vehicle Rev C"})).unwrap();
+    assert_eq!(result["id"], body);
+    assert_eq!(s.doc().unwrap().organization.nodes.iter().find(|n| n.id == body).unwrap().name, "Vehicle Rev C");
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().organization.nodes.iter().find(|n| n.id == body).unwrap().name, "Body");
+}
+
+fn model_select_resolves_nested_body_geometry() {
+    let mut s = Session::new();
+    let (assembly, _, _, handle) = model_fixture_hierarchy(&mut s);
+    let result = s.execute("model.select", &json!({"id":assembly})).unwrap();
+    assert_eq!(result["count"], 1);
+    assert_eq!(s.selection(), vec![cadcraft_doc::Handle::parse_hex(&handle).unwrap()]);
+}
+
+fn model_visible_hides_owned_geometry_and_undo_restores() {
+    let mut s = Session::new();
+    let (_, _, body, handle) = model_fixture_hierarchy(&mut s);
+    let target = cadcraft_doc::Handle::parse_hex(&handle).unwrap();
+    let hidden = s.execute("model.visible", &json!({"id":body,"visible":false})).unwrap();
+    assert_eq!(hidden["count"], 1);
+    assert!(!s.doc().unwrap().entity(target).unwrap().common.visible);
+    s.execute("undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().entity(target).unwrap().common.visible);
 }
 
 fn path_array_places_copies_along_rail() {

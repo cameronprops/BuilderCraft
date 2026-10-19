@@ -62,6 +62,8 @@ const CASES: &[Case] = &[
     ("arc.sce", arc_start_center_end_keeps_radius),
     ("ellipse.axis", ellipse_axis_uses_half_minor_axis),
     ("ellipse.arc", elliptical_arc_keeps_ratio),
+    ("spline", spline_control_degree_is_preserved),
+    ("spline.cv", spline_cv_degree_is_preserved),
     ("3dpoly", three_d_polyline_preserves_elevation),
     ("helix", helix_has_expected_height_and_turns),
     ("layer.delete", unused_layer_can_be_deleted),
@@ -1091,6 +1093,32 @@ fn lengthen_changes_line_length() {
     let result = s.execute("lengthen", &json!({"handle":h, "total":5})).unwrap();
     assert_eq!(result["length"], 5.0);
     assert_eq!(first_line(&s), (0.0, 0.0, 5.0, 0.0));
+}
+
+fn spline_control_degree_is_preserved() {
+    let mut s = Session::new();
+    s.execute("spline", &json!({"control":[[0,0],[2,3],[4,1],[6,0]],"degree":2})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Spline(sp) => {
+            assert_eq!(sp.degree, 2);
+            assert_eq!(sp.control.len(), 4);
+            assert!(sp.is_valid());
+        }
+        other => panic!("expected degree-2 spline, got {other:?}"),
+    }
+}
+
+fn spline_cv_degree_is_preserved() {
+    let mut s = Session::new();
+    s.execute("spline.cv", &json!({"control":[[0,0],[2,3],[4,1],[6,0]],"degree":3})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Spline(sp) => {
+            assert_eq!(sp.degree, 3);
+            assert_eq!(sp.control.len(), 4);
+            assert!(sp.is_valid());
+        }
+        other => panic!("expected degree-3 CV spline, got {other:?}"),
+    }
 }
 
 #[test]

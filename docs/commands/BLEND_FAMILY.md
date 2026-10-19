@@ -1,4 +1,4 @@
-# Worldwright Blend family: dependency and delivery status
+# Worldwright Blend family: exact curve continuity and remaining edge/surface work
 
 **Snapshot:** October 19, 2026. Source of truth is the code and CI on
 `cameronprops/BuilderCraft`, not feature names.
@@ -11,9 +11,9 @@ plus [VariableBlendSrf](https://docs.mcneel.com/rhino/8/help/en-us/commands/vari
 for radius-varying transitions between intersecting surface edges.
 See [blend-parity.json](blend-parity.json) for the machine-readable inventory.
 
-## Proposed first operational vertical slice
+## Proposed G0/G1/G2 curve-blend vertical slice
 
-The PR introduces **one** geometry algorithm,
+The stacked PRs share **one** geometry algorithm,
 `buildercraft_kernel::blend_nurbs_curves`, and exposes it to the typed
 shared operator `kernel.curve.blend`, CAD command
 `worldwright.curve.blend` (alias `blend` for command lookup), and
@@ -25,14 +25,14 @@ All **seven typed ports** are required for the initial headless API:
 | Port | Type | Semantics |
 |---|---|---|
 | `a`, `b` | curve | Valid rational NURBS source curves |
-| `continuity` | count | **0**: position-only G0; **1**: geometric tangent G1 |
+| `continuity` | count | **0**: position G0; **1**: geometric tangent G1; **2**: geometric curvature G2 |
 | `strength_a`, `strength_b` | number | Endpoint tangent handle fractions of endpoint distance; each 0.01 to 2 |
 | `reverse_a`, `reverse_b` | count | **0**: normal direction; **1**: reverse source orientation |
 
 Default connection uses the end of A and start of B. Flipping either
-orientation selects the other respective source endpoint. G0 yields a
-degree-one NURBS segment; G1 a degree-three polynomial Bézier encoded in
-the existing rational NURBS type. The G1 source tangent directions come
+orientation selects the other respective source endpoint. G0 yields a degree-one NURBS segment; G1 a degree-three polynomial
+Bézier; G2 a degree-five polynomial Bézier, all encoded in the existing
+rational NURBS type. The G1 source tangent directions come
 from the *analytic derivatives of the original NURBS*, not sampled meshes.
 The exact endpoints and source curves are retained and unmodified.
 Invalid curves, close endpoints, zero cusp tangents, unsupported continuity
@@ -59,15 +59,28 @@ cargo test --locked -p cadcraft-engine --test operational_commands
 python3 tools/check_paired_tools.py
 ```
 
+## G2 geometric curvature contract
+
+At each end the quintic curve matches source positions and oriented tangent
+**directions**, then chooses a normal second derivative equal to
+`|B'|² * source_curvature_vector`. This is invariant to differences in
+parameter speed, unlike parametric C2 matching. The control net uses the
+exact endpoint Hermite formulas and the existing NURBS degree-five limit.
+The same seven typed inputs apply. Different source radii and reversed
+source orientations are supported, but no self-intersection avoidance,
+maximum feasible blend strength, or collision certificate is yet provided.
+
 ## Explicitly **not** implemented by this slice
 
 - No interactive Rhino-style end picking, draggable grips, trim/join,
   history dependency or persistent CAD document bake. The `blend` alias
   resolves the headless command ID but is **not** a complete interactive
   drawing tool.
-- G1 aligns unit tangent directions. It does **not** enforce parametric C1
-  equal derivative magnitudes, curvature G2, geometric G3/G4 or radius
-  constraints. Unsupported levels explicitly reject.
+- G1 aligns unit tangent directions. G2 additionally matches the source
+  curves' **geometric curvature vectors** at both oriented endpoints via
+  quintic Hermite interpolation, using exact rational derivatives. This
+  is not parametric C1/C2 derivative magnitude matching, G3/G4 or radius
+  optimization. Unsupported levels **3 and higher** explicitly reject.
 - No BlendCrv two-ended curvature solver/adjustable editor yet. No BlendSrf
   tangent/curvature matching on NURBS surfaces, seam or chain-edge matching.
   No BlendEdge or VariableBlendSrf radius-handle policies, dynamic maximum
@@ -77,9 +90,11 @@ python3 tools/check_paired_tools.py
 
 ## Next dependencies
 
-1. Add analytic second derivatives to the shared rational NURBS curve and
-   a quintic G2 Hermite blend with independent end conditions and bounded
-   curvature handles. Preserve the G0/G1 implementation as one solver.
+1. **Implemented in the stacked G2 PR:** analytic second derivatives were
+   merged separately; the existing G0/G1 solver now conditionally constructs
+   a degree-five Hermite G2 transition, with independently adjustable end
+   handle fractions. Numerical curvature continuity is tested at each end.
+   G2 is not called released until this PR passes CI and merges.
 2. Add orientation/end-pick state, preview, history and document persistence
    through normal CAD and OrbWeaver interfaces.
 3. Add surface edge continuity and matched sections across untrimmed
@@ -88,6 +103,6 @@ python3 tools/check_paired_tools.py
 4. Certify accurate continuity and failure limits, collision and trim
    diagnostics, .dftba roundtrips, undo/redo and actual viewport inputs.
 
-This status is only a proposed PR until its pinned formatting, native Rust,
-modeling acceptance and OpenCascade integration checks pass and it merges
-into `main`.
+The G2 addition is **stacked behind G0/G1 PR #132** and requires its own
+pinned formatting, native Rust, modeling and OpenCascade integration checks,
+plus post-merge checks on `main`. Until then it is not a released command.

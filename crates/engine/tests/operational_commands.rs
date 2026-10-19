@@ -1102,10 +1102,16 @@ fn fillet_creates_radius_two_arc() {
     let result = s.execute("fillet", &json!({"h1":a,"h2":b,"p1":[9,0],"p2":[0,9],"radius":2})).unwrap();
     assert!(result["arc"].as_str().is_some());
     assert_eq!(s.doc().unwrap().model.len(), 3);
-    let radii: Vec<_> = s.doc().unwrap().model.iter().filter_map(|entity| match &entity.kind {
-        EntityKind::Arc(arc) => Some(arc.radius),
-        _ => None,
-    }).collect();
+    let radii: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|entity| match &entity.kind {
+            EntityKind::Arc(arc) => Some(arc.radius),
+            _ => None,
+        })
+        .collect();
     assert_eq!(radii, vec![2.0]);
 }
 
@@ -1116,10 +1122,16 @@ fn chamfer_creates_diagonal_bridge() {
     let result = s.execute("chamfer", &json!({"h1":a,"h2":b,"p1":[9,0],"p2":[0,9],"d1":2,"d2":3})).unwrap();
     assert!(result["line"].as_str().is_some());
     assert_eq!(s.doc().unwrap().model.len(), 3);
-    let diagonal = s.doc().unwrap().model.iter().filter_map(|entity| match &entity.kind {
-        EntityKind::Line(line) if (line.a.x - line.b.x).abs() > 0.1 && (line.a.y - line.b.y).abs() > 0.1 => Some(line),
-        _ => None,
-    }).count();
+    let diagonal = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|entity| match &entity.kind {
+            EntityKind::Line(line) if (line.a.x - line.b.x).abs() > 0.1 && (line.a.y - line.b.y).abs() > 0.1 => Some(line),
+            _ => None,
+        })
+        .count();
     assert_eq!(diagonal, 1);
 }
 

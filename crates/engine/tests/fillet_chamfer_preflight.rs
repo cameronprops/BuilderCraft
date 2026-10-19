@@ -70,3 +70,30 @@ fn fillet_reports_maximum_feasible_radius_and_preserves_geometry() {
         .collect();
     assert_eq!(arcs, vec![2.0]);
 }
+
+#[test]
+fn oversized_polyline_fillet_reports_limit_instead_of_dropping_a_corner() {
+    let mut s = Session::new();
+    let handle = s.execute("pline", &json!({"vertices":[[0,0],[10,0],[10,10]]})).unwrap()["handle"].as_str().unwrap().to_string();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo = s.state().unwrap().undo.len();
+
+    let error = s.execute("fillet", &json!({"polyline":true, "handle":handle, "radius":11})).unwrap_err();
+    assert!(error.to_string().contains("maximum feasible polyline radius 10.000000"), "unexpected polyline error: {error}");
+    assert!(s.execute("fillet", &json!({"polyline":true, "handle":handle, "radius":"bad"})).is_err());
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo);
+
+    let result = s.execute("fillet", &json!({"polyline":true, "handle":handle, "radius":2})).unwrap();
+    assert_eq!(result["filleted"], 1);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        cadcraft_doc::EntityKind::LwPolyline(pl) => {
+            assert_eq!(pl.vertices.len(), 4);
+            assert!(pl.vertices.iter().any(|v| v.bulge.abs() > 1e-6));
+        }
+        other => panic!("expected filleted polyline, got {other:?}"),
+    }
+}

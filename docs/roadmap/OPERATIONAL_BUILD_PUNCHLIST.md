@@ -4,25 +4,50 @@
 
 This register explicitly audits **all 39 PRs open at the start of the stabilization sprint**. Five are merged in the first pass (#25, #27, #34, #53, #63); the rest are unresolved at this snapshot. Re-query GitHub before making state claims. A prior green head check is **not** proof that an updated `main` passes. Preserve original branch work until its functionality has landed or has an explained disposition.
 
-## Current integration and acceptance (2026-10-19)
+## Live acceptance stack (2026-10-19)
 
-Historical PR resolutions below are retained for audit, not live status.
+This section supersedes historical PR statuses below. The original stabilization
+snapshot is retained for traceability and must not be treated as live GitHub state.
 
-| PR | Source | Authored success fixtures | Status |
+| PR | Dependency | Authored success fixtures | Merge gate |
 |---|---|---:|---|
-| #118 | Shared parametric history | 144 / 396 | Merged `8c7c12ac` |
-| #119 | Rational surface, preview, transform | 149 / 396 | Merged `eb3d3c9` |
-| #120/#121 | Closest points, snapping, mesh exchange | 159 / 396 | Closed, consolidated in #122 |
-| #122 | CAD/OrbWeaver acceptance consolidation | 166 / 396 | Merged `66d4b4c` |
-| #123 | Command dispatch index and smaller CI | unchanged | Reconciled on main, native/OCCT checks pending |
-| #124 | Array, projection, ruled surface, curve evaluation | 170 / 396 | Proposed, requires all platform CI |
-| #125 | Rectangular/polar/path arrays, patch flow, quad push/pull | 175 / 396 | Stacked on #124; requires downstream direct-to-main native CI |
+| #118 | `main` | 144 / 396 | **MERGED** `8c7c12ac`, required head CI passed |
+| #119 | `main` | 149 / 396 | **MERGED** `eb3d3c9`; required native/modeling/exact OCCT CI passed |
+| #120 | #119 | 154 / 396 | Covered by consolidated #122; close only after verified merge |
+| #121 | #120 | 159 / 396 | Covered by consolidated #122; close only after verified merge |
+| #122 | `main` | 166 / 396 | **MERGED** `66d4b4c`, post-merge CI passed |
+| #123 | `main` | unchanged | **MERGED** `f0b0e87`, indexed command lookup and CI de-duplication |
+| #124/#125 | `main` consolidated via #125 | 175 / 396 proposed | 9 new geometry fixtures; complete fresh native/OCCT CI required |
 
-**Main baseline:** 166 unique positive-path cases, 230 registered commands still
-without such a fixture. **Proposed #124:** 170 cases, 226 without a fixture. **Proposed #125 stack:** 175 cases, 221 without a fixture.
-This counts success-case assertions only, not all five certification gates.
-Verify exact GitHub CI and merge states before advancing any status.
-Post-merge `main` validation is distinct from PR head checks.
+Reconciliation proof: the #122 fixture table contains all 149 IDs now on
+`main` plus 17 distinct new command IDs from #120-#122. Merge #122 only
+after fresh native, modeling, and exact BRep checks on the `main`-based
+commit; then verify post-merge `main` before closing #120/#121.
+
+**230 / 396** registered commands lack merged positive-path fixtures;
+**221 / 396** would remain without positive-path fixtures after #125 merges. New fixtures check real results
+and do not constitute full operational certification. Do not merge descendants
+before parents, do not bypass failing CI, and verify `main` after every merge.
+
+## Command-certification pipeline (2026-10-19)
+
+**Certification starts with PR #126, independent of fixture-count expansion.**
+On merged `main`, 166 / 396 registered commands have a positive-path
+acceptance fixture. **0 are yet proven to satisfy all five certification
+gates across the required CI platforms.** Three read-only foundational point
+operations are certification candidates, not certified releases.
+
+- Automated certification suite:
+  `cargo test --locked -p cadcraft-engine --test command_certification`
+- Machine-readable promotion ledger:
+  `docs/commands/certification-registry.json`
+- Scope: analytic output, transactional failure, `.dftba` and undo/redo
+  preservation for read-only queries, CAD/OrbWeaver API parity, and bounded
+  deterministic input repetition
+- Promotion only on passing pinned cross-platform PR and post-merge `main`
+  checks, plus explicit interface applicability review
+- Stateful geometry commands require a second certification tranche with
+  actual undo/redo and saved/reopened geometry, not read-only exemptions
 
 ## Definition of "operational alpha" (release-blocking)
 

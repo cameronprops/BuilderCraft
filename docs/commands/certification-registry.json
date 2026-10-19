@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "description": "Evidence ledger for full five-gate command certifications. Candidate status is not a certified release claim.",
+  "baseline_main_commit": "66d4b4cba3a74158d2ce76c589136e429951c450",
+  "certified_count": 0,
+  "promotion_rule": "Promote only after executable 5-gate tests pass on pinned Rust CI, relevant Linux/macOS/Windows workflow gates pass, post-merge main passes, and interface/applicability reviews are signed off.",
+  "candidates": [
+    {
+      "command": "worldwright.point.distance",
+      "operation": "kernel.point.distance",
+      "orbweaver_node": "orbweaver.point.distance",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "test_file": "crates/engine/tests/command_certification.rs",
+      "test": "certify_point_distance_candidate",
+      "gates": {
+        "correctness": "Analytical 3-4-5 and rational point-coordinate fixtures on 64 positions.",
+        "failure_preservation": "Missing, unexpected, mistyped and malformed ports rejected; serialized document and revision unchanged.",
+        "persistence": "Read-only operation: .dftba source save/reopen plus undisturbed undo/redo of pre-existing geometry; output itself is not document-persistent.",
+        "interface": "Registered CAD command, generic kernel operation and OrbWeaver alias have identical outputs.",
+        "stability": "64 deterministic translated input fixtures per command; bounded outputs, unchanged model and no crashes."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    },
+    {
+      "command": "worldwright.point.midpoint",
+      "operation": "kernel.point.midpoint",
+      "orbweaver_node": "orbweaver.point.midpoint",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "test_file": "crates/engine/tests/command_certification.rs",
+      "test": "certify_point_midpoint_candidate",
+      "gates": {
+        "correctness": "Analytical 3-4-5 and rational point-coordinate fixtures on 64 positions.",
+        "failure_preservation": "Missing, unexpected, mistyped and malformed ports rejected; serialized document and revision unchanged.",
+        "persistence": "Read-only operation: .dftba source save/reopen plus undisturbed undo/redo of pre-existing geometry; output itself is not document-persistent.",
+        "interface": "Registered CAD command, generic kernel operation and OrbWeaver alias have identical outputs.",
+        "stability": "64 deterministic translated input fixtures per command; bounded outputs, unchanged model and no crashes."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    },
+    {
+      "command": "worldwright.point.interpolate",
+      "operation": "kernel.point.interpolate",
+      "orbweaver_node": "orbweaver.point.interpolate",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "test_file": "crates/engine/tests/command_certification.rs",
+      "test": "certify_point_interpolate_candidate",
+      "gates": {
+        "correctness": "Analytical 3-4-5 and rational point-coordinate fixtures on 64 positions.",
+        "failure_preservation": "Missing, unexpected, mistyped and malformed ports rejected; serialized document and revision unchanged.",
+        "persistence": "Read-only operation: .dftba source save/reopen plus undisturbed undo/redo of pre-existing geometry; output itself is not document-persistent.",
+        "interface": "Registered CAD command, generic kernel operation and OrbWeaver alias have identical outputs.",
+        "stability": "64 deterministic translated input fixtures per command; bounded outputs, unchanged model and no crashes."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    }
+  ]
+}

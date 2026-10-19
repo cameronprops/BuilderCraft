@@ -5,6 +5,32 @@ Source of truth: `crates/engine/src/cmd/mod.rs` via
 `cadcraft_engine::command_specs()`. Do not treat reference command lists,
 API names, menu visibility or registration as functionality.
 
+## Five-gate command certification begins now
+
+The positive-case registry covers **166 / 396** live engine command IDs on
+merged `main`. It does **not** certify them. The explicit certification ledger
+is [`certification-registry.json`](certification-registry.json). It currently
+records **0 fully certified commands** and three candidates in PR #126:
+`worldwright.point.distance`, `worldwright.point.midpoint`, and
+`worldwright.point.interpolate`.
+
+Each candidate is executable in
+`crates/engine/tests/command_certification.rs`, with five distinct gates:
+analytically correct outputs; atomic input failure; unchanged document plus
+undo/redo and `.dftba` roundtrip for read-only queries; CAD/API/OrbWeaver
+parity; and bounded deterministic input stress. This establishes a
+**headless point-operation scope only**, not GUI or full Rhino parity.
+
+```sh
+cargo test --locked -p cadcraft-engine --test command_certification
+```
+
+The three entries remain `candidate_ci_pending` until pinned Rust checks,
+all required platform CI, post-merge `main` checks, and applicability review
+are green. Do not silently promote candidates based on the existence of a
+test, or imply that read-only output persists in a drawing. Stateful commands
+must add meaningful undo, redo, save/reopen and UI tests before certification.
+
 ## Automated first pass
 
 Run from the repository root with the pinned Rust toolchain:
@@ -30,27 +56,13 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current acceptance snapshot (2026-10-19):** the merged `main` baseline has
-**166 distinct asserted positive-path fixtures / 396 registered commands**.
-The independent #124 branch proposes four further cases, reaching
-**170 / 396** (226 commands still missing positive-path fixtures if merged).
-The stacked #125 adds five further cases to reach **175 / 396** proposed
-(221 commands still without independently asserted positive-path fixtures).
-
-- #118 and #119: scoped feature-history and exact NURBS acceptance, merged
-- #120 and #121: superseded by the verified consolidated #122
-- #122: 17 closest-point, selection, construction-plane, exchange and shared-tree fixtures, **merged**
-- #123: indexed command dispatch and CI de-duplication, awaiting reconciled CI
-- #124: linear array, directional plane projection, exact ruled NURBS surface
-  and rational-curve evaluation; assert direct CAD/OrbWeaver agreement,
-  numerical geometry and failure preservation
-- #125: rectangular/polar/path arrays, surface-patch flow and quad push/pull;
-  verify copy coordinates and ordering, seam avoidance, mapping, topology
-  and rejected degenerate modifiers
-
-A positive-path fixture is not full operational certification. All PRs require
-pinned Rust formatting, Clippy, platform-native tests and relevant exact BRep
-integration. Main-branch checks are independently required after merging.
+**Current main:** 166 / 396 independently asserted success-path
+fixtures after merged PR #122. PR #123 merged the command index and CI
+optimizations. The consolidated #125 proposes nine additional geometry
+fixtures from #124 and #125, reaching **175 / 396** when merged. These
+numbers are not certification counts. PR #126 merged the initial point
+certification harness; stateful Line/Move/Copy certification is proposed in
+#127. Full five-gate certification is tracked separately above.
 
 ## Completion criteria for EACH command
 

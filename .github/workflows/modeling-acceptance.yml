@@ -13,6 +13,13 @@ on:
       - .github/workflows/modeling-acceptance.yml
 permissions:
   contents: read
+
+# Superseded branch pushes need not finish identical compiles. Keep this
+# scoped per PR so unrelated contributors' validation is never cancelled.
+concurrency:
+  group: modeling-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   focused-modeling:
     runs-on: ubuntu-24.04

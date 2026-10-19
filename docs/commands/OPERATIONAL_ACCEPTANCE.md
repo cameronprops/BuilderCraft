@@ -30,17 +30,17 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 114 distinct positive success-path fixtures
-are authored against 396 registered commands. **282 still lack independent
-positive-path entries.** The first 104 fixtures are merged on main via PR #101
-and PR #105 with passing focused-modeling, native Linux/macOS/Windows, and
-exact BRep CI. This branch adds ten additional fixtures for DIVIDE, REVCLOUD,
-PEDIT, TEXT, MTEXT, TEXTEDIT, XLINE, MLINE, CENTERMARK and CENTERLINE. The
-added fixtures assert coordinates, object types, stable identity, source
-replacement, text contents, annotation dimensions and center geometry.
-Focused-modeling and exact BRep workflows passed at the original branch head;
-the reconciled branch (including the 31 new NURBS/modeling commands from merged PR #77) must pass current mainline CI before merge.
-A positive fixture is not complete five-criterion operational certification.
+**Current tranche (2026-10-18):** 120 independently asserted
+positive success-path fixtures now exist against 396 registered commands.
+**276 registered commands still lack independent positive-path fixtures.**
+The first 114 passed Linux/macOS/Windows native, focused modeling and exact
+BRep CI and are merged on main via PRs #101, #105 and #107. This branch adds
+six shared-kernel modeling fixtures: polyline point/tangent at station and
+planar offset, plus curve Join, Trim and Extend. Each verifies actual numeric
+output geometry and read-only document behavior. Focused modeling and exact
+BRep integration passed on this branch before rebasing; all native
+cross-platform gates must pass on the reconciled head before merge. Positive
+fixtures alone do not establish the full five-part operational certification.
 
 ## Completion criteria for EACH command
 

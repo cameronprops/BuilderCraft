@@ -159,6 +159,13 @@ const CASES: &[Case] = &[
     ("geometry3d.line", snapped_line_creates_exact_curve_and_undoes),
     ("worldwright.mesh.encode", mesh_encode_preserves_triangle_on_obj_roundtrip),
     ("worldwright.mesh.decode", mesh_decode_recovers_triangle_without_document_edits),
+    ("worldwright.tool.list", paired_tool_discovery_lists_shared_interfaces),
+    ("worldwright.point.midpoint", paired_midpoint_computes_exact_coordinates),
+    ("worldwright.tree.validate", tree_validate_counts_items_without_editing),
+    ("worldwright.tree.flatten", tree_flatten_concatenates_ordered_items),
+    ("worldwright.tree.graft", tree_graft_creates_one_child_per_item),
+    ("worldwright.tree.simplify", tree_simplify_removes_only_shared_prefix),
+    ("worldwright.tree.match", tree_match_longest_repeats_last_item),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -367,6 +374,130 @@ fn mesh_decode_recovers_triangle_without_document_edits() {
     assert_eq!(decoded["document_mutated"], false);
     assert_eq!(s.state().unwrap().revision, revision);
     assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+}
+
+fn acceptance_number_tree() -> serde_json::Value {
+    json!({"kind": "tree", "value": {"branches": [
+        {"path": [0, 1], "items": [
+            {"kind": "number", "value": 1.0},
+            {"kind": "number", "value": 2.0}
+        ]},
+        {"path": [0, 2], "items": [
+            {"kind": "number", "value": 3.0}
+        ]}
+    ]}})
+}
+
+fn paired_tool_discovery_lists_shared_interfaces() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let result = s.execute("worldwright.tool.list", &json!({})).unwrap();
+    let tools = result["paired_tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 42);
+    assert_eq!(tools[0]["orbweaver_node"], "orbweaver.point.distance");
+    assert_eq!(tools[0]["cad_command"], "worldwright.point.distance");
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn paired_midpoint_computes_exact_coordinates() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": point_inputs()});
+    let result = s.execute("worldwright.point.midpoint", &args).unwrap();
+    assert_eq!(result["output"]["kind"], "point");
+    assert_eq!(result["output"]["value"], json!({"x": 1.5, "y": 2.0, "z": 0.0}));
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_validate_counts_items_without_editing() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": acceptance_number_tree()}});
+    let result = s.execute("worldwright.tree.validate", &args).unwrap();
+    assert_eq!(result["output"]["kind"], "count");
+    assert_eq!(result["output"]["value"], 3);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn tree_flatten_concatenates_ordered_items() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": acceptance_number_tree()}});
+    let result = s.execute("worldwright.tree.flatten", &args).unwrap();
+    assert_eq!(result["output"]["kind"], "tree");
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 1);
+    assert_eq!(branches[0]["path"], json!([0]));
+    assert_eq!(branches[0]["items"].as_array().unwrap().len(), 3);
+    assert_eq!(branches[0]["items"][0]["value"], 1.0);
+    assert_eq!(branches[0]["items"][2]["value"], 3.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_graft_creates_one_child_per_item() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": {
+        "kind": "tree",
+        "value": {"branches": [{"path": [0], "items": [
+            {"kind": "number", "value": 4.0},
+            {"kind": "number", "value": 5.0}
+        ]}]}
+    }}});
+    let result = s.execute("worldwright.tree.graft", &args).unwrap();
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 2);
+    assert_eq!(branches[0]["path"], json!([0, 0]));
+    assert_eq!(branches[1]["path"], json!([0, 1]));
+    assert_eq!(branches[0]["items"][0]["value"], 4.0);
+    assert_eq!(branches[1]["items"][0]["value"], 5.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_simplify_removes_only_shared_prefix() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": acceptance_number_tree()}});
+    let result = s.execute("worldwright.tree.simplify", &args).unwrap();
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 2);
+    assert_eq!(branches[0]["path"], json!([1]));
+    assert_eq!(branches[1]["path"], json!([2]));
+    assert_eq!(branches[0]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(branches[1]["items"][0]["value"], 3.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_match_longest_repeats_last_item() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {
+        "a": {"kind": "tree", "value": {"branches": [{
+            "path": [7], "items": [
+                {"kind": "number", "value": 1.0},
+                {"kind": "number", "value": 2.0}
+            ]
+        }]}},
+        "b": {"kind": "tree", "value": {"branches": [{
+            "path": [7], "items": [
+                {"kind": "number", "value": 10.0},
+                {"kind": "number", "value": 20.0},
+                {"kind": "number", "value": 30.0}
+            ]
+        }]}},
+        "mode": {"kind": "match_mode", "value": "longest"}
+    }});
+    let result = s.execute("worldwright.tree.match", &args).unwrap();
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 1);
+    assert_eq!(branches[0]["path"], json!([7]));
+    let matched = branches[0]["items"].as_array().unwrap();
+    assert_eq!(matched.len(), 3);
+    assert_eq!(matched[2]["kind"], "pair");
+    assert_eq!(matched[2]["value"][0]["value"], 2.0);
+    assert_eq!(matched[2]["value"][1]["value"], 30.0);
+    assert_eq!(s.state().unwrap().revision, revision);
 }
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {

@@ -120,6 +120,14 @@ const CASES: &[Case] = &[
     ("worldwright.curve.join", native_curve_join_preserves_common_end),
     ("worldwright.curve.trim", native_curve_trim_keeps_requested_interval),
     ("worldwright.curve.extend", native_curve_extend_follows_tangent),
+    ("worldwright.vector.length", native_vector_length_is_13),
+    ("worldwright.vector.normalize", native_vector_normalize_is_unit),
+    ("worldwright.vector.dot", native_vector_dot_is_scalar),
+    ("worldwright.vector.cross", native_vector_cross_is_right_handed),
+    ("worldwright.polyline.length", native_polyline_length_is_7),
+    ("worldwright.polyline.divide_count", native_polyline_divides_by_count),
+    ("worldwright.polyline.divide_distance", native_polyline_divides_by_spacing),
+    ("worldwright.curve.split", native_curve_split_yields_two_actual_fragments),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1418,6 +1426,136 @@ fn native_curve_extend_follows_tangent() {
         ])
     );
     assert_eq!(s.doc().unwrap().model.len(), 0);
+}
+
+fn expect_native_output(command: &str, inputs: serde_json::Value, expected: serde_json::Value) {
+    let mut s = Session::new();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo = s.state().unwrap().undo.len();
+    let actual = s.execute(command, &json!({"inputs":inputs})).unwrap();
+    assert_eq!(actual["output"], expected, "unexpected native result for {command}");
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo);
+}
+
+fn native_vector_length_is_13() {
+    let v = json!({"kind":"vector","value":{"x":3.0,"y":4.0,"z":12.0}});
+    expect_native_output(
+        "worldwright.vector.length",
+        json!({"v":v}),
+        json!({"kind":"number","value":13.0}),
+    );
+}
+
+fn native_vector_normalize_is_unit() {
+    let v = json!({"kind":"vector","value":{"x":3.0,"y":4.0,"z":0.0}});
+    expect_native_output(
+        "worldwright.vector.normalize",
+        json!({"v":v}),
+        json!({"kind":"vector","value":{"x":0.6,"y":0.8,"z":0.0}}),
+    );
+}
+
+fn native_vector_dot_is_scalar() {
+    let x = json!({"kind":"vector","value":{"x":1.0,"y":2.0,"z":3.0}});
+    let y = json!({"kind":"vector","value":{"x":4.0,"y":5.0,"z":6.0}});
+    expect_native_output(
+        "worldwright.vector.dot",
+        json!({"a":x,"b":y}),
+        json!({"kind":"number","value":32.0}),
+    );
+}
+
+fn native_vector_cross_is_right_handed() {
+    let x = json!({"kind":"vector","value":{"x":1.0,"y":0.0,"z":0.0}});
+    let y = json!({"kind":"vector","value":{"x":0.0,"y":1.0,"z":0.0}});
+    expect_native_output(
+        "worldwright.vector.cross",
+        json!({"a":x,"b":y}),
+        json!({"kind":"vector","value":{"x":0.0,"y":0.0,"z":1.0}}),
+    );
+}
+
+fn native_polyline_length_is_7() {
+    let path = json!({"kind":"polyline","value":[
+        {"x":0.0,"y":0.0,"z":0.0},
+        {"x":3.0,"y":0.0,"z":0.0},
+        {"x":3.0,"y":4.0,"z":0.0}
+    ]});
+    expect_native_output(
+        "worldwright.polyline.length",
+        json!({"points":path}),
+        json!({"kind":"number","value":7.0}),
+    );
+}
+
+fn native_polyline_divides_by_count() {
+    let path = json!({"kind":"polyline","value":[
+        {"x":0.0,"y":0.0,"z":0.0},
+        {"x":3.0,"y":0.0,"z":0.0},
+        {"x":3.0,"y":4.0,"z":0.0}
+    ]});
+    expect_native_output(
+        "worldwright.polyline.divide_count",
+        json!({"points":path,"count":{"kind":"count","value":2}}),
+        json!({"kind":"polyline","value":[
+            {"x":0.0,"y":0.0,"z":0.0},
+            {"x":3.0,"y":0.5,"z":0.0},
+            {"x":3.0,"y":4.0,"z":0.0}
+        ]}),
+    );
+}
+
+fn native_polyline_divides_by_spacing() {
+    let path = json!({"kind":"polyline","value":[
+        {"x":0.0,"y":0.0,"z":0.0},
+        {"x":3.0,"y":0.0,"z":0.0},
+        {"x":3.0,"y":4.0,"z":0.0}
+    ]});
+    expect_native_output(
+        "worldwright.polyline.divide_distance",
+        json!({"points":path,"spacing":{"kind":"number","value":2.0}}),
+        json!({"kind":"polyline","value":[
+            {"x":0.0,"y":0.0,"z":0.0},
+            {"x":2.0,"y":0.0,"z":0.0},
+            {"x":3.0,"y":1.0,"z":0.0},
+            {"x":3.0,"y":3.0,"z":0.0},
+            {"x":3.0,"y":4.0,"z":0.0}
+        ]}),
+    );
+}
+
+fn native_curve_split_yields_two_actual_fragments() {
+    let mut s = Session::new();
+    let before = s.state().unwrap().doc.clone();
+    let result = s.execute(
+        "worldwright.curve.split",
+        &json!({"inputs":{
+            "points":{"kind":"polyline","value":[
+                {"x":0.0,"y":0.0,"z":0.0},
+                {"x":10.0,"y":0.0,"z":0.0},
+                {"x":10.0,"y":10.0,"z":0.0}
+            ]},
+            "station":{"kind":"number","value":15.0}
+        }}),
+    ).unwrap();
+    assert_eq!(result["output"]["kind"], "tree");
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 2);
+    assert_eq!(branches[0]["path"], json!([0]));
+    assert_eq!(branches[1]["path"], json!([1]));
+    assert_eq!(branches[0]["items"][0]["value"], json!([
+        {"x":0.0,"y":0.0,"z":0.0},
+        {"x":10.0,"y":0.0,"z":0.0},
+        {"x":10.0,"y":5.0,"z":0.0}
+    ]));
+    assert_eq!(branches[1]["items"][0]["value"], json!([
+        {"x":10.0,"y":5.0,"z":0.0},
+        {"x":10.0,"y":10.0,"z":0.0}
+    ]));
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
 }
 
 fn path_array_places_copies_along_rail() {

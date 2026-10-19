@@ -30,15 +30,18 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 144 independently asserted
+**Current tranche (2026-10-18):** 149 independent asserted
 positive-path fixtures are authored for 396 registered commands;
-**252 still lack success-path fixtures**. The main branch currently has
-139 merged positive-path fixtures (including PR #116); this branch
-adds five feature timeline commands: Create, List, Inspect, Edit and Evaluate. Tests assert actual
-parametric midpoint results, .dftba persistence, undo, revision and
-read-only query behavior. Merge only after pinned formatting, focused
-modeling, native Linux/macOS/Windows and exact BRep gates succeed.
-Positive cases are not full five-part operational alpha certification.
+**247 lack positive-path fixtures**. Main has 139 merged fixtures.
+Parent PR #118 proposes five scoped parametric history fixtures;
+this branch adds five tested geometry operations: NURBS Control
+Surface, Ruled NURBS Surface, Geometry3D Preview, Exact Geometry3D
+Transform, and BuilderCraft Capabilities. Assertions check exact
+rational patches, source rails, stable source/copy identities,
+preview nonmutation, undo, file persistence and returned capabilities.
+Stacked branches require pinned Rust, focused modeling,
+Linux/macOS/Windows native and exact BRep gates after reconciliation.
+These positive cases alone are not complete five-gate certification.
 
 ## Completion criteria for EACH command
 

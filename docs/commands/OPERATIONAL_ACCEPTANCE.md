@@ -92,6 +92,25 @@ interaction gate remains pending for every stateful candidate. The
 machine-readable certification ledger links each command to its
 specific prompt tests, while preserving the `candidate_ci_pending` status.
 
+## Vector mathematics certification, PR #130
+
+Four foundational shared math operations now have candidate tests:
+`worldwright.vector.length`, `.normalize`, `.dot`, and `.cross`.
+The executable `crates/engine/tests/vector_command_certification.rs`
+checks 128 independently calculated signed vector fixtures per operation, CAD/
+shared-kernel/OrbWeaver result identity, typed-port rejection, zero-vector
+normalization rejection, and immutable `.dftba` document/undo/redo state.
+
+```sh
+cargo test --locked -p cadcraft-engine --test vector_command_certification
+```
+
+These four entries stay `candidate_ci_pending` until the pinned Rust and
+cross-platform/post-merge CI gates pass. The existing three read-only
+point tools remain `certified_headless`; six stateful CAD editing tools
+still await desktop UI certification. No new mathematical implementation
+or runtime dependency is introduced.
+
 ## Automated first pass
 
 Run from the repository root with the pinned Rust toolchain:

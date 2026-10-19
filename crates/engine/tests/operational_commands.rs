@@ -820,8 +820,18 @@ fn curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels() {
     assert_eq!(result["output"]["value"]["control"][0], json!({"x": 2.0, "y": 0.0, "z": 0.0}));
     assert_eq!(result["output"]["value"]["control"][1], json!({"x": 4.0, "y": 2.0, "z": 0.0}));
 
+    let mut curvature_case = inputs.clone();
+    curvature_case["continuity"]["value"] = json!(2);
+    let g2_direct = s.execute("worldwright.curve.blend", &json!({"inputs":curvature_case})).unwrap();
+    let g2_node = s.execute("worldwright.tool.run", &json!({"operation":"orbweaver.curve.blend","inputs":curvature_case})).unwrap();
+    assert_eq!(g2_direct["output"], g2_node["output"]);
+    let g2: Curve = serde_json::from_value(g2_direct["output"]["value"].clone()).unwrap();
+    assert_eq!(g2.degree, 5);
+    assert!((g2.curvature_vector(0.0).unwrap() - a.curvature_vector(1.0).unwrap()).len() < 1e-8);
+    assert!((g2.curvature_vector(1.0).unwrap() - b.curvature_vector(0.0).unwrap()).len() < 1e-8);
+
     let mut unsupported = inputs.clone();
-    unsupported["continuity"]["value"] = json!(2);
+    unsupported["continuity"]["value"] = json!(3);
     assert!(s.execute("worldwright.curve.blend", &json!({"inputs": unsupported})).is_err());
     let mut invalid = inputs.clone();
     invalid["strength_a"]["value"] = json!(0.0);

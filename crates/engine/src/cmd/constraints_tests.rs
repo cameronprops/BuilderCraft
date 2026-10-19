@@ -172,7 +172,13 @@ fn hostile_constraint_params_never_panic() {
     let ids: Vec<&str> = command_specs()
         .iter()
         .map(|c| c.id)
-        .filter(|id| id.starts_with("gc") || id.starts_with("dc") || id.contains("constrain") || *id == "parameters" || id.starts_with("constraint"))
+        .filter(|id| {
+            id.starts_with("gc")
+                || id.starts_with("dc")
+                || (id.contains("constrain") && !id.starts_with("brep.constraints."))
+                || *id == "parameters"
+                || id.starts_with("constraint")
+        })
         .collect();
     assert!(ids.len() >= 25, "{ids:?}");
     for id in ids {

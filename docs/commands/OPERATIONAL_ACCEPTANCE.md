@@ -31,7 +31,7 @@ missing coverage rather than passing. The fixture table is in
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
 **Current tranche (2026-10-18):** 114 distinct positive success-path fixtures
-are authored against 365 registered commands. **251 still lack independent
+are authored against 396 registered commands. **282 still lack independent
 positive-path entries.** The first 104 fixtures are merged on main via PR #101
 and PR #105 with passing focused-modeling, native Linux/macOS/Windows, and
 exact BRep CI. This branch adds ten additional fixtures for DIVIDE, REVCLOUD,
@@ -39,7 +39,7 @@ PEDIT, TEXT, MTEXT, TEXTEDIT, XLINE, MLINE, CENTERMARK and CENTERLINE. The
 added fixtures assert coordinates, object types, stable identity, source
 replacement, text contents, annotation dimensions and center geometry.
 Focused-modeling and exact BRep workflows passed at the original branch head;
-the reconciled merge commit must pass current mainline CI before merge.
+the reconciled branch (including the 31 new NURBS/modeling commands from merged PR #77) must pass current mainline CI before merge.
 A positive fixture is not complete five-criterion operational certification.
 
 ## Completion criteria for EACH command

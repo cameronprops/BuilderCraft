@@ -1089,7 +1089,10 @@ mod tests {
                 assert!(names.insert(port.name));
             }
         }
-        assert_eq!(SHARED_TOOLS.len(), 42);
+        assert_eq!(operations.len(), SHARED_TOOLS.len());
+        assert_eq!(cad.len(), operations.len());
+        assert_eq!(graph.len(), operations.len());
+        assert!(operations.contains("kernel.curve.blend"));
     }
     #[test]
     fn mesh_qem_is_one_algorithm_for_cad_and_orbweaver() {
@@ -1164,7 +1167,7 @@ mod tests {
         let original = ToolValue::Tree(tree.clone());
         let decoded: ToolValue = serde_json::from_str(&serde_json::to_string(&original).unwrap()).unwrap();
         assert_eq!(decoded, original);
-        assert_eq!(SHARED_TOOLS.len(), 42);
+        assert!(SHARED_TOOLS.iter().any(|tool| tool.operation == "kernel.tree.graft"));
 
         let cmd = |op: &str| execute_shared_tool(&ToolRequest { operation: op.into(), inputs: BTreeMap::from([("tree".into(), original.clone())]) });
         let graft = cmd("worldwright.tree.graft").unwrap();

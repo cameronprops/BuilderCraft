@@ -120,16 +120,8 @@ mod tests {
     }
     #[test]
     fn g2_matches_curvature_vectors_and_oriented_tangents() {
-        let a = Curve::from_control(vec![
-            Vec3::new(-2.0, 0.0, 0.0),
-            Vec3::new(-1.0, 0.0, 0.0),
-            Vec3::new(0.0, 1.0, 0.0),
-        ], 2).unwrap();
-        let b = Curve::from_control(vec![
-            Vec3::new(3.0, 2.0, 0.0),
-            Vec3::new(4.0, 2.0, 0.0),
-            Vec3::new(5.0, 3.0, 0.0),
-        ], 2).unwrap();
+        let a = Curve::from_control(vec![Vec3::new(-2.0, 0.0, 0.0), Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)], 2).unwrap();
+        let b = Curve::from_control(vec![Vec3::new(3.0, 2.0, 0.0), Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0)], 2).unwrap();
         for (reverse_a, reverse_b) in [(0, 0), (1, 1)] {
             let result = blend_nurbs_curves(&a, &b, 2, 0.20, 0.25, reverse_a, reverse_b).unwrap();
             assert_eq!(result.degree, 5);

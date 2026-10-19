@@ -460,11 +460,45 @@ fn run_offset(s: &mut Session, p: &Value) -> Result<Value> {
 
 // ---------------- trim / extend ----------------
 
+// TRIM/EXTEND use geometry in the active space only. A locked target may be
+// used as a cutting reference, but must never be edited.
+fn trim_extend_target(s: &Session, h: Handle, command: &str) -> Result<Entity> {
+    let d = s.doc()?;
+    let e = d.entity(h).ok_or_else(|| bad(command, format!("object {} does not exist", h.hex())))?;
+    if d.space_of(h).as_ref() != Some(&s.space()) {
+        return Err(bad(command, format!("object {} is outside the active drawing space", h.hex())));
+    }
+    if d.layer(&e.common.layer).is_some_and(|layer| layer.locked) {
+        return Err(bad(command, format!("object {} is on locked layer {}", h.hex(), e.common.layer)));
+    }
+    Ok((**e).clone())
+}
+
 /// All primitives of the cutting edges (excluding `exclude`).
 fn edge_segments(s: &Session, edges: Option<&[Handle]>, exclude: Handle) -> Result<Vec<Segment>> {
     let d = s.doc()?;
     let space = s.space();
     let store = d.space(&space).ok_or(EngineError::NoDocument)?;
+    // An explicit selection is a strict contract. Silently dropping stale,
+    // hidden, self-referential, or foreign-space cutters can trim to the
+    // wrong intersection while still returning apparent success.
+    if let Some(handles) = edges {
+        if handles.is_empty() {
+            return Err(bad("trim/extend", "explicit `edges` list must not be empty"));
+        }
+        for handle in handles {
+            if *handle == exclude {
+                return Err(bad("trim/extend", "the edited object cannot also be its cutting edge"));
+            }
+            let edge = d.entity(*handle).ok_or_else(|| bad("trim/extend", format!("cutting edge {} does not exist", handle.hex())))?;
+            if d.space_of(*handle).as_ref() != Some(&space) {
+                return Err(bad("trim/extend", format!("cutting edge {} is outside the active drawing space", handle.hex())));
+            }
+            if !d.is_visible(edge.as_ref()) {
+                return Err(bad("trim/extend", format!("cutting edge {} is hidden", handle.hex())));
+            }
+        }
+    }
     let mut out = Vec::new();
     for e in store.iter() {
         if e.handle == exclude || !d.is_visible(e) {
@@ -503,7 +537,7 @@ fn prim_to_segments(p: &Prim) -> Vec<Segment> {
 
 /// Trim `h` at the piece containing `pick`. Returns the handles that replace it.
 pub(crate) fn trim(s: &mut Session, h: Handle, pick: Vec2, edges: Option<&[Handle]>) -> Result<Vec<Handle>> {
-    let e = s.doc()?.entity(h).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
+    let e = trim_extend_target(s, h, "trim")?;
     let cut = edge_segments(s, edges, h)?;
     let pieces: Vec<EntityKind> = match &e.kind {
         EntityKind::Line(l) => {
@@ -686,7 +720,7 @@ fn param_on(s: &Segment, p: Vec2) -> f64 {
 
 /// Extend the end of `h` nearest `pick` to the nearest boundary edge.
 pub(crate) fn extend(s: &mut Session, h: Handle, pick: Vec2, edges: Option<&[Handle]>) -> Result<()> {
-    let e = s.doc()?.entity(h).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
+    let e = trim_extend_target(s, h, "extend")?;
     let cut = edge_segments(s, edges, h)?;
     let new_kind = match &e.kind {
         EntityKind::Line(l) => {
@@ -743,14 +777,27 @@ pub(crate) fn extend(s: &mut Session, h: Handle, pick: Vec2, edges: Option<&[Han
     Ok(())
 }
 
-fn edges_param(p: &Value) -> Option<Vec<Handle>> {
-    p.get("edges").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().and_then(Handle::parse_hex)).collect())
+fn edges_param(p: &Value) -> Result<Option<Vec<Handle>>> {
+    let Some(raw) = p.get("edges") else { return Ok(None) };
+    let values = raw.as_array().ok_or_else(|| bad("trim/extend", "`edges` must be an array of hexadecimal object handles"))?;
+    let mut handles = Vec::with_capacity(values.len());
+    for (i, value) in values.iter().enumerate() {
+        let handle = value
+            .as_str()
+            .and_then(Handle::parse_hex)
+            .ok_or_else(|| bad("trim/extend", format!("`edges[{i}]` must be a valid hexadecimal object handle")))?;
+        if handles.contains(&handle) {
+            return Err(bad("trim/extend", format!("duplicate cutting edge {}", handle.hex())));
+        }
+        handles.push(handle);
+    }
+    Ok(Some(handles))
 }
 
 fn run_trim(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("trim", "`handle` is required"))?;
     let pick = point_req("trim", p, "pick")?;
-    let edges = edges_param(p);
+    let edges = edges_param(p)?;
     let r = trim(s, h, pick, edges.as_deref())?;
     Ok(json!({ "handles": r.iter().map(|h| h.hex()).collect::<Vec<_>>() }))
 }
@@ -758,7 +805,7 @@ fn run_trim(s: &mut Session, p: &Value) -> Result<Value> {
 fn run_extend(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("extend", "`handle` is required"))?;
     let pick = point_req("extend", p, "pick")?;
-    let edges = edges_param(p);
+    let edges = edges_param(p)?;
     extend(s, h, pick, edges.as_deref())?;
     ok()
 }

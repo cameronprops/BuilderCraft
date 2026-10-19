@@ -111,6 +111,31 @@ point tools remain `certified_headless`; six stateful CAD editing tools
 still await desktop UI certification. No new mathematical implementation
 or runtime dependency is introduced.
 
+## Polyline arc-length certification candidates, PR #133
+
+Three existing shared modeling commands gain independent five-gate headless
+candidate coverage: `worldwright.polyline.length`,
+`worldwright.polyline.divide_count` and
+`worldwright.polyline.divide_distance`. The same L-shaped 3-4 path is
+translated across 64 test cases; numeric arc length and actual station
+coordinates are independently asserted, then CAD/kernel/OrbWeaver typed
+outputs are compared. Invalid source paths, typed ports, division counts,
+spacing and excess subdivision budgets are rejected without changing the
+drawing's Arc identity, .dftba bytes, revision, selection or undo/redo.
+
+```sh
+cargo test --locked -p cadcraft-engine --test polyline_command_certification
+```
+
+These three entries remain `candidate_ci_pending` until pinned Rust,
+full cross-platform CI, post-merge main verification and interface reviews
+pass. They are headless read-only operations; desktop viewport, scene and
+picking behavior are not certified. The project retains the three previously
+certified point queries and four pending vector queries. This PR does not
+increase the 175-command positive-path fixture count or the 396-command
+registry. A positive-path fixture and a certified command remain different
+measures.
+
 ## Automated first pass
 
 Run from the repository root with the pinned Rust toolchain:

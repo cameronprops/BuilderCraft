@@ -51,6 +51,31 @@ gate. Passing this headless suite must not be presented as completed UI
 certification.
 
 
+## Interactive engine certification (PR #129)
+
+`crates/engine/tests/interactive_command_certification.rs` exercises the
+real `Session::start`, `Session::input`, and `Session::preview` paths
+for Line, Move, Copy, Rotate, Scale, and Mirror. It validates aliases,
+point and number prompts, pick-first and explicit handle selection,
+live Line preview without document mutation, error re-prompting,
+interactive copy/erase decisions, native `.dftba` roundtrips, and undo/redo.
+
+```sh
+cargo test --locked -p cadcraft-engine --test interactive_command_certification
+```
+
+The inherited Line behavior deliberately **keeps partially created segments
+when Escape cancels** and records one undoable edit. Its regression test
+matches that documented legacy contract; changing cancellation semantics
+requires an explicit behavior decision rather than silently asserting
+rollback. Cancel before any Line geometry is created leaves no edit.
+
+The prompts are exercised in the native engine but **not yet verified via
+the desktop window's click, keyboard and rendering pipeline**. That host
+interaction gate remains pending for every stateful candidate. The
+machine-readable certification ledger links each command to its
+specific prompt tests, while preserving the `candidate_ci_pending` status.
+
 ## Automated first pass
 
 Run from the repository root with the pinned Rust toolchain:

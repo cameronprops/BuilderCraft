@@ -4,7 +4,7 @@
 
 This register explicitly audits **all 39 PRs open at the start of the stabilization sprint**. Five are merged in the first pass (#25, #27, #34, #53, #63); the rest are unresolved at this snapshot. Re-query GitHub before making state claims. A prior green head check is **not** proof that an updated `main` passes. Preserve original branch work until its functionality has landed or has an explained disposition.
 
-## Live acceptance stack (2026-10-18 Pacific)
+## Live acceptance stack (2026-10-19)
 
 This section supersedes historical PR statuses below. The original stabilization
 snapshot is retained for traceability and must not be treated as live GitHub state.
@@ -12,10 +12,10 @@ snapshot is retained for traceability and must not be treated as live GitHub sta
 | PR | Dependency | Authored success fixtures | Merge gate |
 |---|---|---:|---|
 | #118 | `main` | 144 / 396 | **MERGED** `8c7c12ac`, required head CI passed |
-| #119 | `main` | 149 / 396 | Reconciled (`aa5e85c`); fresh native/modeling/exact OCCT CI running |
-| #120 | #119 | 154 / 396 | Formatting repair committed; rerun focused, native and exact OCCT |
-| #121 | #120 | 159 / 396 | Focused modeling passed, exact OCCT and future native reconciliation required |
-| #122 | #121 | 166 / 396 | Paired CAD/OrbWeaver success fixtures; full CI and parent reconciliation required |
+| #119 | `main` | 149 / 396 | **MERGED** `eb3d3c9`; required native/modeling/exact OCCT CI passed |
+| #120 | #119 | 154 / 396 | Covered by consolidated #122; close only after verified merge |
+| #121 | #120 | 159 / 396 | Covered by consolidated #122; close only after verified merge |
+| #122 | `main` (consolidated #120-#122) | 166 / 396 | 17 new success fixtures; full Linux/macOS/Windows native, focused and exact OCCT CI required |
 
 **230 / 396** registered commands currently have no independently asserted
 positive-path fixture in this proposed stack. New fixtures check real results

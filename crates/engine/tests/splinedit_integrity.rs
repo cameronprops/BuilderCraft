@@ -4,11 +4,7 @@ use cadcraft_engine::Session;
 use serde_json::json;
 
 fn make_spline(s: &mut Session) -> String {
-    s.execute("spline.cv", &json!({"control":[[0,0],[1,2],[2,1],[3,0]]}))
-        .unwrap()["handle"]
-        .as_str()
-        .unwrap()
-        .to_string()
+    s.execute("spline.cv", &json!({"control":[[0,0],[1,2],[2,1],[3,0]]})).unwrap()["handle"].as_str().unwrap().to_string()
 }
 
 #[test]

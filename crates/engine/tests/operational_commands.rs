@@ -34,6 +34,7 @@ const CASES: &[Case] = &[
     ("worldwright.project", plane_projection_preserves_xy_and_removes_height),
     ("worldwright.surface.ruled", ruled_surface_preserves_exact_control_rails),
     ("worldwright.nurbs.evaluate", nurbs_evaluation_uses_exact_rational_curve),
+    ("worldwright.curve.blend", curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels),
     ("worldwright.tool.run", generic_dispatch_matches_direct_command),
     ("mesh3d.create", mesh_creation_is_persistent),
     ("mesh3d.list", mesh_listing_finds_created_object),
@@ -781,6 +782,53 @@ fn quad_pushpull_produces_closed_six_face_prism() {
     let mut bad = inputs.clone();
     bad["distance"]["value"] = json!(0.0);
     assert!(s.execute("worldwright.pushpull", &json!({"inputs": bad})).is_err());
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels() {
+    use cadcraft_geom::{Vec3, nurbs3d::Curve};
+    let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(2.0, 0.0, 0.0)], 1).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(4.0, 4.0, 0.0)], 1).unwrap();
+    let inputs = json!({
+        "a": {"kind": "curve", "value": a},
+        "b": {"kind": "curve", "value": b},
+        "continuity": {"kind": "count", "value": 1},
+        "strength_a": {"kind": "number", "value": 0.25},
+        "strength_b": {"kind": "number", "value": 0.5},
+        "reverse_a": {"kind": "count", "value": 0},
+        "reverse_b": {"kind": "count", "value": 0}
+    });
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let direct = s.execute("worldwright.curve.blend", &json!({"inputs": inputs})).unwrap();
+    let node = s.execute("worldwright.tool.run", &json!({"operation": "orbweaver.curve.blend", "inputs": inputs})).unwrap();
+    assert_eq!(direct["output"], node["output"]);
+    assert_eq!(direct["output"]["kind"], "curve");
+    let curve: Curve = serde_json::from_value(direct["output"]["value"].clone()).unwrap();
+    assert_eq!(curve.degree, 3);
+    assert_eq!(curve.control.len(), 4);
+    assert_eq!(curve.evaluate(0.0), a.evaluate(1.0));
+    assert_eq!(curve.evaluate(1.0), b.evaluate(0.0));
+    assert!(curve.tangent(0.0).unwrap().dot(a.tangent(1.0).unwrap()) > 1.0 - 1e-9);
+    assert!(curve.tangent(1.0).unwrap().dot(b.tangent(0.0).unwrap()) > 1.0 - 1e-9);
+
+    let mut linear = inputs.clone();
+    linear["continuity"]["value"] = json!(0);
+    let result = s.execute("worldwright.curve.blend", &json!({"inputs": linear})).unwrap();
+    assert_eq!(result["output"]["value"]["degree"], 1);
+    assert_eq!(result["output"]["value"]["control"][0], json!({"x": 2.0, "y": 0.0, "z": 0.0}));
+    assert_eq!(result["output"]["value"]["control"][1], json!({"x": 4.0, "y": 2.0, "z": 0.0}));
+
+    let mut unsupported = inputs.clone();
+    unsupported["continuity"]["value"] = json!(2);
+    assert!(s.execute("worldwright.curve.blend", &json!({"inputs": unsupported})).is_err());
+    let mut invalid = inputs.clone();
+    invalid["strength_a"]["value"] = json!(0.0);
+    assert!(s.execute("worldwright.curve.blend", &json!({"inputs": invalid})).is_err());
+    let mut missing = inputs.clone();
+    missing["reverse_b"] = serde_json::Value::Null;
+    assert!(s.execute("worldwright.curve.blend", &json!({"inputs": missing})).is_err());
+    assert_eq!(s.state().unwrap().revision, revision);
     assert!(s.doc().unwrap().model.is_empty());
 }
 

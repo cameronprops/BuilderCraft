@@ -18,8 +18,8 @@ pub fn blend_nurbs_curves(
     if !a.valid() || !b.valid() {
         return Err(KernelError::Invalid("blend requires valid NURBS curves"));
     }
-    if continuity > 1 {
-        return Err(KernelError::Invalid("only G0/G1 curve blend is implemented"));
+    if continuity > 2 {
+        return Err(KernelError::Invalid("only G0/G1/G2 curve blend is implemented"));
     }
     if reverse_a > 1 || reverse_b > 1 {
         return Err(KernelError::Invalid("blend reversal must be 0 or 1"));
@@ -53,8 +53,28 @@ pub fn blend_nurbs_curves(
         }
         let handle_a = incoming * (span * strength_a / la);
         let handle_b = outgoing * (span * strength_b / lb);
-        let control: Vec<Vec3> = vec![start, start + handle_a, end - handle_b, end];
-        Curve::from_control(control, 3)
+        if continuity == 1 {
+            Curve::from_control(vec![start, start + handle_a, end - handle_b, end], 3)
+        } else {
+            // A quintic Bézier matches position, oriented tangent and the
+            // curvature vector at both ends. Choosing zero tangential
+            // acceleration is a parameterization choice, not a G2 condition.
+            let speed_a = handle_a.len() * 5.0;
+            let speed_b = handle_b.len() * 5.0;
+            let curvature_a = a.curvature_vector(ta).ok_or(KernelError::Invalid("source A has undefined endpoint curvature"))?;
+            let curvature_b = b.curvature_vector(tb).ok_or(KernelError::Invalid("source B has undefined endpoint curvature"))?;
+            let acceleration_a = curvature_a * (speed_a * speed_a);
+            let acceleration_b = curvature_b * (speed_b * speed_b);
+            let controls = vec![
+                start,
+                start + handle_a,
+                start + handle_a * 2.0 + acceleration_a * 0.05,
+                end - handle_b * 2.0 + acceleration_b * 0.05,
+                end - handle_b,
+                end,
+            ];
+            Curve::from_control(controls, 5)
+        }
     };
     blend.ok_or(KernelError::Invalid("blend control geometry exceeds NURBS limits"))
 }
@@ -99,10 +119,38 @@ mod tests {
         assert_eq!((a, b), before);
     }
     #[test]
+    fn g2_matches_curvature_vectors_and_oriented_tangents() {
+        let a = Curve::from_control(vec![
+            Vec3::new(-2.0, 0.0, 0.0),
+            Vec3::new(-1.0, 0.0, 0.0),
+            Vec3::new(0.0, 1.0, 0.0),
+        ], 2).unwrap();
+        let b = Curve::from_control(vec![
+            Vec3::new(3.0, 2.0, 0.0),
+            Vec3::new(4.0, 2.0, 0.0),
+            Vec3::new(5.0, 3.0, 0.0),
+        ], 2).unwrap();
+        for (reverse_a, reverse_b) in [(0, 0), (1, 1)] {
+            let result = blend_nurbs_curves(&a, &b, 2, 0.20, 0.25, reverse_a, reverse_b).unwrap();
+            assert_eq!(result.degree, 5);
+            assert_eq!(result.control.len(), 6);
+            let ta = if reverse_a == 0 { 1.0 } else { 0.0 };
+            let tb = if reverse_b == 0 { 0.0 } else { 1.0 };
+            assert_eq!(result.evaluate(0.0), a.evaluate(ta));
+            assert_eq!(result.evaluate(1.0), b.evaluate(tb));
+            let sign_a = if reverse_a == 1 { -1.0 } else { 1.0 };
+            let sign_b = if reverse_b == 1 { -1.0 } else { 1.0 };
+            assert!(result.tangent(0.0).unwrap().dot(a.tangent(ta).unwrap() * sign_a) > 1.0 - 1e-9);
+            assert!(result.tangent(1.0).unwrap().dot(b.tangent(tb).unwrap() * sign_b) > 1.0 - 1e-9);
+            assert!((result.curvature_vector(0.0).unwrap() - a.curvature_vector(ta).unwrap()).len() < 1e-7);
+            assert!((result.curvature_vector(1.0).unwrap() - b.curvature_vector(tb).unwrap()).len() < 1e-7);
+        }
+    }
+    #[test]
     fn rejects_coincident_unsupported_or_out_of_range_inputs() {
         let a = line(Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0));
         let b = line(Vec3::new(3.0, 1.0, 0.0), Vec3::new(4.0, 1.0, 0.0));
-        assert!(blend_nurbs_curves(&a, &b, 2, 0.3, 0.3, 0, 0).is_err());
+        assert!(blend_nurbs_curves(&a, &b, 3, 0.3, 0.3, 0, 0).is_err());
         assert!(blend_nurbs_curves(&a, &b, 1, 0.0, 0.3, 0, 0).is_err());
         assert!(blend_nurbs_curves(&a, &b, 1, 0.3, 0.3, 2, 0).is_err());
         assert!(blend_nurbs_curves(&a, &b, 1, f64::NAN, 0.3, 0, 0).is_err());

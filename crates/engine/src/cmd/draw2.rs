@@ -969,7 +969,9 @@ fn cloud_entity(vs: Vec<PolyVertex>, calligraphy: bool, arc_len: f64) -> EntityK
 
 fn run_revcloud(s: &mut Session, p: &Value) -> Result<Value> {
     let arc_len = match p.get("arcLength") {
-        Some(value) => value.as_f64().filter(|v| v.is_finite() && *v > 0.0).ok_or_else(|| bad("revcloud", "arcLength must be a positive finite number"))?,
+        Some(value) => {
+            value.as_f64().filter(|v| v.is_finite() && *v > 0.0).ok_or_else(|| bad("revcloud", "arcLength must be a positive finite number"))?
+        }
         None => default_arc_len(s),
     };
     let reverse = bool_or(p, "reverse", false);

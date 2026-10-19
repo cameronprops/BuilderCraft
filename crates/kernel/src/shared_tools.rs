@@ -213,6 +213,16 @@ const CURVE_SWEEP2: &[ToolPort] = &[
     ToolPort { name: "section", kind: ToolType::Polyline, modifier: false },
 ];
 
+const CURVE_BLEND: &[ToolPort] = &[
+    ToolPort { name: "a", kind: ToolType::Curve, modifier: false },
+    ToolPort { name: "b", kind: ToolType::Curve, modifier: false },
+    ToolPort { name: "continuity", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "strength_a", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "strength_b", kind: ToolType::Number, modifier: true },
+    ToolPort { name: "reverse_a", kind: ToolType::Count, modifier: true },
+    ToolPort { name: "reverse_b", kind: ToolType::Count, modifier: true },
+];
+
 const NURBS_POINT: &[ToolPort] =
     &[ToolPort { name: "curve", kind: ToolType::Curve, modifier: false }, ToolPort { name: "t", kind: ToolType::Number, modifier: true }];
 const NURBS_TRIM: &[ToolPort] = &[
@@ -421,6 +431,15 @@ pub const SHARED_TOOLS: &[SharedToolContract] = &[
         prerequisites: &["kernel.polyline.length", "kernel.polygon.validate"],
         inputs: CURVE_SWEEP2,
         output: ToolType::Mesh,
+    },
+    SharedToolContract {
+        operation: "kernel.curve.blend",
+        cad_command: "worldwright.curve.blend",
+        orbweaver_node: "orbweaver.curve.blend",
+        dependency_group: "geometry.curve",
+        prerequisites: &["kernel.nurbs.evaluate"],
+        inputs: CURVE_BLEND,
+        output: ToolType::Curve,
     },
     SharedToolContract {
         operation: "kernel.nurbs.evaluate",
@@ -1002,6 +1021,15 @@ fn dispatch_scalar(request: &ToolRequest) -> Result<ToolValue> {
             polyline(&request.inputs, "rail_a")?,
             polyline(&request.inputs, "rail_b")?,
             polyline(&request.inputs, "section")?,
+        )?)),
+        "kernel.curve.blend" => Ok(ToolValue::Curve(crate::blend_nurbs_curves(
+            nurbs_curve(&request.inputs, "a")?,
+            nurbs_curve(&request.inputs, "b")?,
+            count(&request.inputs, "continuity")?,
+            number(&request.inputs, "strength_a")?,
+            number(&request.inputs, "strength_b")?,
+            count(&request.inputs, "reverse_a")?,
+            count(&request.inputs, "reverse_b")?,
         )?)),
         "kernel.nurbs.evaluate" => {
             Ok(ToolValue::Point(crate::nurbs_curve_evaluate(nurbs_curve(&request.inputs, "curve")?, number(&request.inputs, "t")?)?))

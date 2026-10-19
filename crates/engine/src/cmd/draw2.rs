@@ -763,8 +763,9 @@ fn run_measure(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("measure", "`handle` is required"))?;
     let step = f64_req("measure", p, "length")?;
     let mut c = chain_of(s, h)?;
-    if step.is_nan() || step <= 0.0 || c.len() / step > MAX_GEN as f64 {
-        return Err(bad("measure", "length must be positive (and not tiny)"));
+    let length = c.len();
+    if !step.is_finite() || step <= 0.0 || !length.is_finite() || length / step > MAX_GEN as f64 {
+        return Err(bad("measure", "length must be finite, positive, and permit no more than the marker budget"));
     }
     let block = str_param(p, "block").map(str::to_string);
     check_block(s, block.as_deref())?;
@@ -776,6 +777,12 @@ fn run_measure(s: &mut Session, p: &Value) -> Result<Value> {
         c = c.reversed();
     }
     let pts = measure_points(&c, step);
+    // A failed point evaluation must never turn a fully requested sequence
+    // into an apparently successful but incomplete collection of markers.
+    let expected = ((length - 1e-9) / step).ceil().max(1.0) as usize - 1;
+    if pts.len() != expected || pts.iter().any(|(point, tangent)| !point.is_finite() || !tangent.is_finite()) {
+        return Err(bad("measure", format!("placed {} of {expected} requested stations; no objects were changed", pts.len())));
+    }
     let hs = place_markers(s, &pts, block.as_deref(), bool_or(p, "align", true))?;
     Ok(json!({ "handles": hs }))
 }

@@ -87,3 +87,9 @@ Benchmarks must cover millions of triangles and bounded job memory.
 
 Never state feature parity with proprietary products without functional tests.
 See PolyWorks public documentation and OpenMesh halfedge design for reference.
+
+## Retopology, surfacing and form-edit expansion (2026-10-18)
+
+The expanded **56 proposed command** set is specified in [Worldwright Retopology, Surfacing and Form Editing](commands/RETOPOLOGY_SURFACING_FORM_EDITING.md) and tracked in [issue #99](https://github.com/cameronprops/BuilderCraft/issues/99). This adds surface-snapped Quad Draw/Retopo Brush-style editing, patch libraries, edge-flow and loop edits, SubD/NURBS CV manipulation, soft selection and cage deformations, mesh/BRep PushPull, and diagnostic fillet feasibility. The exact-solid prerequisites remain separately tracked by [issue #26](https://github.com/cameronprops/BuilderCraft/issues/26).
+
+**Implementation relationship:** the halfedge/selection/transactions described above are the P0 foundation, not a second mesh engine. Do not mark any added command implemented without kernel, headless, viewport and save/reopen acceptance. For verified editing capabilities, retain the existing command registry status rather than assuming this expansion is complete.

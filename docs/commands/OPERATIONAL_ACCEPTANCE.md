@@ -97,7 +97,7 @@ specific prompt tests, while preserving the `candidate_ci_pending` status.
 Four foundational shared math operations now have candidate tests:
 `worldwright.vector.length`, `.normalize`, `.dot`, and `.cross`.
 The executable `crates/engine/tests/vector_command_certification.rs`
-checks 64 independently calculated vector fixtures per operation, CAD/
+checks 128 independently calculated signed vector fixtures per operation, CAD/
 shared-kernel/OrbWeaver result identity, typed-port rejection, zero-vector
 normalization rejection, and immutable `.dftba` document/undo/redo state.
 

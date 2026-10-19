@@ -30,14 +30,15 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 102 distinct positive success-path fixtures
-have been authored against 365 registered commands. **263 still lack positive
-entries in this ledger.** The 98-case baseline passed CI and merged through
-PR #94. The four additional positive cases (SPLINE, SPLINE.CV, LIST, MEASURE)
-and the integrated DIVIDE/REVCLOUD/inquiry safeguards require validation on
-this branch before being marked passing. Existing unit tests add un-reconciled
-coverage. A positive fixture alone does not satisfy the five operational
-certification criteria below.
+**Current tranche (2026-10-18):** 104 distinct positive success-path fixtures
+have been authored against 365 registered commands. **261 still lack positive
+entries in this ledger.** The 102-case baseline merged via PR #101 after
+successful focused modeling, Linux/macOS/Windows native, and exact BRep CI.
+This branch adds independently asserted valid geometry paths for TRIM and
+EXTEND. These two additions are not yet certified until their branch CI
+succeeds. Failure-path integrity is separately proposed in PR #104. Existing
+unit tests add un-reconciled coverage; a positive fixture alone does not
+satisfy all five operational certification criteria below.
 
 ## Completion criteria for EACH command
 

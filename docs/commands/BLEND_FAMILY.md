@@ -6,7 +6,9 @@
 Rhino 8 documentation distinguishes [Blend](https://docs.mcneel.com/rhino/8/help/en-us/commands/blend.htm),
 [BlendCrv](https://docs.mcneel.com/rhino/8mac/help/en-us/commands/blendcrv.htm),
 [BlendSrf](https://docs.mcneel.com/rhino/8/help/en-us/commands/blendsrf.htm),
-and [BlendEdge](https://docs.mcneel.com/rhino/8/help/en-us/commands/blendedge.htm).
+and [BlendEdge](https://docs.mcneel.com/rhino/8/help/en-us/commands/blendedge.htm),
+plus [VariableBlendSrf](https://docs.mcneel.com/rhino/8/help/en-us/commands/variableblendsrf.htm)
+for radius-varying transitions between intersecting surface edges.
 See [blend-parity.json](blend-parity.json) for the machine-readable inventory.
 
 ## Proposed first operational vertical slice
@@ -68,7 +70,8 @@ python3 tools/check_paired_tools.py
   constraints. Unsupported levels explicitly reject.
 - No BlendCrv two-ended curvature solver/adjustable editor yet. No BlendSrf
   tangent/curvature matching on NURBS surfaces, seam or chain-edge matching.
-  No BlendEdge variable-radius trims/joins on exact BRep topology.
+  No BlendEdge or VariableBlendSrf radius-handle policies, dynamic maximum
+  feasible-radius feedback, or trims/joins on exact BRep topology.
 - Handle fractions are not fillet or blend radii. No collision-free,
   non-self-intersecting or fabrication tolerance certificate is claimed.
 

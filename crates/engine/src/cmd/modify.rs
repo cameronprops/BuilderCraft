@@ -831,10 +831,7 @@ pub(crate) fn fillet_lines(
     let mut new_arc = None;
     let (t1, t2) = if let Some((d1, d2)) = chamfer {
         if d1 > leg1 + 1e-9 || d2 > leg2 + 1e-9 {
-            return Err(bad(
-                command,
-                format!("chamfer distances exceed selected segments; maximum d1={leg1:.6}, d2={leg2:.6} drawing units"),
-            ));
+            return Err(bad(command, format!("chamfer distances exceed selected segments; maximum d1={leg1:.6}, d2={leg2:.6} drawing units")));
         }
         (x + u1 * d1, x + u2 * d2)
     } else if radius <= 1e-12 {

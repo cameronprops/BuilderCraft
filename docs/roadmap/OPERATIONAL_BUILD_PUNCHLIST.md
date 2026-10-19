@@ -56,6 +56,13 @@ undo/redo, command parameters/aliases, and bounded repetition. This is
 an engineering certification **candidate**, not a desktop interaction
 certification or a claim that all five gates passed across platforms.
 
+**Next certification tranche #128:** Rotate, Scale and Mirror extend #127's
+stateful Rust test suite and machine-readable ledger to **nine candidates**
+(three point-query operations, six stateful 2D modeling commands).
+Formal certification stays **zero** until cross-platform integration,
+post-merge main and applicable interactive UI evidence is complete.
+The workflow is incremental and must not duplicate transform math.
+
 ## Definition of "operational alpha" (release-blocking)
 
 - [ ] **Single integration target:** update `main` or a dated stabilization branch to a coherent, non-conflicting head; no hidden dependency on unmerged stacked PRs; record precise release SHA and source provenance.

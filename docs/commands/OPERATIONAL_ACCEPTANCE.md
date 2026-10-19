@@ -30,16 +30,16 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 139 independent asserted positive
-command fixtures are authored against 396 registered commands; **257
-still lack success-path fixtures**. The main branch has merged 128.
-Parent PR #114 proposes six persistent NURBS/Geometry3D fixtures and
-this reconciled branch adds five model-browser fixtures for Create, List,
-Rename, Select and Visible. Assertions cover nested assembly/component/body
-organization, actual entity ownership, selection, name/visibility updates
-and undo. The current reconciled branch must complete pinned Rust,
-focused modeling, Linux/macOS/Windows native and exact BRep CI before
-merge. Positive fixtures alone do not establish all five release gates.
+**Current tranche (2026-10-18):** 139 independently asserted
+positive command fixtures are authored against 396 registered commands;
+**257 commands still lack success-path fixtures**. Main contains 134
+merged success-path cases including PR #114's native NURBS/Geometry3D
+coverage. This branch adds five document-backed model-browser cases:
+Create, List, Rename, Select and Visible, with asserted hierarchy, actual
+owned geometry, selection, edits and undo. All merged positive fixtures
+must pass focused modeling, native Linux/macOS/Windows and exact OCCT
+integration before counting as accepted. Positive cases alone do not
+constitute five-gate operational release certification.
 
 ## Completion criteria for EACH command
 

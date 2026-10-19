@@ -167,22 +167,26 @@ const CASES: &[Case] = &[
     ("lengthen", lengthen_changes_line_length),
 ];
 
-
 fn mesh_closest_point_reports_projected_triangle() {
     let mut s = Session::new();
     let revision = s.state().unwrap().revision;
-    let out = s.execute("worldwright.mesh.closest_point", &json!({
-        "mesh":{"vertices":[
-            {"x":0.0,"y":0.0,"z":0.0},
-            {"x":2.0,"y":0.0,"z":0.0},
-            {"x":0.0,"y":2.0,"z":0.0}
-        ],"triangles":[[0,1,2]]},
-        "query":[0.5,0.5,3.0]
-    })).unwrap();
-    assert_eq!(out["hit"]["point"], json!([0.5,0.5,0.0]));
+    let out = s
+        .execute(
+            "worldwright.mesh.closest_point",
+            &json!({
+                "mesh":{"vertices":[
+                    {"x":0.0,"y":0.0,"z":0.0},
+                    {"x":2.0,"y":0.0,"z":0.0},
+                    {"x":0.0,"y":2.0,"z":0.0}
+                ],"triangles":[[0,1,2]]},
+                "query":[0.5,0.5,3.0]
+            }),
+        )
+        .unwrap();
+    assert_eq!(out["hit"]["point"], json!([0.5, 0.5, 0.0]));
     assert_eq!(out["hit"]["distance"], 3.0);
     assert_eq!(out["hit"]["triangle_index"], 0);
-    assert_eq!(out["hit"]["barycentric"], json!([0.5,0.25,0.25]));
+    assert_eq!(out["hit"]["barycentric"], json!([0.5, 0.25, 0.25]));
     assert_eq!(s.state().unwrap().revision, revision);
     assert!(s.doc().unwrap().geometry3d.is_empty());
 }
@@ -190,12 +194,17 @@ fn mesh_closest_point_reports_projected_triangle() {
 fn cloud_closest_point_reports_stable_nearest_sample() {
     let mut s = Session::new();
     let revision = s.state().unwrap().revision;
-    let out = s.execute("worldwright.cloud.closest_point", &json!({
-        "points":[{"x":-1.0,"y":0.0,"z":0.0},{"x":1.0,"y":0.0,"z":0.0}],
-        "query":[0.0,0.0,0.0]
-    })).unwrap();
+    let out = s
+        .execute(
+            "worldwright.cloud.closest_point",
+            &json!({
+                "points":[{"x":-1.0,"y":0.0,"z":0.0},{"x":1.0,"y":0.0,"z":0.0}],
+                "query":[0.0,0.0,0.0]
+            }),
+        )
+        .unwrap();
     assert_eq!(out["hit"]["point_index"], 0);
-    assert_eq!(out["hit"]["point"], json!([-1.0,0.0,0.0]));
+    assert_eq!(out["hit"]["point"], json!([-1.0, 0.0, 0.0]));
     assert_eq!(out["hit"]["distance"], 1.0);
     assert_eq!(s.state().unwrap().revision, revision);
     assert!(s.doc().unwrap().geometry3d.is_empty());
@@ -203,11 +212,16 @@ fn cloud_closest_point_reports_stable_nearest_sample() {
 
 fn controlcurve3d_builds_valid_exact_curve() {
     let mut s = Session::new();
-    let result = s.execute("nurbs.controlcurve3d", &json!({
-        "name":"Operational control curve",
-        "degree":2,
-        "points":[[0.0,0.0,0.0],[1.0,2.0,0.0],[2.0,0.0,0.0]]
-    })).unwrap();
+    let result = s
+        .execute(
+            "nurbs.controlcurve3d",
+            &json!({
+                "name":"Operational control curve",
+                "degree":2,
+                "points":[[0.0,0.0,0.0],[1.0,2.0,0.0],[2.0,0.0,0.0]]
+            }),
+        )
+        .unwrap();
     let id = result["id"].as_u64().expect("new exact curve ID");
     let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
     assert_eq!(object.name, "Operational control curve");
@@ -220,10 +234,15 @@ fn controlcurve3d_builds_valid_exact_curve() {
 fn geometry3d_pick_misses_empty_scene_without_mutation() {
     let mut s = Session::new();
     let revision = s.state().unwrap().revision;
-    let out = s.execute("geometry3d.pick", &json!({
-        "pixel":[200.0,200.0], "viewport":[400.0,400.0],
-        "center":[0.0,0.0,0.0], "yaw":0.0, "pitch":0.0, "scale":10.0
-    })).unwrap();
+    let out = s
+        .execute(
+            "geometry3d.pick",
+            &json!({
+                "pixel":[200.0,200.0], "viewport":[400.0,400.0],
+                "center":[0.0,0.0,0.0], "yaw":0.0, "pitch":0.0, "scale":10.0
+            }),
+        )
+        .unwrap();
     assert!(out["id"].is_null());
     assert_eq!(s.state().unwrap().revision, revision);
     assert!(s.doc().unwrap().geometry3d.is_empty());

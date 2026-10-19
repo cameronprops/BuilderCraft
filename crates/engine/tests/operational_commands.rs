@@ -37,6 +37,7 @@ const CASES: &[Case] = &[
     ("ray", ray_keeps_normalized_direction),
     ("dist", distance_query_computes_three_four_five),
     ("area", area_query_finds_rectangle_measurements),
+    ("list", list_reports_line_length_and_handle),
     ("id", id_query_updates_last_point),
     ("layer", layer_list_includes_new_layer),
     ("layer.set", layer_set_changes_lock_state),
@@ -1091,6 +1092,17 @@ fn lengthen_changes_line_length() {
     let result = s.execute("lengthen", &json!({"handle":h, "total":5})).unwrap();
     assert_eq!(result["length"], 5.0);
     assert_eq!(first_line(&s), (0.0, 0.0, 5.0, 0.0));
+}
+
+fn list_reports_line_length_and_handle() {
+    let mut s = Session::new();
+    let created = s.execute("line", &json!({"points":[[0,0],[3,4]]})).unwrap();
+    let handle = created["handles"][0].as_str().unwrap();
+    let details = s.execute("list", &json!({"handles":[handle]})).unwrap();
+    let text = details["message"].as_str().unwrap();
+    assert!(text.contains("LINE"));
+    assert!(text.contains(&format!("Handle = {handle}")));
+    assert!(text.contains("Length = 5"));
 }
 
 #[test]

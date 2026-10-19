@@ -1,6 +1,6 @@
 # Worldwright command operational acceptance gate
 
-Baseline: **365** engine command registrations, inspected on 2026-10-18.
+Engine registry: **396** registered commands at the 2026-10-19 acceptance snapshot.
 Source of truth: `crates/engine/src/cmd/mod.rs` via
 `cadcraft_engine::command_specs()`. Do not treat reference command lists,
 API names, menu visibility or registration as functionality.
@@ -30,15 +30,24 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 144 independently asserted
-positive-path fixtures are authored for 396 registered commands;
-**252 still lack success-path fixtures**. The main branch currently has
-139 merged positive-path fixtures (including PR #116); this branch
-adds five feature timeline commands: Create, List, Inspect, Edit and Evaluate. Tests assert actual
-parametric midpoint results, .dftba persistence, undo, revision and
-read-only query behavior. Merge only after pinned formatting, focused
-modeling, native Linux/macOS/Windows and exact BRep gates succeed.
-Positive cases are not full five-part operational alpha certification.
+**Current stacked tranche (2026-10-18):** 166 distinct asserted
+positive-path fixtures proposed for 396 registered engine commands;
+**230 still lack a positive-path fixture**. This is authored coverage, not
+release certification. The verified merged-main baseline is **149 fixtures** after #119.
+
+- #118: five scoped feature-history cases, **merged** into `main`
+- #119: five exact NURBS surface, preview, transform and capability cases, **merged** into `main`
+- #120: five closest-point, control-curve, picking and selection cases
+- #121: five construction-plane, snap, exact 3D line and STL/OBJ exchange cases
+- #122: seven paired-kernel tests for tool discovery, numerical midpoint,
+  tree validation, flatten, graft, simplify, and longest-list matching
+
+PR #122 consolidates the 17 new fixtures from #120, #121 and #122 onto
+`main` to avoid three separate full integration runs. It requires pinned
+Rust formatting and Clippy, focused modeling, native Linux/macOS/Windows
+and exact OpenCascade gates, plus
+post-merge main checks. A valid-path fixture does **not** prove full
+operational certification under the five-part criteria below.
 
 ## Completion criteria for EACH command
 

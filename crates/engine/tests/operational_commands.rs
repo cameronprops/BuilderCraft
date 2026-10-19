@@ -144,6 +144,28 @@ const CASES: &[Case] = &[
     ("worldwright.history.inspect", history_inspect_exposes_scope_and_steps),
     ("worldwright.history.edit", history_edit_appends_executable_parametric_step),
     ("worldwright.history.evaluate", history_evaluate_recomputes_midpoint_without_mutating),
+    ("nurbs.surface", nurbs_control_surface_evaluates_exact_rational_patch),
+    ("nurbs.surface.ruled", nurbs_ruled_surface_preserves_document_rails),
+    ("geometry3d.preview", geometry3d_preview_tessellates_without_editing_source),
+    ("geometry3d.transform", geometry3d_transform_copies_native_shape_with_exact_translation),
+    ("buildercraft.capabilities", buildercraft_capabilities_reports_actual_native_features),
+    ("worldwright.mesh.closest_point", mesh_closest_point_reports_projected_triangle),
+    ("worldwright.cloud.closest_point", cloud_closest_point_reports_stable_nearest_sample),
+    ("nurbs.controlcurve3d", controlcurve3d_builds_valid_exact_curve),
+    ("geometry3d.pick", geometry3d_pick_misses_empty_scene_without_mutation),
+    ("geometry3d.select", geometry3d_select_empty_set_preserves_revision),
+    ("geometry3d.cplane.point", cplane_point_projects_screen_to_world_xy),
+    ("geometry3d.snap", snap_grid_rounds_and_preserves_drawing),
+    ("geometry3d.line", snapped_line_creates_exact_curve_and_undoes),
+    ("worldwright.mesh.encode", mesh_encode_preserves_triangle_on_obj_roundtrip),
+    ("worldwright.mesh.decode", mesh_decode_recovers_triangle_without_document_edits),
+    ("worldwright.tool.list", paired_tool_discovery_lists_shared_interfaces),
+    ("worldwright.point.midpoint", paired_midpoint_computes_exact_coordinates),
+    ("worldwright.tree.validate", tree_validate_counts_items_without_editing),
+    ("worldwright.tree.flatten", tree_flatten_concatenates_ordered_items),
+    ("worldwright.tree.graft", tree_graft_creates_one_child_per_item),
+    ("worldwright.tree.simplify", tree_simplify_removes_only_shared_prefix),
+    ("worldwright.tree.match", tree_match_longest_repeats_last_item),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -156,6 +178,327 @@ const CASES: &[Case] = &[
     ("align", align_translates_with_two_reference_points),
     ("lengthen", lengthen_changes_line_length),
 ];
+
+fn mesh_closest_point_reports_projected_triangle() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s
+        .execute(
+            "worldwright.mesh.closest_point",
+            &json!({
+                "mesh":{"vertices":[
+                    {"x":0.0,"y":0.0,"z":0.0},
+                    {"x":2.0,"y":0.0,"z":0.0},
+                    {"x":0.0,"y":2.0,"z":0.0}
+                ],"triangles":[[0,1,2]]},
+                "query":[0.5,0.5,3.0]
+            }),
+        )
+        .unwrap();
+    assert_eq!(out["hit"]["point"], json!([0.5, 0.5, 0.0]));
+    assert_eq!(out["hit"]["distance"], 3.0);
+    assert_eq!(out["hit"]["triangle_index"], 0);
+    assert_eq!(out["hit"]["barycentric"], json!([0.5, 0.25, 0.25]));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn cloud_closest_point_reports_stable_nearest_sample() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s
+        .execute(
+            "worldwright.cloud.closest_point",
+            &json!({
+                "points":[{"x":-1.0,"y":0.0,"z":0.0},{"x":1.0,"y":0.0,"z":0.0}],
+                "query":[0.0,0.0,0.0]
+            }),
+        )
+        .unwrap();
+    assert_eq!(out["hit"]["point_index"], 0);
+    assert_eq!(out["hit"]["point"], json!([-1.0, 0.0, 0.0]));
+    assert_eq!(out["hit"]["distance"], 1.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn controlcurve3d_builds_valid_exact_curve() {
+    let mut s = Session::new();
+    let result = s
+        .execute(
+            "nurbs.controlcurve3d",
+            &json!({
+                "name":"Operational control curve",
+                "degree":2,
+                "points":[[0.0,0.0,0.0],[1.0,2.0,0.0],[2.0,0.0,0.0]]
+            }),
+        )
+        .unwrap();
+    let id = result["id"].as_u64().expect("new exact curve ID");
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    assert_eq!(object.name, "Operational control curve");
+    assert!(object.shape.valid());
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+    s.execute("undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn geometry3d_pick_misses_empty_scene_without_mutation() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s
+        .execute(
+            "geometry3d.pick",
+            &json!({
+                "pixel":[200.0,200.0], "viewport":[400.0,400.0],
+                "center":[0.0,0.0,0.0], "yaw":0.0, "pitch":0.0, "scale":10.0
+            }),
+        )
+        .unwrap();
+    assert!(out["id"].is_null());
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn geometry3d_select_empty_set_preserves_revision() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s.execute("geometry3d.select", &json!({"ids":[],"mode":"replace"})).unwrap();
+    assert_eq!(out["ids"], json!([]));
+    assert!(s.selection().is_empty());
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn operational_screen_query(x: f64, y: f64) -> serde_json::Value {
+    json!({
+        "pixel": [x, y],
+        "viewport": [400.0, 400.0],
+        "center": [0.0, 0.0, 0.0],
+        "yaw": 0.0,
+        "pitch": -std::f64::consts::FRAC_PI_2,
+        "scale": 10.0
+    })
+}
+
+fn operational_triangle() -> serde_json::Value {
+    json!({
+        "vertices": [
+            {"x": 0.0, "y": 0.0, "z": 0.0},
+            {"x": 2.0, "y": 0.0, "z": 0.0},
+            {"x": 0.0, "y": 2.0, "z": 0.0}
+        ],
+        "triangles": [[0, 1, 2]]
+    })
+}
+
+fn cplane_point_projects_screen_to_world_xy() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let result = s.execute("geometry3d.cplane.point", &operational_screen_query(227.0, 174.0)).unwrap();
+    let x = result["point"][0].as_f64().unwrap();
+    let y = result["point"][1].as_f64().unwrap();
+    assert!((x - 2.7).abs() < 1e-9);
+    assert!((y - 2.6).abs() < 1e-9);
+    assert_eq!(result["point"][2], 0.0);
+    assert_eq!(result["source_revision"], revision);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn snap_grid_rounds_and_preserves_drawing() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let mut query = operational_screen_query(227.0, 174.0);
+    query["grid"] = json!(1.0);
+    let result = s.execute("geometry3d.snap", &query).unwrap();
+    assert_eq!(result["point"], json!([3.0, 3.0, 0.0]));
+    assert_eq!(result["kind"], "grid");
+    assert!(result["source_id"].is_null());
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn snapped_line_creates_exact_curve_and_undoes() {
+    let mut s = Session::new();
+    let result = s
+        .execute(
+            "geometry3d.line",
+            &json!({
+                "name": "Exact snapped line",
+                "start": operational_screen_query(200.0, 200.0),
+                "end": operational_screen_query(210.0, 200.0)
+            }),
+        )
+        .unwrap();
+    let id = result["id"].as_u64().expect("new line object ID");
+    assert_eq!(result["start"], json!([0.0, 0.0, 0.0]));
+    assert_eq!(result["end"], json!([1.0, 0.0, 0.0]));
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    assert_eq!(object.name, "Exact snapped line");
+    assert!(object.shape.valid());
+    s.execute("undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn mesh_encode_preserves_triangle_on_obj_roundtrip() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let mesh = operational_triangle();
+    let result = s.execute("worldwright.mesh.encode", &json!({"format": "obj", "mesh": mesh})).unwrap();
+    assert_eq!(result["encoding"], "utf8");
+    assert_eq!(result["source_preserved"], true);
+    assert!(!result["data"].as_str().unwrap().is_empty());
+    let decoded = s.execute("worldwright.mesh.decode", &json!({"format": "obj", "data": result["data"]})).unwrap();
+    assert_eq!(decoded["mesh"], mesh);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn mesh_decode_recovers_triangle_without_document_edits() {
+    let mut s = Session::new();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let mesh = operational_triangle();
+    let encoded = s.execute("worldwright.mesh.encode", &json!({"format": "stl", "mesh": mesh})).unwrap();
+    assert_eq!(encoded["encoding"], "base64");
+    let decoded = s
+        .execute(
+            "worldwright.mesh.decode",
+            &json!({
+                "format": "stl",
+                "encoding": "base64",
+                "data": encoded["data"]
+            }),
+        )
+        .unwrap();
+    assert_eq!(decoded["mesh"], mesh);
+    assert_eq!(decoded["document_mutated"], false);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+}
+
+fn acceptance_number_tree() -> serde_json::Value {
+    json!({"kind": "tree", "value": {"branches": [
+        {"path": [0, 1], "items": [
+            {"kind": "number", "value": 1.0},
+            {"kind": "number", "value": 2.0}
+        ]},
+        {"path": [0, 2], "items": [
+            {"kind": "number", "value": 3.0}
+        ]}
+    ]}})
+}
+
+fn paired_tool_discovery_lists_shared_interfaces() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let result = s.execute("worldwright.tool.list", &json!({})).unwrap();
+    let tools = result["paired_tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 42);
+    assert_eq!(tools[0]["orbweaver_node"], "orbweaver.point.distance");
+    assert_eq!(tools[0]["cad_command"], "worldwright.point.distance");
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn paired_midpoint_computes_exact_coordinates() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": point_inputs()});
+    let result = s.execute("worldwright.point.midpoint", &args).unwrap();
+    assert_eq!(result["output"]["kind"], "point");
+    assert_eq!(result["output"]["value"], json!({"x": 1.5, "y": 2.0, "z": 0.0}));
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_validate_counts_items_without_editing() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": acceptance_number_tree()}});
+    let result = s.execute("worldwright.tree.validate", &args).unwrap();
+    assert_eq!(result["output"]["kind"], "count");
+    assert_eq!(result["output"]["value"], 3);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn tree_flatten_concatenates_ordered_items() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": acceptance_number_tree()}});
+    let result = s.execute("worldwright.tree.flatten", &args).unwrap();
+    assert_eq!(result["output"]["kind"], "tree");
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 1);
+    assert_eq!(branches[0]["path"], json!([0]));
+    assert_eq!(branches[0]["items"].as_array().unwrap().len(), 3);
+    assert_eq!(branches[0]["items"][0]["value"], 1.0);
+    assert_eq!(branches[0]["items"][2]["value"], 3.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_graft_creates_one_child_per_item() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": {
+        "kind": "tree",
+        "value": {"branches": [{"path": [0], "items": [
+            {"kind": "number", "value": 4.0},
+            {"kind": "number", "value": 5.0}
+        ]}]}
+    }}});
+    let result = s.execute("worldwright.tree.graft", &args).unwrap();
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 2);
+    assert_eq!(branches[0]["path"], json!([0, 0]));
+    assert_eq!(branches[1]["path"], json!([0, 1]));
+    assert_eq!(branches[0]["items"][0]["value"], 4.0);
+    assert_eq!(branches[1]["items"][0]["value"], 5.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_simplify_removes_only_shared_prefix() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {"tree": acceptance_number_tree()}});
+    let result = s.execute("worldwright.tree.simplify", &args).unwrap();
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 2);
+    assert_eq!(branches[0]["path"], json!([1]));
+    assert_eq!(branches[1]["path"], json!([2]));
+    assert_eq!(branches[0]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(branches[1]["items"][0]["value"], 3.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn tree_match_longest_repeats_last_item() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let args = json!({"inputs": {
+        "a": {"kind": "tree", "value": {"branches": [{
+            "path": [7], "items": [
+                {"kind": "number", "value": 1.0},
+                {"kind": "number", "value": 2.0}
+            ]
+        }]}},
+        "b": {"kind": "tree", "value": {"branches": [{
+            "path": [7], "items": [
+                {"kind": "number", "value": 10.0},
+                {"kind": "number", "value": 20.0},
+                {"kind": "number", "value": 30.0}
+            ]
+        }]}},
+        "mode": {"kind": "match_mode", "value": "longest"}
+    }});
+    let result = s.execute("worldwright.tree.match", &args).unwrap();
+    let branches = result["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 1);
+    assert_eq!(branches[0]["path"], json!([7]));
+    let matched = branches[0]["items"].as_array().unwrap();
+    assert_eq!(matched.len(), 3);
+    assert_eq!(matched[2]["kind"], "pair");
+    assert_eq!(matched[2]["value"][0]["value"], 2.0);
+    assert_eq!(matched[2]["value"][1]["value"], 30.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
     match &s.doc().unwrap().model.iter().next().unwrap().kind {
@@ -1851,6 +2194,110 @@ fn history_evaluate_recomputes_midpoint_without_mutating() {
     assert!(std::sync::Arc::ptr_eq(&prior, &s.state().unwrap().doc));
     assert_eq!(s.state().unwrap().revision, revision);
     assert_eq!(s.state().unwrap().undo.len(), undo);
+}
+
+fn surface_by_id(s: &Session, id: u64) -> std::sync::Arc<cadcraft_geom::nurbs3d::Surface> {
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    match &object.shape {
+        cadcraft_doc::organization::Shape::Surface(surface) => surface.clone(),
+        other => panic!("expected native rational surface, got {other:?}"),
+    }
+}
+
+fn nurbs_control_surface_evaluates_exact_rational_patch() {
+    let mut s = Session::new();
+    let rail_id = make_quadratic_nurbs(&mut s);
+    let original = exact_quadratic(&s, rail_id);
+    let mut top = (*original).clone();
+    for p in &mut top.control {
+        p.z += 10.0;
+    }
+    let source = cadcraft_geom::nurbs3d::Surface { rows: vec![(*original).clone(), top], degree_v: 1, knots_v: vec![0.0, 0.0, 1.0, 1.0] };
+    assert!(source.valid());
+    let result = s.execute("nurbs.surface", &json!({"name":"Gallery Skin","surface":source})).unwrap();
+    let surface_id = result["id"].as_u64().unwrap();
+    let actual = surface_by_id(&s, surface_id);
+    assert_eq!(*actual, source);
+    assert!((actual.evaluate(0.5, 0.5).unwrap() - original.evaluate(0.5).unwrap() - cadcraft_geom::Vec3::new(0.0, 0.0, 5.0)).len() < 1e-10);
+    assert_eq!(exact_quadratic(&s, rail_id), original);
+    let bytes = cadcraft_io::write(s.doc().unwrap(), "gallery-skin.dftba").unwrap();
+    let reopened = cadcraft_io::read(&bytes, "gallery-skin.dftba").unwrap();
+    assert_eq!(reopened.geometry3d, s.doc().unwrap().geometry3d);
+}
+
+fn nurbs_ruled_surface_preserves_document_rails() {
+    let mut s = Session::new();
+    let lower_id = make_quadratic_nurbs(&mut s);
+    let lower = exact_quadratic(&s, lower_id);
+    let mut upper = (*lower).clone();
+    for p in &mut upper.control {
+        p.z += 10.0;
+    }
+    let upper_id = s.execute("nurbs.curve3d", &json!({"name":"Upper Rail","curve":upper})).unwrap()["id"].as_u64().unwrap();
+    let result = s.execute("nurbs.surface.ruled", &json!({"name":"Ruled Wall","a_id":lower_id,"b_id":upper_id})).unwrap();
+    let patch_id = result["id"].as_u64().unwrap();
+    let patch = surface_by_id(&s, patch_id);
+    assert_eq!(patch.rows, vec![(*lower).clone(), upper]);
+    assert_eq!(patch.degree_v, 1);
+    for &u in &[0.0, 0.25, 0.5, 0.75, 1.0] {
+        assert!((patch.evaluate(u, 0.0).unwrap() - lower.evaluate(u).unwrap()).len() < 1e-10);
+        assert!((patch.evaluate(u, 1.0).unwrap() - exact_quadratic(&s, upper_id).evaluate(u).unwrap()).len() < 1e-10);
+    }
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 2);
+}
+
+fn geometry3d_preview_tessellates_without_editing_source() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let prior = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo = s.state().unwrap().undo.len();
+    let preview = s.execute("geometry3d.preview", &json!({"id":id,"curve_segments":4})).unwrap();
+    assert_eq!(preview["source_revision"], revision);
+    let vertices = preview["preview"]["Polyline"].as_array().unwrap();
+    assert_eq!(vertices.len(), 5);
+    assert_eq!(vertices[0]["x"], 0.0);
+    assert_eq!(vertices[4]["x"], 4.0);
+    assert!(std::sync::Arc::ptr_eq(&prior, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo);
+}
+
+fn geometry3d_transform_copies_native_shape_with_exact_translation() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let source = exact_quadratic(&s, id);
+    let result = s.execute("geometry3d.transform", &json!({"ids":[id],"operation":{"kind":"move","delta":[2.0,3.0,4.0]},"copy":true})).unwrap();
+    assert_eq!(result["copy"], true);
+    assert_eq!(result["objects"][0]["source_id"], id);
+    let copied_id = result["objects"][0]["id"].as_u64().unwrap();
+    assert_ne!(copied_id, id);
+    assert_eq!(exact_quadratic(&s, id), source);
+    let copied = exact_quadratic(&s, copied_id);
+    for (a, b) in source.control.iter().zip(&copied.control) {
+        assert!((*b - *a - cadcraft_geom::Vec3::new(2.0, 3.0, 4.0)).len() < 1e-10);
+    }
+    assert_eq!(source.weights, copied.weights);
+    assert_eq!(source.knots, copied.knots);
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+    assert_eq!(exact_quadratic(&s, id), source);
+}
+
+fn buildercraft_capabilities_reports_actual_native_features() {
+    let mut s = Session::new();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let cap = s.execute("buildercraft.capabilities", &json!({})).unwrap();
+    assert_eq!(cap["nativeProject"], "dftba");
+    assert_eq!(cap["legacyNativeProject"], "bcraft");
+    assert_eq!(cap["meshTools"], true);
+    assert_eq!(cap["viewportPicking"], "orthographicPreviewWires");
+    assert!(cap["geometry"].as_array().unwrap().iter().any(|v| v == "rationalCurve3d"));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
 }
 
 fn path_array_places_copies_along_rail() {

@@ -81,10 +81,7 @@ fn assert_near(actual: &Value, wanted: &Value, kind: &str) {
             for component in ["x", "y", "z"] {
                 let measured = actual[component].as_f64().expect("vector component missing");
                 let expected = wanted[component].as_f64().expect("expected vector component missing");
-                assert!(
-                    (measured - expected).abs() <= 1e-12 * expected.abs().max(1.0),
-                    "{component}: {measured} != {expected}"
-                );
+                assert!((measured - expected).abs() <= 1e-12 * expected.abs().max(1.0), "{component}: {measured} != {expected}");
             }
         }
         other => panic!("unsupported vector output kind: {other}"),
@@ -120,12 +117,8 @@ fn verify(op: Operation) {
         let n = f64::from(index);
         let ports = op.inputs(n);
         let cad = session.execute(&direct, &json!({"inputs":ports})).unwrap();
-        let api = session
-            .execute("worldwright.tool.run", &json!({"operation":shared,"inputs":ports}))
-            .unwrap();
-        let graph = session
-            .execute("worldwright.tool.run", &json!({"operation":node,"inputs":ports}))
-            .unwrap();
+        let api = session.execute("worldwright.tool.run", &json!({"operation":shared,"inputs":ports})).unwrap();
+        let graph = session.execute("worldwright.tool.run", &json!({"operation":node,"inputs":ports})).unwrap();
         assert_eq!(cad["output"], api["output"], "CAD versus shared API: {direct} at {index}");
         assert_eq!(cad["output"], graph["output"], "CAD versus OrbWeaver: {direct} at {index}");
         assert_eq!(cad["output"]["kind"], op.output_kind());

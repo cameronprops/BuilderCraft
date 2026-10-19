@@ -30,6 +30,8 @@ jobs:
         with:
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
+      - name: Fail fast on Rust formatting
+        run: cargo fmt --all -- --check
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libegl1-mesa-dev
       - name: Verify installed toolchain
@@ -47,7 +49,6 @@ jobs:
         run: |
           python3 tools/build_dependency_index.py --check
           python3 tools/check_paired_tools.py
-          cargo fmt --all -- --check
       - name: Test full Rust workspace once
         run: cargo test --locked --workspace
       - name: Build native CAD and CLI
@@ -68,6 +69,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: rustfmt, clippy
+      - name: Fail fast on Rust formatting
+        run: cargo fmt --all -- --check
       - name: Compile and run workspace tests
         run: cargo test --locked --workspace
       - name: Compile native CAD and CLI

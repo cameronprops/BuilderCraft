@@ -144,6 +144,11 @@ const CASES: &[Case] = &[
     ("worldwright.history.inspect", history_inspect_exposes_scope_and_steps),
     ("worldwright.history.edit", history_edit_appends_executable_parametric_step),
     ("worldwright.history.evaluate", history_evaluate_recomputes_midpoint_without_mutating),
+    ("nurbs.surface", nurbs_control_surface_evaluates_exact_rational_patch),
+    ("nurbs.surface.ruled", nurbs_ruled_surface_preserves_document_rails),
+    ("geometry3d.preview", geometry3d_preview_tessellates_without_editing_source),
+    ("geometry3d.transform", geometry3d_transform_copies_native_shape_with_exact_translation),
+    ("buildercraft.capabilities", buildercraft_capabilities_reports_actual_native_features),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1851,6 +1856,117 @@ fn history_evaluate_recomputes_midpoint_without_mutating() {
     assert!(std::sync::Arc::ptr_eq(&prior, &s.state().unwrap().doc));
     assert_eq!(s.state().unwrap().revision, revision);
     assert_eq!(s.state().unwrap().undo.len(), undo);
+}
+
+fn surface_by_id(s: &Session, id: u64) -> std::sync::Arc<cadcraft_geom::nurbs3d::Surface> {
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    match &object.shape {
+        cadcraft_doc::organization::Shape::Surface(surface) => surface.clone(),
+        other => panic!("expected native rational surface, got {other:?}"),
+    }
+}
+
+fn nurbs_control_surface_evaluates_exact_rational_patch() {
+    let mut s = Session::new();
+    let rail_id = make_quadratic_nurbs(&mut s);
+    let original = exact_quadratic(&s, rail_id);
+    let mut top = (*original).clone();
+    for p in &mut top.control {
+        p.z += 10.0;
+    }
+    let source = cadcraft_geom::nurbs3d::Surface {
+        rows: vec![(*original).clone(), top],
+        degree_v: 1,
+        knots_v: vec![0.0, 0.0, 1.0, 1.0],
+    };
+    assert!(source.valid());
+    let result = s.execute("nurbs.surface", &json!({"name":"Gallery Skin","surface":source})).unwrap();
+    let surface_id = result["id"].as_u64().unwrap();
+    let actual = surface_by_id(&s, surface_id);
+    assert_eq!(*actual, source);
+    assert!((actual.evaluate(0.5, 0.5).unwrap() - original.evaluate(0.5).unwrap() - cadcraft_geom::Vec3::new(0.0, 0.0, 5.0)).len() < 1e-10);
+    assert_eq!(exact_quadratic(&s, rail_id), original);
+    let bytes = cadcraft_io::write(s.doc().unwrap(), "gallery-skin.dftba").unwrap();
+    let reopened = cadcraft_io::read(&bytes, "gallery-skin.dftba").unwrap();
+    assert_eq!(reopened.geometry3d, s.doc().unwrap().geometry3d);
+}
+
+fn nurbs_ruled_surface_preserves_document_rails() {
+    let mut s = Session::new();
+    let lower_id = make_quadratic_nurbs(&mut s);
+    let lower = exact_quadratic(&s, lower_id);
+    let mut upper = (*lower).clone();
+    for p in &mut upper.control {
+        p.z += 10.0;
+    }
+    let upper_id = s.execute("nurbs.curve3d", &json!({"name":"Upper Rail","curve":upper})).unwrap()["id"].as_u64().unwrap();
+    let result = s.execute("nurbs.surface.ruled", &json!({"name":"Ruled Wall","a_id":lower_id,"b_id":upper_id})).unwrap();
+    let patch_id = result["id"].as_u64().unwrap();
+    let patch = surface_by_id(&s, patch_id);
+    assert_eq!(patch.rows, vec![(*lower).clone(), upper]);
+    assert_eq!(patch.degree_v, 1);
+    for &u in &[0.0, 0.25, 0.5, 0.75, 1.0] {
+        assert!((patch.evaluate(u, 0.0).unwrap() - lower.evaluate(u).unwrap()).len() < 1e-10);
+        assert!((patch.evaluate(u, 1.0).unwrap() - exact_quadratic(&s, upper_id).evaluate(u).unwrap()).len() < 1e-10);
+    }
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 2);
+}
+
+fn geometry3d_preview_tessellates_without_editing_source() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let prior = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo = s.state().unwrap().undo.len();
+    let preview = s.execute("geometry3d.preview", &json!({"id":id,"curve_segments":4})).unwrap();
+    assert_eq!(preview["source_revision"], revision);
+    let vertices = preview["preview"]["Polyline"].as_array().unwrap();
+    assert_eq!(vertices.len(), 5);
+    assert_eq!(vertices[0]["x"], 0.0);
+    assert_eq!(vertices[4]["x"], 4.0);
+    assert!(std::sync::Arc::ptr_eq(&prior, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo);
+}
+
+fn geometry3d_transform_copies_native_shape_with_exact_translation() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let source = exact_quadratic(&s, id);
+    let result = s.execute(
+        "geometry3d.transform",
+        &json!({"ids":[id],"operation":{"kind":"move","delta":[2.0,3.0,4.0]},"copy":true}),
+    ).unwrap();
+    assert_eq!(result["copy"], true);
+    assert_eq!(result["objects"][0]["source_id"], id);
+    let copied_id = result["objects"][0]["id"].as_u64().unwrap();
+    assert_ne!(copied_id, id);
+    assert_eq!(exact_quadratic(&s, id), source);
+    let copied = exact_quadratic(&s, copied_id);
+    for (a, b) in source.control.iter().zip(&copied.control) {
+        assert!((*b - *a - cadcraft_geom::Vec3::new(2.0, 3.0, 4.0)).len() < 1e-10);
+    }
+    assert_eq!(source.weights, copied.weights);
+    assert_eq!(source.knots, copied.knots);
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+    assert_eq!(exact_quadratic(&s, id), source);
+}
+
+fn buildercraft_capabilities_reports_actual_native_features() {
+    let mut s = Session::new();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let cap = s.execute("buildercraft.capabilities", &json!({})).unwrap();
+    assert_eq!(cap["nativeProject"], "dftba");
+    assert_eq!(cap["legacyNativeProject"], "bcraft");
+    assert_eq!(cap["meshTools"], true);
+    assert_eq!(cap["viewportPicking"], "orthographicPreviewWires");
+    assert!(cap["geometry"].as_array().unwrap().iter().any(|v| v == "rationalCurve3d"));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
 }
 
 fn path_array_places_copies_along_rail() {

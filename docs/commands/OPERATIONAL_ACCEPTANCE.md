@@ -33,9 +33,8 @@ coordinates, returned IDs and state changes, not just `is_ok()`.
 **Current tranche (2026-10-18):** 144 independently asserted
 positive-path fixtures are authored for 396 registered commands;
 **252 still lack success-path fixtures**. The main branch currently has
-134 merged positive-path fixtures (including PR #114); parent PR #116
-adds five model-browser cases, and this branch adds five feature timeline
-commands: Create, List, Inspect, Edit and Evaluate. Tests assert actual
+139 merged positive-path fixtures (including PR #116); this branch
+adds five feature timeline commands: Create, List, Inspect, Edit and Evaluate. Tests assert actual
 parametric midpoint results, .dftba persistence, undo, revision and
 read-only query behavior. Merge only after pinned formatting, focused
 modeling, native Linux/macOS/Windows and exact BRep gates succeed.

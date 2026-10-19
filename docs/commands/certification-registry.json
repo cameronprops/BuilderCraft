@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Evidence ledger with certified headless query operations and pending stateful/interactive desktop command candidates.",
+  "description": "Three headless-certified point operations, four vector math candidates, and six pending stateful desktop command candidates. Counts are scoped and evidence-backed.",
   "baseline_main_commit": "66d4b4cba3a74158d2ce76c589136e429951c450",
   "certified_count": 3,
   "promotion_rule": "Promote only after executable 5-gate tests pass on pinned Rust CI, relevant Linux/macOS/Windows workflow gates pass, post-merge main passes, and interface/applicability reviews are signed off.",
@@ -265,6 +265,98 @@
       "interactive_engine_test_file": "crates/engine/tests/interactive_command_certification.rs",
       "interactive_engine_test": "mirror_prompt_confirmations_copy_or_erase_source",
       "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
+    },
+    {
+      "command": "worldwright.vector.length",
+      "operation": "kernel.vector.length",
+      "orbweaver_node": "orbweaver.vector.length",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "scope": "read_only_headless_cad_api_orbweaver_pending",
+      "test_file": "crates/engine/tests/vector_command_certification.rs",
+      "test": "certify_vector_length_candidate",
+      "gates": {
+        "correctness": "Analytical 3-4-5 vector lengths across 64 scaled fixtures.",
+        "failure_preservation": "Malformed typed vectors fail without mutating the source document.",
+        "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
+        "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
+        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    },
+    {
+      "command": "worldwright.vector.normalize",
+      "operation": "kernel.vector.normalize",
+      "orbweaver_node": "orbweaver.vector.normalize",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "scope": "read_only_headless_cad_api_orbweaver_pending",
+      "test_file": "crates/engine/tests/vector_command_certification.rs",
+      "test": "certify_vector_normalize_candidate",
+      "gates": {
+        "correctness": "Analytical (3,4,0)/5 normalization across 64 positive scales, checked at numeric tolerance.",
+        "failure_preservation": "Zero vector, bad type, malformed coordinate and unknown ports reject without mutation.",
+        "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
+        "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
+        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    },
+    {
+      "command": "worldwright.vector.dot",
+      "operation": "kernel.vector.dot",
+      "orbweaver_node": "orbweaver.vector.dot",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "scope": "read_only_headless_cad_api_orbweaver_pending",
+      "test_file": "crates/engine/tests/vector_command_certification.rs",
+      "test": "certify_vector_dot_candidate",
+      "gates": {
+        "correctness": "Analytical dot of (n,2n,3n) with (4,-5,6) equals 12n for 64 scaled fixtures.",
+        "failure_preservation": "Missing and malformed vector ports reject without partial mutation.",
+        "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
+        "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
+        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
+    },
+    {
+      "command": "worldwright.vector.cross",
+      "operation": "kernel.vector.cross",
+      "orbweaver_node": "orbweaver.vector.cross",
+      "document_mutation": false,
+      "status": "candidate_ci_pending",
+      "scope": "read_only_headless_cad_api_orbweaver_pending",
+      "test_file": "crates/engine/tests/vector_command_certification.rs",
+      "test": "certify_vector_cross_candidate",
+      "gates": {
+        "correctness": "Analytical cross of (n,0,0) and (0,1,0) equals (0,0,n) for 64 scaled fixtures.",
+        "failure_preservation": "Missing/malformed vector ports reject without partial mutation.",
+        "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
+        "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
+        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main"
+      ]
     }
   ],
   "certification_scope": "certified_count counts certified_headless commands only at this revision. State-changing desktop commands remain candidates until visual host interaction passes."

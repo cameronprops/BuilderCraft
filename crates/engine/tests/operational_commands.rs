@@ -1442,40 +1442,24 @@ fn expect_native_output(command: &str, inputs: serde_json::Value, expected: serd
 
 fn native_vector_length_is_13() {
     let v = json!({"kind":"vector","value":{"x":3.0,"y":4.0,"z":12.0}});
-    expect_native_output(
-        "worldwright.vector.length",
-        json!({"v":v}),
-        json!({"kind":"number","value":13.0}),
-    );
+    expect_native_output("worldwright.vector.length", json!({"v":v}), json!({"kind":"number","value":13.0}));
 }
 
 fn native_vector_normalize_is_unit() {
     let v = json!({"kind":"vector","value":{"x":3.0,"y":4.0,"z":0.0}});
-    expect_native_output(
-        "worldwright.vector.normalize",
-        json!({"v":v}),
-        json!({"kind":"vector","value":{"x":0.6,"y":0.8,"z":0.0}}),
-    );
+    expect_native_output("worldwright.vector.normalize", json!({"v":v}), json!({"kind":"vector","value":{"x":0.6,"y":0.8,"z":0.0}}));
 }
 
 fn native_vector_dot_is_scalar() {
     let x = json!({"kind":"vector","value":{"x":1.0,"y":2.0,"z":3.0}});
     let y = json!({"kind":"vector","value":{"x":4.0,"y":5.0,"z":6.0}});
-    expect_native_output(
-        "worldwright.vector.dot",
-        json!({"a":x,"b":y}),
-        json!({"kind":"number","value":32.0}),
-    );
+    expect_native_output("worldwright.vector.dot", json!({"a":x,"b":y}), json!({"kind":"number","value":32.0}));
 }
 
 fn native_vector_cross_is_right_handed() {
     let x = json!({"kind":"vector","value":{"x":1.0,"y":0.0,"z":0.0}});
     let y = json!({"kind":"vector","value":{"x":0.0,"y":1.0,"z":0.0}});
-    expect_native_output(
-        "worldwright.vector.cross",
-        json!({"a":x,"b":y}),
-        json!({"kind":"vector","value":{"x":0.0,"y":0.0,"z":1.0}}),
-    );
+    expect_native_output("worldwright.vector.cross", json!({"a":x,"b":y}), json!({"kind":"vector","value":{"x":0.0,"y":0.0,"z":1.0}}));
 }
 
 fn native_polyline_length_is_7() {
@@ -1484,11 +1468,7 @@ fn native_polyline_length_is_7() {
         {"x":3.0,"y":0.0,"z":0.0},
         {"x":3.0,"y":4.0,"z":0.0}
     ]});
-    expect_native_output(
-        "worldwright.polyline.length",
-        json!({"points":path}),
-        json!({"kind":"number","value":7.0}),
-    );
+    expect_native_output("worldwright.polyline.length", json!({"points":path}), json!({"kind":"number","value":7.0}));
 }
 
 fn native_polyline_divides_by_count() {
@@ -1530,31 +1510,39 @@ fn native_polyline_divides_by_spacing() {
 fn native_curve_split_yields_two_actual_fragments() {
     let mut s = Session::new();
     let before = s.state().unwrap().doc.clone();
-    let result = s.execute(
-        "worldwright.curve.split",
-        &json!({"inputs":{
-            "points":{"kind":"polyline","value":[
-                {"x":0.0,"y":0.0,"z":0.0},
-                {"x":10.0,"y":0.0,"z":0.0},
-                {"x":10.0,"y":10.0,"z":0.0}
-            ]},
-            "station":{"kind":"number","value":15.0}
-        }}),
-    ).unwrap();
+    let result = s
+        .execute(
+            "worldwright.curve.split",
+            &json!({"inputs":{
+                "points":{"kind":"polyline","value":[
+                    {"x":0.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":10.0,"z":0.0}
+                ]},
+                "station":{"kind":"number","value":15.0}
+            }}),
+        )
+        .unwrap();
     assert_eq!(result["output"]["kind"], "tree");
     let branches = result["output"]["value"]["branches"].as_array().unwrap();
     assert_eq!(branches.len(), 2);
     assert_eq!(branches[0]["path"], json!([0]));
     assert_eq!(branches[1]["path"], json!([1]));
-    assert_eq!(branches[0]["items"][0]["value"], json!([
-        {"x":0.0,"y":0.0,"z":0.0},
-        {"x":10.0,"y":0.0,"z":0.0},
-        {"x":10.0,"y":5.0,"z":0.0}
-    ]));
-    assert_eq!(branches[1]["items"][0]["value"], json!([
-        {"x":10.0,"y":5.0,"z":0.0},
-        {"x":10.0,"y":10.0,"z":0.0}
-    ]));
+    assert_eq!(
+        branches[0]["items"][0]["value"],
+        json!([
+            {"x":0.0,"y":0.0,"z":0.0},
+            {"x":10.0,"y":0.0,"z":0.0},
+            {"x":10.0,"y":5.0,"z":0.0}
+        ])
+    );
+    assert_eq!(
+        branches[1]["items"][0]["value"],
+        json!([
+            {"x":10.0,"y":5.0,"z":0.0},
+            {"x":10.0,"y":10.0,"z":0.0}
+        ])
+    );
     assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
 }
 

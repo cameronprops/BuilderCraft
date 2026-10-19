@@ -968,7 +968,10 @@ fn cloud_entity(vs: Vec<PolyVertex>, calligraphy: bool, arc_len: f64) -> EntityK
 }
 
 fn run_revcloud(s: &mut Session, p: &Value) -> Result<Value> {
-    let arc_len = p.get("arcLength").and_then(Value::as_f64).filter(|v| v.is_finite() && *v > 0.0).unwrap_or_else(|| default_arc_len(s));
+    let arc_len = match p.get("arcLength") {
+        Some(value) => value.as_f64().filter(|v| v.is_finite() && *v > 0.0).ok_or_else(|| bad("revcloud", "arcLength must be a positive finite number"))?,
+        None => default_arc_len(s),
+    };
     let reverse = bool_or(p, "reverse", false);
     let calligraphy = str_param(p, "style").is_some_and(|x| x.eq_ignore_ascii_case("calligraphy"));
     let (pts, per_edge, src) = if let (Some(a), Some(b)) = (point_param(p, "p1"), point_param(p, "p2")) {
@@ -978,6 +981,12 @@ fn run_revcloud(s: &mut Session, p: &Value) -> Result<Value> {
     } else if let Some(pts) = points_param(p, "freehand") {
         (pts, false, None)
     } else if let Some(h) = curves::handle_param(p, "handle") {
+        if s.doc()?.space_of(h).as_ref() != Some(&s.space()) {
+            return Err(bad("revcloud", "source object is outside the current drawing space"));
+        }
+        if curves::is_locked(s, h) {
+            return Err(bad("revcloud", "source object is on a locked layer"));
+        }
         (object_outline(s, h)?, false, Some(h))
     } else {
         return Err(bad("revcloud", "give {p1, p2}, {points}, {freehand} or {handle}"));

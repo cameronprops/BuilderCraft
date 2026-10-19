@@ -113,7 +113,9 @@ pub fn specs() -> Vec<CommandSpec> {
             .noundo(),
         CommandSpec::new("worldwright.curve.blend", "G0/G1/G2 NURBS Curve Blend (Headless)", curve_blend)
             .alias(&["blend"])
-            .params("{inputs:{a:curve,b:curve,continuity:count(0|1|2),strength_a:number,strength_b:number,reverse_a:count(0|1),reverse_b:count(0|1)}}")
+            .params(
+                "{inputs:{a:curve,b:curve,continuity:count(0|1|2),strength_a:number,strength_b:number,reverse_a:count(0|1),reverse_b:count(0|1)}}",
+            )
             .enabled(always)
             .noundo(),
         CommandSpec::new("worldwright.nurbs.evaluate", "Evaluate Exact Rational NURBS", nurbs_evaluate)

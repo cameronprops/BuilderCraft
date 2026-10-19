@@ -128,16 +128,8 @@ mod tests {
     }
 
     fn quadratic_rails() -> (Curve, Curve) {
-        let a = Curve::from_control(
-            vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)],
-            2,
-        )
-        .unwrap();
-        let b = Curve::from_control(
-            vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)],
-            2,
-        )
-        .unwrap();
+        let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)], 2).unwrap();
+        let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)], 2).unwrap();
         (a, b)
     }
 
@@ -178,17 +170,9 @@ mod tests {
 
     #[test]
     fn g2_uses_analytic_curvature_of_rational_source_curves() {
-        let mut arc = Curve::from_control(
-            vec![Vec3::new(1.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)],
-            2,
-        )
-        .unwrap();
+        let mut arc = Curve::from_control(vec![Vec3::new(1.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)], 2).unwrap();
         arc.weights[1] = std::f64::consts::FRAC_1_SQRT_2;
-        let b = Curve::from_control(
-            vec![Vec3::new(-1.5, 3.0, 0.0), Vec3::new(-2.0, 4.0, 0.0), Vec3::new(-1.0, 5.0, 0.0)],
-            2,
-        )
-        .unwrap();
+        let b = Curve::from_control(vec![Vec3::new(-1.5, 3.0, 0.0), Vec3::new(-2.0, 4.0, 0.0), Vec3::new(-1.0, 5.0, 0.0)], 2).unwrap();
         let result = blend_nurbs_curves(&arc, &b, 2, 0.25, 0.25, 0, 0).unwrap();
         close(result.curvature_vector(0.0).unwrap(), arc.curvature_vector(1.0).unwrap(), 1e-8);
         close(result.curvature_vector(1.0).unwrap(), b.curvature_vector(0.0).unwrap(), 1e-8);

@@ -6,8 +6,14 @@ use cadcraft_engine::{Session, command_specs, find_command};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
-const COMMANDS: [(&str, &str, &str); 3] =
-    [("line", "l", "certify_line_stateful"), ("move", "m", "certify_move_stateful"), ("copy", "co", "certify_copy_stateful")];
+const COMMANDS: [(&str, &str, &str); 6] = [
+    ("line", "l", "certify_line_stateful"),
+    ("move", "m", "certify_move_stateful"),
+    ("copy", "co", "certify_copy_stateful"),
+    ("rotate", "ro", "certify_rotate_stateful"),
+    ("scale", "sc", "certify_scale_stateful"),
+    ("mirror", "mi", "certify_mirror_stateful"),
+];
 
 fn points(doc: &Drawing, id: &str) -> (f64, f64, f64, f64) {
     let handle = Handle::parse_hex(id).unwrap();
@@ -181,4 +187,127 @@ fn certify_copy_stateful() {
     assert_eq!(s.doc().unwrap().model.len(), 3);
     rejects(&mut s, "copy", &json!({"handles": handles, "delta": [1.0, 0.0], "count": 10000}));
     assert_eq!(s.doc().unwrap().model.len(), 3);
+}
+
+fn near_points(doc: &Drawing, id: &str, expected: (f64, f64, f64, f64)) {
+    let actual = points(doc, id);
+    for (value, wanted) in [(actual.0, expected.0), (actual.1, expected.1), (actual.2, expected.2), (actual.3, expected.3)] {
+        assert!((value - wanted).abs() < 1e-9, "geometry {id}: observed {actual:?}, expected {expected:?}");
+    }
+}
+
+#[test]
+fn certify_rotate_stateful() {
+    check_registration("rotate", "ro");
+    for offset in 0..24 {
+        let mut s = Session::new();
+        let x = f64::from(offset);
+        let id = create_line(&mut s, x);
+        let initial = drawing(&s);
+        let result = s.execute("rotate", &json!({"handles":[id], "base":[x, 0.0], "angle":90.0})).unwrap();
+        assert_eq!(result["handles"][0], id);
+        assert_eq!(s.doc().unwrap().model.len(), 1);
+        near_points(s.doc().unwrap(), &id, (x, 0.0, x - 4.0, 3.0));
+        near_points(&read(&drawing(&s)), &id, (x, 0.0, x - 4.0, 3.0));
+
+        rejects(&mut s, "rotate", &json!({"handles":[id], "base":[x, 0.0], "angle":"bad"}));
+        rejects(&mut s, "rotate", &json!({"handles":[id], "angle":90.0}));
+
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(drawing(&s), initial);
+        assert_eq!(points(s.doc().unwrap(), &id), (x, 0.0, x + 3.0, 4.0));
+        s.execute("redo", &json!({})).unwrap();
+        near_points(s.doc().unwrap(), &id, (x, 0.0, x - 4.0, 3.0));
+    }
+
+    // Copy modifier preserves the source and creates a distinct persistent identity.
+    let mut s = Session::new();
+    let source = create_line(&mut s, 0.0);
+    let out = s.execute("rotate", &json!({"handles":[source], "base":[0,0], "angle":90.0, "copy":true})).unwrap();
+    let replica = out["handles"][0].as_str().unwrap();
+    assert_ne!(source, replica);
+    assert_eq!(points(s.doc().unwrap(), &source), (0.0, 0.0, 3.0, 4.0));
+    near_points(&read(&drawing(&s)), replica, (0.0, 0.0, -4.0, 3.0));
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    s.execute("redo", &json!({})).unwrap();
+    near_points(s.doc().unwrap(), replica, (0.0, 0.0, -4.0, 3.0));
+}
+
+#[test]
+fn certify_scale_stateful() {
+    check_registration("scale", "sc");
+    for offset in 0..24 {
+        let mut s = Session::new();
+        let x = f64::from(offset);
+        let id = create_line(&mut s, x);
+        let initial = drawing(&s);
+        let result = s.execute("scale", &json!({"handles":[id], "base":[x,0], "factor":2.0})).unwrap();
+        assert_eq!(result["handles"][0], id);
+        assert_eq!(s.doc().unwrap().model.len(), 1);
+        assert_eq!(points(s.doc().unwrap(), &id), (x, 0.0, x + 6.0, 8.0));
+        assert_eq!(points(&read(&drawing(&s)), &id), (x, 0.0, x + 6.0, 8.0));
+
+        rejects(&mut s, "scale", &json!({"handles":[id], "base":[x,0], "factor":0.0}));
+        rejects(&mut s, "scale", &json!({"handles":[id], "base":[x,0], "factor":-1.0}));
+        rejects(&mut s, "scale", &json!({"handles":[id], "base":[x,0], "factor":"bad"}));
+
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(drawing(&s), initial);
+        assert_eq!(points(s.doc().unwrap(), &id), (x, 0.0, x + 3.0, 4.0));
+        s.execute("redo", &json!({})).unwrap();
+        assert_eq!(points(s.doc().unwrap(), &id), (x, 0.0, x + 6.0, 8.0));
+    }
+
+    let mut s = Session::new();
+    let source = create_line(&mut s, 0.0);
+    let out = s.execute("scale", &json!({"handles":[source], "base":[0,0], "factor":2.0, "copy":true})).unwrap();
+    let duplicate = out["handles"][0].as_str().unwrap();
+    assert_ne!(source, duplicate);
+    assert_eq!(points(s.doc().unwrap(), &source), (0.0, 0.0, 3.0, 4.0));
+    assert_eq!(points(&read(&drawing(&s)), duplicate), (0.0, 0.0, 6.0, 8.0));
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    s.execute("redo", &json!({})).unwrap();
+    assert_eq!(points(s.doc().unwrap(), duplicate), (0.0, 0.0, 6.0, 8.0));
+}
+
+#[test]
+fn certify_mirror_stateful() {
+    check_registration("mirror", "mi");
+    for offset in 0..24 {
+        let mut s = Session::new();
+        let x = f64::from(offset);
+        let source = create_line(&mut s, x);
+        let original = drawing(&s);
+        let output = s.execute("mirror", &json!({"handles":[source], "p1":[x,0], "p2":[x,1]})).unwrap();
+        let reflected = output["handles"][0].as_str().unwrap();
+        assert_ne!(source, reflected);
+        assert_eq!(s.doc().unwrap().model.len(), 2);
+        assert_eq!(points(s.doc().unwrap(), &source), (x, 0.0, x + 3.0, 4.0));
+        near_points(s.doc().unwrap(), reflected, (x, 0.0, x - 3.0, 4.0));
+        near_points(&read(&drawing(&s)), reflected, (x, 0.0, x - 3.0, 4.0));
+
+        rejects(&mut s, "mirror", &json!({"handles":[source], "p1":[x,0], "p2":[x,0]}));
+        rejects(&mut s, "mirror", &json!({"handles":[source], "p1":[x,0]}));
+
+        s.execute("undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().model.len(), 1);
+        assert_eq!(drawing(&s), original);
+        s.execute("redo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().model.len(), 2);
+        near_points(s.doc().unwrap(), reflected, (x, 0.0, x - 3.0, 4.0));
+    }
+
+    // Explicit erase-source modifier keeps the same handle, and undo restores the source.
+    let mut s = Session::new();
+    let source = create_line(&mut s, 0.0);
+    let out = s.execute("mirror", &json!({"handles":[source], "p1":[0,0], "p2":[0,1], "erase":true})).unwrap();
+    assert_eq!(out["handles"][0], source);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    near_points(s.doc().unwrap(), &source, (0.0, 0.0, -3.0, 4.0));
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(points(s.doc().unwrap(), &source), (0.0, 0.0, 3.0, 4.0));
+    s.execute("redo", &json!({})).unwrap();
+    near_points(&read(&drawing(&s)), &source, (0.0, 0.0, -3.0, 4.0));
 }

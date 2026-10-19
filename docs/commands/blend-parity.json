@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "reference": "Rhino 8 command reference, reviewed 2026-10-19",
+  "note": "Status is proposed implementation on feature branch, not released or certified on main. Do not equate render preview or G1 with G2 curvature continuity.",
+  "implemented_scope": {
+    "rhino_command": "Blend",
+    "worldwright_command": "worldwright.curve.blend",
+    "kernel_operation": "kernel.curve.blend",
+    "orbweaver_node": "orbweaver.curve.blend",
+    "status": "partial_implemented_pr",
+    "scope": "G0 and G1 single-span rational-compatible NURBS connector; numerical strengths and endpoint flips, headless only",
+    "remaining": [
+      "interactive curve-end selection",
+      "automatic trim and join",
+      "history and document bake",
+      "per-end continuity",
+      "optional tangent reference direction"
+    ]
+  },
+  "derivatives": [
+    {
+      "rhino_command": "BlendCrv",
+      "status": "planned",
+      "requires": [
+        "kernel.curve.blend",
+        "g2_curvature_solver",
+        "curve_endpoint_selection"
+      ],
+      "scope": "Adjustable source curves and surface edges; asymmetric G0/G1/G2/G3/G4, trim/join, control handles, edit history"
+    },
+    {
+      "rhino_command": "BlendSrf",
+      "status": "planned",
+      "requires": [
+        "kernel.curve.blend",
+        "surface_derivatives",
+        "edge_correspondence",
+        "blend_srf_solver",
+        "seam_alignment"
+      ],
+      "scope": "Surface-edge continuity with chain-edge, angle, shape and weighting modifiers, trimming and join"
+    },
+    {
+      "rhino_command": "BlendEdge",
+      "status": "planned",
+      "requires": [
+        "kernel.curve.blend",
+        "surface_derivatives",
+        "brep_topology",
+        "variable_radius_blend",
+        "boolean_trim_join"
+      ],
+      "scope": "Variable-radius curvature-continuous BRep edge blend with exact topology"
+    },
+    {
+      "rhino_command": "BlendCrv tangent/curvature/G3/G4 modifiers",
+      "status": "planned",
+      "requires": [
+        "g2_curvature_solver",
+        "high_degree_nurbs_geometry"
+      ],
+      "scope": "Per-end curvature matching and higher geometric-order continuity; current Curve degree limit is five"
+    },
+    {
+      "rhino_command": "BlendSrf chained edges/refine/planar sections",
+      "status": "planned",
+      "requires": [
+        "surface_edge_correspondence",
+        "nurbs_shape_interpolation",
+        "brep_trimming"
+      ],
+      "scope": "Seam control, chained edges, added shapes, planar stations, locked tangent scales"
+    }
+  ]
+}

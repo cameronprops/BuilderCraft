@@ -30,17 +30,16 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 144 independently asserted positive-path
-fixtures are authored against 396 registered commands, leaving **252 without
-independent positive-path fixtures**. The first 120 are merged on main;
-stacked PRs #111, #114 and #116 propose another nineteen native kernel, NURBS
-and model-browser cases. This branch adds five feature-history cases:
-Create, List, Inspect, Edit and Evaluate. They assert a real document-scoped
-parametric timeline, actual midpoint computation, serialized .dftba state,
-undo, query non-mutation and revision checks. The stacked branches must
-complete Linux/macOS/Windows, focused modeling and exact BRep validation
-and reconcile against main before merging. Positive-path acceptance is not
-full five-part operational alpha certification.
+**Current tranche (2026-10-18):** 144 independently asserted
+positive-path fixtures are authored for 396 registered commands;
+**252 lack success-path fixtures**. The first 128 are merged on main.
+Stacked PRs #114 and #116 add eleven NURBS/Geometry3D and model-browser
+cases. This reconciled branch adds five feature timeline commands:
+Create, List, Inspect, Edit and Evaluate. Tests prove a real native
+parametric midpoint result, .dftba persistence, undo, revision controls
+and read-only queries. This branch must pass pinned Rust formatting,
+focused modeling, native Linux/macOS/Windows and exact BRep before
+merging. These positive cases do not constitute full certification.
 
 ## Completion criteria for EACH command
 

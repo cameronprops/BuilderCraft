@@ -35,13 +35,7 @@ struct Snapshot {
 
 fn snapshot(s: &Session) -> Snapshot {
     let state = s.state().unwrap();
-    Snapshot {
-        bytes: drawing(s),
-        revision: state.revision,
-        undo: state.undo.len(),
-        redo: state.redo.len(),
-        selection: s.selection(),
-    }
+    Snapshot { bytes: drawing(s), revision: state.revision, undo: state.undo.len(), redo: state.redo.len(), selection: s.selection() }
 }
 
 fn unchanged(s: &Session, before: &Snapshot) {

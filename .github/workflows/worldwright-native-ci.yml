@@ -40,9 +40,15 @@ jobs:
         run: |
           python3 tools/check_ui_reuse_manifest.py
           python3 -m unittest discover -s tools/tests -p 'test_ui_reuse_manifest.py'
-      - name: Run Worldwright kernel, document, CAD and OrbWeaver gates
-        run: bash tools/verify-worldwright-kernel.sh
-      - name: Test full Rust workspace
+      # verify-worldwright-kernel.sh is the comprehensive LOCAL smoke script.
+      # Running it here would execute kernel/doc/engine/UI/OrbWeaver tests and
+      # kernel Clippy twice, since the workspace gates below already include all.
+      - name: Validate kernel DAG, paired tools and Rust formatting
+        run: |
+          python3 tools/build_dependency_index.py --check
+          python3 tools/check_paired_tools.py
+          cargo fmt --all -- --check
+      - name: Test full Rust workspace once
         run: cargo test --locked --workspace
       - name: Build native CAD and CLI
         run: cargo build --locked -p cadcraft -p cadcraft-cli

@@ -516,9 +516,14 @@ fn array_linear_retains_copy_order_and_offsets() {
         "count": {"kind": "count", "value": 3}
     });
     let direct = s.execute("worldwright.array.linear", &json!({"inputs": inputs})).unwrap();
-    let graph = s.execute("worldwright.tool.run", &json!({
-        "operation": "orbweaver.array.linear", "inputs": inputs
-    })).unwrap();
+    let graph = s
+        .execute(
+            "worldwright.tool.run",
+            &json!({
+                "operation": "orbweaver.array.linear", "inputs": inputs
+            }),
+        )
+        .unwrap();
     assert_eq!(direct["output"], graph["output"]);
     assert_eq!(direct["output"]["kind"], "tree");
     let branches = direct["output"]["value"]["branches"].as_array().unwrap();
@@ -549,9 +554,14 @@ fn plane_projection_preserves_xy_and_removes_height() {
         "direction": {"kind": "vector", "value": {"x": 0.0, "y": 0.0, "z": -1.0}}
     });
     let direct = s.execute("worldwright.project", &json!({"inputs": inputs})).unwrap();
-    let graph = s.execute("worldwright.tool.run", &json!({
-        "operation": "orbweaver.project.plane", "inputs": inputs
-    })).unwrap();
+    let graph = s
+        .execute(
+            "worldwright.tool.run",
+            &json!({
+                "operation": "orbweaver.project.plane", "inputs": inputs
+            }),
+        )
+        .unwrap();
     assert_eq!(direct["output"], graph["output"]);
     assert_eq!(direct["output"]["kind"], "polyline");
     let points = direct["output"]["value"].as_array().unwrap();
@@ -572,9 +582,14 @@ fn ruled_surface_preserves_exact_control_rails() {
     let mut s = Session::new();
     let revision = s.state().unwrap().revision;
     let direct = s.execute("worldwright.surface.ruled", &json!({"inputs": inputs})).unwrap();
-    let graph = s.execute("worldwright.tool.run", &json!({
-        "operation": "orbweaver.surface.ruled", "inputs": inputs
-    })).unwrap();
+    let graph = s
+        .execute(
+            "worldwright.tool.run",
+            &json!({
+                "operation": "orbweaver.surface.ruled", "inputs": inputs
+            }),
+        )
+        .unwrap();
     assert_eq!(direct["output"], graph["output"]);
     assert_eq!(direct["output"]["kind"], "surface");
     assert_eq!(direct["output"]["value"]["degree_u"], 1);
@@ -600,9 +615,14 @@ fn nurbs_evaluation_uses_exact_rational_curve() {
     });
     let inputs = json!({"curve": curve, "t": {"kind": "number", "value": 0.25}});
     let direct = s.execute("worldwright.nurbs.evaluate", &json!({"inputs": inputs})).unwrap();
-    let graph = s.execute("worldwright.tool.run", &json!({
-        "operation": "orbweaver.nurbs.evaluate", "inputs": inputs
-    })).unwrap();
+    let graph = s
+        .execute(
+            "worldwright.tool.run",
+            &json!({
+                "operation": "orbweaver.nurbs.evaluate", "inputs": inputs
+            }),
+        )
+        .unwrap();
     assert_eq!(direct["output"], graph["output"]);
     assert_eq!(direct["output"]["kind"], "point");
     assert_eq!(direct["output"]["value"], json!({"x": 1.0, "y": 0.0, "z": 0.0}));

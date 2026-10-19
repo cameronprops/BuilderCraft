@@ -139,6 +139,11 @@ const CASES: &[Case] = &[
     ("model.rename", model_rename_changes_requested_node_only),
     ("model.select", model_select_resolves_nested_body_geometry),
     ("model.visible", model_visible_hides_owned_geometry_and_undo_restores),
+    ("worldwright.history.create", history_create_adds_document_timeline),
+    ("worldwright.history.list", history_list_reports_real_timeline_metadata),
+    ("worldwright.history.inspect", history_inspect_exposes_scope_and_steps),
+    ("worldwright.history.edit", history_edit_appends_executable_parametric_step),
+    ("worldwright.history.evaluate", history_evaluate_recomputes_midpoint_without_mutating),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1756,6 +1761,94 @@ fn model_visible_hides_owned_geometry_and_undo_restores() {
     assert!(!s.doc().unwrap().entity(target).unwrap().common.visible);
     s.execute("undo", &json!({})).unwrap();
     assert!(s.doc().unwrap().entity(target).unwrap().common.visible);
+}
+
+fn history_test_scope(s: &mut Session) -> serde_json::Value {
+    let scope = json!({"kind":"document"});
+    let result = s.execute("worldwright.history.create", &json!({"scope":scope})).unwrap();
+    assert_eq!(result["revision"], 0);
+    scope
+}
+
+fn history_append_midpoint(s: &mut Session, scope: &serde_json::Value) {
+    let result = s.execute(
+        "worldwright.history.edit",
+        &json!({
+            "scope":scope,
+            "expected_revision":0,
+            "change":{"edit":"append","step":{
+                "id":3,"name":"Driven Point","operation":"kernel.point.midpoint",
+                "inputs":{
+                    "a":{"source":"constant","value":{"kind":"point","value":{"x":0.0,"y":0.0,"z":0.0}}},
+                    "b":{"source":"constant","value":{"kind":"point","value":{"x":10.0,"y":0.0,"z":0.0}}}
+                }
+            }}
+        }),
+    ).unwrap();
+    assert_eq!(result["revision"], 1);
+}
+
+fn history_create_adds_document_timeline() {
+    let mut s = Session::new();
+    let scope = history_test_scope(&mut s);
+    assert_eq!(scope, json!({"kind":"document"}));
+    assert_eq!(s.doc().unwrap().feature_timelines.len(), 1);
+    assert_eq!(s.doc().unwrap().feature_timelines[0].revision, 0);
+    s.execute("undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().feature_timelines.is_empty());
+}
+
+fn history_list_reports_real_timeline_metadata() {
+    let mut s = Session::new();
+    let scope = history_test_scope(&mut s);
+    let before = s.state().unwrap().revision;
+    let result = s.execute("worldwright.history.list", &json!({})).unwrap();
+    let histories = result["histories"].as_array().unwrap();
+    assert_eq!(histories.len(), 1);
+    assert_eq!(histories[0]["scope"], scope);
+    assert_eq!(histories[0]["revision"], 0);
+    assert_eq!(histories[0]["steps"], 0);
+    assert_eq!(s.state().unwrap().revision, before);
+}
+
+fn history_inspect_exposes_scope_and_steps() {
+    let mut s = Session::new();
+    let scope = history_test_scope(&mut s);
+    history_append_midpoint(&mut s, &scope);
+    let before = s.state().unwrap().revision;
+    let result = s.execute("worldwright.history.inspect", &json!({"scope":scope})).unwrap();
+    assert_eq!(result["scope"], scope);
+    assert_eq!(result["revision"], 1);
+    assert_eq!(result["steps"].as_array().unwrap().len(), 1);
+    assert_eq!(result["steps"][0]["operation"], "kernel.point.midpoint");
+    assert_eq!(s.state().unwrap().revision, before);
+}
+
+fn history_edit_appends_executable_parametric_step() {
+    let mut s = Session::new();
+    let scope = history_test_scope(&mut s);
+    history_append_midpoint(&mut s, &scope);
+    assert_eq!(s.doc().unwrap().feature_timelines[0].steps.len(), 1);
+    let saved = cadcraft_io::write(s.doc().unwrap(), "history.dftba").unwrap();
+    let reopened = cadcraft_io::read(&saved, "history.dftba").unwrap();
+    assert_eq!(reopened.feature_timelines, s.doc().unwrap().feature_timelines);
+    s.execute("undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().feature_timelines[0].steps.is_empty());
+}
+
+fn history_evaluate_recomputes_midpoint_without_mutating() {
+    let mut s = Session::new();
+    let scope = history_test_scope(&mut s);
+    history_append_midpoint(&mut s, &scope);
+    let prior = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo = s.state().unwrap().undo.len();
+    let result = s.execute("worldwright.history.evaluate", &json!({"scope":scope})).unwrap();
+    assert_eq!(result["outputs"]["3"]["kind"], "point");
+    assert_eq!(result["outputs"]["3"]["value"], json!({"x":5.0,"y":0.0,"z":0.0}));
+    assert!(std::sync::Arc::ptr_eq(&prior, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo);
 }
 
 fn path_array_places_copies_along_rail() {

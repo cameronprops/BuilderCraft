@@ -57,10 +57,12 @@ missing coverage rather than passing. The fixture table is in
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
 **Current main:** 166 / 396 independently asserted success-path
-fixtures after merged PR #122. PR #123 contains registry/CI efficiency work;
-PR #124 proposes 170 and stacked #125 proposes 175. None of those counts is
-a certification count, and exact PR status must be re-queried from GitHub.
-Full five-gate certification is tracked separately above.
+fixtures after merged PR #122. PR #123 merged the command index and CI
+optimizations. The consolidated #125 proposes nine additional geometry
+fixtures from #124 and #125, reaching **175 / 396** when merged. These
+numbers are not certification counts. PR #126 merged the initial point
+certification harness; stateful Line/Move/Copy certification is proposed in
+#127. Full five-gate certification is tracked separately above.
 
 ## Completion criteria for EACH command
 

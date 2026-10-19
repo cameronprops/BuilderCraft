@@ -1,14 +1,19 @@
 //! Bounded native G0/G1 NURBS curve blends. No polyline tessellation.
-use cadcraft_geom::{Vec3, nurbs3d::Curve};
 use crate::{KernelError, Result};
+use cadcraft_geom::{Vec3, nurbs3d::Curve};
 
 /// Exact G0 (line) or geometric G1 (cubic Bezier) from A's end to B's start.
 /// Reversal flags 0/1 select the other endpoints with oriented tangents.
 /// Handle strengths are fractions of endpoint distance, not physical radii.
 /// Does not claim C1 speed matching, G2 curvature, trims, joins or collisions.
 pub fn blend_nurbs_curves(
-    a: &Curve, b: &Curve, continuity: usize, strength_a: f64,
-    strength_b: f64, reverse_a: usize, reverse_b: usize,
+    a: &Curve,
+    b: &Curve,
+    continuity: usize,
+    strength_a: f64,
+    strength_b: f64,
+    reverse_a: usize,
+    reverse_b: usize,
 ) -> Result<Curve> {
     if !a.valid() || !b.valid() {
         return Err(KernelError::Invalid("blend requires valid NURBS curves"));
@@ -19,9 +24,7 @@ pub fn blend_nurbs_curves(
     if reverse_a > 1 || reverse_b > 1 {
         return Err(KernelError::Invalid("blend reversal must be 0 or 1"));
     }
-    if !strength_a.is_finite() || !strength_b.is_finite()
-        || !(0.01..=2.0).contains(&strength_a) || !(0.01..=2.0).contains(&strength_b)
-    {
+    if !strength_a.is_finite() || !strength_b.is_finite() || !(0.01..=2.0).contains(&strength_a) || !(0.01..=2.0).contains(&strength_b) {
         return Err(KernelError::Invalid("blend handle strengths must be in [0.01, 2]"));
     }
     let ta = if reverse_a == 0 { 1.0 } else { 0.0 };
@@ -37,8 +40,12 @@ pub fn blend_nurbs_curves(
     } else {
         let mut incoming = a.derivative(ta).ok_or(KernelError::Invalid("first curve has no derivative"))?;
         let mut outgoing = b.derivative(tb).ok_or(KernelError::Invalid("second curve has no derivative"))?;
-        if reverse_a == 1 { incoming = incoming * -1.0; }
-        if reverse_b == 1 { outgoing = outgoing * -1.0; }
+        if reverse_a == 1 {
+            incoming = incoming * -1.0;
+        }
+        if reverse_b == 1 {
+            outgoing = outgoing * -1.0;
+        }
         let la = incoming.len();
         let lb = outgoing.len();
         if !la.is_finite() || !lb.is_finite() || la <= 1e-12 || lb <= 1e-12 {

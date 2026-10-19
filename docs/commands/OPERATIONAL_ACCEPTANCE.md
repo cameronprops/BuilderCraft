@@ -32,9 +32,9 @@ coordinates, returned IDs and state changes, not just `is_ok()`.
 
 **Current tranche (2026-10-18):** 134 independently asserted
 positive success-path fixtures are authored against 396 registered commands.
-**262 still lack positive-path fixtures.** The first 120 are merged on main.
-Parent PR #111 adds eight native numeric/vector/curve-split cases, and this
-stacked PR adds six document-native NURBS/3D organization cases: Curve3D,
+**262 still lack positive-path fixtures.** The first 128 are merged on main,
+including the eight native vector/polyline/split cases from PR #111.
+This reconciled PR adds six document-native NURBS/3D organization cases: Curve3D,
 Split, Trim, Geometry3D List, Set and ControlPoint. Tests assert rational
 curve evaluations, stable identities, undo, control-point editability and
 .dftba round-trip. The reconciled branch must pass focused modeling,

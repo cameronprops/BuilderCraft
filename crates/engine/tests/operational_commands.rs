@@ -1874,11 +1874,7 @@ fn nurbs_control_surface_evaluates_exact_rational_patch() {
     for p in &mut top.control {
         p.z += 10.0;
     }
-    let source = cadcraft_geom::nurbs3d::Surface {
-        rows: vec![(*original).clone(), top],
-        degree_v: 1,
-        knots_v: vec![0.0, 0.0, 1.0, 1.0],
-    };
+    let source = cadcraft_geom::nurbs3d::Surface { rows: vec![(*original).clone(), top], degree_v: 1, knots_v: vec![0.0, 0.0, 1.0, 1.0] };
     assert!(source.valid());
     let result = s.execute("nurbs.surface", &json!({"name":"Gallery Skin","surface":source})).unwrap();
     let surface_id = result["id"].as_u64().unwrap();
@@ -1935,10 +1931,7 @@ fn geometry3d_transform_copies_native_shape_with_exact_translation() {
     let mut s = Session::new();
     let id = make_quadratic_nurbs(&mut s);
     let source = exact_quadratic(&s, id);
-    let result = s.execute(
-        "geometry3d.transform",
-        &json!({"ids":[id],"operation":{"kind":"move","delta":[2.0,3.0,4.0]},"copy":true}),
-    ).unwrap();
+    let result = s.execute("geometry3d.transform", &json!({"ids":[id],"operation":{"kind":"move","delta":[2.0,3.0,4.0]},"copy":true})).unwrap();
     assert_eq!(result["copy"], true);
     assert_eq!(result["objects"][0]["source_id"], id);
     let copied_id = result["objects"][0]["id"].as_u64().unwrap();

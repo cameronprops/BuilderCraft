@@ -67,7 +67,12 @@ fn dist_text(s: &Session, a: Vec2, b: Vec2) -> String {
 fn run_dist(s: &mut Session, p: &Value) -> Result<Value> {
     let a = point_req("dist", p, "p1")?;
     let b = point_req("dist", p, "p2")?;
-    Ok(json!({ "distance": a.dist(b), "angle": (b - a).angle().to_degrees(), "dx": b.x - a.x, "dy": b.y - a.y, "message": dist_text(s, a, b) }))
+    let delta = b - a;
+    let distance = a.dist(b);
+    if !delta.is_finite() || !distance.is_finite() {
+        return Err(bad("dist", "distance exceeds finite drawing coordinates; work closer to the drawing origin or reduce scale"));
+    }
+    Ok(json!({ "distance": distance, "angle": delta.angle().to_degrees(), "dx": delta.x, "dy": delta.y, "message": dist_text(s, a, b) }))
 }
 
 fn run_id(s: &mut Session, p: &Value) -> Result<Value> {
@@ -160,6 +165,12 @@ fn list_text(s: &Session, h: Handle) -> String {
 
 fn run_list(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
+    let drawing = s.doc()?;
+    for h in &hs {
+        if drawing.entity(*h).is_none() {
+            return Err(bad("list", format!("object {} does not exist", h.hex())));
+        }
+    }
     let texts: Vec<String> = hs.iter().map(|h| list_text(s, *h)).collect();
     Ok(json!({ "message": texts.join("\n\n") }))
 }
@@ -173,6 +184,9 @@ fn area_of(pts: &[Vec2]) -> (f64, f64) {
 
 fn run_area(s: &mut Session, p: &Value) -> Result<Value> {
     let (a, per) = if let Some(pts) = points_param(p, "points") {
+        if pts.len() < 3 {
+            return Err(bad("area", "polygon area needs at least three points"));
+        }
         area_of(&pts)
     } else {
         let h = targets(s, p)?.first().copied().ok_or_else(|| bad("area", "`points` or `handle` is required"))?;
@@ -196,6 +210,9 @@ fn run_area(s: &mut Session, p: &Value) -> Result<Value> {
             _ => return Err(bad("area", "object has no area")),
         }
     };
+    if !a.is_finite() || !per.is_finite() {
+        return Err(bad("area", "area or perimeter exceeds finite drawing range"));
+    }
     Ok(json!({ "area": a, "perimeter": per, "message": format!("Area = {}, Perimeter = {}", fmt_d(s, a), fmt_d(s, per)) }))
 }
 

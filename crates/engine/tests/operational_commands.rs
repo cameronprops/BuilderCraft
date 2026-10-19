@@ -25,6 +25,10 @@ const CASES: &[Case] = &[
     ("zoom.extents", zoom_fits_drawing),
     ("worldwright.point.distance", native_distance_is_correct),
     ("worldwright.point.interpolate", native_interpolation_is_correct),
+    ("worldwright.array.linear", array_linear_retains_copy_order_and_offsets),
+    ("worldwright.project", plane_projection_preserves_xy_and_removes_height),
+    ("worldwright.surface.ruled", ruled_surface_preserves_exact_control_rails),
+    ("worldwright.nurbs.evaluate", nurbs_evaluation_uses_exact_rational_curve),
     ("worldwright.tool.run", generic_dispatch_matches_direct_command),
     ("mesh3d.create", mesh_creation_is_persistent),
     ("mesh3d.list", mesh_listing_finds_created_object),
@@ -497,6 +501,114 @@ fn tree_match_longest_repeats_last_item() {
     assert_eq!(matched[2]["kind"], "pair");
     assert_eq!(matched[2]["value"][0]["value"], 2.0);
     assert_eq!(matched[2]["value"][1]["value"], 30.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn array_linear_retains_copy_order_and_offsets() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let inputs = json!({
+        "geometry": {"kind": "polyline", "value": [
+            {"x": 0.0, "y": 0.0, "z": 0.0},
+            {"x": 1.0, "y": 0.0, "z": 0.0}
+        ]},
+        "step": {"kind": "vector", "value": {"x": 2.0, "y": 0.0, "z": 0.0}},
+        "count": {"kind": "count", "value": 3}
+    });
+    let direct = s.execute("worldwright.array.linear", &json!({"inputs": inputs})).unwrap();
+    let graph = s.execute("worldwright.tool.run", &json!({
+        "operation": "orbweaver.array.linear", "inputs": inputs
+    })).unwrap();
+    assert_eq!(direct["output"], graph["output"]);
+    assert_eq!(direct["output"]["kind"], "tree");
+    let branches = direct["output"]["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 3);
+    for (index, branch) in branches.iter().enumerate() {
+        assert_eq!(branch["path"], json!([index]));
+        assert_eq!(branch["items"][0]["kind"], "polyline");
+        assert_eq!(branch["items"][0]["value"][0]["x"], (index as f64) * 2.0);
+        assert_eq!(branch["items"][0]["value"][1]["x"], (index as f64) * 2.0 + 1.0);
+    }
+    let mut invalid = inputs.clone();
+    invalid["count"]["value"] = json!(0);
+    assert!(s.execute("worldwright.array.linear", &json!({"inputs": invalid})).is_err());
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn plane_projection_preserves_xy_and_removes_height() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let inputs = json!({
+        "geometry": {"kind": "polyline", "value": [
+            {"x": 1.0, "y": 2.0, "z": 4.0},
+            {"x": 3.0, "y": 5.0, "z": 7.0}
+        ]},
+        "origin": {"kind": "point", "value": {"x": 0.0, "y": 0.0, "z": 0.0}},
+        "normal": {"kind": "vector", "value": {"x": 0.0, "y": 0.0, "z": 1.0}},
+        "direction": {"kind": "vector", "value": {"x": 0.0, "y": 0.0, "z": -1.0}}
+    });
+    let direct = s.execute("worldwright.project", &json!({"inputs": inputs})).unwrap();
+    let graph = s.execute("worldwright.tool.run", &json!({
+        "operation": "orbweaver.project", "inputs": inputs
+    })).unwrap();
+    assert_eq!(direct["output"], graph["output"]);
+    assert_eq!(direct["output"]["kind"], "polyline");
+    let points = direct["output"]["value"].as_array().unwrap();
+    assert_eq!(points.len(), 2);
+    assert_eq!(points[0], json!({"x": 1.0, "y": 2.0, "z": 0.0}));
+    assert_eq!(points[1], json!({"x": 3.0, "y": 5.0, "z": 0.0}));
+    let mut invalid = inputs.clone();
+    invalid["direction"]["value"] = json!({"x": 1.0, "y": 0.0, "z": 0.0});
+    assert!(s.execute("worldwright.project", &json!({"inputs": invalid})).is_err());
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn ruled_surface_preserves_exact_control_rails() {
+    use cadcraft_geom::{Vec3, nurbs3d::Curve};
+    let a = Curve::from_control(vec![Vec3::new(0.0, 0.0, 0.0), Vec3::new(4.0, 0.0, 0.0)], 1).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(0.0, 0.0, 2.0), Vec3::new(4.0, 0.0, 2.0)], 1).unwrap();
+    let inputs = json!({"a": {"kind": "curve", "value": a}, "b": {"kind": "curve", "value": b}});
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let direct = s.execute("worldwright.surface.ruled", &json!({"inputs": inputs})).unwrap();
+    let graph = s.execute("worldwright.tool.run", &json!({
+        "operation": "orbweaver.surface.ruled", "inputs": inputs
+    })).unwrap();
+    assert_eq!(direct["output"], graph["output"]);
+    assert_eq!(direct["output"]["kind"], "surface");
+    assert_eq!(direct["output"]["value"]["degree_u"], 1);
+    assert_eq!(direct["output"]["value"]["degree_v"], 1);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn nurbs_evaluation_uses_exact_rational_curve() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let curve = json!({
+        "kind": "curve",
+        "value": {
+            "degree": 1,
+            "control": [
+                {"x": 0.0, "y": 0.0, "z": 0.0},
+                {"x": 4.0, "y": 0.0, "z": 0.0}
+            ],
+            "weights": [1.0, 1.0],
+            "knots": [0.0, 0.0, 1.0, 1.0]
+        }
+    });
+    let inputs = json!({"curve": curve, "t": {"kind": "number", "value": 0.25}});
+    let direct = s.execute("worldwright.nurbs.evaluate", &json!({"inputs": inputs})).unwrap();
+    let graph = s.execute("worldwright.tool.run", &json!({
+        "operation": "orbweaver.nurbs.evaluate", "inputs": inputs
+    })).unwrap();
+    assert_eq!(direct["output"], graph["output"]);
+    assert_eq!(direct["output"]["kind"], "point");
+    assert_eq!(direct["output"]["value"], json!({"x": 1.0, "y": 0.0, "z": 0.0}));
+    let mut invalid = inputs.clone();
+    invalid["t"]["value"] = json!(2.0);
+    assert!(s.execute("worldwright.nurbs.evaluate", &json!({"inputs": invalid})).is_err());
     assert_eq!(s.state().unwrap().revision, revision);
 }
 

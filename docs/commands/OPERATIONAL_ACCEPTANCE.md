@@ -30,18 +30,17 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 139 independently asserted
-positive-path fixtures are authored against 396 registered commands.
-**257 registered commands still lack independent positive-path fixtures.**
-The 120-case baseline merged via PR #110. PR #111 adds eight native
-vector/polyline/curve-split cases, and PR #114 adds six persistent rational
-NURBS/Geometry3D cases. This follow-on batch adds five model-browser
-commands: Create, List, Rename, Select and Visible. They assert nested
-assembly/component/body relationships, actual owned geometry, query
-results, selection traversal, edit undo and restored visibility. These
-stacked branches require fresh focused modeling, Linux/macOS/Windows
-native and exact BRep CI after merge-base reconciliation; positive tests
-alone do not satisfy five-gate operational alpha certification.
+**Current tranche (2026-10-18):** 144 independently asserted positive-path
+fixtures are authored against 396 registered commands, leaving **252 without
+independent positive-path fixtures**. The first 120 are merged on main;
+stacked PRs #111, #114 and #116 propose another nineteen native kernel, NURBS
+and model-browser cases. This branch adds five feature-history cases:
+Create, List, Inspect, Edit and Evaluate. They assert a real document-scoped
+parametric timeline, actual midpoint computation, serialized .dftba state,
+undo, query non-mutation and revision checks. The stacked branches must
+complete Linux/macOS/Windows, focused modeling and exact BRep validation
+and reconcile against main before merging. Positive-path acceptance is not
+full five-part operational alpha certification.
 
 ## Completion criteria for EACH command
 

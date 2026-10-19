@@ -30,17 +30,19 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 128 independently asserted
-positive success-path fixtures are authored against 396 registered commands,
-leaving **268 without independent positive-path fixtures**. The 114-case
-baseline has already merged. Parent PR #110 contributes six native shared-kernel
-path/curve cases. This stacked branch contributes eight more direct-command
-geometry/numeric cases: vector Length, Normalize, Dot, Cross; polyline Length,
-Divide by Count, Divide by Spacing; and Curve Split. Assertions check actual
-numeric values, ordered split fragments, tree branches, and document nonmutation.
-The stacked branches must both pass appropriate CI and merge before counting
-these cases as mainline accepted. Full five-part operational certification
-still requires independent failure-path, undo, persistence and UI evidence.
+**Current tranche (2026-10-18):** 134 independently asserted
+positive-path fixtures have been authored against 396 registered commands.
+**262 still lack independent positive-path fixtures.** The main branch has
+114 merged cases. PR #110 proposes six additional native curve/path cases;
+PR #111 adds eight vector/polyline/split cases. This follow-on branch adds six
+document-backed 3D geometry acceptance cases for NURBS Curve3D, Split and
+Trim, Geometry3D List, Set and ControlPoint. The cases assert actual rational
+curve shape preservation, stable document IDs, undo, editability, serialized
+.dftba round-trip and read-only query behavior.
+
+All stacked branches must pass pinned Rust, focused modeling and exact BRep
+integration, with Linux/macOS/Windows native validation after reconciliation
+onto main. Positive fixtures alone are not full five-part certification.
 
 ## Completion criteria for EACH command
 

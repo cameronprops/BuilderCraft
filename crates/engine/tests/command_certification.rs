@@ -136,6 +136,9 @@ fn verify(candidate: &Candidate, kind: &str) {
 fn certification_registry_matches_executable_candidates() {
     let manifest: Value = serde_json::from_str(include_str!("../../../docs/commands/certification-registry.json")).unwrap();
     assert_eq!(manifest["schema_version"], 1);
+    let certified = manifest["candidates"].as_array().unwrap().iter().filter(|r| r["status"] == "certified_headless").count();
+    assert_eq!(manifest["certified_count"], certified);
+    assert_eq!(certified, CANDIDATES.len());
     let candidates = manifest["candidates"].as_array().unwrap();
     let entries: Vec<_> = candidates.iter().filter(|entry| entry["document_mutation"] == false).collect();
     assert_eq!(entries.len(), CANDIDATES.len(), "every read-only candidate must have a five-gate test");
@@ -149,7 +152,11 @@ fn certification_registry_matches_executable_candidates() {
         assert_eq!(record["operation"], candidate.operation);
         assert_eq!(record["orbweaver_node"], candidate.node);
         assert_eq!(record["document_mutation"], false);
-        assert_eq!(record["status"], "candidate_ci_pending");
+        assert_eq!(record["status"], "certified_headless");
+        assert_eq!(record["scope"], "read_only_headless_cad_api_orbweaver");
+        assert_eq!(record["certification_evidence"]["reviewed_code_commit"], "37d19b5f77cf80b18336b7044600c2cc1b6f5181");
+        assert_eq!(record["certification_evidence"]["post_merge_native_ci_run"], 39272999336_u64);
+        assert_eq!(record["certification_evidence"]["post_merge_occt_ci_run"], 39272999189_u64);
         for gate in ["correctness", "failure_preservation", "persistence", "interface", "stability"] {
             assert!(record["gates"][gate].as_str().is_some_and(|s| !s.is_empty()), "missing {gate} on {}", candidate.id);
         }

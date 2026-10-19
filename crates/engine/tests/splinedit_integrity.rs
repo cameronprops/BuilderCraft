@@ -65,11 +65,15 @@ fn splinedit_polyline_and_refit_produce_valid_geometry() {
         other => panic!("expected refit spline, got {other:?}"),
     }
 
+    let control_count = match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Spline(sp) => sp.control.len(),
+        _ => unreachable!(),
+    };
     let result = s.execute("splinedit", &json!({"handle":h,"option":"polyline","precision":4})).unwrap();
     assert_eq!(result["handle"], h);
     match &s.doc().unwrap().model.iter().next().unwrap().kind {
         EntityKind::LwPolyline(pl) => {
-            assert_eq!(pl.vertices.len(), 13);
+            assert_eq!(pl.vertices.len(), 4 * control_count.max(2) + 1);
             assert!(pl.vertices.iter().all(|v| v.p.is_finite()));
         }
         other => panic!("expected converted polyline, got {other:?}"),

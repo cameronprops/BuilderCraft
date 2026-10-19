@@ -74,6 +74,13 @@ ledger retains all six as candidates pending host UI verification and
 cross-platform CI. Legacy Line partial-cancel behavior remains preserved
 as one undoable edit until explicitly redesigned.
 
+**Vector mathematics certification PR #130:** four shared vector operations
+(Length, Normalize, Dot, Cross) gain exact input-output fixtures and
+CAD/API/OrbWeaver parity evidence. The combined ledger tracks **3
+headless-certified point tools, 4 candidate vector tools and 6 candidate
+stateful editing tools**. The last ten entries must not be counted as
+certified until their required CI and interface scopes are verified.
+
 ## Definition of "operational alpha" (release-blocking)
 
 - [ ] **Single integration target:** update `main` or a dated stabilization branch to a coherent, non-conflicting head; no hidden dependency on unmerged stacked PRs; record precise release SHA and source provenance.

@@ -464,12 +464,12 @@ struct ProbeWindow {
 }
 fn probe_window(p: &Value, stem: &str) -> Result<ProbeWindow> {
     let min = p
-        .get(&format!("{stem}_min"))
+        .get(format!("{stem}_min"))
         .and_then(Value::as_f64)
         .filter(|x| x.is_finite() && (1e-7..=1e8).contains(x))
         .ok_or_else(|| fail(format!("{stem}_min must be positive and finite")))?;
     let max = p
-        .get(&format!("{stem}_max"))
+        .get(format!("{stem}_max"))
         .and_then(Value::as_f64)
         .filter(|x| x.is_finite() && (1e-7..=1e8).contains(x) && *x > min)
         .ok_or_else(|| fail(format!("{stem}_max must exceed {stem}_min")))?;
@@ -687,10 +687,10 @@ fn association_rebuild(s: &mut Session, p: &Value) -> Result<Value> {
         cadcraft_doc::organization::BrepDependencyRecipe::Sweep1 { .. } => "sweep1",
         cadcraft_doc::organization::BrepDependencyRecipe::Sweep2 { .. } => "sweep2",
     };
-    if params["tolerance"].is_null() {
-        if let Some(map) = params.as_object_mut() {
-            let _ = map.remove("tolerance");
-        }
+    if params["tolerance"].is_null()
+        && let Some(map) = params.as_object_mut()
+    {
+        let _ = map.remove("tolerance");
     }
     let fresh = relay_document_curve(s, &params, operation)?;
     let temp = fresh["ids"][0].as_u64().ok_or_else(|| fail("rebuild produced no native BRep"))?;

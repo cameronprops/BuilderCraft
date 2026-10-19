@@ -747,7 +747,7 @@ fn run_splinedit(s: &mut Session, p: &Value) -> Result<Value> {
                 return Err(bad("splinedit", "evaluating this spline produced non-finite polyline coordinates"));
             }
             EntityKind::LwPolyline(polyline)
-        },
+        }
         "move" => {
             let i = p.get("index").and_then(Value::as_u64).ok_or_else(|| bad("splinedit", "`index` is required"))? as usize;
             let to = point_req("splinedit", p, "to")?;

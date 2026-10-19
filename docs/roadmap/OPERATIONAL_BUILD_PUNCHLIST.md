@@ -11,12 +11,13 @@ snapshot is retained for traceability and must not be treated as live GitHub sta
 
 | PR | Dependency | Authored success fixtures | Merge gate |
 |---|---|---:|---|
-| #118 | current `main` | 144 / 396 | Focused modeling passed; native and exact OCCT checks must finish |
-| #119 | #118 | 149 / 396 | Focused modeling passed; reconcile onto `main` after #118 |
+| #118 | `main` | 144 / 396 | **MERGED** `8c7c12ac`, required head CI passed |
+| #119 | `main` | 149 / 396 | Reconciled (`aa5e85c`); fresh native/modeling/exact OCCT CI running |
 | #120 | #119 | 154 / 396 | Formatting repair committed; rerun focused, native and exact OCCT |
-| #121 | #120 | 159 / 396 | Run formatting, focused modeling, native and exact OCCT before review |
+| #121 | #120 | 159 / 396 | Focused modeling passed, exact OCCT and future native reconciliation required |
+| #122 | #121 | 166 / 396 | Paired CAD/OrbWeaver success fixtures; full CI and parent reconciliation required |
 
-**237 / 396** registered commands currently have no independently asserted
+**230 / 396** registered commands currently have no independently asserted
 positive-path fixture in this proposed stack. New fixtures check real results
 and do not constitute full operational certification. Do not merge descendants
 before parents, do not bypass failing CI, and verify `main` after every merge.

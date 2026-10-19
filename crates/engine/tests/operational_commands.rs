@@ -149,6 +149,11 @@ const CASES: &[Case] = &[
     ("geometry3d.preview", geometry3d_preview_tessellates_without_editing_source),
     ("geometry3d.transform", geometry3d_transform_copies_native_shape_with_exact_translation),
     ("buildercraft.capabilities", buildercraft_capabilities_reports_actual_native_features),
+    ("worldwright.mesh.closest_point", mesh_closest_point_reports_projected_triangle),
+    ("worldwright.cloud.closest_point", cloud_closest_point_reports_stable_nearest_sample),
+    ("nurbs.controlcurve3d", controlcurve3d_builds_valid_exact_curve),
+    ("geometry3d.pick", geometry3d_pick_misses_empty_scene_without_mutation),
+    ("geometry3d.select", geometry3d_select_empty_set_preserves_revision),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -161,6 +166,77 @@ const CASES: &[Case] = &[
     ("align", align_translates_with_two_reference_points),
     ("lengthen", lengthen_changes_line_length),
 ];
+
+
+fn mesh_closest_point_reports_projected_triangle() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s.execute("worldwright.mesh.closest_point", &json!({
+        "mesh":{"vertices":[
+            {"x":0.0,"y":0.0,"z":0.0},
+            {"x":2.0,"y":0.0,"z":0.0},
+            {"x":0.0,"y":2.0,"z":0.0}
+        ],"triangles":[[0,1,2]]},
+        "query":[0.5,0.5,3.0]
+    })).unwrap();
+    assert_eq!(out["hit"]["point"], json!([0.5,0.5,0.0]));
+    assert_eq!(out["hit"]["distance"], 3.0);
+    assert_eq!(out["hit"]["triangle_index"], 0);
+    assert_eq!(out["hit"]["barycentric"], json!([0.5,0.25,0.25]));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn cloud_closest_point_reports_stable_nearest_sample() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s.execute("worldwright.cloud.closest_point", &json!({
+        "points":[{"x":-1.0,"y":0.0,"z":0.0},{"x":1.0,"y":0.0,"z":0.0}],
+        "query":[0.0,0.0,0.0]
+    })).unwrap();
+    assert_eq!(out["hit"]["point_index"], 0);
+    assert_eq!(out["hit"]["point"], json!([-1.0,0.0,0.0]));
+    assert_eq!(out["hit"]["distance"], 1.0);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn controlcurve3d_builds_valid_exact_curve() {
+    let mut s = Session::new();
+    let result = s.execute("nurbs.controlcurve3d", &json!({
+        "name":"Operational control curve",
+        "degree":2,
+        "points":[[0.0,0.0,0.0],[1.0,2.0,0.0],[2.0,0.0,0.0]]
+    })).unwrap();
+    let id = result["id"].as_u64().expect("new exact curve ID");
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    assert_eq!(object.name, "Operational control curve");
+    assert!(object.shape.valid());
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+    s.execute("undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn geometry3d_pick_misses_empty_scene_without_mutation() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s.execute("geometry3d.pick", &json!({
+        "pixel":[200.0,200.0], "viewport":[400.0,400.0],
+        "center":[0.0,0.0,0.0], "yaw":0.0, "pitch":0.0, "scale":10.0
+    })).unwrap();
+    assert!(out["id"].is_null());
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn geometry3d_select_empty_set_preserves_revision() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let out = s.execute("geometry3d.select", &json!({"ids":[],"mode":"replace"})).unwrap();
+    assert_eq!(out["ids"], json!([]));
+    assert!(s.selection().is_empty());
+    assert_eq!(s.state().unwrap().revision, revision);
+}
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
     match &s.doc().unwrap().model.iter().next().unwrap().kind {

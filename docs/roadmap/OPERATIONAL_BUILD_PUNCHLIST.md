@@ -63,6 +63,15 @@ Formal certification stays **zero** until cross-platform integration,
 post-merge main and applicable interactive UI evidence is complete.
 The workflow is incremental and must not duplicate transform math.
 
+**Interactive engine tranche #129:** Six stateful command candidates now have
+executable prompt-engine acceptance tests for command-line aliases,
+selection, preview, invalid-input re-prompting, copy/erase choices,
+undo/redo, and `.dftba` persistence. The native engine test does not
+replace desktop UI click/keyboard/rendering integration. The certification
+ledger retains all six as candidates pending host UI verification and
+cross-platform CI. Legacy Line partial-cancel behavior remains preserved
+as one undoable edit until explicitly redesigned.
+
 ## Definition of "operational alpha" (release-blocking)
 
 - [ ] **Single integration target:** update `main` or a dated stabilization branch to a coherent, non-conflicting head; no hidden dependency on unmerged stacked PRs; record precise release SHA and source provenance.

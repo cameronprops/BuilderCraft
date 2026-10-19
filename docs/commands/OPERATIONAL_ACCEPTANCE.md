@@ -7,13 +7,12 @@ API names, menu visibility or registration as functionality.
 
 ## Five-gate command certification begins now
 
-The positive-case registry covers **166 / 396** live engine command IDs on
+The positive-case registry covers **175 / 396** live engine command IDs on
 merged `main`. It does **not** certify them. The explicit certification ledger
 is [`certification-registry.json`](certification-registry.json). It currently
-records **0 fully certified commands**, three merged headless point-command
-candidates from PR #126, and three new state-changing candidates in PR #127:
-`line`, `move`, and `copy`. Certification status changes only upon verified
-evidence and the required interface review.
+records **0 fully certified commands** and nine candidates:
+three point-query commands in merged PR #126 and six stateful editing
+commands in pending #127-#129. Tests and applicability review are separate.
 
 Each candidate is executable in
 `crates/engine/tests/command_certification.rs`, with five distinct gates:
@@ -101,11 +100,10 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current main:** 166 / 396 independently asserted success-path
-fixtures after merged PR #122. PR #123 contains registry/CI efficiency work;
-PR #124 proposes 170 and stacked #125 proposes 175. None of those counts is
-a certification count, and exact PR status must be re-queried from GitHub.
-Full five-gate certification is tracked separately above.
+**Current main:** 175 / 396 independently asserted positive-path fixtures
+after merged #125 (`743681f`). Nine certification candidates are tracked
+in the #129 consolidated stack; zero are formally promoted. The native
+prompt-engine suite is not a desktop mouse/keyboard/render certification.
 
 ## Completion criteria for EACH command
 

@@ -15,27 +15,27 @@ snapshot is retained for traceability and must not be treated as live GitHub sta
 | #119 | `main` | 149 / 396 | **MERGED** `eb3d3c9`; required native/modeling/exact OCCT CI passed |
 | #120 | #119 | 154 / 396 | Covered by consolidated #122; close only after verified merge |
 | #121 | #120 | 159 / 396 | Covered by consolidated #122; close only after verified merge |
-| #122 | `main` (consolidated #120-#122) | 166 / 396 | 17 new success fixtures; full Linux/macOS/Windows native, focused and exact OCCT CI required |
+| #122 | `main` | 166 / 396 | **MERGED** `66d4b4c`, post-merge CI passed |
+| #123 | `main` | unchanged | **MERGED** `f0b0e87`, indexed command lookup and CI de-duplication |
+| #124/#125 | `main`, consolidated via #125 | 175 / 396 | **MERGED** `743681f`, nine geometry acceptance fixtures |
 
 Reconciliation proof: the #122 fixture table contains all 149 IDs now on
 `main` plus 17 distinct new command IDs from #120-#122. Merge #122 only
 after fresh native, modeling, and exact BRep checks on the `main`-based
 commit; then verify post-merge `main` before closing #120/#121.
 
-**230 / 396** registered commands currently have no independently asserted
-positive-path fixture in this proposed stack. New fixtures check real results
+**221 / 396** registered commands lack merged positive-path fixtures
+following the successful nine-case merge of #125. New fixtures check real results
 and do not constitute full operational certification. Do not merge descendants
 before parents, do not bypass failing CI, and verify `main` after every merge.
 
 ## Command-certification pipeline (2026-10-19)
 
 **Certification starts with PR #126, independent of fixture-count expansion.**
-On merged `main`, 166 / 396 registered commands have a positive-path
+On merged `main`, 175 / 396 registered commands have a positive-path
 acceptance fixture. **0 are yet proven to satisfy all five certification
-gates across the required CI platforms.** Three read-only point operations from merged #126 and three stateful 2D
-operations from proposed #127 are certification candidates, not certified
-releases. The latter must still validate interactive command flows in a
-real application before promotion.
+gates across the required CI platforms.** Three read-only foundational point
+operations are certification candidates, not certified releases.
 
 - Automated certification suite:
   `cargo test --locked -p cadcraft-engine --test command_certification`

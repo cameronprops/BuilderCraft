@@ -15,16 +15,20 @@ fn source_curve(s: &mut Session) -> u64 {
                 "knots":[0.0,0.0,1.0,1.0]
             }
         }),
-    ).unwrap()["id"].as_u64().unwrap()
+    )
+    .unwrap()["id"]
+        .as_u64()
+        .unwrap()
 }
 
 fn make_hierarchy(s: &mut Session, geometry_id: u64) -> (u64, u64, u64) {
     let assembly = s.execute("model.create", &json!({"name":"Ride System","kind":"assembly"})).unwrap()["id"].as_u64().unwrap();
     let component = s.execute("model.create", &json!({"name":"Vehicle","kind":"component","parent":assembly})).unwrap()["id"].as_u64().unwrap();
-    let body = s.execute(
-        "model.create",
-        &json!({"name":"Guide Body","kind":"body","parent":component,"handles":[format!("{geometry_id:x}")]}),
-    ).unwrap()["id"].as_u64().unwrap();
+    let body = s
+        .execute("model.create", &json!({"name":"Guide Body","kind":"body","parent":component,"handles":[format!("{geometry_id:x}")]}))
+        .unwrap()["id"]
+        .as_u64()
+        .unwrap();
     (assembly, component, body)
 }
 

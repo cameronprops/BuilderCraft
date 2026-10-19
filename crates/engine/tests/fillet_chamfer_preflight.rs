@@ -41,8 +41,8 @@ fn fillet_reports_maximum_feasible_radius_and_preserves_geometry() {
     let mut s = Session::new();
     let a = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
     let b = s.execute("line", &json!({"points":[[0,0],[0,10]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
-    let pick_a = json!([9,0]);
-    let pick_b = json!([0,9]);
+    let pick_a = json!([9, 0]);
+    let pick_b = json!([0, 9]);
     let before = s.state().unwrap().doc.clone();
     let revision = s.state().unwrap().revision;
     let undo_len = s.state().unwrap().undo.len();
@@ -58,9 +58,15 @@ fn fillet_reports_maximum_feasible_radius_and_preserves_geometry() {
     let r = s.execute("fillet", &json!({"h1":a,"h2":b,"p1":pick_a,"p2":pick_b,"radius":2})).unwrap();
     assert!(r["arc"].as_str().is_some());
     assert_eq!(s.doc().unwrap().model.len(), 3);
-    let arcs: Vec<_> = s.doc().unwrap().model.iter().filter_map(|e| match &e.kind {
-        cadcraft_doc::EntityKind::Arc(arc) => Some(arc.radius),
-        _ => None,
-    }).collect();
+    let arcs: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            cadcraft_doc::EntityKind::Arc(arc) => Some(arc.radius),
+            _ => None,
+        })
+        .collect();
     assert_eq!(arcs, vec![2.0]);
 }

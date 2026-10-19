@@ -4,16 +4,8 @@ use cadcraft_geom::{Vec3, nurbs3d::Curve};
 use serde_json::{Value, json};
 
 fn rails() -> (Curve, Curve) {
-    let a = Curve::from_control(
-        vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)],
-        2,
-    )
-    .unwrap();
-    let b = Curve::from_control(
-        vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)],
-        2,
-    )
-    .unwrap();
+    let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)], 2).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)], 2).unwrap();
     (a, b)
 }
 
@@ -41,12 +33,8 @@ fn g2_matches_curvature_through_cad_kernel_and_orbweaver() {
     for (reverse_a, reverse_b) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
         let inputs = typed(&a, &b, reverse_a, reverse_b);
         let direct = session.execute("worldwright.curve.blend", &json!({"inputs": inputs})).unwrap();
-        let generic = session
-            .execute("worldwright.tool.run", &json!({"operation": "kernel.curve.blend", "inputs": inputs}))
-            .unwrap();
-        let graph = session
-            .execute("worldwright.tool.run", &json!({"operation": "orbweaver.curve.blend", "inputs": inputs}))
-            .unwrap();
+        let generic = session.execute("worldwright.tool.run", &json!({"operation": "kernel.curve.blend", "inputs": inputs})).unwrap();
+        let graph = session.execute("worldwright.tool.run", &json!({"operation": "orbweaver.curve.blend", "inputs": inputs})).unwrap();
         assert_eq!(direct["output"], generic["output"]);
         assert_eq!(direct["output"], graph["output"]);
         assert_eq!(direct["output"]["kind"], "curve");

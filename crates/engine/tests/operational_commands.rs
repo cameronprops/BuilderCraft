@@ -1702,7 +1702,8 @@ fn model_fixture_hierarchy(s: &mut Session) -> (u64, u64, u64, String) {
     let handle = line_handle(s);
     let assembly = s.execute("model.create", &json!({"name":"Ride","kind":"assembly"})).unwrap()["id"].as_u64().unwrap();
     let component = s.execute("model.create", &json!({"name":"Vehicle","kind":"component","parent":assembly})).unwrap()["id"].as_u64().unwrap();
-    let body = s.execute("model.create", &json!({"name":"Body","kind":"body","parent":component,"handles":[handle]})).unwrap()["id"].as_u64().unwrap();
+    let body =
+        s.execute("model.create", &json!({"name":"Body","kind":"body","parent":component,"handles":[handle]})).unwrap()["id"].as_u64().unwrap();
     (assembly, component, body, handle)
 }
 

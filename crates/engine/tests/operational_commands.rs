@@ -154,6 +154,11 @@ const CASES: &[Case] = &[
     ("nurbs.controlcurve3d", controlcurve3d_builds_valid_exact_curve),
     ("geometry3d.pick", geometry3d_pick_misses_empty_scene_without_mutation),
     ("geometry3d.select", geometry3d_select_empty_set_preserves_revision),
+    ("geometry3d.cplane.point", cplane_point_projects_screen_to_world_xy),
+    ("geometry3d.snap", snap_grid_rounds_and_preserves_drawing),
+    ("geometry3d.line", snapped_line_creates_exact_curve_and_undoes),
+    ("worldwright.mesh.encode", mesh_encode_preserves_triangle_on_obj_roundtrip),
+    ("worldwright.mesh.decode", mesh_decode_recovers_triangle_without_document_edits),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -255,6 +260,124 @@ fn geometry3d_select_empty_set_preserves_revision() {
     assert_eq!(out["ids"], json!([]));
     assert!(s.selection().is_empty());
     assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn operational_screen_query(x: f64, y: f64) -> serde_json::Value {
+    json!({
+        "pixel": [x, y],
+        "viewport": [400.0, 400.0],
+        "center": [0.0, 0.0, 0.0],
+        "yaw": 0.0,
+        "pitch": -std::f64::consts::FRAC_PI_2,
+        "scale": 10.0
+    })
+}
+
+fn operational_triangle() -> serde_json::Value {
+    json!({
+        "vertices": [
+            {"x": 0.0, "y": 0.0, "z": 0.0},
+            {"x": 2.0, "y": 0.0, "z": 0.0},
+            {"x": 0.0, "y": 2.0, "z": 0.0}
+        ],
+        "triangles": [[0, 1, 2]]
+    })
+}
+
+fn cplane_point_projects_screen_to_world_xy() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let result = s
+        .execute("geometry3d.cplane.point", &operational_screen_query(227.0, 174.0))
+        .unwrap();
+    let x = result["point"][0].as_f64().unwrap();
+    let y = result["point"][1].as_f64().unwrap();
+    assert!((x - 2.7).abs() < 1e-9);
+    assert!((y - 2.6).abs() < 1e-9);
+    assert_eq!(result["point"][2], 0.0);
+    assert_eq!(result["source_revision"], revision);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn snap_grid_rounds_and_preserves_drawing() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let mut query = operational_screen_query(227.0, 174.0);
+    query["grid"] = json!(1.0);
+    let result = s.execute("geometry3d.snap", &query).unwrap();
+    assert_eq!(result["point"], json!([3.0, 3.0, 0.0]));
+    assert_eq!(result["kind"], "grid");
+    assert!(result["source_id"].is_null());
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn snapped_line_creates_exact_curve_and_undoes() {
+    let mut s = Session::new();
+    let result = s
+        .execute(
+            "geometry3d.line",
+            &json!({
+                "name": "Exact snapped line",
+                "start": operational_screen_query(200.0, 200.0),
+                "end": operational_screen_query(210.0, 200.0)
+            }),
+        )
+        .unwrap();
+    let id = result["id"].as_u64().expect("new line object ID");
+    assert_eq!(result["start"], json!([0.0, 0.0, 0.0]));
+    assert_eq!(result["end"], json!([1.0, 0.0, 0.0]));
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    assert_eq!(object.name, "Exact snapped line");
+    assert!(object.shape.valid());
+    s.execute("undo", &json!({})).unwrap();
+    assert!(s.doc().unwrap().geometry3d.is_empty());
+}
+
+fn mesh_encode_preserves_triangle_on_obj_roundtrip() {
+    let mut s = Session::new();
+    let revision = s.state().unwrap().revision;
+    let mesh = operational_triangle();
+    let result = s
+        .execute("worldwright.mesh.encode", &json!({"format": "obj", "mesh": mesh}))
+        .unwrap();
+    assert_eq!(result["encoding"], "utf8");
+    assert_eq!(result["source_preserved"], true);
+    assert!(!result["data"].as_str().unwrap().is_empty());
+    let decoded = s
+        .execute(
+            "worldwright.mesh.decode",
+            &json!({"format": "obj", "data": result["data"]}),
+        )
+        .unwrap();
+    assert_eq!(decoded["mesh"], mesh);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn mesh_decode_recovers_triangle_without_document_edits() {
+    let mut s = Session::new();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let mesh = operational_triangle();
+    let encoded = s
+        .execute("worldwright.mesh.encode", &json!({"format": "stl", "mesh": mesh}))
+        .unwrap();
+    assert_eq!(encoded["encoding"], "base64");
+    let decoded = s
+        .execute(
+            "worldwright.mesh.decode",
+            &json!({
+                "format": "stl",
+                "encoding": "base64",
+                "data": encoded["data"]
+            }),
+        )
+        .unwrap();
+    assert_eq!(decoded["mesh"], mesh);
+    assert_eq!(decoded["document_mutated"], false);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
 }
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {

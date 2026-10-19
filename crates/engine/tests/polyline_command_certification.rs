@@ -32,13 +32,10 @@ impl Operation {
     fn expected(self, offset: f64) -> Value {
         match self {
             Self::Length => json!(7.0),
-            Self::DivideCount => json!([
-                point(offset, 0.0), point(offset + 3.0, 0.5), point(offset + 3.0, 4.0)
-            ]),
-            Self::DivideDistance => json!([
-                point(offset, 0.0), point(offset + 2.0, 0.0), point(offset + 3.0, 1.0),
-                point(offset + 3.0, 3.0), point(offset + 3.0, 4.0)
-            ]),
+            Self::DivideCount => json!([point(offset, 0.0), point(offset + 3.0, 0.5), point(offset + 3.0, 4.0)]),
+            Self::DivideDistance => {
+                json!([point(offset, 0.0), point(offset + 2.0, 0.0), point(offset + 3.0, 1.0), point(offset + 3.0, 3.0), point(offset + 3.0, 4.0)])
+            }
         }
     }
 
@@ -66,17 +63,17 @@ fn assert_near(actual: &Value, expected: &Value, kind: &str) {
     if kind == "number" {
         let a = actual.as_f64().unwrap();
         let b = expected.as_f64().unwrap();
-        assert!((a-b).abs() < 1e-10, "wrong polyline length {a} != {b}");
+        assert!((a - b).abs() < 1e-10, "wrong polyline length {a} != {b}");
         return;
     }
     let points = actual.as_array().expect("polyline output array");
     let correct = expected.as_array().expect("expected point array");
     assert_eq!(points.len(), correct.len(), "wrong number of stations");
-    for (a,b) in points.iter().zip(correct) {
-        for axis in ["x","y","z"] {
+    for (a, b) in points.iter().zip(correct) {
+        for axis in ["x", "y", "z"] {
             let av = a[axis].as_f64().unwrap();
             let bv = b[axis].as_f64().unwrap();
-            assert!((av-bv).abs() < 1e-10, "station coordinate {axis}: {av} != {bv}");
+            assert!((av - bv).abs() < 1e-10, "station coordinate {axis}: {av} != {bv}");
         }
     }
 }
@@ -135,7 +132,7 @@ fn verify(op: Operation) {
     extra["unexpected"] = json!({"kind":"number","value":1.0});
     invalid.push(extra);
     let mut short = base.clone();
-    short["points"]["value"] = json!([point(0.0,0.0)]);
+    short["points"]["value"] = json!([point(0.0, 0.0)]);
     invalid.push(short);
     match op {
         Operation::Length => {}
@@ -151,7 +148,7 @@ fn verify(op: Operation) {
             invalid.push(coincident);
         }
         Operation::DivideDistance => {
-            for spacing in [0.0,-1.0,0.000001] {
+            for spacing in [0.0, -1.0, 0.000001] {
                 let mut bad = base.clone();
                 bad["spacing"]["value"] = json!(spacing);
                 invalid.push(bad);
@@ -181,24 +178,30 @@ fn polyline_ledger_candidates_are_unique_and_registered() {
     for op in OPERATIONS {
         let command = format!("worldwright.polyline.{}", op.suffix());
         let entry = entries.iter().find(|e| e["command"] == command).expect("missing polyline ledger candidate");
-        assert_eq!(entries.iter().filter(|e| e["command"] == command).count(),1);
-        assert_eq!(entry["status"],"candidate_ci_pending");
-        assert_eq!(entry["test_file"],"crates/engine/tests/polyline_command_certification.rs");
-        assert_eq!(entry["operation"],format!("kernel.polyline.{}",op.suffix()));
-        assert_eq!(entry["orbweaver_node"],format!("orbweaver.polyline.{}",op.suffix()));
+        assert_eq!(entries.iter().filter(|e| e["command"] == command).count(), 1);
+        assert_eq!(entry["status"], "candidate_ci_pending");
+        assert_eq!(entry["test_file"], "crates/engine/tests/polyline_command_certification.rs");
+        assert_eq!(entry["operation"], format!("kernel.polyline.{}", op.suffix()));
+        assert_eq!(entry["orbweaver_node"], format!("orbweaver.polyline.{}", op.suffix()));
         assert!(live.contains(command.as_str()));
         assert!(find_command(&command).is_some());
-        for gate in ["correctness","failure_preservation","persistence","interface","stability"] {
+        for gate in ["correctness", "failure_preservation", "persistence", "interface", "stability"] {
             assert!(entry["gates"][gate].as_str().is_some_and(|x| !x.is_empty()));
         }
     }
 }
 
 #[test]
-fn certify_polyline_length_candidate() { verify(Operation::Length); }
+fn certify_polyline_length_candidate() {
+    verify(Operation::Length);
+}
 
 #[test]
-fn certify_polyline_divide_count_candidate() { verify(Operation::DivideCount); }
+fn certify_polyline_divide_count_candidate() {
+    verify(Operation::DivideCount);
+}
 
 #[test]
-fn certify_polyline_divide_distance_candidate() { verify(Operation::DivideDistance); }
+fn certify_polyline_divide_distance_candidate() {
+    verify(Operation::DivideDistance);
+}

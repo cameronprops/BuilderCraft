@@ -821,7 +821,7 @@ fn curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels() {
     assert_eq!(result["output"]["value"]["control"][1], json!({"x": 4.0, "y": 2.0, "z": 0.0}));
 
     let mut unsupported = inputs.clone();
-    unsupported["continuity"]["value"] = json!(2);
+    unsupported["continuity"]["value"] = json!(3);
     assert!(s.execute("worldwright.curve.blend", &json!({"inputs": unsupported})).is_err());
     let mut invalid = inputs.clone();
     invalid["strength_a"]["value"] = json!(0.0);

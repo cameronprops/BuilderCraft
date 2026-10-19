@@ -755,6 +755,10 @@ fn run_divide(s: &mut Session, p: &Value) -> Result<Value> {
     check_block(s, block.as_deref())?;
     let c = chain_of(s, h)?;
     let pts = divide_points(&c, n as usize);
+    let expected = if c.closed { n as usize } else { n as usize - 1 };
+    if pts.len() != expected || pts.iter().any(|(point, tangent)| !point.is_finite() || !tangent.is_finite()) {
+        return Err(bad("divide", format!("could place only {} of {expected} markers on this curve; no objects were changed", pts.len())));
+    }
     let hs = place_markers(s, &pts, block.as_deref(), bool_or(p, "align", true))?;
     Ok(json!({ "handles": hs }))
 }

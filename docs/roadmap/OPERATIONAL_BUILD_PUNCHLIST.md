@@ -4,6 +4,23 @@
 
 This register explicitly audits **all 39 PRs open at the start of the stabilization sprint**. Five are merged in the first pass (#25, #27, #34, #53, #63); the rest are unresolved at this snapshot. Re-query GitHub before making state claims. A prior green head check is **not** proof that an updated `main` passes. Preserve original branch work until its functionality has landed or has an explained disposition.
 
+## Live acceptance stack (2026-10-18 Pacific)
+
+This section supersedes historical PR statuses below. The original stabilization
+snapshot is retained for traceability and must not be treated as live GitHub state.
+
+| PR | Dependency | Authored success fixtures | Merge gate |
+|---|---|---:|---|
+| #118 | current `main` | 144 / 396 | Focused modeling passed; native and exact OCCT checks must finish |
+| #119 | #118 | 149 / 396 | Focused modeling passed; reconcile onto `main` after #118 |
+| #120 | #119 | 154 / 396 | Formatting repair committed; rerun focused, native and exact OCCT |
+| #121 | #120 | 159 / 396 | Run formatting, focused modeling, native and exact OCCT before review |
+
+**237 / 396** registered commands currently have no independently asserted
+positive-path fixture in this proposed stack. New fixtures check real results
+and do not constitute full operational certification. Do not merge descendants
+before parents, do not bypass failing CI, and verify `main` after every merge.
+
 ## Definition of "operational alpha" (release-blocking)
 
 - [ ] **Single integration target:** update `main` or a dated stabilization branch to a coherent, non-conflicting head; no hidden dependency on unmerged stacked PRs; record precise release SHA and source provenance.

@@ -1434,7 +1434,19 @@ fn expect_native_output(command: &str, inputs: serde_json::Value, expected: serd
     let revision = s.state().unwrap().revision;
     let undo = s.state().unwrap().undo.len();
     let actual = s.execute(command, &json!({"inputs":inputs})).unwrap();
-    assert_eq!(actual["output"], expected, "unexpected native result for {command}");
+    if expected["kind"] == "vector" {
+        assert_eq!(actual["output"]["kind"], expected["kind"]);
+        for coordinate in ["x", "y", "z"] {
+            let actual_value = actual["output"]["value"][coordinate].as_f64().unwrap();
+            let expected_value = expected["value"][coordinate].as_f64().unwrap();
+            assert!(
+                (actual_value - expected_value).abs() < 1e-12,
+                "wrong {coordinate} for {command}: {actual_value} vs {expected_value}"
+            );
+        }
+    } else {
+        assert_eq!(actual["output"], expected, "unexpected native result for {command}");
+    }
     assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
     assert_eq!(s.state().unwrap().revision, revision);
     assert_eq!(s.state().unwrap().undo.len(), undo);

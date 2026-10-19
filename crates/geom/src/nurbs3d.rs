@@ -352,10 +352,8 @@ fn basis_with_second_derivative(count: usize, degree: usize, knots: &[f64], t: f
         let aa = knots[i + degree - 1] - knots[i];
         let bb = knots[i + degree] - knots[i + 1];
         let cc = knots[i + degree + 1] - knots[i + 2];
-        let a_prime = if aa > 0.0 { lower[i] / aa } else { 0.0 }
-            - if bb > 0.0 { lower[i + 1] / bb } else { 0.0 };
-        let b_prime = if bb > 0.0 { lower[i + 1] / bb } else { 0.0 }
-            - if cc > 0.0 { lower[i + 2] / cc } else { 0.0 };
+        let a_prime = if aa > 0.0 { lower[i] / aa } else { 0.0 } - if bb > 0.0 { lower[i + 1] / bb } else { 0.0 };
+        let b_prime = if bb > 0.0 { lower[i + 1] / bb } else { 0.0 } - if cc > 0.0 { lower[i + 2] / cc } else { 0.0 };
         let derivative_a = if a > 0.0 { a_prime / a } else { 0.0 };
         let derivative_b = if b > 0.0 { b_prime / b } else { 0.0 };
         second[i] = order * (derivative_a - derivative_b) * span * span;
@@ -388,7 +386,6 @@ impl Curve {
         let derivative = (numerator_derivative - numerator * (denominator_derivative / denominator)) * (1.0 / denominator);
         derivative.is_finite().then_some(derivative)
     }
-
 
     /// Analytical rational second derivative d²C/dt² on normalized [0,1].
     /// Endpoints use the same one-sided policy as the first derivative.
@@ -570,7 +567,6 @@ mod analytic_derivative_tests {
     }
 }
 
-
 #[cfg(test)]
 mod curvature_second_derivative_tests {
     use super::*;
@@ -581,11 +577,7 @@ mod curvature_second_derivative_tests {
 
     #[test]
     fn quadratic_polynomial_has_exact_second_derivative() {
-        let curve = Curve::from_control(vec![
-            Vec3::new(-1.0, 0.0, 0.0),
-            Vec3::ZERO,
-            Vec3::new(1.0, 1.0, 0.0),
-        ], 2).unwrap();
+        let curve = Curve::from_control(vec![Vec3::new(-1.0, 0.0, 0.0), Vec3::ZERO, Vec3::new(1.0, 1.0, 0.0)], 2).unwrap();
         for t in [0.0, 0.25, 0.5, 0.75, 1.0] {
             close(curve.second_derivative(t).unwrap(), Vec3::new(0.0, 2.0, 0.0), 1e-8);
         }
@@ -594,10 +586,7 @@ mod curvature_second_derivative_tests {
 
     #[test]
     fn linear_curves_have_zero_second_derivative_and_zero_curvature() {
-        let curve = Curve::from_control(vec![
-            Vec3::new(2.0, 3.0, 1.0),
-            Vec3::new(7.0, 3.0, 1.0),
-        ], 1).unwrap();
+        let curve = Curve::from_control(vec![Vec3::new(2.0, 3.0, 1.0), Vec3::new(7.0, 3.0, 1.0)], 1).unwrap();
         for t in [0.0, 0.3, 0.8, 1.0] {
             close(curve.second_derivative(t).unwrap(), Vec3::ZERO, 1e-12);
             close(curve.curvature_vector(t).unwrap(), Vec3::ZERO, 1e-12);
@@ -606,11 +595,7 @@ mod curvature_second_derivative_tests {
 
     #[test]
     fn rational_quarter_circle_has_unit_inward_curvature() {
-        let mut arc = Curve::from_control(vec![
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(1.0, 1.0, 0.0),
-            Vec3::new(0.0, 1.0, 0.0),
-        ], 2).unwrap();
+        let mut arc = Curve::from_control(vec![Vec3::new(1.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 0.0), Vec3::new(0.0, 1.0, 0.0)], 2).unwrap();
         arc.weights[1] = std::f64::consts::FRAC_1_SQRT_2;
         for t in [0.1, 0.25, 0.5, 0.75, 0.9] {
             let point = arc.evaluate(t).unwrap();

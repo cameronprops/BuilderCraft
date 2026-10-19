@@ -102,6 +102,7 @@ const CASES: &[Case] = &[
     ("explode", explode_splits_polyline_into_lines),
     ("overkill", overkill_removes_duplicate_geometry),
     ("offset", offset_circle_changes_radius),
+    ("measure", measure_places_all_four_line_stations),
     ("arraypath", path_array_places_copies_along_rail),
     ("reverse", reverse_swaps_line_endpoints),
     ("flatten", flatten_projects_3d_polyline),
@@ -1091,6 +1092,26 @@ fn lengthen_changes_line_length() {
     let result = s.execute("lengthen", &json!({"handle":h, "total":5})).unwrap();
     assert_eq!(result["length"], 5.0);
     assert_eq!(first_line(&s), (0.0, 0.0, 5.0, 0.0));
+}
+
+fn measure_places_all_four_line_stations() {
+    let mut s = Session::new();
+    let h = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].clone();
+    let result = s.execute("measure", &json!({"handle":h, "length":2})).unwrap();
+    assert_eq!(result["handles"].as_array().unwrap().len(), 4);
+    let xs: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Point(p) => Some(p.p.x),
+            _ => None,
+        })
+        .collect();
+    for station in [2.0, 4.0, 6.0, 8.0] {
+        assert!(xs.contains(&station), "missing station {station}: {xs:?}");
+    }
 }
 
 #[test]

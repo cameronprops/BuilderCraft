@@ -10,9 +10,12 @@ API names, menu visibility or registration as functionality.
 The positive-case registry covers **175 / 396** live engine command IDs on
 merged `main`. It does **not** certify them. The explicit certification ledger
 is [`certification-registry.json`](certification-registry.json). It currently
-records **0 fully certified commands** and nine candidates:
-three point-query commands in merged PR #126 and six stateful editing
-commands in pending #127-#129. Tests and applicability review are separate.
+records **3 headless-certified commands** (Point Distance, Midpoint,
+Interpolate), plus **6 stateful command candidates** (Line, Move, Copy,
+Rotate, Scale, Mirror). Point-query certification is limited to their
+applicable read-only CAD/API/OrbWeaver interfaces; no desktop UI is claimed.
+Certification evidence is stored in the registry with the post-merge main
+commit and Linux/macOS/Windows workflow IDs.
 
 Each candidate is executable in
 `crates/engine/tests/command_certification.rs`, with five distinct gates:
@@ -25,9 +28,9 @@ parity; and bounded deterministic input stress. This establishes a
 cargo test --locked -p cadcraft-engine --test command_certification
 ```
 
-The three entries remain `candidate_ci_pending` until pinned Rust checks,
-all required platform CI, post-merge `main` checks, and applicability review
-are green. Do not silently promote candidates based on the existence of a
+The three point-query entries are now `certified_headless`, following
+successful pinned Rust, full post-merge Linux/macOS/Windows CI on commit
+`37d19b5`, and a headless interface applicability review. Do not silently promote candidates based on the existence of a
 test, or imply that read-only output persists in a drawing. Stateful commands
 must add meaningful undo, redo, save/reopen and UI tests before certification.
 
@@ -49,6 +52,20 @@ actual interactive mouse/keyboard UI verification remains a separate required
 gate. Passing this headless suite must not be presented as completed UI
 certification.
 
+
+## Signed-off headless certification (three commands)
+
+Point Distance, Midpoint and Interpolate are certified **for the read-only,
+headless CAD/API/OrbWeaver contract only**. Exact numerical expectations,
+malformed-input recovery, unchanged document/selection/history, native
+`.dftba` reopening, and 64 deterministic translated fixtures are checked
+by `command_certification.rs`. The merge commit `37d19b5` has passing
+post-merge native Rust run `39272999336` and exact OpenCascade run
+`39272999189`, including Linux, macOS and Windows.
+
+This scope does not certify viewport mouse/keyboard operations or desktop UI.
+The registry's `certified_count` counts only this explicitly labeled scope.
+All six stateful candidates remain pending host desktop integration.
 
 ## Interactive engine certification (PR #129)
 

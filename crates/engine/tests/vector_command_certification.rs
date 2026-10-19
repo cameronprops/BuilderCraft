@@ -41,18 +41,18 @@ impl Operation {
                 "b": vector(4.0, -5.0, 6.0)
             }),
             Self::Cross => json!({
-                "a": vector(n, 0.0, 0.0),
-                "b": vector(0.0, 1.0, 0.0)
+                "a": vector(n, 2.0 * n, 3.0 * n),
+                "b": vector(4.0, -5.0, 6.0)
             }),
         }
     }
 
     fn expected(self, n: f64) -> Value {
         match self {
-            Self::Length => json!(5.0 * n),
-            Self::Normalize => json!({"x": 0.6, "y": 0.8, "z": 0.0}),
+            Self::Length => json!(5.0 * n.abs()),
+            Self::Normalize => json!({"x": 0.6 * n.signum(), "y": 0.8 * n.signum(), "z": 0.0}),
             Self::Dot => json!(12.0 * n),
-            Self::Cross => json!({"x": 0.0, "y": 0.0, "z": n}),
+            Self::Cross => json!({"x": 27.0 * n, "y": 6.0 * n, "z": -13.0 * n}),
         }
     }
 
@@ -111,9 +111,12 @@ fn verify(op: Operation) {
     let undo = state.undo.len();
     let redo = state.redo.len();
 
-    // Each fixture has an independently calculated answer. Compare numeric
+    // Each signed, non-axis-aligned fixture has an independent analytic answer. Compare numeric
     // values as well as all three interfaces; don't merely check is_ok().
-    for index in 1..=64 {
+    for index in -64..=64 {
+        if index == 0 {
+            continue;
+        }
         let n = f64::from(index);
         let ports = op.inputs(n);
         let cad = session.execute(&direct, &json!({"inputs":ports})).unwrap();

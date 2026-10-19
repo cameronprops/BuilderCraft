@@ -34,6 +34,8 @@ coordinates, returned IDs and state changes, not just `is_ok()`.
 **166 distinct asserted positive-path fixtures / 396 registered commands**.
 The independent #124 branch proposes four further cases, reaching
 **170 / 396** (226 commands still missing positive-path fixtures if merged).
+The stacked #125 adds five further cases to reach **175 / 396** proposed
+(221 commands still without independently asserted positive-path fixtures).
 
 - #118 and #119: scoped feature-history and exact NURBS acceptance, merged
 - #120 and #121: superseded by the verified consolidated #122
@@ -42,6 +44,9 @@ The independent #124 branch proposes four further cases, reaching
 - #124: linear array, directional plane projection, exact ruled NURBS surface
   and rational-curve evaluation; assert direct CAD/OrbWeaver agreement,
   numerical geometry and failure preservation
+- #125: rectangular/polar/path arrays, surface-patch flow and quad push/pull;
+  verify copy coordinates and ordering, seam avoidance, mapping, topology
+  and rejected degenerate modifiers
 
 A positive-path fixture is not full operational certification. All PRs require
 pinned Rust formatting, Clippy, platform-native tests and relevant exact BRep

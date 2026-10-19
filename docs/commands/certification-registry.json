@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "description": "Evidence ledger for full five-gate command certifications. Candidate status is not a certified release claim.",
+  "description": "Evidence ledger with certified headless query operations and pending stateful/interactive desktop command candidates.",
   "baseline_main_commit": "66d4b4cba3a74158d2ce76c589136e429951c450",
-  "certified_count": 0,
+  "certified_count": 3,
   "promotion_rule": "Promote only after executable 5-gate tests pass on pinned Rust CI, relevant Linux/macOS/Windows workflow gates pass, post-merge main passes, and interface/applicability reviews are signed off.",
   "candidates": [
     {
@@ -10,7 +10,7 @@
       "operation": "kernel.point.distance",
       "orbweaver_node": "orbweaver.point.distance",
       "document_mutation": false,
-      "status": "candidate_ci_pending",
+      "status": "certified_headless",
       "test_file": "crates/engine/tests/command_certification.rs",
       "test": "certify_point_distance_candidate",
       "gates": {
@@ -25,14 +25,29 @@
         "native_rust_linux_macos_windows",
         "exact_occt_when_applicable",
         "post_merge_main"
-      ]
+      ],
+      "scope": "read_only_headless_cad_api_orbweaver",
+      "interface_applicability": "No interactive factory or viewport mutation exists for this headless-only tool. The documented interface is the CAD command, generic kernel tool, and OrbWeaver operation.",
+      "certification_evidence": {
+        "reviewed_code_commit": "37d19b5f77cf80b18336b7044600c2cc1b6f5181",
+        "post_merge_native_ci_run": 39272999336,
+        "post_merge_occt_ci_run": 39272999189,
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "tested_operation": "cargo test --locked -p cadcraft-engine --test command_certification",
+        "release_note": "Headless math-query certification only; not desktop viewport certification.",
+        "test_scope": "64 deterministic 3D position fixtures, typed invalid inputs, unchanged revision/selection/native save bytes, CAD/API/OrbWeaver parity, source-document undo/redo preservation."
+      }
     },
     {
       "command": "worldwright.point.midpoint",
       "operation": "kernel.point.midpoint",
       "orbweaver_node": "orbweaver.point.midpoint",
       "document_mutation": false,
-      "status": "candidate_ci_pending",
+      "status": "certified_headless",
       "test_file": "crates/engine/tests/command_certification.rs",
       "test": "certify_point_midpoint_candidate",
       "gates": {
@@ -47,14 +62,29 @@
         "native_rust_linux_macos_windows",
         "exact_occt_when_applicable",
         "post_merge_main"
-      ]
+      ],
+      "scope": "read_only_headless_cad_api_orbweaver",
+      "interface_applicability": "No interactive factory or viewport mutation exists for this headless-only tool. The documented interface is the CAD command, generic kernel tool, and OrbWeaver operation.",
+      "certification_evidence": {
+        "reviewed_code_commit": "37d19b5f77cf80b18336b7044600c2cc1b6f5181",
+        "post_merge_native_ci_run": 39272999336,
+        "post_merge_occt_ci_run": 39272999189,
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "tested_operation": "cargo test --locked -p cadcraft-engine --test command_certification",
+        "release_note": "Headless math-query certification only; not desktop viewport certification.",
+        "test_scope": "64 deterministic 3D position fixtures, typed invalid inputs, unchanged revision/selection/native save bytes, CAD/API/OrbWeaver parity, source-document undo/redo preservation."
+      }
     },
     {
       "command": "worldwright.point.interpolate",
       "operation": "kernel.point.interpolate",
       "orbweaver_node": "orbweaver.point.interpolate",
       "document_mutation": false,
-      "status": "candidate_ci_pending",
+      "status": "certified_headless",
       "test_file": "crates/engine/tests/command_certification.rs",
       "test": "certify_point_interpolate_candidate",
       "gates": {
@@ -69,7 +99,173 @@
         "native_rust_linux_macos_windows",
         "exact_occt_when_applicable",
         "post_merge_main"
-      ]
+      ],
+      "scope": "read_only_headless_cad_api_orbweaver",
+      "interface_applicability": "No interactive factory or viewport mutation exists for this headless-only tool. The documented interface is the CAD command, generic kernel tool, and OrbWeaver operation.",
+      "certification_evidence": {
+        "reviewed_code_commit": "37d19b5f77cf80b18336b7044600c2cc1b6f5181",
+        "post_merge_native_ci_run": 39272999336,
+        "post_merge_occt_ci_run": 39272999189,
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "tested_operation": "cargo test --locked -p cadcraft-engine --test command_certification",
+        "release_note": "Headless math-query certification only; not desktop viewport certification.",
+        "test_scope": "64 deterministic 3D position fixtures, typed invalid inputs, unchanged revision/selection/native save bytes, CAD/API/OrbWeaver parity, source-document undo/redo preservation."
+      }
+    },
+    {
+      "command": "line",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_line_stateful",
+      "gates": {
+        "correctness": "Creates a dimensionally exact 2D line, rejects degenerate/malformed endpoints, roundtrips native .dftba, and preserves handles across undo/redo.",
+        "failure_preservation": "Input rejection preserves document bytes, revision, selection, and existing undo/redo stacks.",
+        "persistence": "Reopen .dftba by stable handle; undo to exact source state and redo to exact edited state.",
+        "interface": "Registered command ID, documented JSON parameter contract, command-line alias and interactive factory present; actual UI interaction needs separate host verification.",
+        "stability": "24 to 32 deterministic geometry positions, identity invariants, source immutability where applicable, and bounded over-budget replication rejection."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ],
+      "interactive_engine_test_file": "crates/engine/tests/interactive_command_certification.rs",
+      "interactive_engine_test": "line_alias_preview_prompts_commit_and_undo",
+      "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
+    },
+    {
+      "command": "move",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_move_stateful",
+      "gates": {
+        "correctness": "Transforms a persistent selected handle by a known delta; rejects missing/invalid deltas without partial mutation; undo/redo restores exact coordinates.",
+        "failure_preservation": "Input rejection preserves document bytes, revision, selection, and existing undo/redo stacks.",
+        "persistence": "Reopen .dftba by stable handle; undo to exact source state and redo to exact edited state.",
+        "interface": "Registered command ID, documented JSON parameter contract, command-line alias and interactive factory present; actual UI interaction needs separate host verification.",
+        "stability": "24 to 32 deterministic geometry positions, identity invariants, source immutability where applicable, and bounded over-budget replication rejection."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ],
+      "interactive_engine_test_file": "crates/engine/tests/interactive_command_certification.rs",
+      "interactive_engine_test": "move_alias_pickfirst_and_prompted_displacement",
+      "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
+    },
+    {
+      "command": "copy",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_copy_stateful",
+      "gates": {
+        "correctness": "Replicates independent handles in geometric order; preserves source; tests undo/redo, native roundtrip, invalid delta, and over-budget replication.",
+        "failure_preservation": "Input rejection preserves document bytes, revision, selection, and existing undo/redo stacks.",
+        "persistence": "Reopen .dftba by stable handle; undo to exact source state and redo to exact edited state.",
+        "interface": "Registered command ID, documented JSON parameter contract, command-line alias and interactive factory present; actual UI interaction needs separate host verification.",
+        "stability": "24 to 32 deterministic geometry positions, identity invariants, source immutability where applicable, and bounded over-budget replication rejection."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ],
+      "interactive_engine_test_file": "crates/engine/tests/interactive_command_certification.rs",
+      "interactive_engine_test": "copy_prompt_mode_preserves_source_and_creates_new_handle",
+      "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
+    },
+    {
+      "command": "rotate",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_rotate_stateful",
+      "gates": {
+        "correctness": "Checks positive 90-degree rotation about supplied base with exact tolerance, original ID retention, optional copy ID, and 24 translated fixtures.",
+        "failure_preservation": "Invalid angle and missing base are rejected without mutation or history edits.",
+        "persistence": "Reopen native .dftba with stable source and generated handles; undo and redo verified before and after optional copy or erase-source mode.",
+        "interface": "CAD registry command and alias plus interactive command factory and parameter specification checked; actual viewport/keystroke path remains a separate required gate.",
+        "stability": "24 translated deterministic geometry positions per operation, numeric tolerance for trigonometry, stable IDs and unchanged source in copy mode."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ],
+      "interactive_engine_test_file": "crates/engine/tests/interactive_command_certification.rs",
+      "interactive_engine_test": "rotate_and_scale_prompted_numbers_reject_invalid_and_commit",
+      "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
+    },
+    {
+      "command": "scale",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_scale_stateful",
+      "gates": {
+        "correctness": "Checks scale factor two about known base, original ID retention, duplicate copy identity, and 24 translated fixtures.",
+        "failure_preservation": "Rejects zero, negative and mistyped factors without mutation or history edits.",
+        "persistence": "Reopen native .dftba with stable source and generated handles; undo and redo verified before and after optional copy or erase-source mode.",
+        "interface": "CAD registry command and alias plus interactive command factory and parameter specification checked; actual viewport/keystroke path remains a separate required gate.",
+        "stability": "24 translated deterministic geometry positions per operation, numeric tolerance for trigonometry, stable IDs and unchanged source in copy mode."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ],
+      "interactive_engine_test_file": "crates/engine/tests/interactive_command_certification.rs",
+      "interactive_engine_test": "rotate_and_scale_prompted_numbers_reject_invalid_and_commit",
+      "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
+    },
+    {
+      "command": "mirror",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_mirror_stateful",
+      "gates": {
+        "correctness": "Checks reflection about a vertical reference, copied source preservation, erase-source mode, stable handle and 24 translated fixtures.",
+        "failure_preservation": "Rejects coincident axis endpoints and missing endpoints without partial mutation.",
+        "persistence": "Reopen native .dftba with stable source and generated handles; undo and redo verified before and after optional copy or erase-source mode.",
+        "interface": "CAD registry command and alias plus interactive command factory and parameter specification checked; actual viewport/keystroke path remains a separate required gate.",
+        "stability": "24 translated deterministic geometry positions per operation, numeric tolerance for trigonometry, stable IDs and unchanged source in copy mode."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ],
+      "interactive_engine_test_file": "crates/engine/tests/interactive_command_certification.rs",
+      "interactive_engine_test": "mirror_prompt_confirmations_copy_or_erase_source",
+      "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
     }
-  ]
+  ],
+  "certification_scope": "certified_count counts certified_headless commands only at this revision. State-changing desktop commands remain candidates until visual host interaction passes."
 }

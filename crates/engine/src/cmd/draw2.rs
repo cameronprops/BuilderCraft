@@ -755,6 +755,13 @@ fn run_divide(s: &mut Session, p: &Value) -> Result<Value> {
     check_block(s, block.as_deref())?;
     let c = chain_of(s, h)?;
     let pts = divide_points(&c, n as usize);
+    let expected = if c.closed { n as usize } else { n as usize - 1 };
+    if expected > MAX_GEN {
+        return Err(bad("divide", format!("requested division would generate more than {MAX_GEN} markers")));
+    }
+    if pts.len() != expected || pts.iter().any(|(point, tangent)| !point.is_finite() || !tangent.is_finite()) {
+        return Err(bad("divide", format!("could place only {} of {expected} markers on this curve; no objects were changed", pts.len())));
+    }
     let hs = place_markers(s, &pts, block.as_deref(), bool_or(p, "align", true))?;
     Ok(json!({ "handles": hs }))
 }
@@ -763,8 +770,9 @@ fn run_measure(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("measure", "`handle` is required"))?;
     let step = f64_req("measure", p, "length")?;
     let mut c = chain_of(s, h)?;
-    if step.is_nan() || step <= 0.0 || c.len() / step > MAX_GEN as f64 {
-        return Err(bad("measure", "length must be positive (and not tiny)"));
+    let length = c.len();
+    if !step.is_finite() || step <= 0.0 || !length.is_finite() || length / step > MAX_GEN as f64 {
+        return Err(bad("measure", "length must be finite, positive, and permit no more than the marker budget"));
     }
     let block = str_param(p, "block").map(str::to_string);
     check_block(s, block.as_deref())?;
@@ -776,6 +784,12 @@ fn run_measure(s: &mut Session, p: &Value) -> Result<Value> {
         c = c.reversed();
     }
     let pts = measure_points(&c, step);
+    // A failed point evaluation must never turn a fully requested sequence
+    // into an apparently successful but incomplete collection of markers.
+    let expected = ((length - 1e-9) / step).ceil().max(1.0) as usize - 1;
+    if pts.len() != expected || pts.iter().any(|(point, tangent)| !point.is_finite() || !tangent.is_finite()) {
+        return Err(bad("measure", format!("placed {} of {expected} requested stations; no objects were changed", pts.len())));
+    }
     let hs = place_markers(s, &pts, block.as_deref(), bool_or(p, "align", true))?;
     Ok(json!({ "handles": hs }))
 }
@@ -968,7 +982,12 @@ fn cloud_entity(vs: Vec<PolyVertex>, calligraphy: bool, arc_len: f64) -> EntityK
 }
 
 fn run_revcloud(s: &mut Session, p: &Value) -> Result<Value> {
-    let arc_len = p.get("arcLength").and_then(Value::as_f64).filter(|v| v.is_finite() && *v > 0.0).unwrap_or_else(|| default_arc_len(s));
+    let arc_len = match p.get("arcLength") {
+        Some(value) => {
+            value.as_f64().filter(|v| v.is_finite() && *v > 0.0).ok_or_else(|| bad("revcloud", "arcLength must be a positive finite number"))?
+        }
+        None => default_arc_len(s),
+    };
     let reverse = bool_or(p, "reverse", false);
     let calligraphy = str_param(p, "style").is_some_and(|x| x.eq_ignore_ascii_case("calligraphy"));
     let (pts, per_edge, src) = if let (Some(a), Some(b)) = (point_param(p, "p1"), point_param(p, "p2")) {
@@ -978,6 +997,12 @@ fn run_revcloud(s: &mut Session, p: &Value) -> Result<Value> {
     } else if let Some(pts) = points_param(p, "freehand") {
         (pts, false, None)
     } else if let Some(h) = curves::handle_param(p, "handle") {
+        if s.doc()?.space_of(h).as_ref() != Some(&s.space()) {
+            return Err(bad("revcloud", "source object is outside the current drawing space"));
+        }
+        if curves::is_locked(s, h) {
+            return Err(bad("revcloud", "source object is on a locked layer"));
+        }
         (object_outline(s, h)?, false, Some(h))
     } else {
         return Err(bad("revcloud", "give {p1, p2}, {points}, {freehand} or {handle}"));
@@ -2303,7 +2328,16 @@ fn run_spline_cv(s: &mut Session, p: &Value) -> Result<Value> {
     if closed && let Some(f) = c.first().copied() {
         c.push(f);
     }
-    let deg = p.get("degree").and_then(Value::as_u64).unwrap_or(3).clamp(1, 10) as usize;
+    let deg = match p.get("degree") {
+        Some(value) => {
+            let degree = value.as_u64().ok_or_else(|| bad("spline.cv", "degree must be an integer"))? as usize;
+            if !(1..=10).contains(&degree) || degree >= c.len() {
+                return Err(bad("spline.cv", format!("degree must be 1..={} for {} control points", (c.len() - 1).min(10), c.len())));
+            }
+            degree
+        }
+        None => 3.min(c.len() - 1),
+    };
     let mut sp = Spline::from_control(c, deg);
     sp.closed = closed;
     added(s.add_entity(EntityKind::Spline(sp))?)

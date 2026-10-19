@@ -102,6 +102,10 @@ const CASES: &[Case] = &[
     ("explode", explode_splits_polyline_into_lines),
     ("overkill", overkill_removes_duplicate_geometry),
     ("offset", offset_circle_changes_radius),
+    ("measure", measure_places_all_four_line_stations),
+    ("list", list_reports_line_length_and_handle),
+    ("spline.cv", spline_cv_degree_is_preserved),
+    ("spline", spline_control_degree_is_preserved),
     ("fillet", fillet_creates_radius_two_arc),
     ("chamfer", chamfer_creates_diagonal_bridge),
     ("arraypath", path_array_places_copies_along_rail),
@@ -1133,6 +1137,63 @@ fn chamfer_creates_diagonal_bridge() {
         })
         .count();
     assert_eq!(diagonal, 1);
+}
+
+fn spline_control_degree_is_preserved() {
+    let mut s = Session::new();
+    s.execute("spline", &json!({"control":[[0,0],[2,3],[4,1],[6,0]],"degree":2})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Spline(sp) => {
+            assert_eq!(sp.degree, 2);
+            assert_eq!(sp.control.len(), 4);
+            assert!(sp.is_valid());
+        }
+        other => panic!("expected degree-2 spline, got {other:?}"),
+    }
+}
+
+fn spline_cv_degree_is_preserved() {
+    let mut s = Session::new();
+    s.execute("spline.cv", &json!({"control":[[0,0],[2,3],[4,1],[6,0]],"degree":3})).unwrap();
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Spline(sp) => {
+            assert_eq!(sp.degree, 3);
+            assert_eq!(sp.control.len(), 4);
+            assert!(sp.is_valid());
+        }
+        other => panic!("expected degree-3 CV spline, got {other:?}"),
+    }
+}
+
+fn list_reports_line_length_and_handle() {
+    let mut s = Session::new();
+    let created = s.execute("line", &json!({"points":[[0,0],[3,4]]})).unwrap();
+    let handle = created["handles"][0].as_str().unwrap();
+    let details = s.execute("list", &json!({"handles":[handle]})).unwrap();
+    let text = details["message"].as_str().unwrap();
+    assert!(text.contains("LINE"));
+    assert!(text.contains(&format!("Handle = {handle}")));
+    assert!(text.contains("Length = 5"));
+}
+
+fn measure_places_all_four_line_stations() {
+    let mut s = Session::new();
+    let h = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].clone();
+    let result = s.execute("measure", &json!({"handle":h, "length":2})).unwrap();
+    assert_eq!(result["handles"].as_array().unwrap().len(), 4);
+    let xs: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Point(p) => Some(p.p.x),
+            _ => None,
+        })
+        .collect();
+    for station in [2.0, 4.0, 6.0, 8.0] {
+        assert!(xs.contains(&station), "missing station {station}: {xs:?}");
+    }
 }
 
 #[test]

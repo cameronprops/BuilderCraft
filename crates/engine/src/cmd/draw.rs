@@ -277,7 +277,17 @@ fn run_spline(s: &mut Session, p: &Value) -> Result<Value> {
         if c.len() < 2 {
             return Err(bad("spline", "need 2+ control points"));
         }
-        Spline::from_control(c, p.get("degree").and_then(Value::as_u64).unwrap_or(3) as usize)
+        let degree = match p.get("degree") {
+            Some(value) => {
+                let degree = value.as_u64().ok_or_else(|| bad("spline", "degree must be an integer"))? as usize;
+                if !(1..=10).contains(&degree) || degree >= c.len() {
+                    return Err(bad("spline", format!("degree must be 1..={} for {} control points", (c.len() - 1).min(10), c.len())));
+                }
+                degree
+            }
+            None => 3.min(c.len() - 1),
+        };
+        Spline::from_control(c, degree)
     } else {
         return Err(bad("spline", "`fit` or `control` points are required"));
     };

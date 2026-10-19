@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "description": "Five-gate command certification with explicit distinction between headless API, interactive engine prompt coverage, and unverified desktop UI. Candidates are not certified releases.",
+  "description": "Evidence ledger with certified headless query operations and pending stateful/interactive desktop command candidates.",
   "baseline_main_commit": "66d4b4cba3a74158d2ce76c589136e429951c450",
-  "certified_count": 0,
+  "certified_count": 3,
   "promotion_rule": "Promote only after executable 5-gate tests pass on pinned Rust CI, relevant Linux/macOS/Windows workflow gates pass, post-merge main passes, and interface/applicability reviews are signed off.",
   "candidates": [
     {
@@ -10,7 +10,7 @@
       "operation": "kernel.point.distance",
       "orbweaver_node": "orbweaver.point.distance",
       "document_mutation": false,
-      "status": "candidate_ci_pending",
+      "status": "certified_headless",
       "test_file": "crates/engine/tests/command_certification.rs",
       "test": "certify_point_distance_candidate",
       "gates": {
@@ -25,14 +25,29 @@
         "native_rust_linux_macos_windows",
         "exact_occt_when_applicable",
         "post_merge_main"
-      ]
+      ],
+      "scope": "read_only_headless_cad_api_orbweaver",
+      "interface_applicability": "No interactive factory or viewport mutation exists for this headless-only tool. The documented interface is the CAD command, generic kernel tool, and OrbWeaver operation.",
+      "certification_evidence": {
+        "reviewed_code_commit": "37d19b5f77cf80b18336b7044600c2cc1b6f5181",
+        "post_merge_native_ci_run": 39272999336,
+        "post_merge_occt_ci_run": 39272999189,
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "tested_operation": "cargo test --locked -p cadcraft-engine --test command_certification",
+        "release_note": "Headless math-query certification only; not desktop viewport certification.",
+        "test_scope": "64 deterministic 3D position fixtures, typed invalid inputs, unchanged revision/selection/native save bytes, CAD/API/OrbWeaver parity, source-document undo/redo preservation."
+      }
     },
     {
       "command": "worldwright.point.midpoint",
       "operation": "kernel.point.midpoint",
       "orbweaver_node": "orbweaver.point.midpoint",
       "document_mutation": false,
-      "status": "candidate_ci_pending",
+      "status": "certified_headless",
       "test_file": "crates/engine/tests/command_certification.rs",
       "test": "certify_point_midpoint_candidate",
       "gates": {
@@ -47,14 +62,29 @@
         "native_rust_linux_macos_windows",
         "exact_occt_when_applicable",
         "post_merge_main"
-      ]
+      ],
+      "scope": "read_only_headless_cad_api_orbweaver",
+      "interface_applicability": "No interactive factory or viewport mutation exists for this headless-only tool. The documented interface is the CAD command, generic kernel tool, and OrbWeaver operation.",
+      "certification_evidence": {
+        "reviewed_code_commit": "37d19b5f77cf80b18336b7044600c2cc1b6f5181",
+        "post_merge_native_ci_run": 39272999336,
+        "post_merge_occt_ci_run": 39272999189,
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "tested_operation": "cargo test --locked -p cadcraft-engine --test command_certification",
+        "release_note": "Headless math-query certification only; not desktop viewport certification.",
+        "test_scope": "64 deterministic 3D position fixtures, typed invalid inputs, unchanged revision/selection/native save bytes, CAD/API/OrbWeaver parity, source-document undo/redo preservation."
+      }
     },
     {
       "command": "worldwright.point.interpolate",
       "operation": "kernel.point.interpolate",
       "orbweaver_node": "orbweaver.point.interpolate",
       "document_mutation": false,
-      "status": "candidate_ci_pending",
+      "status": "certified_headless",
       "test_file": "crates/engine/tests/command_certification.rs",
       "test": "certify_point_interpolate_candidate",
       "gates": {
@@ -69,7 +99,22 @@
         "native_rust_linux_macos_windows",
         "exact_occt_when_applicable",
         "post_merge_main"
-      ]
+      ],
+      "scope": "read_only_headless_cad_api_orbweaver",
+      "interface_applicability": "No interactive factory or viewport mutation exists for this headless-only tool. The documented interface is the CAD command, generic kernel tool, and OrbWeaver operation.",
+      "certification_evidence": {
+        "reviewed_code_commit": "37d19b5f77cf80b18336b7044600c2cc1b6f5181",
+        "post_merge_native_ci_run": 39272999336,
+        "post_merge_occt_ci_run": 39272999189,
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "tested_operation": "cargo test --locked -p cadcraft-engine --test command_certification",
+        "release_note": "Headless math-query certification only; not desktop viewport certification.",
+        "test_scope": "64 deterministic 3D position fixtures, typed invalid inputs, unchanged revision/selection/native save bytes, CAD/API/OrbWeaver parity, source-document undo/redo preservation."
+      }
     },
     {
       "command": "line",
@@ -221,5 +266,6 @@
       "interactive_engine_test": "mirror_prompt_confirmations_copy_or_erase_source",
       "engine_prompt_scope": "native Session::start/input/cmdline command aliases, prompts, pickfirst/explicit picks, preview and undo as applicable; desktop viewport user input not yet validated"
     }
-  ]
+  ],
+  "certification_scope": "certified_count counts certified_headless commands only at this revision. State-changing desktop commands remain candidates until visual host interaction passes."
 }

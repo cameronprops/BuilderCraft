@@ -41,3 +41,19 @@ fn divide_invalid_requests_preserve_document_revision_and_undo() {
         assert_eq!(s.state().unwrap().undo.len(), undo_len);
     }
 }
+
+#[test]
+fn oversized_closed_curve_division_rejects_without_changing_document() {
+    let mut s = Session::new();
+    let h = s.execute("circle", &json!({"center":[0,0],"radius":10})).unwrap()["handle"].clone();
+    let before = s.state().unwrap().doc.clone();
+    let revision = s.state().unwrap().revision;
+    let undo_len = s.state().unwrap().undo.len();
+    let error = s.execute("divide", &json!({"handle":h,"segments":20001}))
+        .expect_err("DIVIDE should reject more than 20,000 markers");
+    assert!(error.to_string().contains("20000"), "expected concrete budget: {error}");
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo_len);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+}

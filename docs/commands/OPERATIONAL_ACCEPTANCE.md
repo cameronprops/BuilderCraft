@@ -30,14 +30,14 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 96 positive success-path fixtures have been
-authored against 365 registered commands. **269 still lack positive entries in
-this ledger.** The 91-case baseline has passed focused and cross-platform CI
-and merged to main in PR #86. Five additional modify-command cases
-(`arraypath`, `reverse`, `flatten`, `align`, `lengthen`) require a
-fresh CI run on this branch before being reported as passing. Existing
-unit tests provide further un-reconciled coverage; a positive fixture
-alone does not establish all five operational certification criteria below.
+**Current tranche (2026-10-18):** 98 positive success-path fixtures have been
+authored against 365 registered commands. **267 still lack positive entries in
+this ledger.** The 96-case baseline passed focused and cross-platform CI
+and merged through PR #89. Two additional command cases (`fillet`, `chamfer`)
+and their finite-segment constraint checks require current CI on PR #94
+before being reported as passing. Existing unit tests provide further
+un-reconciled coverage; a positive fixture alone does not establish all
+five operational certification criteria below.
 
 ## Completion criteria for EACH command
 

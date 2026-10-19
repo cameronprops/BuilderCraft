@@ -460,9 +460,13 @@ fn fillet_polyline_json_and_command_line() {
     assert_eq!(pl.vertices.len(), 8);
     let area = Polyline { vertices: pl.vertices.clone(), closed: true }.area();
     assert!((area - (100.0 - 4.0 + std::f64::consts::PI)).abs() < 1e-3, "{area}");
-    // Too-large radius: corners that do not fit are skipped.
+    // An oversized radius must report the maximum feasible value rather
+    // than silently skip corners and report a successful partial operation.
     let q = pline(&mut s, json!([[0, 20], [2, 20], [2, 22]]), false);
-    assert_eq!(s.execute("fillet", &json!({"handle": q, "polyline": true, "radius": 5})).unwrap()["filleted"], 0);
+    let before = s.state().unwrap().doc.clone();
+    let error = s.execute("fillet", &json!({"handle": q, "polyline": true, "radius": 5})).unwrap_err();
+    assert!(error.to_string().contains("maximum feasible polyline radius 2.000000"));
+    assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
 
     let mut s = Session::new();
     pline(&mut s, json!([[0, 0], [10, 0], [10, 10]]), false);

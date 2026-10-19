@@ -102,6 +102,8 @@ const CASES: &[Case] = &[
     ("explode", explode_splits_polyline_into_lines),
     ("overkill", overkill_removes_duplicate_geometry),
     ("offset", offset_circle_changes_radius),
+    ("fillet", fillet_creates_radius_two_arc),
+    ("chamfer", chamfer_creates_diagonal_bridge),
     ("arraypath", path_array_places_copies_along_rail),
     ("reverse", reverse_swaps_line_endpoints),
     ("flatten", flatten_projects_3d_polyline),
@@ -1091,6 +1093,46 @@ fn lengthen_changes_line_length() {
     let result = s.execute("lengthen", &json!({"handle":h, "total":5})).unwrap();
     assert_eq!(result["length"], 5.0);
     assert_eq!(first_line(&s), (0.0, 0.0, 5.0, 0.0));
+}
+
+fn fillet_creates_radius_two_arc() {
+    let mut s = Session::new();
+    let a = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let b = s.execute("line", &json!({"points":[[0,0],[0,10]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let result = s.execute("fillet", &json!({"h1":a,"h2":b,"p1":[9,0],"p2":[0,9],"radius":2})).unwrap();
+    assert!(result["arc"].as_str().is_some());
+    assert_eq!(s.doc().unwrap().model.len(), 3);
+    let radii: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|entity| match &entity.kind {
+            EntityKind::Arc(arc) => Some(arc.radius),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(radii, vec![2.0]);
+}
+
+fn chamfer_creates_diagonal_bridge() {
+    let mut s = Session::new();
+    let a = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let b = s.execute("line", &json!({"points":[[0,0],[0,10]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let result = s.execute("chamfer", &json!({"h1":a,"h2":b,"p1":[9,0],"p2":[0,9],"d1":2,"d2":3})).unwrap();
+    assert!(result["line"].as_str().is_some());
+    assert_eq!(s.doc().unwrap().model.len(), 3);
+    let diagonal = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|entity| match &entity.kind {
+            EntityKind::Line(line) if (line.a.x - line.b.x).abs() > 0.1 && (line.a.y - line.b.y).abs() > 0.1 => Some(line),
+            _ => None,
+        })
+        .count();
+    assert_eq!(diagonal, 1);
 }
 
 #[test]

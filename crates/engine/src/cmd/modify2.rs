@@ -1868,6 +1868,12 @@ pub(crate) fn fillet_curves(s: &mut Session, h1: Handle, p1: Vec2, h2: Handle, p
 
 /// Fillet every corner between two straight segments of a polyline. Returns the count.
 pub(crate) fn fillet_polyline(s: &mut Session, h: Handle, r: f64) -> Result<usize> {
+    if !r.is_finite() || r < 0.0 {
+        return Err(bad("fillet", "radius must be finite and non-negative"));
+    }
+    if curves::is_locked(s, h) {
+        return Err(bad("fillet", "polyline is on a locked layer"));
+    }
     let e = curves::entity(s, h)?;
     let EntityKind::LwPolyline(pl) = &e.kind else { return Err(other("Select a 2D polyline.")) };
     let vs = &pl.vertices;
@@ -1903,19 +1909,22 @@ pub(crate) fn fillet_polyline(s: &mut Session, h: Handle, r: f64) -> Result<usiz
             *t = (-u1).cross(u2).atan2((-u1).dot(u2));
         }
     }
-    // Drop fillets that do not fit their segments.
-    for i in 0..n {
+    // Every segment has a finite cut-back budget shared by its two ends.
+    // Because cutbacks scale linearly with radius, we can derive a maximum
+    // feasible radius from the tightest segment instead of silently dropping
+    // overflowing corners and returning a partially filleted polyline.
+    let mut max_radius = f64::INFINITY;
+    let edge_count = if pl.closed { n } else { n - 1 };
+    for i in 0..edge_count {
         let j = (i + 1) % n;
         let seg = at(i).p.dist(at(j).p);
-        let (ci, cj) = (cut.get(i).copied().unwrap_or(0.0), cut.get(j).copied().unwrap_or(0.0));
-        if ci + cj > seg + 1e-9 {
-            if let Some(x) = cut.get_mut(i) {
-                *x = 0.0;
-            }
-            if let Some(x) = cut.get_mut(j) {
-                *x = 0.0;
-            }
+        let sum = cut.get(i).copied().unwrap_or(0.0) + cut.get(j).copied().unwrap_or(0.0);
+        if sum > 0.0 {
+            max_radius = max_radius.min(r * (seg / sum));
         }
+    }
+    if r > max_radius + 1e-9 {
+        return Err(bad("fillet", format!("requested radius {r:.6} exceeds maximum feasible polyline radius {max_radius:.6} drawing units")));
     }
     let mut out: Vec<PolyVertex> = Vec::with_capacity(n * 2);
     let mut count = 0;

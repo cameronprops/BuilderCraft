@@ -783,6 +783,27 @@ pub(crate) fn fillet_lines(
     chamfer: Option<(f64, f64)>,
 ) -> Result<Option<Handle>> {
     let d = s.doc()?;
+    let command = if chamfer.is_some() { "chamfer" } else { "fillet" };
+    if h1 == h2 {
+        return Err(bad(command, "select two different objects"));
+    }
+    if !radius.is_finite() || radius < 0.0 {
+        return Err(bad(command, "radius must be finite and non-negative"));
+    }
+    if let Some((a, b)) = chamfer
+        && (![a, b].into_iter().all(f64::is_finite) || a < 0.0 || b < 0.0)
+    {
+        return Err(bad(command, "chamfer distances must be finite and non-negative"));
+    }
+    for handle in [h1, h2] {
+        let entity = d.entity(handle).ok_or_else(|| bad(command, format!("object {} does not exist", handle.hex())))?;
+        if d.space_of(handle).as_ref() != Some(&s.space()) {
+            return Err(bad(command, format!("object {} is outside the active drawing space", handle.hex())));
+        }
+        if d.layer(&entity.common.layer).is_some_and(|layer| layer.locked) {
+            return Err(bad(command, format!("object {} is on locked layer {}", handle.hex(), entity.common.layer)));
+        }
+    }
     let e1 = d.entity(h1).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
     let e2 = d.entity(h2).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
     let (Some(l1), Some(l2)) = (as_line(&e1), as_line(&e2)) else {
@@ -802,8 +823,16 @@ pub(crate) fn fillet_lines(
     let k2 = keep(&l2, p2);
     let u1 = (k1 - x).normalized();
     let u2 = (k2 - x).normalized();
+    // A fillet is restricted to the two existing finite segment portions on
+    // the picked sides of their infinite-line intersection. Report the maximum
+    // radius instead of silently extending the lines or creating inverted ends.
+    let leg1 = (k1 - x).len();
+    let leg2 = (k2 - x).len();
     let mut new_arc = None;
     let (t1, t2) = if let Some((d1, d2)) = chamfer {
+        if d1 > leg1 + 1e-9 || d2 > leg2 + 1e-9 {
+            return Err(bad(command, format!("chamfer distances exceed selected segments; maximum d1={leg1:.6}, d2={leg2:.6} drawing units")));
+        }
         (x + u1 * d1, x + u2 * d2)
     } else if radius <= 1e-12 {
         (x, x)
@@ -811,6 +840,16 @@ pub(crate) fn fillet_lines(
         let half = u1.dot(u2).clamp(-1.0, 1.0).acos() / 2.0;
         if half.sin().abs() < 1e-12 {
             return Err(EngineError::Other("Lines are parallel.".into()));
+        }
+        let max_radius = leg1.min(leg2) * half.tan();
+        if !max_radius.is_finite() || max_radius <= 1e-12 {
+            return Err(bad(command, "no positive-radius fillet fits the selected segment lengths and angle"));
+        }
+        if radius > max_radius + 1e-9 {
+            return Err(bad(
+                command,
+                format!("requested radius {radius:.6} exceeds maximum feasible radius {max_radius:.6} drawing units for the selected line segments"),
+            ));
         }
         let dist = radius / half.tan();
         let t1 = x + u1 * dist;
@@ -823,6 +862,9 @@ pub(crate) fn fillet_lines(
         new_arc = Some(ar);
         (t1, t2)
     };
+    if !t1.is_finite() || !t2.is_finite() || new_arc.is_some_and(|a| !a.center.is_finite() || !a.radius.is_finite()) {
+        return Err(bad(command, "operation would produce non-finite geometry; reduce the radius or distances"));
+    }
     let common = e1.common.clone();
     let doc = s.doc_mut()?;
     doc.modify_entity(h1, |e| e.kind = line(k1, t1))?;
@@ -851,13 +893,23 @@ fn h_param(p: &Value, k: &str) -> Option<Handle> {
 fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
     if bool_or(p, "polyline", false) {
         let h = h_param(p, "handle").or_else(|| h_param(p, "h1")).ok_or_else(|| bad("fillet", "`handle` (polyline) is required"))?;
-        let r = f64_or(p, "radius", s.doc()?.header.f64("FILLETRAD", 0.0));
+        let r = match p.get("radius") {
+            Some(value) => {
+                value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("fillet", "radius must be a finite non-negative number"))?
+            }
+            None => s.doc()?.header.f64("FILLETRAD", 0.0),
+        };
         let n = super::modify2::fillet_polyline(s, h, r)?;
         return Ok(json!({ "filleted": n }));
     }
     let h1 = h_param(p, "h1").ok_or_else(|| bad("fillet", "`h1` is required"))?;
     let h2 = h_param(p, "h2").ok_or_else(|| bad("fillet", "`h2` is required"))?;
-    let r = f64_or(p, "radius", s.doc()?.header.f64("FILLETRAD", 0.0));
+    let r = match p.get("radius") {
+        Some(value) => {
+            value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("fillet", "radius must be a finite non-negative number"))?
+        }
+        None => s.doc()?.header.f64("FILLETRAD", 0.0),
+    };
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
     let a = fillet_lines(s, h1, p1, h2, p2, r, None)?;
@@ -867,8 +919,18 @@ fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
 fn run_chamfer(s: &mut Session, p: &Value) -> Result<Value> {
     let h1 = h_param(p, "h1").ok_or_else(|| bad("chamfer", "`h1` is required"))?;
     let h2 = h_param(p, "h2").ok_or_else(|| bad("chamfer", "`h2` is required"))?;
-    let d1 = f64_or(p, "d1", s.doc()?.header.f64("CHAMFERA", 0.0));
-    let d2 = f64_or(p, "d2", d1);
+    let d1 = match p.get("d1") {
+        Some(value) => {
+            value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("chamfer", "d1 must be a finite non-negative number"))?
+        }
+        None => s.doc()?.header.f64("CHAMFERA", 0.0),
+    };
+    let d2 = match p.get("d2") {
+        Some(value) => {
+            value.as_f64().filter(|n| n.is_finite() && *n >= 0.0).ok_or_else(|| bad("chamfer", "d2 must be a finite non-negative number"))?
+        }
+        None => d1,
+    };
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
     let a = fillet_lines(s, h1, p1, h2, p2, 0.0, Some((d1, d2)))?;

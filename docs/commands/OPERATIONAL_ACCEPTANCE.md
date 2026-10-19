@@ -31,16 +31,16 @@ missing coverage rather than passing. The fixture table is in
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
 **Current tranche (2026-10-18):** 114 distinct positive success-path fixtures
-have been authored against 365 registered commands. **251 still lack positive
-entries in this ledger.** The 102-case baseline merged via PR #101 with
-Linux/macOS/Windows native, focused-modeling, and exact BRep CI.
-PR #105 contributes two TRIM/EXTEND fixtures. This stacked branch adds
-ten additional valid-path fixtures: DIVIDE, REVCLOUD, PEDIT, TEXT, MTEXT,
-TEXTEDIT, XLINE, MLINE, CENTERMARK and CENTERLINE. Geometry tests assert
-coordinates, object types, IDs, rail placement, and source replacement;
-annotation tests assert actual content, dimensions, and center geometry.
-These 12 proposed cases require branch CI and do not alone establish the
-full five-criterion operational certification.
+are authored against 365 registered commands. **251 still lack independent
+positive-path entries.** The first 104 fixtures are merged on main via PR #101
+and PR #105 with passing focused-modeling, native Linux/macOS/Windows, and
+exact BRep CI. This branch adds ten additional fixtures for DIVIDE, REVCLOUD,
+PEDIT, TEXT, MTEXT, TEXTEDIT, XLINE, MLINE, CENTERMARK and CENTERLINE. The
+added fixtures assert coordinates, object types, stable identity, source
+replacement, text contents, annotation dimensions and center geometry.
+Focused-modeling and exact BRep workflows passed at the original branch head;
+the reconciled merge commit must pass current mainline CI before merge.
+A positive fixture is not complete five-criterion operational certification.
 
 ## Completion criteria for EACH command
 

@@ -67,12 +67,12 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("fillet", "Fillet", run_fillet)
             .menu(&["Modify", "Fillet"])
             .alias(&["f"])
-            .params("{h1, p1, h2, p2, radius?} (lines, arcs, circles) | {handle, polyline: true, radius?}")
+            .params("{h1, p1, h2, p2, radius?, limitsOnly?:bool} (lines, arcs, circles) | {handle, polyline: true, radius?}")
             .interactive(|s| Ok(Box::new(FilletM::new(s, false)))),
         CommandSpec::new("chamfer", "Chamfer", run_chamfer)
             .menu(&["Modify", "Chamfer"])
             .alias(&["cha"])
-            .params("{h1, p1, h2, p2, d1?, d2?}")
+            .params("{h1, p1, h2, p2, d1?, d2?, limitsOnly?:bool}")
             .interactive(|s| Ok(Box::new(FilletM::new(s, true)))),
         CommandSpec::new("explode", "Explode", run_explode)
             .menu(&["Modify", "Explode"])
@@ -460,11 +460,45 @@ fn run_offset(s: &mut Session, p: &Value) -> Result<Value> {
 
 // ---------------- trim / extend ----------------
 
+// TRIM/EXTEND use geometry in the active space only. A locked target may be
+// used as a cutting reference, but must never be edited.
+fn trim_extend_target(s: &Session, h: Handle, command: &str) -> Result<Entity> {
+    let d = s.doc()?;
+    let e = d.entity(h).ok_or_else(|| bad(command, format!("object {} does not exist", h.hex())))?;
+    if d.space_of(h).as_ref() != Some(&s.space()) {
+        return Err(bad(command, format!("object {} is outside the active drawing space", h.hex())));
+    }
+    if d.layer(&e.common.layer).is_some_and(|layer| layer.locked) {
+        return Err(bad(command, format!("object {} is on locked layer {}", h.hex(), e.common.layer)));
+    }
+    Ok((**e).clone())
+}
+
 /// All primitives of the cutting edges (excluding `exclude`).
 fn edge_segments(s: &Session, edges: Option<&[Handle]>, exclude: Handle) -> Result<Vec<Segment>> {
     let d = s.doc()?;
     let space = s.space();
     let store = d.space(&space).ok_or(EngineError::NoDocument)?;
+    // An explicit selection is a strict contract. Silently dropping stale,
+    // hidden, self-referential, or foreign-space cutters can trim to the
+    // wrong intersection while still returning apparent success.
+    if let Some(handles) = edges {
+        if handles.is_empty() {
+            return Err(bad("trim/extend", "explicit `edges` list must not be empty"));
+        }
+        for handle in handles {
+            if *handle == exclude {
+                return Err(bad("trim/extend", "the edited object cannot also be its cutting edge"));
+            }
+            let edge = d.entity(*handle).ok_or_else(|| bad("trim/extend", format!("cutting edge {} does not exist", handle.hex())))?;
+            if d.space_of(*handle).as_ref() != Some(&space) {
+                return Err(bad("trim/extend", format!("cutting edge {} is outside the active drawing space", handle.hex())));
+            }
+            if !d.is_visible(edge.as_ref()) {
+                return Err(bad("trim/extend", format!("cutting edge {} is hidden", handle.hex())));
+            }
+        }
+    }
     let mut out = Vec::new();
     for e in store.iter() {
         if e.handle == exclude || !d.is_visible(e) {
@@ -503,7 +537,7 @@ fn prim_to_segments(p: &Prim) -> Vec<Segment> {
 
 /// Trim `h` at the piece containing `pick`. Returns the handles that replace it.
 pub(crate) fn trim(s: &mut Session, h: Handle, pick: Vec2, edges: Option<&[Handle]>) -> Result<Vec<Handle>> {
-    let e = s.doc()?.entity(h).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
+    let e = trim_extend_target(s, h, "trim")?;
     let cut = edge_segments(s, edges, h)?;
     let pieces: Vec<EntityKind> = match &e.kind {
         EntityKind::Line(l) => {
@@ -686,7 +720,7 @@ fn param_on(s: &Segment, p: Vec2) -> f64 {
 
 /// Extend the end of `h` nearest `pick` to the nearest boundary edge.
 pub(crate) fn extend(s: &mut Session, h: Handle, pick: Vec2, edges: Option<&[Handle]>) -> Result<()> {
-    let e = s.doc()?.entity(h).map(|e| (**e).clone()).ok_or_else(|| EngineError::Other("no such object".into()))?;
+    let e = trim_extend_target(s, h, "extend")?;
     let cut = edge_segments(s, edges, h)?;
     let new_kind = match &e.kind {
         EntityKind::Line(l) => {
@@ -743,14 +777,27 @@ pub(crate) fn extend(s: &mut Session, h: Handle, pick: Vec2, edges: Option<&[Han
     Ok(())
 }
 
-fn edges_param(p: &Value) -> Option<Vec<Handle>> {
-    p.get("edges").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().and_then(Handle::parse_hex)).collect())
+fn edges_param(p: &Value) -> Result<Option<Vec<Handle>>> {
+    let Some(raw) = p.get("edges") else { return Ok(None) };
+    let values = raw.as_array().ok_or_else(|| bad("trim/extend", "`edges` must be an array of hexadecimal object handles"))?;
+    let mut handles = Vec::with_capacity(values.len());
+    for (i, value) in values.iter().enumerate() {
+        let handle = value
+            .as_str()
+            .and_then(Handle::parse_hex)
+            .ok_or_else(|| bad("trim/extend", format!("`edges[{i}]` must be a valid hexadecimal object handle")))?;
+        if handles.contains(&handle) {
+            return Err(bad("trim/extend", format!("duplicate cutting edge {}", handle.hex())));
+        }
+        handles.push(handle);
+    }
+    Ok(Some(handles))
 }
 
 fn run_trim(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("trim", "`handle` is required"))?;
     let pick = point_req("trim", p, "pick")?;
-    let edges = edges_param(p);
+    let edges = edges_param(p)?;
     let r = trim(s, h, pick, edges.as_deref())?;
     Ok(json!({ "handles": r.iter().map(|h| h.hex()).collect::<Vec<_>>() }))
 }
@@ -758,7 +805,7 @@ fn run_trim(s: &mut Session, p: &Value) -> Result<Value> {
 fn run_extend(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("extend", "`handle` is required"))?;
     let pick = point_req("extend", p, "pick")?;
-    let edges = edges_param(p);
+    let edges = edges_param(p)?;
     extend(s, h, pick, edges.as_deref())?;
     ok()
 }
@@ -770,6 +817,46 @@ fn as_line(e: &Entity) -> Option<Line> {
         EntityKind::Line(l) => Some(Line::new(l.a.xy(), l.b.xy())),
         _ => None,
     }
+}
+
+/// Non-destructive maximums for the two finite line legs selected by pick points.
+/// Uses the same kept-end and half-angle convention as fillet_lines.
+fn finite_line_corner_limits(s: &Session, h1: Handle, p1: Vec2, h2: Handle, p2: Vec2, command: &str) -> Result<(f64, f64, f64)> {
+    if h1 == h2 {
+        return Err(bad(command, "select two different objects"));
+    }
+    let drawing = s.doc()?;
+    for h in [h1, h2] {
+        let entity = drawing.entity(h).ok_or_else(|| bad(command, format!("object {} does not exist", h.hex())))?;
+        if drawing.space_of(h).as_ref() != Some(&s.space()) {
+            return Err(bad(command, format!("object {} is outside the active drawing space", h.hex())));
+        }
+        if drawing.layer(&entity.common.layer).is_some_and(|layer| layer.locked) {
+            return Err(bad(command, format!("object {} is on locked layer {}", h.hex(), entity.common.layer)));
+        }
+    }
+    let l1 = drawing.entity(h1).and_then(|e| as_line(e)).ok_or_else(|| bad(command, "limits query requires two finite lines"))?;
+    let l2 = drawing.entity(h2).and_then(|e| as_line(e)).ok_or_else(|| bad(command, "limits query requires two finite lines"))?;
+    let (intersection, _, _) = line_line_infinite(l1.a, l1.b, l2.a, l2.b).ok_or_else(|| bad(command, "lines are parallel or degenerate"))?;
+    let kept = |line: &Line, pick: Vec2| {
+        let a = (line.a - intersection).dot(pick - intersection);
+        let b = (line.b - intersection).dot(pick - intersection);
+        if a >= b { line.a } else { line.b }
+    };
+    let leg1 = kept(&l1, p1) - intersection;
+    let leg2 = kept(&l2, p2) - intersection;
+    let length1 = leg1.len();
+    let length2 = leg2.len();
+    if !length1.is_finite() || !length2.is_finite() || length1 <= 1e-12 || length2 <= 1e-12 {
+        return Err(bad(command, "selected legs do not have positive finite lengths"));
+    }
+    let half = leg1.normalized().dot(leg2.normalized()).clamp(-1.0, 1.0).acos() / 2.0;
+    let tangent = half.tan();
+    let max_radius = length1.min(length2) * tangent;
+    if !max_radius.is_finite() || max_radius <= 1e-12 {
+        return Err(bad(command, "selected legs do not define a positive finite fillet radius"));
+    }
+    Ok((length1, length2, max_radius))
 }
 
 /// Fillet (or chamfer) two lines. `p1`/`p2` mark the kept side of each line.
@@ -912,6 +999,10 @@ fn run_fillet(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
+    if bool_or(p, "limitsOnly", false) {
+        let (available_first, available_second, max_radius) = finite_line_corner_limits(s, h1, p1, h2, p2, "fillet")?;
+        return Ok(json!({ "maxRadius": max_radius, "availableFirst": available_first, "availableSecond": available_second }));
+    }
     let a = fillet_lines(s, h1, p1, h2, p2, r, None)?;
     Ok(json!({ "arc": a.map(|h| h.hex()) }))
 }
@@ -933,6 +1024,10 @@ fn run_chamfer(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let p1 = point_param(p, "p1").unwrap_or_default();
     let p2 = point_param(p, "p2").unwrap_or_default();
+    if bool_or(p, "limitsOnly", false) {
+        let (max_d1, max_d2, _) = finite_line_corner_limits(s, h1, p1, h2, p2, "chamfer")?;
+        return Ok(json!({ "maxD1": max_d1, "maxD2": max_d2 }));
+    }
     let a = fillet_lines(s, h1, p1, h2, p2, 0.0, Some((d1, d2)))?;
     Ok(json!({ "line": a.map(|h| h.hex()) }))
 }

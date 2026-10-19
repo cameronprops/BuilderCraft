@@ -30,16 +30,15 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 139 independently asserted
-positive command fixtures are authored against 396 registered commands;
-**257 commands still lack success-path fixtures**. Main contains 134
-merged success-path cases including PR #114's native NURBS/Geometry3D
-coverage. This branch adds five document-backed model-browser cases:
-Create, List, Rename, Select and Visible, with asserted hierarchy, actual
-owned geometry, selection, edits and undo. All merged positive fixtures
-must pass focused modeling, native Linux/macOS/Windows and exact OCCT
-integration before counting as accepted. Positive cases alone do not
-constitute five-gate operational release certification.
+**Current tranche (2026-10-18):** 144 independently asserted
+positive-path fixtures are authored for 396 registered commands;
+**252 still lack success-path fixtures**. The main branch currently has
+139 merged positive-path fixtures (including PR #116); this branch
+adds five feature timeline commands: Create, List, Inspect, Edit and Evaluate. Tests assert actual
+parametric midpoint results, .dftba persistence, undo, revision and
+read-only query behavior. Merge only after pinned formatting, focused
+modeling, native Linux/macOS/Windows and exact BRep gates succeed.
+Positive cases are not full five-part operational alpha certification.
 
 ## Completion criteria for EACH command
 

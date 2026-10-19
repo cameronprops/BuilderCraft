@@ -403,7 +403,8 @@ fn paired_tool_discovery_lists_shared_interfaces() {
     let revision = s.state().unwrap().revision;
     let result = s.execute("worldwright.tool.list", &json!({})).unwrap();
     let tools = result["paired_tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 42);
+    assert_eq!(tools.len(), buildercraft_kernel::SHARED_TOOLS.len());
+    assert!(tools.iter().any(|tool| tool["orbweaver_node"] == "orbweaver.curve.blend" && tool["cad_command"] == "worldwright.curve.blend"));
     assert_eq!(tools[0]["orbweaver_node"], "orbweaver.point.distance");
     assert_eq!(tools[0]["cad_command"], "worldwright.point.distance");
     assert_eq!(s.state().unwrap().revision, revision);

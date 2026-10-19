@@ -104,6 +104,16 @@ const CASES: &[Case] = &[
     ("offset", offset_circle_changes_radius),
     ("trim", trim_keeps_expected_segment),
     ("extend", extend_meets_nearest_cutting_boundary),
+    ("divide", divide_stations_match_geometry),
+    ("revcloud", revcloud_replaces_source_with_closed_boundary),
+    ("pedit", pedit_joins_touching_geometry),
+    ("text", text_preserves_content_and_position),
+    ("mtext", mtext_preserves_paragraphs_and_dimensions),
+    ("textedit", textedit_changes_text_without_replacing_handle),
+    ("xline", xline_keeps_unit_direction),
+    ("mline", mline_builds_two_parallel_rails),
+    ("centermark", centermark_crosses_circle_center),
+    ("centerline", centerline_bisects_parallel_lines),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1070,6 +1080,192 @@ fn extend_meets_nearest_cutting_boundary() {
             assert!((l.b.x - 5.0).abs() < 1e-9 && l.b.y.abs() < 1e-9);
         }
         other => panic!("expected extended line, got {other:?}"),
+    }
+}
+
+fn divide_stations_match_geometry() {
+    let mut s = Session::new();
+    let source = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].clone();
+    let result = s.execute("divide", &json!({"handle":source,"segments":5})).unwrap();
+    assert_eq!(result["handles"].as_array().unwrap().len(), 4);
+    assert_eq!(s.doc().unwrap().model.len(), 5);
+    let mut stations: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Point(point) => Some((point.p.x, point.p.y)),
+            _ => None,
+        })
+        .collect();
+    stations.sort_by(|a, b| a.0.total_cmp(&b.0));
+    assert_eq!(stations, vec![(2.0, 0.0), (4.0, 0.0), (6.0, 0.0), (8.0, 0.0)]);
+}
+
+fn revcloud_replaces_source_with_closed_boundary() {
+    let mut s = Session::new();
+    let source = s.execute("circle", &json!({"center":[0,0],"radius":5})).unwrap()["handle"].as_str().unwrap().to_string();
+    let result = s.execute("revcloud", &json!({"handle":source,"arcLength":3})).unwrap();
+    let generated = result["handle"].as_str().unwrap();
+    assert_ne!(generated, source);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    assert!(s.doc().unwrap().entity(cadcraft_doc::Handle::parse_hex(&source).unwrap()).is_none());
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(poly) => {
+            assert!(poly.closed);
+            assert!(poly.vertices.len() >= 3);
+            assert!(poly.vertices.iter().all(|v| v.p.is_finite()));
+        }
+        other => panic!("expected finite closed revision cloud, got {other:?}"),
+    }
+}
+
+fn pedit_joins_touching_geometry() {
+    let mut s = Session::new();
+    let base = s.execute("pline", &json!({"vertices":[[0,0],[2,0]]})).unwrap()["handle"].as_str().unwrap().to_string();
+    let candidate = s.execute("line", &json!({"points":[[2,0],[4,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let result = s.execute("pedit", &json!({"handle":base,"option":"join","handles2":[candidate]})).unwrap();
+    assert_eq!(result["joined"], 1);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(poly) => {
+            assert_eq!(poly.vertices.len(), 3);
+            assert_eq!((poly.vertices[0].p.x, poly.vertices[0].p.y), (0.0, 0.0));
+            assert_eq!((poly.vertices[2].p.x, poly.vertices[2].p.y), (4.0, 0.0));
+            assert!(!poly.closed);
+        }
+        other => panic!("expected joined polyline, got {other:?}"),
+    }
+}
+
+fn text_preserves_content_and_position() {
+    let mut s = Session::new();
+    let result = s.execute("text", &json!({"at":[3,7],"text":"SHOW SET A","height":2.0,"rotation":90})).unwrap();
+    assert!(result["handle"].is_string());
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::Text(text) => {
+            assert_eq!(text.value, "SHOW SET A");
+            assert_eq!((text.insert.x, text.insert.y), (3.0, 7.0));
+            assert_eq!(text.height, 2.0);
+            assert!((text.rotation - std::f64::consts::FRAC_PI_2).abs() < 1e-9);
+        }
+        other => panic!("expected single-line text, got {other:?}"),
+    }
+}
+
+fn mtext_preserves_paragraphs_and_dimensions() {
+    let mut s = Session::new();
+    let result = s.execute("mtext", &json!({"at":[2,4],"text":"Scenic\nFabrication","height":1.5,"width":12.0,"attach":5})).unwrap();
+    assert!(result["handle"].is_string());
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::MText(text) => {
+            assert_eq!(text.contents, "Scenic\\PFabrication");
+            assert_eq!((text.insert.x, text.insert.y), (2.0, 4.0));
+            assert_eq!(text.width, 12.0);
+            assert_eq!(text.height, 1.5);
+            assert_eq!(text.attach, 5);
+        }
+        other => panic!("expected multiline text, got {other:?}"),
+    }
+}
+
+fn textedit_changes_text_without_replacing_handle() {
+    let mut s = Session::new();
+    let original = s.execute("text", &json!({"at":[3,7],"text":"REV A","height":1.0})).unwrap()["handle"].as_str().unwrap().to_owned();
+    let result = s.execute("textedit", &json!({"handle":original,"text":"REV B"})).unwrap();
+    assert_eq!(result["handle"], original);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    let h = cadcraft_doc::Handle::parse_hex(&original).unwrap();
+    match &s.doc().unwrap().entity(h).unwrap().kind {
+        EntityKind::Text(text) => {
+            assert_eq!(text.value, "REV B");
+            assert_eq!((text.insert.x, text.insert.y), (3.0, 7.0));
+        }
+        other => panic!("expected edited text, got {other:?}"),
+    }
+}
+
+fn xline_keeps_unit_direction() {
+    let mut s = Session::new();
+    let result = s.execute("xline", &json!({"base":[2,3],"through":[8,3]})).unwrap();
+    assert!(result["handle"].is_string());
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::XLine(line) => {
+            assert_eq!((line.base.x, line.base.y), (2.0, 3.0));
+            assert!((line.dir.x - 1.0).abs() < 1e-9);
+            assert!(line.dir.y.abs() < 1e-9);
+        }
+        other => panic!("expected infinite construction line, got {other:?}"),
+    }
+}
+
+fn mline_builds_two_parallel_rails() {
+    let mut s = Session::new();
+    let result = s.execute("mline", &json!({"points":[[0,0],[10,0]],"scale":4.0,"justification":"zero"})).unwrap();
+    assert_eq!(result["handles"].as_array().unwrap().len(), 2);
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    let mut rails = Vec::new();
+    for entity in s.doc().unwrap().model.iter() {
+        match &entity.kind {
+            EntityKind::LwPolyline(poly) => {
+                assert_eq!(poly.vertices.len(), 2);
+                assert!(!poly.closed);
+                let a = poly.vertices[0].p;
+                let b = poly.vertices[1].p;
+                assert!((a.x - 0.0).abs() < 1e-9 && (b.x - 10.0).abs() < 1e-9);
+                assert!((a.y - b.y).abs() < 1e-9);
+                rails.push(a.y);
+            }
+            other => panic!("expected two offset polylines, got {other:?}"),
+        }
+    }
+    rails.sort_by(f64::total_cmp);
+    assert_eq!(rails, vec![-2.0, 2.0]);
+}
+
+fn centermark_crosses_circle_center() {
+    let mut s = Session::new();
+    let circle = s.execute("circle", &json!({"center":[3,4],"radius":5})).unwrap()["handle"].as_str().unwrap().to_owned();
+    let result = s.execute("centermark", &json!({"handle":circle})).unwrap();
+    assert_eq!(result["handles"].as_array().unwrap().len(), 2);
+    assert_eq!(s.doc().unwrap().model.len(), 3);
+    let mut horizontal = false;
+    let mut vertical = false;
+    for entity in s.doc().unwrap().model.iter() {
+        if let EntityKind::Line(l) = &entity.kind {
+            assert_eq!(entity.common.linetype, "CENTER");
+            if (l.a.y - 4.0).abs() < 1e-9 && (l.b.y - 4.0).abs() < 1e-9 {
+                assert!(l.a.x < 3.0 && l.b.x > 3.0);
+                horizontal = true;
+            }
+            if (l.a.x - 3.0).abs() < 1e-9 && (l.b.x - 3.0).abs() < 1e-9 {
+                assert!(l.a.y < 4.0 && l.b.y > 4.0);
+                vertical = true;
+            }
+        }
+    }
+    assert!(horizontal && vertical);
+}
+
+fn centerline_bisects_parallel_lines() {
+    let mut s = Session::new();
+    let a = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_owned();
+    let b = s.execute("line", &json!({"points":[[0,4],[10,4]]})).unwrap()["handles"][0].as_str().unwrap().to_owned();
+    let result = s.execute("centerline", &json!({"h1":a,"h2":b})).unwrap();
+    let generated = cadcraft_doc::Handle::parse_hex(result["handle"].as_str().unwrap()).unwrap();
+    assert_eq!(s.doc().unwrap().model.len(), 3);
+    let entity = s.doc().unwrap().entity(generated).unwrap();
+    assert_eq!(entity.common.linetype, "CENTER");
+    match &entity.kind {
+        EntityKind::Line(l) => {
+            assert!((l.a.y - 2.0).abs() < 1e-9 && (l.b.y - 2.0).abs() < 1e-9);
+            assert!(l.a.x < 0.0 && l.b.x > 10.0);
+        }
+        other => panic!("expected midpoint center line, got {other:?}"),
     }
 }
 

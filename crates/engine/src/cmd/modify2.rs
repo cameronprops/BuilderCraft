@@ -1914,7 +1914,8 @@ pub(crate) fn fillet_polyline(s: &mut Session, h: Handle, r: f64) -> Result<usiz
     // feasible radius from the tightest segment instead of silently dropping
     // overflowing corners and returning a partially filleted polyline.
     let mut max_radius = f64::INFINITY;
-    for i in 0..if pl.closed { n } else { n - 1 } {
+    let edge_count = if pl.closed { n } else { n - 1 };
+    for i in 0..edge_count {
         let j = (i + 1) % n;
         let seg = at(i).p.dist(at(j).p);
         let sum = cut.get(i).copied().unwrap_or(0.0) + cut.get(j).copied().unwrap_or(0.0);

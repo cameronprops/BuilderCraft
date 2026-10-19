@@ -60,6 +60,9 @@ fn g2_rejects_unsupported_modes_and_stationary_source_without_mutation() {
     let (a, b) = rails();
     let mut session = Session::new();
     let before = cadcraft_io::write(session.doc().unwrap(), "g2.dftba").unwrap();
+    let before_revision = session.state().unwrap().revision;
+    let before_undo = session.state().unwrap().undo.len();
+    let before_doc = session.state().unwrap().doc.clone();
     let mut inputs = typed(&a, &b, 0, 0);
     inputs["continuity"]["value"] = json!(3);
     assert!(session.execute("worldwright.curve.blend", &json!({"inputs":inputs})).is_err());
@@ -75,5 +78,7 @@ fn g2_rejects_unsupported_modes_and_stationary_source_without_mutation() {
     assert!(session.execute("worldwright.curve.blend", &json!({"inputs":inputs})).is_err());
     assert!(session.doc().unwrap().model.is_empty());
     assert_eq!(cadcraft_io::write(session.doc().unwrap(), "g2.dftba").unwrap(), before);
-    assert_eq!(session.state().unwrap().revision, 0);
+    assert_eq!(session.state().unwrap().revision, before_revision);
+    assert_eq!(session.state().unwrap().undo.len(), before_undo);
+    assert!(std::sync::Arc::ptr_eq(&session.state().unwrap().doc, &before_doc));
 }

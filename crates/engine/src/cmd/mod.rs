@@ -324,7 +324,6 @@ pub(crate) fn ok() -> Result<Value> {
     Ok(Value::Null)
 }
 
-
 #[cfg(test)]
 mod command_index_tests {
     use super::*;

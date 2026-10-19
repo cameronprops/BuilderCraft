@@ -1599,7 +1599,10 @@ fn check_rect_corners(w: f64, h: f64, fillet: f64, chamfer: (f64, f64)) -> Resul
         return Err(bad("rectang", "chamfer requires two positive distances or both zero"));
     }
     if c1 > width / 2.0 + 1e-12 || c2 > height / 2.0 + 1e-12 {
-        return Err(bad("rectang", format!("chamfer distances exceed this rectangle; maximum d1={:.6}, d2={:.6} drawing units", width / 2.0, height / 2.0)));
+        return Err(bad(
+            "rectang",
+            format!("chamfer distances exceed this rectangle; maximum d1={:.6}, d2={:.6} drawing units", width / 2.0, height / 2.0),
+        ));
     }
     Ok(())
 }

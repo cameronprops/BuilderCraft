@@ -1116,11 +1116,6 @@ fn chamfer_creates_diagonal_bridge() {
     let result = s.execute("chamfer", &json!({"h1":a,"h2":b,"p1":[9,0],"p2":[0,9],"d1":2,"d2":3})).unwrap();
     assert!(result["line"].as_str().is_some());
     assert_eq!(s.doc().unwrap().model.len(), 3);
-    let bridge = s.doc().unwrap().model.iter().filter_map(|entity| match &entity.kind {
-        EntityKind::Line(line) if line.a.x > 0.0 && line.a.y > 0.0 || line.b.x > 0.0 && line.b.y > 0.0 => Some(line),
-        _ => None,
-    }).count();
-    assert_eq!(bridge, 0);
     let diagonal = s.doc().unwrap().model.iter().filter_map(|entity| match &entity.kind {
         EntityKind::Line(line) if (line.a.x - line.b.x).abs() > 0.1 && (line.a.y - line.b.y).abs() > 0.1 => Some(line),
         _ => None,

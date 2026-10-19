@@ -30,24 +30,22 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current stacked tranche (2026-10-18):** 166 distinct asserted
-positive-path fixtures proposed for 396 registered engine commands;
-**230 still lack a positive-path fixture**. This is authored coverage, not
-release certification. The verified merged-main baseline is **149 fixtures** after #119.
+**Current acceptance snapshot (2026-10-19):** the merged `main` baseline has
+**166 distinct asserted positive-path fixtures / 396 registered commands**.
+The independent #124 branch proposes four further cases, reaching
+**170 / 396** (226 commands still missing positive-path fixtures if merged).
 
-- #118: five scoped feature-history cases, **merged** into `main`
-- #119: five exact NURBS surface, preview, transform and capability cases, **merged** into `main`
-- #120: five closest-point, control-curve, picking and selection cases
-- #121: five construction-plane, snap, exact 3D line and STL/OBJ exchange cases
-- #122: seven paired-kernel tests for tool discovery, numerical midpoint,
-  tree validation, flatten, graft, simplify, and longest-list matching
+- #118 and #119: scoped feature-history and exact NURBS acceptance, merged
+- #120 and #121: superseded by the verified consolidated #122
+- #122: 17 closest-point, selection, construction-plane, exchange and shared-tree fixtures, **merged**
+- #123: indexed command dispatch and CI de-duplication, awaiting reconciled CI
+- #124: linear array, directional plane projection, exact ruled NURBS surface
+  and rational-curve evaluation; assert direct CAD/OrbWeaver agreement,
+  numerical geometry and failure preservation
 
-PR #122 consolidates the 17 new fixtures from #120, #121 and #122 onto
-`main` to avoid three separate full integration runs. It requires pinned
-Rust formatting and Clippy, focused modeling, native Linux/macOS/Windows
-and exact OpenCascade gates, plus
-post-merge main checks. A valid-path fixture does **not** prove full
-operational certification under the five-part criteria below.
+A positive-path fixture is not full operational certification. All PRs require
+pinned Rust formatting, Clippy, platform-native tests and relevant exact BRep
+integration. Main-branch checks are independently required after merging.
 
 ## Completion criteria for EACH command
 

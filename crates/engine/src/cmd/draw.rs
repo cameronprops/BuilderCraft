@@ -362,32 +362,73 @@ pub(crate) fn make_text(s: &Session, at: Vec2, value: &str, height: f64, rotatio
     })
 }
 
+fn annotation_scalar(p: &Value, key: &str, default: f64, command: &str, allow_zero: bool) -> Result<f64> {
+    let value = match p.get(key) {
+        Some(raw) => raw.as_f64().ok_or_else(|| bad(command, format!("\`{key}\` must be numeric")))?,
+        None => default,
+    };
+    if !value.is_finite() || value < 0.0 || (!allow_zero && value <= 0.0) {
+        let range = if allow_zero { "non-negative" } else { "positive" };
+        return Err(bad(command, format!("\`{key}\` must be a finite {range} number")));
+    }
+    Ok(value)
+}
+
+fn annotation_rotation(p: &Value, command: &str) -> Result<f64> {
+    let angle = match p.get("rotation") {
+        Some(raw) => raw.as_f64().ok_or_else(|| bad(command, "\`rotation\` must be numeric"))?,
+        None => 0.0,
+    };
+    let radians = angle.to_radians();
+    if !radians.is_finite() {
+        return Err(bad(command, "\`rotation\` must produce a finite angle"));
+    }
+    Ok(radians)
+}
+
 fn run_text(s: &mut Session, p: &Value) -> Result<Value> {
     let at = point_req("text", p, "at")?;
-    let text = str_param(p, "text").ok_or_else(|| bad("text", "`text` is required"))?;
-    let height = f64_or(p, "height", s.doc()?.header.f64("TEXTSIZE", 0.2));
-    if height <= 0.0 {
-        return Err(bad("text", "height must be positive"));
+    let text = str_param(p, "text").ok_or_else(|| bad("text", "\`text\` is required"))?;
+    if text.len() > 1_000_000 {
+        return Err(bad("text", "text exceeds the 1,000,000-byte limit"));
     }
+    let height = annotation_scalar(p, "height", s.doc()?.header.f64("TEXTSIZE", 0.2), "text", false)?;
+    let rotation = annotation_rotation(p, "text")?;
     let j = justify(str_param(p, "justify").unwrap_or("L")).ok_or_else(|| bad("text", "unknown justification"))?;
-    let k = make_text(s, at, text, height, f64_or(p, "rotation", 0.0).to_radians(), j);
+    let k = make_text(s, at, text, height, rotation, j);
     added(s.add_entity(k)?)
 }
 
 fn run_mtext(s: &mut Session, p: &Value) -> Result<Value> {
     let at = point_req("mtext", p, "at")?;
-    let text = str_param(p, "text").ok_or_else(|| bad("mtext", "`text` is required"))?;
-    let height = f64_or(p, "height", s.doc()?.header.f64("TEXTSIZE", 0.2));
+    let text = str_param(p, "text").ok_or_else(|| bad("mtext", "\`text\` is required"))?;
+    if text.len() > 1_000_000 {
+        return Err(bad("mtext", "text exceeds the 1,000,000-byte limit"));
+    }
+    let height = annotation_scalar(p, "height", s.doc()?.header.f64("TEXTSIZE", 0.2), "mtext", false)?;
+    let width = annotation_scalar(p, "width", 0.0, "mtext", true)?;
+    let line_spacing = annotation_scalar(p, "lineSpacing", 1.0, "mtext", false)?;
+    let rotation = annotation_rotation(p, "mtext")?;
+    let attach = match p.get("attach") {
+        Some(raw) => {
+            let value = raw.as_u64().ok_or_else(|| bad("mtext", "\`attach\` must be an integer from 1 to 9"))?;
+            if !(1..=9).contains(&value) {
+                return Err(bad("mtext", "\`attach\` must be an integer from 1 to 9"));
+            }
+            value as u8
+        }
+        None => 1,
+    };
     let style = s.doc()?.header.str("TEXTSTYLE", "Standard");
     let k = EntityKind::MText(MText {
         insert: v3(at),
         height,
-        width: f64_or(p, "width", 0.0).max(0.0),
-        attach: p.get("attach").and_then(Value::as_u64).unwrap_or(1).clamp(1, 9) as u8,
-        rotation: f64_or(p, "rotation", 0.0).to_radians(),
+        width,
+        attach,
+        rotation,
         style,
         contents: text.replace('\n', "\\P"),
-        line_spacing: f64_or(p, "lineSpacing", 1.0),
+        line_spacing,
     });
     added(s.add_entity(k)?)
 }

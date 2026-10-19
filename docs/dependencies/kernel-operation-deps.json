@@ -2,10 +2,10 @@
   "schema_version": 1,
   "scope": "Current kernel operation DAG; depends_on encodes lower-level service/dataflow prerequisites, not UI/reference parity.",
   "counts": {
-    "total": 74,
-    "explicit_dependencies_mapped": 55,
+    "total": 75,
+    "explicit_dependencies_mapped": 56,
     "pending_source_review": 19,
-    "paired": 42
+    "paired": 43
   },
   "entries": [
     {
@@ -440,6 +440,16 @@
       "depends_on": [
         "kernel.polyline.length",
         "kernel.polygon.validate"
+      ],
+      "dependency_basis": "source_inspected_or_dataflow",
+      "registry_category": "curve",
+      "paired_cad_graph": true
+    },
+    {
+      "id": "kernel.curve.blend",
+      "group": "geometry.curve",
+      "depends_on": [
+        "kernel.nurbs.evaluate"
       ],
       "dependency_basis": "source_inspected_or_dataflow",
       "registry_category": "curve",

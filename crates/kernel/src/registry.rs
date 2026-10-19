@@ -121,6 +121,14 @@ pub const OPERATIONS: &[OperationDescriptor] = &[
         status: OperationStatus::Partial,
     },
     OperationDescriptor {
+        id: "kernel.curve.blend",
+        label: "Build G0/G1/G2 oriented NURBS curve blend",
+        category: "curve",
+        inputs: &["a", "b", "continuity", "strength_a", "strength_b", "reverse_a", "reverse_b"],
+        outputs: &["curve"],
+        status: OperationStatus::Partial,
+    },
+    OperationDescriptor {
         id: "kernel.nurbs.evaluate",
         label: "Evaluate Exact Rational NURBS Curve",
         category: "curve",

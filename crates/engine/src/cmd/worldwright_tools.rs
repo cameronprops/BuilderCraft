@@ -111,6 +111,13 @@ pub fn specs() -> Vec<CommandSpec> {
             .params("{inputs:{rail_a,rail_b,section}}")
             .enabled(always)
             .noundo(),
+        CommandSpec::new("worldwright.curve.blend", "G0/G1/G2 NURBS Curve Blend (Headless)", curve_blend)
+            .alias(&["blend"])
+            .params(
+                "{inputs:{a:curve,b:curve,continuity:count(0|1|2),strength_a:number,strength_b:number,reverse_a:count(0|1),reverse_b:count(0|1)}}",
+            )
+            .enabled(always)
+            .noundo(),
         CommandSpec::new("worldwright.nurbs.evaluate", "Evaluate Exact Rational NURBS", nurbs_evaluate)
             .params("{inputs:{curve:{kind:curve,value:{degree,control,weights,knots}},t:{kind:number,value}}}")
             .enabled(always)
@@ -198,6 +205,7 @@ paired_command!(curve_offset, "kernel.curve.offset");
 paired_command!(curve_pipe, "kernel.curve.pipe");
 paired_command!(curve_sweep1, "kernel.curve.sweep1");
 paired_command!(curve_sweep2, "kernel.curve.sweep2");
+paired_command!(curve_blend, "kernel.curve.blend");
 paired_command!(nurbs_evaluate, "kernel.nurbs.evaluate");
 paired_command!(nurbs_split, "kernel.nurbs.split");
 paired_command!(nurbs_trim, "kernel.nurbs.trim");
@@ -554,7 +562,8 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(42));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(SHARED_TOOLS.len()));
+        assert!(result["paired_tools"].as_array().unwrap().iter().any(|item| item["orbweaver_node"] == "orbweaver.curve.blend"));
 
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }

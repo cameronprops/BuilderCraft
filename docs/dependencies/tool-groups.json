@@ -761,6 +761,30 @@
       ]
     },
     {
+      "kernel_operation": "kernel.curve.blend",
+      "group": "geometry.curve",
+      "cad_command": "worldwright.curve.blend",
+      "orbweaver_node": "orbweaver.curve.blend",
+      "reference_inventory_id": null,
+      "reference_name": "Blend and adjustable BlendCrv partial G0/G1 only",
+      "relation": "partial_nurbs_g0_g1_curve_connector",
+      "modifiers": [
+        "continuity",
+        "strength_a",
+        "strength_b",
+        "reverse_a",
+        "reverse_b"
+      ],
+      "graph_tree_parity": "not_verified",
+      "tree_item_broadcast": false,
+      "branch_match_policy": "identical_paths",
+      "list_match_modes": [
+        "shortest",
+        "longest",
+        "cross_reference"
+      ]
+    },
+    {
       "kernel_operation": "kernel.nurbs.evaluate",
       "group": "geometry.curve",
       "cad_command": "worldwright.nurbs.evaluate",

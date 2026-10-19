@@ -560,7 +560,8 @@ mod tests {
     fn discovery_contains_shared_node_and_command_pairs() {
         let mut session = Session::new();
         let result = session.execute("worldwright.tool.list", &json!({})).unwrap();
-        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(42));
+        assert_eq!(result["paired_tools"].as_array().map(Vec::len), Some(SHARED_TOOLS.len()));
+        assert!(result["paired_tools"].as_array().unwrap().iter().any(|item| item["orbweaver_node"] == "orbweaver.curve.blend"));
 
         assert_eq!(result["paired_tools"][0]["orbweaver_node"], "orbweaver.point.distance");
     }

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Evidence ledger for full five-gate command certifications. Candidate status is not a certified release claim.",
+  "description": "Evidence ledger for five-gate command certification, tracking headless and interactive gates separately. Candidates are not certified releases.",
   "baseline_main_commit": "66d4b4cba3a74158d2ce76c589136e429951c450",
   "certified_count": 0,
   "promotion_rule": "Promote only after executable 5-gate tests pass on pinned Rust CI, relevant Linux/macOS/Windows workflow gates pass, post-merge main passes, and interface/applicability reviews are signed off.",
@@ -69,6 +69,72 @@
         "native_rust_linux_macos_windows",
         "exact_occt_when_applicable",
         "post_merge_main"
+      ]
+    },
+    {
+      "command": "line",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_line_stateful",
+      "gates": {
+        "correctness": "Creates a dimensionally exact 2D line, rejects degenerate/malformed endpoints, roundtrips native .dftba, and preserves handles across undo/redo.",
+        "failure_preservation": "Input rejection preserves document bytes, revision, selection, and existing undo/redo stacks.",
+        "persistence": "Reopen .dftba by stable handle; undo to exact source state and redo to exact edited state.",
+        "interface": "Registered command ID, documented JSON parameter contract, command-line alias and interactive factory present; actual UI interaction needs separate host verification.",
+        "stability": "24 to 32 deterministic geometry positions, identity invariants, source immutability where applicable, and bounded over-budget replication rejection."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ]
+    },
+    {
+      "command": "move",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_move_stateful",
+      "gates": {
+        "correctness": "Transforms a persistent selected handle by a known delta; rejects missing/invalid deltas without partial mutation; undo/redo restores exact coordinates.",
+        "failure_preservation": "Input rejection preserves document bytes, revision, selection, and existing undo/redo stacks.",
+        "persistence": "Reopen .dftba by stable handle; undo to exact source state and redo to exact edited state.",
+        "interface": "Registered command ID, documented JSON parameter contract, command-line alias and interactive factory present; actual UI interaction needs separate host verification.",
+        "stability": "24 to 32 deterministic geometry positions, identity invariants, source immutability where applicable, and bounded over-budget replication rejection."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ]
+    },
+    {
+      "command": "copy",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_copy_stateful",
+      "gates": {
+        "correctness": "Replicates independent handles in geometric order; preserves source; tests undo/redo, native roundtrip, invalid delta, and over-budget replication.",
+        "failure_preservation": "Input rejection preserves document bytes, revision, selection, and existing undo/redo stacks.",
+        "persistence": "Reopen .dftba by stable handle; undo to exact source state and redo to exact edited state.",
+        "interface": "Registered command ID, documented JSON parameter contract, command-line alias and interactive factory present; actual UI interaction needs separate host verification.",
+        "stability": "24 to 32 deterministic geometry positions, identity invariants, source immutability where applicable, and bounded over-budget replication rejection."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
       ]
     }
   ]

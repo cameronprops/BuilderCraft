@@ -104,6 +104,9 @@ const CASES: &[Case] = &[
     ("offset", offset_circle_changes_radius),
     ("trim", trim_keeps_expected_segment),
     ("extend", extend_meets_nearest_cutting_boundary),
+    ("divide", divide_stations_match_geometry),
+    ("revcloud", revcloud_replaces_source_with_closed_boundary),
+    ("pedit", pedit_joins_touching_geometry),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1070,6 +1073,62 @@ fn extend_meets_nearest_cutting_boundary() {
             assert!((l.b.x - 5.0).abs() < 1e-9 && l.b.y.abs() < 1e-9);
         }
         other => panic!("expected extended line, got {other:?}"),
+    }
+}
+
+fn divide_stations_match_geometry() {
+    let mut s = Session::new();
+    let source = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].clone();
+    let result = s.execute("divide", &json!({"handle":source,"segments":5})).unwrap();
+    assert_eq!(result["handles"].as_array().unwrap().len(), 4);
+    assert_eq!(s.doc().unwrap().model.len(), 5);
+    let mut stations: Vec<_> = s
+        .doc()
+        .unwrap()
+        .model
+        .iter()
+        .filter_map(|e| match &e.kind {
+            EntityKind::Point(point) => Some((point.p.x, point.p.y)),
+            _ => None,
+        })
+        .collect();
+    stations.sort_by(|a, b| a.0.total_cmp(&b.0));
+    assert_eq!(stations, vec![(2.0, 0.0), (4.0, 0.0), (6.0, 0.0), (8.0, 0.0)]);
+}
+
+fn revcloud_replaces_source_with_closed_boundary() {
+    let mut s = Session::new();
+    let source = s.execute("circle", &json!({"center":[0,0],"radius":5})).unwrap()["handle"].as_str().unwrap().to_string();
+    let result = s.execute("revcloud", &json!({"handle":source,"arcLength":3})).unwrap();
+    let generated = result["handle"].as_str().unwrap();
+    assert_ne!(generated, source);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    assert!(s.doc().unwrap().entity(cadcraft_doc::Handle::parse_hex(&source).unwrap()).is_none());
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(poly) => {
+            assert!(poly.closed);
+            assert!(poly.vertices.len() >= 3);
+            assert!(poly.vertices.iter().all(|v| v.p.is_finite()));
+        }
+        other => panic!("expected finite closed revision cloud, got {other:?}"),
+    }
+}
+
+fn pedit_joins_touching_geometry() {
+    let mut s = Session::new();
+    let base = s.execute("pline", &json!({"vertices":[[0,0],[2,0]]})).unwrap()["handle"].as_str().unwrap().to_string();
+    let candidate = s.execute("line", &json!({"points":[[2,0],[4,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let result = s.execute("pedit", &json!({"handle":base,"option":"join","handles2":[candidate]})).unwrap();
+    assert_eq!(result["joined"], 1);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(poly) => {
+            assert_eq!(poly.vertices.len(), 3);
+            assert_eq!((poly.vertices[0].p.x, poly.vertices[0].p.y), (0.0, 0.0));
+            assert_eq!((poly.vertices[2].p.x, poly.vertices[2].p.y), (4.0, 0.0));
+            assert!(!poly.closed);
+        }
+        other => panic!("expected joined polyline, got {other:?}"),
     }
 }
 

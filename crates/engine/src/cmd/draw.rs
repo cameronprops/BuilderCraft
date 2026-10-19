@@ -420,16 +420,7 @@ fn run_mtext(s: &mut Session, p: &Value) -> Result<Value> {
         None => 1,
     };
     let style = s.doc()?.header.str("TEXTSTYLE", "Standard");
-    let k = EntityKind::MText(MText {
-        insert: v3(at),
-        height,
-        width,
-        attach,
-        rotation,
-        style,
-        contents: text.replace('\n', "\\P"),
-        line_spacing,
-    });
+    let k = EntityKind::MText(MText { insert: v3(at), height, width, attach, rotation, style, contents: text.replace('\n', "\\P"), line_spacing });
     added(s.add_entity(k)?)
 }
 

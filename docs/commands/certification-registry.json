@@ -136,6 +136,72 @@
         "post_merge_main",
         "interactive_ui_followup"
       ]
+    },
+    {
+      "command": "rotate",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_rotate_stateful",
+      "gates": {
+        "correctness": "Checks positive 90-degree rotation about supplied base with exact tolerance, original ID retention, optional copy ID, and 24 translated fixtures.",
+        "failure_preservation": "Invalid angle and missing base are rejected without mutation or history edits.",
+        "persistence": "Reopen native .dftba with stable source and generated handles; undo and redo verified before and after optional copy or erase-source mode.",
+        "interface": "CAD registry command and alias plus interactive command factory and parameter specification checked; actual viewport/keystroke path remains a separate required gate.",
+        "stability": "24 translated deterministic geometry positions per operation, numeric tolerance for trigonometry, stable IDs and unchanged source in copy mode."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ]
+    },
+    {
+      "command": "scale",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_scale_stateful",
+      "gates": {
+        "correctness": "Checks scale factor two about known base, original ID retention, duplicate copy identity, and 24 translated fixtures.",
+        "failure_preservation": "Rejects zero, negative and mistyped factors without mutation or history edits.",
+        "persistence": "Reopen native .dftba with stable source and generated handles; undo and redo verified before and after optional copy or erase-source mode.",
+        "interface": "CAD registry command and alias plus interactive command factory and parameter specification checked; actual viewport/keystroke path remains a separate required gate.",
+        "stability": "24 translated deterministic geometry positions per operation, numeric tolerance for trigonometry, stable IDs and unchanged source in copy mode."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ]
+    },
+    {
+      "command": "mirror",
+      "document_mutation": true,
+      "status": "candidate_ci_pending",
+      "scope": "headless_api_interactive_path_pending",
+      "test_file": "crates/engine/tests/stateful_command_certification.rs",
+      "test": "certify_mirror_stateful",
+      "gates": {
+        "correctness": "Checks reflection about a vertical reference, copied source preservation, erase-source mode, stable handle and 24 translated fixtures.",
+        "failure_preservation": "Rejects coincident axis endpoints and missing endpoints without partial mutation.",
+        "persistence": "Reopen native .dftba with stable source and generated handles; undo and redo verified before and after optional copy or erase-source mode.",
+        "interface": "CAD registry command and alias plus interactive command factory and parameter specification checked; actual viewport/keystroke path remains a separate required gate.",
+        "stability": "24 translated deterministic geometry positions per operation, numeric tolerance for trigonometry, stable IDs and unchanged source in copy mode."
+      },
+      "required_ci": [
+        "modeling_acceptance",
+        "native_rust_linux_macos_windows",
+        "exact_occt_when_applicable",
+        "post_merge_main",
+        "interactive_ui_followup"
+      ]
     }
   ]
 }

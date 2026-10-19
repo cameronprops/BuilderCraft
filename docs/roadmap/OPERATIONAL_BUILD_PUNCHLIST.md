@@ -17,6 +17,11 @@ snapshot is retained for traceability and must not be treated as live GitHub sta
 | #121 | #120 | 159 / 396 | Covered by consolidated #122; close only after verified merge |
 | #122 | `main` (consolidated #120-#122) | 166 / 396 | 17 new success fixtures; full Linux/macOS/Windows native, focused and exact OCCT CI required |
 
+Reconciliation proof: the #122 fixture table contains all 149 IDs now on
+`main` plus 17 distinct new command IDs from #120-#122. Merge #122 only
+after fresh native, modeling, and exact BRep checks on the `main`-based
+commit; then verify post-merge `main` before closing #120/#121.
+
 **230 / 396** registered commands currently have no independently asserted
 positive-path fixture in this proposed stack. New fixtures check real results
 and do not constitute full operational certification. Do not merge descendants

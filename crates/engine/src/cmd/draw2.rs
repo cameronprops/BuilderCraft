@@ -2303,7 +2303,16 @@ fn run_spline_cv(s: &mut Session, p: &Value) -> Result<Value> {
     if closed && let Some(f) = c.first().copied() {
         c.push(f);
     }
-    let deg = p.get("degree").and_then(Value::as_u64).unwrap_or(3).clamp(1, 10) as usize;
+    let deg = match p.get("degree") {
+        Some(value) => {
+            let degree = value.as_u64().ok_or_else(|| bad("spline.cv", "degree must be an integer"))? as usize;
+            if !(1..=10).contains(&degree) || degree >= c.len() {
+                return Err(bad("spline.cv", format!("degree must be 1..={} for {} control points", (c.len() - 1).min(10), c.len())));
+            }
+            degree
+        }
+        None => 3.min(c.len() - 1),
+    };
     let mut sp = Spline::from_control(c, deg);
     sp.closed = closed;
     added(s.add_entity(EntityKind::Spline(sp))?)

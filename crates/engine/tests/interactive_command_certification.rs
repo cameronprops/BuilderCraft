@@ -222,3 +222,26 @@ fn mirror_prompt_confirmations_copy_or_erase_source() {
         assert_eq!(s.doc().unwrap().model.len(), expected_count);
     }
 }
+
+#[test]
+fn interactive_engine_evidence_is_registered_for_all_six_commands() {
+    let registry: serde_json::Value =
+        serde_json::from_str(include_str!("../../../docs/commands/certification-registry.json")).unwrap();
+    let candidates = registry["candidates"].as_array().unwrap();
+    let expected = [
+        ("line", "line_alias_preview_prompts_commit_and_undo"),
+        ("move", "move_alias_pickfirst_and_prompted_displacement"),
+        ("copy", "copy_prompt_mode_preserves_source_and_creates_new_handle"),
+        ("rotate", "rotate_and_scale_prompted_numbers_reject_invalid_and_commit"),
+        ("scale", "rotate_and_scale_prompted_numbers_reject_invalid_and_commit"),
+        ("mirror", "mirror_prompt_confirmations_copy_or_erase_source"),
+    ];
+    for (id, test) in expected {
+        let entry = candidates.iter().find(|item| item["command"] == id).unwrap();
+        assert_eq!(entry["interactive_engine_test"], test, "{id} lacks prompt evidence");
+        assert_eq!(entry["interactive_engine_test_file"], "crates/engine/tests/interactive_command_certification.rs");
+        assert_eq!(entry["status"], "candidate_ci_pending");
+        assert_eq!(entry["scope"], "headless_api_interactive_path_pending");
+        assert!(entry["required_ci"].as_array().unwrap().iter().any(|x| x == "interactive_ui_followup"));
+    }
+}

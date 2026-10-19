@@ -26,6 +26,11 @@ const CASES: &[Case] = &[
     ("worldwright.point.distance", native_distance_is_correct),
     ("worldwright.point.interpolate", native_interpolation_is_correct),
     ("worldwright.array.linear", array_linear_retains_copy_order_and_offsets),
+    ("worldwright.array.rectangular", rectangular_array_preserves_row_major_geometry),
+    ("worldwright.array.polar", polar_array_uses_right_hand_rotation_without_seam_copy),
+    ("worldwright.array.path", path_array_preserves_station_order),
+    ("worldwright.flow_along_srf", surface_flow_maps_patch_and_preserves_height),
+    ("worldwright.pushpull", quad_pushpull_produces_closed_six_face_prism),
     ("worldwright.project", plane_projection_preserves_xy_and_removes_height),
     ("worldwright.surface.ruled", ruled_surface_preserves_exact_control_rails),
     ("worldwright.nurbs.evaluate", nurbs_evaluation_uses_exact_rational_curve),
@@ -630,6 +635,151 @@ fn nurbs_evaluation_uses_exact_rational_curve() {
     invalid["t"]["value"] = json!(2.0);
     assert!(s.execute("worldwright.nurbs.evaluate", &json!({"inputs": invalid})).is_err());
     assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn acceptance_point3(x: f64, y: f64, z: f64) -> serde_json::Value {
+    json!({"x": x, "y": y, "z": z})
+}
+
+fn acceptance_vector(x: f64, y: f64, z: f64) -> serde_json::Value {
+    json!({"kind": "vector", "value": acceptance_point3(x, y, z)})
+}
+
+fn acceptance_polyline(points: Vec<serde_json::Value>) -> serde_json::Value {
+    json!({"kind": "polyline", "value": points})
+}
+
+fn acceptance_paired_geometry(s: &mut Session, command: &str, node: &str, inputs: &serde_json::Value) -> serde_json::Value {
+    let revision = s.state().unwrap().revision;
+    let direct = s.execute(command, &json!({"inputs": inputs})).unwrap();
+    let graph = s.execute("worldwright.tool.run", &json!({"operation": node, "inputs": inputs})).unwrap();
+    assert_eq!(direct["output"], graph["output"], "CAD and OrbWeaver differ: {command}");
+    assert_eq!(s.state().unwrap().revision, revision, "query changed document revision: {command}");
+    direct["output"].clone()
+}
+
+fn rectangular_array_preserves_row_major_geometry() {
+    let mut s = Session::new();
+    let inputs = json!({
+        "geometry": acceptance_polyline(vec![acceptance_point3(1.0, 1.0, 0.0)]),
+        "x_step": acceptance_vector(10.0, 0.0, 0.0),
+        "y_step": acceptance_vector(0.0, 20.0, 0.0),
+        "z_step": acceptance_vector(0.0, 0.0, 1.0),
+        "nx": {"kind": "count", "value": 2},
+        "ny": {"kind": "count", "value": 2},
+        "nz": {"kind": "count", "value": 1}
+    });
+    let result = acceptance_paired_geometry(&mut s, "worldwright.array.rectangular", "orbweaver.array.rectangular", &inputs);
+    assert_eq!(result["kind"], "tree");
+    let branches = result["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 4);
+    for (i, (x, y)) in [(1.0, 1.0), (11.0, 1.0), (1.0, 21.0), (11.0, 21.0)].into_iter().enumerate() {
+        assert_eq!(branches[i]["path"], json!([i]));
+        assert_eq!(branches[i]["items"][0]["kind"], "polyline");
+        assert_eq!(branches[i]["items"][0]["value"][0], acceptance_point3(x, y, 0.0));
+    }
+    let mut bad = inputs.clone();
+    bad["nx"]["value"] = json!(0);
+    assert!(s.execute("worldwright.array.rectangular", &json!({"inputs": bad})).is_err());
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn polar_array_uses_right_hand_rotation_without_seam_copy() {
+    let mut s = Session::new();
+    let inputs = json!({
+        "geometry": acceptance_polyline(vec![acceptance_point3(1.0, 0.0, 0.0)]),
+        "center": {"kind": "point", "value": acceptance_point3(0.0, 0.0, 0.0)},
+        "axis": acceptance_vector(0.0, 0.0, 1.0),
+        "sweep_degrees": {"kind": "number", "value": 360.0},
+        "count": {"kind": "count", "value": 4}
+    });
+    let result = acceptance_paired_geometry(&mut s, "worldwright.array.polar", "orbweaver.array.polar", &inputs);
+    let branches = result["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 4);
+    for (i, (x, y)) in [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)].into_iter().enumerate() {
+        assert_eq!(branches[i]["path"], json!([i]));
+        let p = &branches[i]["items"][0]["value"][0];
+        assert!((p["x"].as_f64().unwrap() - x).abs() < 1e-12);
+        assert!((p["y"].as_f64().unwrap() - y).abs() < 1e-12);
+    }
+    let mut bad = inputs.clone();
+    bad["axis"]["value"] = acceptance_point3(0.0, 0.0, 0.0);
+    assert!(s.execute("worldwright.array.polar", &json!({"inputs": bad})).is_err());
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn path_array_preserves_station_order() {
+    let mut s = Session::new();
+    let inputs = json!({
+        "geometry": acceptance_polyline(vec![acceptance_point3(1.0, 0.0, 0.0)]),
+        "path": acceptance_polyline(vec![acceptance_point3(0.0, 0.0, 0.0), acceptance_point3(0.0, 10.0, 0.0)]),
+        "count": {"kind": "count", "value": 3}
+    });
+    let result = acceptance_paired_geometry(&mut s, "worldwright.array.path", "orbweaver.array.path", &inputs);
+    let branches = result["value"]["branches"].as_array().unwrap();
+    assert_eq!(branches.len(), 3);
+    for (i, y) in [0.0, 5.0, 10.0].into_iter().enumerate() {
+        assert_eq!(branches[i]["path"], json!([i]));
+        assert_eq!(branches[i]["items"][0]["value"][0], acceptance_point3(1.0, y, 0.0));
+    }
+    let mut bad = inputs.clone();
+    bad["path"]["value"] = json!([acceptance_point3(0.0, 0.0, 0.0)]);
+    assert!(s.execute("worldwright.array.path", &json!({"inputs": bad})).is_err());
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn surface_flow_maps_patch_and_preserves_height() {
+    let mut s = Session::new();
+    let base = acceptance_polyline(vec![
+        acceptance_point3(0.0, 0.0, 0.0),
+        acceptance_point3(2.0, 0.0, 0.0),
+        acceptance_point3(2.0, 2.0, 0.0),
+        acceptance_point3(0.0, 2.0, 0.0),
+    ]);
+    let target = acceptance_polyline(vec![
+        acceptance_point3(0.0, 0.0, 1.0),
+        acceptance_point3(4.0, 0.0, 1.0),
+        acceptance_point3(4.0, 2.0, 1.0),
+        acceptance_point3(0.0, 2.0, 1.0),
+    ]);
+    let inputs = json!({
+        "geometry": acceptance_polyline(vec![acceptance_point3(1.0, 1.0, 0.5)]),
+        "base": base,
+        "target": target
+    });
+    let result = acceptance_paired_geometry(&mut s, "worldwright.flow_along_srf", "orbweaver.surface.flow_patch", &inputs);
+    assert_eq!(result["kind"], "polyline");
+    assert_eq!(result["value"][0], acceptance_point3(2.0, 1.0, 1.5));
+    let mut bad = inputs.clone();
+    bad["base"]["value"][2] = acceptance_point3(3.0, 2.0, 0.0);
+    assert!(s.execute("worldwright.flow_along_srf", &json!({"inputs": bad})).is_err());
+    assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn quad_pushpull_produces_closed_six_face_prism() {
+    let mut s = Session::new();
+    let inputs = json!({
+        "face": acceptance_polyline(vec![
+            acceptance_point3(0.0, 0.0, 0.0),
+            acceptance_point3(2.0, 0.0, 0.0),
+            acceptance_point3(2.0, 2.0, 0.0),
+            acceptance_point3(0.0, 2.0, 0.0),
+        ]),
+        "distance": {"kind": "number", "value": 3.0}
+    });
+    let result = acceptance_paired_geometry(&mut s, "worldwright.pushpull", "orbweaver.solid.pushpull_quad", &inputs);
+    assert_eq!(result["kind"], "mesh");
+    let vertices = result["value"]["vertices"].as_array().unwrap();
+    let faces = result["value"]["faces"].as_array().unwrap();
+    assert_eq!(vertices.len(), 8);
+    assert_eq!(faces.len(), 6);
+    assert_eq!(vertices[0], acceptance_point3(0.0, 0.0, 0.0));
+    assert_eq!(vertices[4], acceptance_point3(0.0, 0.0, 3.0));
+    assert_eq!(vertices[6], acceptance_point3(2.0, 2.0, 3.0));
+    let mut bad = inputs.clone();
+    bad["distance"]["value"] = json!(0.0);
+    assert!(s.execute("worldwright.pushpull", &json!({"inputs": bad})).is_err());
+    assert!(s.doc().unwrap().model.is_empty());
 }
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {

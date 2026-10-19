@@ -30,16 +30,18 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 134 independently asserted
-positive success-path fixtures are authored against 396 registered commands.
-**262 still lack positive-path fixtures.** The first 120 are merged on main.
-Parent PR #111 adds eight native numeric/vector/curve-split cases, and this
-stacked PR adds six document-native NURBS/3D organization cases: Curve3D,
-Split, Trim, Geometry3D List, Set and ControlPoint. Tests assert rational
-curve evaluations, stable identities, undo, control-point editability and
-.dftba round-trip. The reconciled branch must pass focused modeling,
-Linux/macOS/Windows native and exact BRep CI before merge; positive-path
-fixtures alone are not five-part operational certification.
+**Current tranche (2026-10-18):** 139 independently asserted
+positive-path fixtures are authored against 396 registered commands.
+**257 registered commands still lack independent positive-path fixtures.**
+The 120-case baseline merged via PR #110. PR #111 adds eight native
+vector/polyline/curve-split cases, and PR #114 adds six persistent rational
+NURBS/Geometry3D cases. This follow-on batch adds five model-browser
+commands: Create, List, Rename, Select and Visible. They assert nested
+assembly/component/body relationships, actual owned geometry, query
+results, selection traversal, edit undo and restored visibility. These
+stacked branches require fresh focused modeling, Linux/macOS/Windows
+native and exact BRep CI after merge-base reconciliation; positive tests
+alone do not satisfy five-gate operational alpha certification.
 
 ## Completion criteria for EACH command
 

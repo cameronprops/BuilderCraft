@@ -30,18 +30,22 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 149 independent asserted
-positive-path fixtures are authored for 396 registered commands;
-**247 lack positive-path fixtures**. Main has 139 merged fixtures.
-Parent PR #118 proposes five scoped parametric history fixtures;
-this branch adds five tested geometry operations: NURBS Control
-Surface, Ruled NURBS Surface, Geometry3D Preview, Exact Geometry3D
-Transform, and BuilderCraft Capabilities. Assertions check exact
-rational patches, source rails, stable source/copy identities,
-preview nonmutation, undo, file persistence and returned capabilities.
-Stacked branches require pinned Rust, focused modeling,
-Linux/macOS/Windows native and exact BRep gates after reconciliation.
-These positive cases alone are not complete five-gate certification.
+**Current stacked tranche (2026-10-18):** 159 independently asserted
+positive-path fixtures proposed for 396 registered engine commands;
+**237 still lack a positive-path fixture**. This is authored coverage, not
+release certification. The last established merged-main count is 139 and
+must be rechecked after all parents merge.
+
+- #118: five scoped feature-history cases (parent of #119)
+- #119: five exact NURBS surface, preview, transform and capability cases
+- #120: five closest-point, control-curve, picking and selection cases
+- #121: five construction-plane, snap, exact 3D line and STL/OBJ mesh
+  exchange cases with numerical, nonmutation and undo assertions
+
+The branch stack requires pinned Rust formatting and Clippy, focused
+modeling, Linux/macOS/Windows native and exact OpenCascade gates, plus
+post-merge main checks. No proposal is promoted to operationally certified
+until the complete five-part criteria below are verified.
 
 ## Completion criteria for EACH command
 

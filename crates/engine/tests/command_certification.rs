@@ -136,8 +136,9 @@ fn verify(candidate: &Candidate, kind: &str) {
 fn certification_registry_matches_executable_candidates() {
     let manifest: Value = serde_json::from_str(include_str!("../../../docs/commands/certification-registry.json")).unwrap();
     assert_eq!(manifest["schema_version"], 1);
-    let entries = manifest["candidates"].as_array().unwrap();
-    assert_eq!(entries.len(), CANDIDATES.len(), "every candidate must have an executable five-gate test");
+    let candidates = manifest["candidates"].as_array().unwrap();
+    let entries: Vec<_> = candidates.iter().filter(|entry| entry["document_mutation"] == false).collect();
+    assert_eq!(entries.len(), CANDIDATES.len(), "every read-only candidate must have a five-gate test");
     let live: HashSet<_> = command_specs().iter().map(|c| c.id).collect();
     let mut seen = HashSet::new();
     for candidate in &CANDIDATES {

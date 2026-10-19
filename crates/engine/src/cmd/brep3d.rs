@@ -149,6 +149,13 @@ fn box_solid(s: &mut Session, p: &Value) -> Result<Value> {
             .ok_or_else(|| fail(format!("{field} must contain 3 finite coordinates")))?;
         let _ = xyz;
     }
+    for (axis, label) in ["x", "y", "z"].into_iter().enumerate() {
+        let low = p["min"][axis].as_f64().ok_or_else(|| fail("invalid box minimum"))?;
+        let high = p["max"][axis].as_f64().ok_or_else(|| fail("invalid box maximum"))?;
+        if high <= low {
+            return Err(fail(format!("box {label} extent must be positive: max must exceed min")));
+        }
+    }
     let req = worker_params(p, "box")?;
     add_worker_shapes(s, p, call_worker(&req)?)
 }
@@ -162,8 +169,13 @@ fn sphere(s: &mut Session, p: &Value) -> Result<Value> {
 fn cylinder(s: &mut Session, p: &Value) -> Result<Value> {
     name(p)?;
     let _ = positive(p, "radius")?;
-    if !p.get("height").and_then(Value::as_array).is_some_and(|a| a.len() == 3 && a.iter().all(|v| v.as_f64().is_some_and(f64::is_finite))) {
-        return Err(fail("height must be a finite 3-vector"));
+    let height = p
+        .get("height")
+        .and_then(Value::as_array)
+        .filter(|a| a.len() == 3 && a.iter().all(|v| v.as_f64().is_some_and(f64::is_finite)))
+        .ok_or_else(|| fail("height must be a finite 3-vector"))?;
+    if height.iter().all(|v| v.as_f64() == Some(0.0)) {
+        return Err(fail("cylinder height vector must be nonzero"));
     }
     add_worker_shapes(s, p, call_worker(&worker_params(p, "cylinder")?)?)
 }

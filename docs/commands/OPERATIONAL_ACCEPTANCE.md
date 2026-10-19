@@ -30,18 +30,16 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 139 independently asserted
-positive-path fixtures are authored against 396 registered commands.
-**257 registered commands still lack independent positive-path fixtures.**
-The 120-case baseline merged via PR #110. PR #111 adds eight native
-vector/polyline/curve-split cases, and PR #114 adds six persistent rational
-NURBS/Geometry3D cases. This follow-on batch adds five model-browser
-commands: Create, List, Rename, Select and Visible. They assert nested
-assembly/component/body relationships, actual owned geometry, query
-results, selection traversal, edit undo and restored visibility. These
-stacked branches require fresh focused modeling, Linux/macOS/Windows
-native and exact BRep CI after merge-base reconciliation; positive tests
-alone do not satisfy five-gate operational alpha certification.
+**Current tranche (2026-10-18):** 139 independent asserted positive
+command fixtures are authored against 396 registered commands; **257
+still lack success-path fixtures**. The main branch has merged 128.
+Parent PR #114 proposes six persistent NURBS/Geometry3D fixtures and
+this reconciled branch adds five model-browser fixtures for Create, List,
+Rename, Select and Visible. Assertions cover nested assembly/component/body
+organization, actual entity ownership, selection, name/visibility updates
+and undo. The current reconciled branch must complete pinned Rust,
+focused modeling, Linux/macOS/Windows native and exact BRep CI before
+merge. Positive fixtures alone do not establish all five release gates.
 
 ## Completion criteria for EACH command
 

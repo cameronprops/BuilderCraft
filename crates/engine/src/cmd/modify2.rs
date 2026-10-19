@@ -698,6 +698,12 @@ pub(crate) fn spline_to_poly(sp: &Spline, precision: usize) -> LwPolyline {
 
 fn run_splinedit(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("splinedit", "`handle` is required"))?;
+    if s.doc()?.space_of(h).as_ref() != Some(&s.space()) {
+        return Err(bad("splinedit", format!("object {} is outside the current drawing space", h.hex())));
+    }
+    if curves::is_locked(s, h) {
+        return Err(bad("splinedit", format!("object {} is on a locked layer", h.hex())));
+    }
     let e = curves::entity(s, h)?;
     let EntityKind::Spline(sp) = &e.kind else { return Err(other("Object selected is not a spline.")) };
     let opt = str_param(p, "option").ok_or_else(|| bad("splinedit", "`option` is required"))?.to_ascii_lowercase();
@@ -707,7 +713,17 @@ fn run_splinedit(s: &mut Session, p: &Value) -> Result<Value> {
         "reverse" => EntityKind::Spline(curves::reverse_spline(sp)),
         "purge" => EntityKind::Spline(Spline { fit: Vec::new(), ..sp.clone() }),
         "refit" => {
-            let fit = points_param(p, "fit").unwrap_or_else(|| sp.fit.clone());
+            let fit = match p.get("fit") {
+                Some(value) => {
+                    let values = value.as_array().ok_or_else(|| bad("splinedit", "`fit` must be an array of valid points"))?;
+                    values
+                        .iter()
+                        .enumerate()
+                        .map(|(i, value)| point_value(value).ok_or_else(|| bad("splinedit", format!("invalid fit point at index {i}"))))
+                        .collect::<Result<Vec<_>>>()?
+                }
+                None => sp.fit.clone(),
+            };
             if fit.len() < 2 || fit.len() > MAX_GEN {
                 return Err(other("The spline has no fit data; give `fit` points."));
             }
@@ -715,7 +731,23 @@ fn run_splinedit(s: &mut Session, p: &Value) -> Result<Value> {
             n.closed = sp.closed;
             EntityKind::Spline(n)
         }
-        "polyline" => EntityKind::LwPolyline(spline_to_poly(sp, p.get("precision").and_then(Value::as_u64).unwrap_or(10) as usize)),
+        "polyline" => {
+            let precision = match p.get("precision") {
+                Some(value) => {
+                    let number = value.as_u64().ok_or_else(|| bad("splinedit", "`precision` must be an integer from 1 to 99"))?;
+                    if !(1..=99).contains(&number) {
+                        return Err(bad("splinedit", "`precision` must be 1..99"));
+                    }
+                    number as usize
+                }
+                None => 10,
+            };
+            let polyline = spline_to_poly(sp, precision);
+            if polyline.vertices.iter().any(|v| !v.p.is_finite()) {
+                return Err(bad("splinedit", "evaluating this spline produced non-finite polyline coordinates"));
+            }
+            EntityKind::LwPolyline(polyline)
+        },
         "move" => {
             let i = p.get("index").and_then(Value::as_u64).ok_or_else(|| bad("splinedit", "`index` is required"))? as usize;
             let to = point_req("splinedit", p, "to")?;

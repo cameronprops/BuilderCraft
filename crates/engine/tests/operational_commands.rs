@@ -287,9 +287,7 @@ fn operational_triangle() -> serde_json::Value {
 fn cplane_point_projects_screen_to_world_xy() {
     let mut s = Session::new();
     let revision = s.state().unwrap().revision;
-    let result = s
-        .execute("geometry3d.cplane.point", &operational_screen_query(227.0, 174.0))
-        .unwrap();
+    let result = s.execute("geometry3d.cplane.point", &operational_screen_query(227.0, 174.0)).unwrap();
     let x = result["point"][0].as_f64().unwrap();
     let y = result["point"][1].as_f64().unwrap();
     assert!((x - 2.7).abs() < 1e-9);
@@ -339,18 +337,11 @@ fn mesh_encode_preserves_triangle_on_obj_roundtrip() {
     let mut s = Session::new();
     let revision = s.state().unwrap().revision;
     let mesh = operational_triangle();
-    let result = s
-        .execute("worldwright.mesh.encode", &json!({"format": "obj", "mesh": mesh}))
-        .unwrap();
+    let result = s.execute("worldwright.mesh.encode", &json!({"format": "obj", "mesh": mesh})).unwrap();
     assert_eq!(result["encoding"], "utf8");
     assert_eq!(result["source_preserved"], true);
     assert!(!result["data"].as_str().unwrap().is_empty());
-    let decoded = s
-        .execute(
-            "worldwright.mesh.decode",
-            &json!({"format": "obj", "data": result["data"]}),
-        )
-        .unwrap();
+    let decoded = s.execute("worldwright.mesh.decode", &json!({"format": "obj", "data": result["data"]})).unwrap();
     assert_eq!(decoded["mesh"], mesh);
     assert_eq!(s.state().unwrap().revision, revision);
 }
@@ -360,9 +351,7 @@ fn mesh_decode_recovers_triangle_without_document_edits() {
     let before = s.state().unwrap().doc.clone();
     let revision = s.state().unwrap().revision;
     let mesh = operational_triangle();
-    let encoded = s
-        .execute("worldwright.mesh.encode", &json!({"format": "stl", "mesh": mesh}))
-        .unwrap();
+    let encoded = s.execute("worldwright.mesh.encode", &json!({"format": "stl", "mesh": mesh})).unwrap();
     assert_eq!(encoded["encoding"], "base64");
     let decoded = s
         .execute(

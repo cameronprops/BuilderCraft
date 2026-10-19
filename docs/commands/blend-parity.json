@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "reference": "Rhino 8 command reference, reviewed 2026-10-19",
-  "note": "Status is proposed implementation on feature branch, not released or certified on main. Do not equate render preview or G1 with G2 curvature continuity.",
+  "note": "G0/G1 in PR #132, G2 staged in a stacked PR. Unmerged features are not released or certified on main. Geometric G2 does not mean parametric C2 or imply desktop UI, BlendSrf or BlendEdge parity.",
   "implemented_scope": {
     "rhino_command": "Blend",
     "worldwright_command": "worldwright.curve.blend",
     "kernel_operation": "kernel.curve.blend",
     "orbweaver_node": "orbweaver.curve.blend",
     "status": "partial_implemented_pr",
-    "scope": "G0 and G1 single-span rational-compatible NURBS connector; numerical strengths and endpoint flips, headless only",
+    "scope": "G0 linear, G1 cubic and G2 quintic single-span NURBS connections; independent end handle fractions and oriented endpoint flips; headless proposed",
     "remaining": [
       "interactive curve-end selection",
       "automatic trim and join",
@@ -23,8 +23,9 @@
       "status": "planned",
       "requires": [
         "kernel.curve.blend",
-        "g2_curvature_solver",
-        "curve_endpoint_selection"
+        "curve_endpoint_selection",
+        "interactive_curve_endpoint_selection",
+        "draggable_tangent_and_curvature_handles"
       ],
       "scope": "Adjustable source curves and surface edges; asymmetric G0/G1/G2/G3/G4, trim/join, control handles, edit history"
     },
@@ -67,10 +68,9 @@
       "rhino_command": "BlendCrv tangent/curvature/G3/G4 modifiers",
       "status": "planned",
       "requires": [
-        "g2_curvature_solver",
         "high_degree_nurbs_geometry"
       ],
-      "scope": "Per-end curvature matching and higher geometric-order continuity; current Curve degree limit is five"
+      "scope": "Per-end G0/G1/G2 continuity combinations and interactive controls, with G3/G4 higher-order geometric continuity; G2 symmetric two-end solver is proposed but full modifier parity is not"
     },
     {
       "rhino_command": "BlendSrf chained edges/refine/planar sections",

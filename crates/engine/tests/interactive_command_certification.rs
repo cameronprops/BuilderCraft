@@ -168,10 +168,7 @@ fn copy_prompt_mode_preserves_source_and_creates_new_handle() {
 
 #[test]
 fn rotate_and_scale_prompted_numbers_reject_invalid_and_commit() {
-    for (command, prompt_value, wanted) in [
-        ("ro", "90", (0.0, 0.0, -4.0, 3.0)),
-        ("sc", "2", (0.0, 0.0, 6.0, 8.0)),
-    ] {
+    for (command, prompt_value, wanted) in [("ro", "90", (0.0, 0.0, -4.0, 3.0)), ("sc", "2", (0.0, 0.0, 6.0, 8.0))] {
         let mut s = Session::new();
         let handle = created_line(&mut s, 0.0);
         s.set_selection(vec![handle]);
@@ -225,8 +222,7 @@ fn mirror_prompt_confirmations_copy_or_erase_source() {
 
 #[test]
 fn interactive_engine_evidence_is_registered_for_all_six_commands() {
-    let registry: serde_json::Value =
-        serde_json::from_str(include_str!("../../../docs/commands/certification-registry.json")).unwrap();
+    let registry: serde_json::Value = serde_json::from_str(include_str!("../../../docs/commands/certification-registry.json")).unwrap();
     let candidates = registry["candidates"].as_array().unwrap();
     let expected = [
         ("line", "line_alias_preview_prompts_commit_and_undo"),

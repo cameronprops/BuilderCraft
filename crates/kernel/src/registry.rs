@@ -122,7 +122,7 @@ pub const OPERATIONS: &[OperationDescriptor] = &[
     },
     OperationDescriptor {
         id: "kernel.curve.blend",
-        label: "Build G0/G1 oriented NURBS curve blend",
+        label: "Build G0/G1/G2 oriented NURBS curve blend",
         category: "curve",
         inputs: &["a", "b", "continuity", "strength_a", "strength_b", "reverse_a", "reverse_b"],
         outputs: &["curve"],

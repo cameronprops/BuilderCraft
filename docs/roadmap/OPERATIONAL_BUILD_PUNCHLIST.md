@@ -16,9 +16,10 @@ Historical PR resolutions below are retained for audit, not live status.
 | #122 | CAD/OrbWeaver acceptance consolidation | 166 / 396 | Merged `66d4b4c` |
 | #123 | Command dispatch index and smaller CI | unchanged | Reconciled on main, native/OCCT checks pending |
 | #124 | Array, projection, ruled surface, curve evaluation | 170 / 396 | Proposed, requires all platform CI |
+| #125 | Rectangular/polar/path arrays, patch flow, quad push/pull | 175 / 396 | Stacked on #124; requires downstream direct-to-main native CI |
 
 **Main baseline:** 166 unique positive-path cases, 230 registered commands still
-without such a fixture. **Proposed #124:** 170 cases, 226 without a fixture.
+without such a fixture. **Proposed #124:** 170 cases, 226 without a fixture. **Proposed #125 stack:** 175 cases, 221 without a fixture.
 This counts success-case assertions only, not all five certification gates.
 Verify exact GitHub CI and merge states before advancing any status.
 Post-merge `main` validation is distinct from PR head checks.

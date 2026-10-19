@@ -4,28 +4,24 @@
 
 This register explicitly audits **all 39 PRs open at the start of the stabilization sprint**. Five are merged in the first pass (#25, #27, #34, #53, #63); the rest are unresolved at this snapshot. Re-query GitHub before making state claims. A prior green head check is **not** proof that an updated `main` passes. Preserve original branch work until its functionality has landed or has an explained disposition.
 
-## Live acceptance stack (2026-10-19)
+## Current integration and acceptance (2026-10-19)
 
-This section supersedes historical PR statuses below. The original stabilization
-snapshot is retained for traceability and must not be treated as live GitHub state.
+Historical PR resolutions below are retained for audit, not live status.
 
-| PR | Dependency | Authored success fixtures | Merge gate |
+| PR | Source | Authored success fixtures | Status |
 |---|---|---:|---|
-| #118 | `main` | 144 / 396 | **MERGED** `8c7c12ac`, required head CI passed |
-| #119 | `main` | 149 / 396 | **MERGED** `eb3d3c9`; required native/modeling/exact OCCT CI passed |
-| #120 | #119 | 154 / 396 | Covered by consolidated #122; close only after verified merge |
-| #121 | #120 | 159 / 396 | Covered by consolidated #122; close only after verified merge |
-| #122 | `main` (consolidated #120-#122) | 166 / 396 | 17 new success fixtures; full Linux/macOS/Windows native, focused and exact OCCT CI required |
+| #118 | Shared parametric history | 144 / 396 | Merged `8c7c12ac` |
+| #119 | Rational surface, preview, transform | 149 / 396 | Merged `eb3d3c9` |
+| #120/#121 | Closest points, snapping, mesh exchange | 159 / 396 | Closed, consolidated in #122 |
+| #122 | CAD/OrbWeaver acceptance consolidation | 166 / 396 | Merged `66d4b4c` |
+| #123 | Command dispatch index and smaller CI | unchanged | Reconciled on main, native/OCCT checks pending |
+| #124 | Array, projection, ruled surface, curve evaluation | 170 / 396 | Proposed, requires all platform CI |
 
-Reconciliation proof: the #122 fixture table contains all 149 IDs now on
-`main` plus 17 distinct new command IDs from #120-#122. Merge #122 only
-after fresh native, modeling, and exact BRep checks on the `main`-based
-commit; then verify post-merge `main` before closing #120/#121.
-
-**230 / 396** registered commands currently have no independently asserted
-positive-path fixture in this proposed stack. New fixtures check real results
-and do not constitute full operational certification. Do not merge descendants
-before parents, do not bypass failing CI, and verify `main` after every merge.
+**Main baseline:** 166 unique positive-path cases, 230 registered commands still
+without such a fixture. **Proposed #124:** 170 cases, 226 without a fixture.
+This counts success-case assertions only, not all five certification gates.
+Verify exact GitHub CI and merge states before advancing any status.
+Post-merge `main` validation is distinct from PR head checks.
 
 ## Definition of "operational alpha" (release-blocking)
 

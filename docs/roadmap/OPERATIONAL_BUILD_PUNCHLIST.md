@@ -27,6 +27,26 @@ positive-path fixture in this proposed stack. New fixtures check real results
 and do not constitute full operational certification. Do not merge descendants
 before parents, do not bypass failing CI, and verify `main` after every merge.
 
+## Command-certification pipeline (2026-10-19)
+
+**Certification starts with PR #126, independent of fixture-count expansion.**
+On merged `main`, 166 / 396 registered commands have a positive-path
+acceptance fixture. **0 are yet proven to satisfy all five certification
+gates across the required CI platforms.** Three read-only foundational point
+operations are certification candidates, not certified releases.
+
+- Automated certification suite:
+  `cargo test --locked -p cadcraft-engine --test command_certification`
+- Machine-readable promotion ledger:
+  `docs/commands/certification-registry.json`
+- Scope: analytic output, transactional failure, `.dftba` and undo/redo
+  preservation for read-only queries, CAD/OrbWeaver API parity, and bounded
+  deterministic input repetition
+- Promotion only on passing pinned cross-platform PR and post-merge `main`
+  checks, plus explicit interface applicability review
+- Stateful geometry commands require a second certification tranche with
+  actual undo/redo and saved/reopened geometry, not read-only exemptions
+
 ## Definition of "operational alpha" (release-blocking)
 
 - [ ] **Single integration target:** update `main` or a dated stabilization branch to a coherent, non-conflicting head; no hidden dependency on unmerged stacked PRs; record precise release SHA and source provenance.

@@ -276,11 +276,11 @@
       "test_file": "crates/engine/tests/vector_command_certification.rs",
       "test": "certify_vector_length_candidate",
       "gates": {
-        "correctness": "Analytical 3-4-5 vector lengths across 64 scaled fixtures.",
+        "correctness": "Analytical 3-4-5 vector lengths across 128 signed scales.",
         "failure_preservation": "Malformed typed vectors fail without mutating the source document.",
         "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
         "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
-        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+        "stability": "128 deterministic signed inputs, bounded outputs, document revision, selection and undo/redo invariants."
       },
       "required_ci": [
         "modeling_acceptance",
@@ -299,11 +299,11 @@
       "test_file": "crates/engine/tests/vector_command_certification.rs",
       "test": "certify_vector_normalize_candidate",
       "gates": {
-        "correctness": "Analytical (3,4,0)/5 normalization across 64 positive scales, checked at numeric tolerance.",
+        "correctness": "Analytical (3,4,0)/5 normalization across 128 nonzero signed scales, checked at numeric tolerance.",
         "failure_preservation": "Zero vector, bad type, malformed coordinate and unknown ports reject without mutation.",
         "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
         "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
-        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+        "stability": "128 deterministic signed inputs, bounded outputs, document revision, selection and undo/redo invariants."
       },
       "required_ci": [
         "modeling_acceptance",
@@ -322,11 +322,11 @@
       "test_file": "crates/engine/tests/vector_command_certification.rs",
       "test": "certify_vector_dot_candidate",
       "gates": {
-        "correctness": "Analytical dot of (n,2n,3n) with (4,-5,6) equals 12n for 64 scaled fixtures.",
+        "correctness": "Analytical dot of (n,2n,3n) with (4,-5,6) equals 12n for 128 signed scales.",
         "failure_preservation": "Missing and malformed vector ports reject without partial mutation.",
         "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
         "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
-        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+        "stability": "128 deterministic signed inputs, bounded outputs, document revision, selection and undo/redo invariants."
       },
       "required_ci": [
         "modeling_acceptance",
@@ -345,11 +345,11 @@
       "test_file": "crates/engine/tests/vector_command_certification.rs",
       "test": "certify_vector_cross_candidate",
       "gates": {
-        "correctness": "Analytical cross of (n,0,0) and (0,1,0) equals (0,0,n) for 64 scaled fixtures.",
+        "correctness": "Analytical non-axis-aligned cross of (n,2n,3n) and (4,-5,6) equals (27n,6n,-13n) for 128 signed scales.",
         "failure_preservation": "Missing/malformed vector ports reject without partial mutation.",
         "persistence": "Existing line remains byte-identical in .dftba before and after successful and failing queries; undo/redo remains clean.",
         "interface": "Exact CAD command, generic shared-tool API, and OrbWeaver alias produce identical typed results.",
-        "stability": "64 deterministic scaled inputs, bounded outputs, document revision, selection and undo/redo invariants."
+        "stability": "128 deterministic signed inputs, bounded outputs, document revision, selection and undo/redo invariants."
       },
       "required_ci": [
         "modeling_acceptance",

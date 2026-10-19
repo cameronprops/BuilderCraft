@@ -30,15 +30,17 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 107 distinct positive success-path fixtures
-have been authored against 365 registered commands. **258 still lack positive
-entries in this ledger.** The 102-case baseline merged via PR #101 after
-successful Linux/macOS/Windows native, focused modeling, and exact BRep CI.
-PR #105 adds two TRIM/EXTEND geometry fixtures, and this stacked branch adds
-three distinct fixtures for DIVIDE, REVCLOUD and PEDIT, asserting source
-replacement, actual point coordinates and closed/reconstructed geometry.
-All five new fixtures remain proposals until their branch-specific CI passes;
-none alone establishes full five-criterion operational certification.
+**Current tranche (2026-10-18):** 114 distinct positive success-path fixtures
+have been authored against 365 registered commands. **251 still lack positive
+entries in this ledger.** The 102-case baseline merged via PR #101 with
+Linux/macOS/Windows native, focused-modeling, and exact BRep CI.
+PR #105 contributes two TRIM/EXTEND fixtures. This stacked branch adds
+ten additional valid-path fixtures: DIVIDE, REVCLOUD, PEDIT, TEXT, MTEXT,
+TEXTEDIT, XLINE, MLINE, CENTERMARK and CENTERLINE. Geometry tests assert
+coordinates, object types, IDs, rail placement, and source replacement;
+annotation tests assert actual content, dimensions, and center geometry.
+These 12 proposed cases require branch CI and do not alone establish the
+full five-criterion operational certification.
 
 ## Completion criteria for EACH command
 

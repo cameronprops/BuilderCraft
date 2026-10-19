@@ -102,6 +102,7 @@ const CASES: &[Case] = &[
     ("explode", explode_splits_polyline_into_lines),
     ("overkill", overkill_removes_duplicate_geometry),
     ("offset", offset_circle_changes_radius),
+    ("splinedit", splinedit_converts_spline_to_finite_polyline),
     ("fillet", fillet_creates_radius_two_arc),
     ("chamfer", chamfer_creates_diagonal_bridge),
     ("arraypath", path_array_places_copies_along_rail),
@@ -1133,6 +1134,22 @@ fn chamfer_creates_diagonal_bridge() {
         })
         .count();
     assert_eq!(diagonal, 1);
+}
+
+fn splinedit_converts_spline_to_finite_polyline() {
+    let mut s = Session::new();
+    let handle = s.execute("spline.cv", &json!({"control":[[0,0],[1,2],[2,1],[3,0]]})).unwrap()["handle"].as_str().unwrap().to_string();
+    let result = s.execute("splinedit", &json!({"handle":handle,"option":"polyline","precision":4})).unwrap();
+    assert_eq!(result["handle"], handle);
+    assert_eq!(s.doc().unwrap().model.len(), 1);
+    match &s.doc().unwrap().model.iter().next().unwrap().kind {
+        EntityKind::LwPolyline(pl) => {
+            assert_eq!(pl.vertices.len(), 17);
+            assert!(pl.vertices.iter().all(|v| v.p.is_finite()));
+            assert!(!pl.closed);
+        }
+        other => panic!("expected finite tessellated polyline, got {other:?}"),
+    }
 }
 
 #[test]

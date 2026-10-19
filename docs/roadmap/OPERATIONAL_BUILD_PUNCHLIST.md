@@ -33,9 +33,10 @@ before parents, do not bypass failing CI, and verify `main` after every merge.
 
 **Certification starts with PR #126, independent of fixture-count expansion.**
 On merged `main`, 175 / 396 registered commands have a positive-path
-acceptance fixture. **0 are yet proven to satisfy all five certification
-gates across the required CI platforms.** Three read-only foundational point
-operations are certification candidates, not certified releases.
+acceptance fixture. **Three read-only point-query operations have complete headless-specific
+evidence across required CI platforms.** Six stateful editing commands are
+still candidates pending native UI/host validation and final CI. Do not
+confuse the three certified headless interfaces with desktop commands.
 
 - Automated certification suite:
   `cargo test --locked -p cadcraft-engine --test command_certification`
@@ -59,8 +60,9 @@ certification or a claim that all five gates passed across platforms.
 **Next certification tranche #128:** Rotate, Scale and Mirror extend #127's
 stateful Rust test suite and machine-readable ledger to **nine candidates**
 (three point-query operations, six stateful 2D modeling commands).
-Formal certification stays **zero** until cross-platform integration,
-post-merge main and applicable interactive UI evidence is complete.
+The headless-certified count is **3** based on merged point-query evidence;
+all six stateful commands remain candidates until post-merge validation and
+applicable interactive desktop UI evidence are complete.
 The workflow is incremental and must not duplicate transform math.
 
 **Interactive engine tranche #129:** Six stateful command candidates now have

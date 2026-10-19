@@ -1577,16 +1577,52 @@ fn rect_kind(first: Vec2, w: f64, h: f64, rot: f64, fillet: f64, chamfer: (f64, 
     k
 }
 
+/// Rectangle corner feasibility is identical for API and interactive commands.
+/// Do not silently substitute an unmodified square when a fillet will not fit.
+fn check_rect_corners(w: f64, h: f64, fillet: f64, chamfer: (f64, f64)) -> Result<()> {
+    let (width, height) = (w.abs(), h.abs());
+    let max_radius = width.min(height) / 2.0;
+    let (c1, c2) = chamfer;
+    if !fillet.is_finite() || fillet < 0.0 {
+        return Err(bad("rectang", "fillet radius must be finite and non-negative"));
+    }
+    if !c1.is_finite() || !c2.is_finite() || c1 < 0.0 || c2 < 0.0 {
+        return Err(bad("rectang", "chamfer distances must be finite and non-negative"));
+    }
+    if fillet > 0.0 && (c1 > 0.0 || c2 > 0.0) {
+        return Err(bad("rectang", "specify either fillet or chamfer corners, not both"));
+    }
+    if fillet > max_radius + 1e-12 {
+        return Err(bad("rectang", format!("requested fillet radius {fillet:.6} exceeds maximum feasible radius {max_radius:.6} drawing units")));
+    }
+    if (c1 > 0.0) != (c2 > 0.0) {
+        return Err(bad("rectang", "chamfer requires two positive distances or both zero"));
+    }
+    if c1 > width / 2.0 + 1e-12 || c2 > height / 2.0 + 1e-12 {
+        return Err(bad("rectang", format!("chamfer distances exceed this rectangle; maximum d1={:.6}, d2={:.6} drawing units", width / 2.0, height / 2.0)));
+    }
+    Ok(())
+}
+
 pub(crate) fn run_rectang2(s: &mut Session, p: &Value) -> Result<Value> {
     let a = point_req("rectang", p, "p1")?;
     let rot = f64_or(p, "rotation", 0.0).to_radians();
-    let ch = p
-        .get("chamfer")
-        .and_then(Value::as_array)
-        .map(|c| (c.first().and_then(Value::as_f64).unwrap_or(0.0), c.get(1).and_then(Value::as_f64).unwrap_or(0.0)))
-        .map(|(x, y)| (if x.is_finite() { x } else { 0.0 }, if y.is_finite() { y } else { 0.0 }))
-        .unwrap_or((0.0, 0.0));
-    let fillet = f64_or(p, "fillet", 0.0);
+    let ch = match p.get("chamfer") {
+        Some(raw) => {
+            let c = raw.as_array().ok_or_else(|| bad("rectang", "`chamfer` must be [d1, d2]"))?;
+            if c.len() != 2 {
+                return Err(bad("rectang", "`chamfer` requires exactly two distances"));
+            }
+            let a = c.first().and_then(Value::as_f64).ok_or_else(|| bad("rectang", "chamfer d1 must be numeric"))?;
+            let b = c.get(1).and_then(Value::as_f64).ok_or_else(|| bad("rectang", "chamfer d2 must be numeric"))?;
+            (a, b)
+        }
+        None => (0.0, 0.0),
+    };
+    let fillet = match p.get("fillet") {
+        Some(raw) => raw.as_f64().ok_or_else(|| bad("rectang", "`fillet` must be numeric"))?,
+        None => 0.0,
+    };
     let (w, h) = if let Some(d) = p.get("dimensions").and_then(Value::as_array) {
         let l = d.first().and_then(Value::as_f64).filter(|v| v.is_finite()).ok_or_else(|| bad("rectang", "dimensions: [length, width]"))?;
         let wd = d.get(1).and_then(Value::as_f64).filter(|v| v.is_finite()).ok_or_else(|| bad("rectang", "dimensions: [length, width]"))?;
@@ -1615,6 +1651,7 @@ pub(crate) fn run_rectang2(s: &mut Session, p: &Value) -> Result<Value> {
     if w.abs() < 1e-12 || h.abs() < 1e-12 || !w.is_finite() || !h.is_finite() {
         return Err(bad("rectang", "rectangle has no area"));
     }
+    check_rect_corners(w, h, fillet, ch)?;
     let k = rect_kind(a, w, h, rot, fillet, ch, f64_or(p, "width", 0.0), f64_or(p, "elevation", 0.0));
     let hd = s.add_entity(k)?;
     let th = f64_or(p, "thickness", 0.0);
@@ -1663,6 +1700,7 @@ impl RectM2 {
         if w.abs() < 1e-12 || h.abs() < 1e-12 {
             return Err(other("The rectangle has no area."));
         }
+        check_rect_corners(w, h, self.fillet, self.chamfer)?;
         let hd = s.add_entity(rect_kind(a, w, h, self.rotation, self.fillet, self.chamfer, self.width, self.elevation))?;
         if self.thickness != 0.0 {
             let t = self.thickness;

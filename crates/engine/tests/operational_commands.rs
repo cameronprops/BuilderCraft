@@ -1039,7 +1039,6 @@ fn offset_circle_changes_radius() {
     assert!(radii.contains(&2.0) && radii.contains(&3.0), "{radii:?}");
 }
 
-
 fn trim_keeps_expected_segment() {
     let mut s = Session::new();
     let target = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();

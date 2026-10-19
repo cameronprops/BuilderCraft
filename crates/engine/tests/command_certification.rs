@@ -15,18 +15,8 @@ struct Candidate {
 }
 
 const CANDIDATES: [Candidate; 3] = [
-    Candidate {
-        id: "worldwright.point.distance",
-        operation: "kernel.point.distance",
-        node: "orbweaver.point.distance",
-        output_kind: "number",
-    },
-    Candidate {
-        id: "worldwright.point.midpoint",
-        operation: "kernel.point.midpoint",
-        node: "orbweaver.point.midpoint",
-        output_kind: "point",
-    },
+    Candidate { id: "worldwright.point.distance", operation: "kernel.point.distance", node: "orbweaver.point.distance", output_kind: "number" },
+    Candidate { id: "worldwright.point.midpoint", operation: "kernel.point.midpoint", node: "orbweaver.point.midpoint", output_kind: "point" },
     Candidate {
         id: "worldwright.point.interpolate",
         operation: "kernel.point.interpolate",
@@ -81,12 +71,22 @@ fn verify(candidate: &Candidate, kind: &str) {
         let x = f64::from(index);
         let ports = inputs(x, 0.25, kind == "interpolate");
         let direct = s.execute(candidate.id, &json!({"inputs":ports})).unwrap();
-        let generic = s.execute("worldwright.tool.run", &json!({
-            "operation":candidate.operation,"inputs":ports
-        })).unwrap();
-        let orb = s.execute("worldwright.tool.run", &json!({
-            "operation":candidate.node,"inputs":ports
-        })).unwrap();
+        let generic = s
+            .execute(
+                "worldwright.tool.run",
+                &json!({
+                    "operation":candidate.operation,"inputs":ports
+                }),
+            )
+            .unwrap();
+        let orb = s
+            .execute(
+                "worldwright.tool.run",
+                &json!({
+                    "operation":candidate.node,"inputs":ports
+                }),
+            )
+            .unwrap();
         assert_eq!(direct["output"], generic["output"], "generic API mismatch: {}", candidate.id);
         assert_eq!(direct["output"], orb["output"], "OrbWeaver mismatch: {}", candidate.id);
         assert_eq!(direct["output"]["kind"], candidate.output_kind);

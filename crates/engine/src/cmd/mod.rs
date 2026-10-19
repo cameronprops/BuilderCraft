@@ -195,18 +195,64 @@ pub fn command_specs() -> &'static [CommandSpec] {
     })
 }
 
+// Two sorted index arrays reuse the existing static registry rather than
+// cloning command specs or creating per-command heap allocations. Sorting the
+// alias index by original registration order preserves legacy alias precedence.
+struct CommandIndex {
+    by_id: Vec<usize>,
+    by_alias: Vec<(&'static str, usize)>,
+}
+
+fn ascii_casefold_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    a.bytes().map(|byte| byte.to_ascii_lowercase()).cmp(b.bytes().map(|byte| byte.to_ascii_lowercase()))
+}
+
+fn command_index() -> &'static CommandIndex {
+    static INDEX: std::sync::OnceLock<CommandIndex> = std::sync::OnceLock::new();
+    INDEX.get_or_init(|| {
+        let specs = command_specs();
+        let mut by_id: Vec<usize> = (0..specs.len()).collect();
+        by_id.sort_unstable_by(|a, b| specs[*a].id.cmp(specs[*b].id));
+
+        let mut by_alias = Vec::new();
+        for (index, spec) in specs.iter().enumerate() {
+            for alias in spec.aliases {
+                by_alias.push((*alias, index));
+            }
+        }
+        by_alias.sort_unstable_by(|a, b| ascii_casefold_cmp(a.0, b.0).then_with(|| a.1.cmp(&b.1)));
+        CommandIndex { by_id, by_alias }
+    })
+}
+
 pub fn find_command(id: &str) -> Option<&'static CommandSpec> {
-    let l = id.to_ascii_lowercase();
-    command_specs().iter().find(|c| c.id == l)
+    let specs = command_specs();
+    // The headless/API path already supplies lowercase IDs. Avoid allocating
+    // a normalized String on its common execution path.
+    let lookup = if id.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        std::borrow::Cow::Owned(id.to_ascii_lowercase())
+    } else {
+        std::borrow::Cow::Borrowed(id)
+    };
+    let indices = &command_index().by_id;
+    let index = indices.binary_search_by(|&i| specs[i].id.cmp(lookup.as_ref())).ok()?;
+    Some(&specs[indices[index]])
 }
 
 /// Resolve a typed name or alias (AutoCAD-style short names such as `L`, `C`, `PL`) to an id.
+/// Exact command IDs always win, followed by the earliest registered alias.
 pub fn resolve_alias(name: &str) -> String {
-    let l = name.to_ascii_lowercase();
-    if find_command(&l).is_some() {
-        return l;
+    if let Some(spec) = find_command(name) {
+        return spec.id.to_owned();
     }
-    command_specs().iter().find(|c| c.aliases.iter().any(|a| a.eq_ignore_ascii_case(&l))).map(|c| c.id.to_string()).unwrap_or(l)
+    let aliases = &command_index().by_alias;
+    let index = aliases.partition_point(|(alias, _)| ascii_casefold_cmp(alias, name).is_lt());
+    if let Some((alias, command_index)) = aliases.get(index)
+        && alias.eq_ignore_ascii_case(name)
+    {
+        return command_specs()[*command_index].id.to_owned();
+    }
+    name.to_ascii_lowercase()
 }
 
 // ---------- param helpers ----------
@@ -276,4 +322,61 @@ pub(crate) fn targets(s: &Session, p: &Value) -> Result<Vec<Handle>> {
 }
 pub(crate) fn ok() -> Result<Value> {
     Ok(Value::Null)
+}
+
+#[cfg(test)]
+mod command_index_tests {
+    use super::*;
+
+    fn linear_alias_reference(name: &str) -> String {
+        let lower = name.to_ascii_lowercase();
+        let specs = command_specs();
+        if specs.iter().any(|command| command.id == lower) {
+            return lower;
+        }
+        specs
+            .iter()
+            .find(|command| command.aliases.iter().any(|alias| alias.eq_ignore_ascii_case(&lower)))
+            .map(|command| command.id.to_owned())
+            .unwrap_or(lower)
+    }
+
+    #[test]
+    fn indexed_command_lookup_matches_the_prior_linear_path() {
+        let specs = command_specs();
+        assert!(!specs.is_empty());
+        for spec in specs {
+            for input in [spec.id.to_owned(), spec.id.to_ascii_uppercase()] {
+                let expected = specs.iter().find(|command| command.id == input.to_ascii_lowercase());
+                assert_eq!(find_command(&input).map(|command| command.id), expected.map(|command| command.id), "{input}");
+                assert_eq!(resolve_alias(&input), linear_alias_reference(&input), "{input}");
+            }
+        }
+        for spec in specs {
+            for alias in spec.aliases {
+                for input in [alias.to_string(), alias.to_ascii_uppercase(), alias.to_ascii_lowercase()] {
+                    assert_eq!(resolve_alias(&input), linear_alias_reference(&input), "{input}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn indexed_lookup_preserves_unknown_and_non_ascii_names() {
+        for name in ["DOES_NOT_EXIST", "worldwright.no_such_command", "café.unknown", ""] {
+            assert!(find_command(name).is_none(), "{name}");
+            assert_eq!(resolve_alias(name), linear_alias_reference(name));
+        }
+    }
+
+    #[test]
+    fn index_uses_ordered_references_not_duplicate_command_specs() {
+        let specs = command_specs();
+        let index = command_index();
+        assert_eq!(index.by_id.len(), specs.len());
+        assert!(index.by_id.windows(2).all(|pair| specs[pair[0]].id <= specs[pair[1]].id));
+        assert!(index.by_alias.windows(2).all(|pair| !ascii_casefold_cmp(pair[0].0, pair[1].0).is_gt()));
+        let distinct: std::collections::HashSet<_> = specs.iter().map(|spec| spec.id).collect();
+        assert_eq!(distinct.len(), specs.len(), "duplicate command IDs in registry");
+    }
 }

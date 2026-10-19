@@ -52,3 +52,6 @@ Rhino command parity statuses. New paired primitives must share one kernel
 algorithm, typed ports, modifier semantics, and independent CAD/Graph
 acceptance cases before a reference is marked implemented.
 
+## Worldwright extensions: topology and form editing
+
+In addition to the Rhino reference inventory, track the **56 proposed native command IDs** for Maya Quad Draw/ZBrush Retopo Brush-style precision retopology, SubD/NURBS surfacing, push/pull, fillets and point-based deformations in [RETOPOLOGY_SURFACING_FORM_EDITING.md](RETOPOLOGY_SURFACING_FORM_EDITING.md). [Issue #99](https://github.com/cameronprops/BuilderCraft/issues/99) is the requirements tracker. These are **NEEDS**, not implementations or verified Rhino/ZBrush/Maya parity; they must not inflate counts of operational commands.

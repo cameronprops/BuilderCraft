@@ -15,12 +15,12 @@ fn measure_line_places_all_markers_at_requested_spacing() {
         .model
         .iter()
         .filter_map(|e| match &e.kind {
-            EntityKind::Point(p) => Some((p.p.x,p.p.y)),
+            EntityKind::Point(p) => Some((p.p.x, p.p.y)),
             _ => None,
         })
         .collect();
-    stations.sort_by(|a,b| a.0.total_cmp(&b.0));
-    assert_eq!(stations, vec![(2.0,0.0),(4.0,0.0),(6.0,0.0),(8.0,0.0)]);
+    stations.sort_by(|a, b| a.0.total_cmp(&b.0));
+    assert_eq!(stations, vec![(2.0, 0.0), (4.0, 0.0), (6.0, 0.0), (8.0, 0.0)]);
     assert_eq!(s.doc().unwrap().model.len(), 5);
 }
 

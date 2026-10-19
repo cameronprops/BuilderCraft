@@ -30,17 +30,15 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 128 independently asserted
-positive success-path fixtures are authored against 396 registered commands,
-leaving **268 without independent positive-path fixtures**. The 114-case
-baseline has already merged. Parent PR #110 contributes six native shared-kernel
-path/curve cases. This stacked branch contributes eight more direct-command
-geometry/numeric cases: vector Length, Normalize, Dot, Cross; polyline Length,
-Divide by Count, Divide by Spacing; and Curve Split. Assertions check actual
-numeric values, ordered split fragments, tree branches, and document nonmutation.
-The stacked branches must both pass appropriate CI and merge before counting
-these cases as mainline accepted. Full five-part operational certification
-still requires independent failure-path, undo, persistence and UI evidence.
+**Current tranche (2026-10-18):** 128 independently asserted positive
+success-path fixtures are authored against 396 registered commands.
+**268 registered commands still lack positive-path fixtures.** The first
+120 positive-path fixtures are merged in main, following PR #110. This
+reconciled branch adds eight vector/polyline/curve-split fixtures that assert
+length, unitization, dot/cross, regular stations, curve split branches, and
+read-only document behavior. Latest branch must pass focused modeling,
+native Linux/macOS/Windows and exact BRep CI before merge. Success-path
+fixtures are not equivalent to full five-part operational certification.
 
 ## Completion criteria for EACH command
 

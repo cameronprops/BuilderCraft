@@ -311,6 +311,58 @@ fn basis_with_derivative(count: usize, degree: usize, knots: &[f64], t: f64) -> 
     derivative.iter().all(|v| v.is_finite()).then_some((primary, derivative))
 }
 
+/// Analytical second derivative of the degree-p polynomial basis with
+/// respect to normalized curve parameter t. Reuse the exact first-order
+/// evaluator so position and first-derivative endpoint policies agree.
+fn basis_with_second_derivative(count: usize, degree: usize, knots: &[f64], t: f64) -> Option<(Vec<f64>, Vec<f64>, Vec<f64>)> {
+    let (primary, first) = basis_with_derivative(count, degree, knots, t)?;
+    if degree == 1 {
+        return Some((primary, first, vec![0.0; count]));
+    }
+    let lo = *knots.get(degree)?;
+    let hi = *knots.get(count)?;
+    let span = hi - lo;
+    let u = if t == 1.0 { hi - span * 1e-12 } else { lo + t * span };
+
+    // Degree p-2 basis from the same knot vector. Repeated knots use
+    // standard zero-denominator Cox-de Boor terms, not finite differences.
+    let mut lower = vec![0.0; knots.len() - 1];
+    for i in 0..lower.len() {
+        if knots[i] <= u && u < knots[i + 1] {
+            lower[i] = 1.0;
+        }
+    }
+    for d in 1..degree - 1 {
+        let mut next = vec![0.0; lower.len()];
+        for i in 0..count + 2 {
+            let a = knots[i + d] - knots[i];
+            let b = knots[i + d + 1] - knots[i + 1];
+            let left = if a > 0.0 { (u - knots[i]) * lower[i] / a } else { 0.0 };
+            let right = if b > 0.0 { (knots[i + d + 1] - u) * lower[i + 1] / b } else { 0.0 };
+            next[i] = left + right;
+        }
+        lower = next;
+    }
+
+    let mut second = vec![0.0; count];
+    let order = (degree * (degree - 1)) as f64;
+    for i in 0..count {
+        let a = knots[i + degree] - knots[i];
+        let b = knots[i + degree + 1] - knots[i + 1];
+        let aa = knots[i + degree - 1] - knots[i];
+        let bb = knots[i + degree] - knots[i + 1];
+        let cc = knots[i + degree + 1] - knots[i + 2];
+        let a_prime = if aa > 0.0 { lower[i] / aa } else { 0.0 }
+            - if bb > 0.0 { lower[i + 1] / bb } else { 0.0 };
+        let b_prime = if bb > 0.0 { lower[i + 1] / bb } else { 0.0 }
+            - if cc > 0.0 { lower[i + 2] / cc } else { 0.0 };
+        let derivative_a = if a > 0.0 { a_prime / a } else { 0.0 };
+        let derivative_b = if b > 0.0 { b_prime / b } else { 0.0 };
+        second[i] = order * (derivative_a - derivative_b) * span * span;
+    }
+    second.iter().all(|value| value.is_finite()).then_some((primary, first, second))
+}
+
 impl Curve {
     /// Analytical derivative dC/dt on the public normalized [0,1] parameter
     /// range, accounting for rational weights and physical knot-domain scale.
@@ -335,6 +387,54 @@ impl Curve {
         }
         let derivative = (numerator_derivative - numerator * (denominator_derivative / denominator)) * (1.0 / denominator);
         derivative.is_finite().then_some(derivative)
+    }
+
+
+    /// Analytical rational second derivative d²C/dt² on normalized [0,1].
+    /// Endpoints use the same one-sided policy as the first derivative.
+    /// Knot breaks that are only C0/C1 admit one-sided values but should
+    /// not be treated as smooth G2 join sites by downstream operations.
+    pub fn second_derivative(&self, t: f64) -> Option<Vec3> {
+        if !self.valid() {
+            return None;
+        }
+        let (basis, first, second) = basis_with_second_derivative(self.control.len(), self.degree, &self.knots, t)?;
+        let mut position_sum = Vec3::ZERO;
+        let mut first_sum = Vec3::ZERO;
+        let mut second_sum = Vec3::ZERO;
+        let mut weight_sum = 0.0;
+        let mut first_weight = 0.0;
+        let mut second_weight = 0.0;
+        for ((((&p, &w), &n), &d1), &d2) in self.control.iter().zip(&self.weights).zip(&basis).zip(&first).zip(&second) {
+            position_sum = position_sum + p * (w * n);
+            first_sum = first_sum + p * (w * d1);
+            second_sum = second_sum + p * (w * d2);
+            weight_sum += w * n;
+            first_weight += w * d1;
+            second_weight += w * d2;
+        }
+        if weight_sum <= 0.0 || !weight_sum.is_finite() {
+            return None;
+        }
+        let inv = 1.0 / weight_sum;
+        let position = position_sum * inv;
+        let velocity = (first_sum - position * first_weight) * inv;
+        let acceleration = (second_sum - velocity * (2.0 * first_weight) - position * second_weight) * inv;
+        acceleration.is_finite().then_some(acceleration)
+    }
+
+    /// Geometric curvature vector, invariant under regular reparameterization:
+    /// (C'' - (C''·T)T) / |C'|². Undefined for stationary/cusp points.
+    pub fn curvature_vector(&self, t: f64) -> Option<Vec3> {
+        let velocity = self.derivative(t)?;
+        let acceleration = self.second_derivative(t)?;
+        let speed_sq = velocity.dot(velocity);
+        if !speed_sq.is_finite() || speed_sq <= 1e-24 {
+            return None;
+        }
+        let tangent_component = velocity * (acceleration.dot(velocity) / speed_sq);
+        let curvature = (acceleration - tangent_component) * (1.0 / speed_sq);
+        curvature.is_finite().then_some(curvature)
     }
 
     /// Unit tangent only where the first derivative is nonzero. At cusps a
@@ -467,5 +567,68 @@ mod analytic_derivative_tests {
         let surface = Surface { rows: vec![row(0.), row(1.)], degree_v: 1, knots_v: uniform_knots(2, 1) };
         assert!(surface.derivatives(0.5, 0.5).is_some());
         assert!(surface.normal(0.5, 0.5).is_none());
+    }
+}
+
+
+#[cfg(test)]
+mod curvature_second_derivative_tests {
+    use super::*;
+
+    fn close(a: Vec3, b: Vec3, tolerance: f64) {
+        assert!((a - b).len() <= tolerance, "expected {b:?}, found {a:?}");
+    }
+
+    #[test]
+    fn quadratic_polynomial_has_exact_second_derivative() {
+        let curve = Curve::from_control(vec![
+            Vec3::new(-1.0, 0.0, 0.0),
+            Vec3::ZERO,
+            Vec3::new(1.0, 1.0, 0.0),
+        ], 2).unwrap();
+        for t in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            close(curve.second_derivative(t).unwrap(), Vec3::new(0.0, 2.0, 0.0), 1e-8);
+        }
+        close(curve.curvature_vector(0.5).unwrap(), Vec3::new(-0.16, 0.32, 0.0), 1e-8);
+    }
+
+    #[test]
+    fn linear_curves_have_zero_second_derivative_and_zero_curvature() {
+        let curve = Curve::from_control(vec![
+            Vec3::new(2.0, 3.0, 1.0),
+            Vec3::new(7.0, 3.0, 1.0),
+        ], 1).unwrap();
+        for t in [0.0, 0.3, 0.8, 1.0] {
+            close(curve.second_derivative(t).unwrap(), Vec3::ZERO, 1e-12);
+            close(curve.curvature_vector(t).unwrap(), Vec3::ZERO, 1e-12);
+        }
+    }
+
+    #[test]
+    fn rational_quarter_circle_has_unit_inward_curvature() {
+        let mut arc = Curve::from_control(vec![
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(1.0, 1.0, 0.0),
+            Vec3::new(0.0, 1.0, 0.0),
+        ], 2).unwrap();
+        arc.weights[1] = std::f64::consts::FRAC_1_SQRT_2;
+        for t in [0.1, 0.25, 0.5, 0.75, 0.9] {
+            let point = arc.evaluate(t).unwrap();
+            let curvature = arc.curvature_vector(t).unwrap();
+            close(curvature, point * -1.0, 1e-8);
+            let h = 1e-4;
+            let fd = (arc.evaluate(t + h).unwrap() - point * 2.0 + arc.evaluate(t - h).unwrap()) * (1.0 / (h * h));
+            close(arc.second_derivative(t).unwrap(), fd, 1e-5);
+        }
+    }
+
+    #[test]
+    fn rejects_out_of_domain_and_stationary_curvature() {
+        let curve = Curve::from_control(vec![Vec3::ZERO, Vec3::ZERO, Vec3::ZERO], 2).unwrap();
+        assert_eq!(curve.second_derivative(0.5), Some(Vec3::ZERO));
+        assert!(curve.curvature_vector(0.5).is_none());
+        assert!(curve.second_derivative(f64::NAN).is_none());
+        assert!(curve.curvature_vector(-0.01).is_none());
+        assert!(curve.second_derivative(1.01).is_none());
     }
 }

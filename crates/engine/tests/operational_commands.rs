@@ -1284,9 +1284,14 @@ fn native_polyline_station_returns_expected_point() {
         {"x":10.0,"y":0.0,"z":0.0},
         {"x":10.0,"y":10.0,"z":0.0}
     ]});
-    let result = s.execute("worldwright.polyline.point_at_station", &json!({"inputs":{
-        "points":points,"station":{"kind":"number","value":15.0}
-    }})).unwrap();
+    let result = s
+        .execute(
+            "worldwright.polyline.point_at_station",
+            &json!({"inputs":{
+                "points":points,"station":{"kind":"number","value":15.0}
+            }}),
+        )
+        .unwrap();
     assert_eq!(result["output"]["kind"], "point");
     assert_eq!(result["output"]["value"], json!({"x":10.0,"y":5.0,"z":0.0}));
     assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
@@ -1295,14 +1300,19 @@ fn native_polyline_station_returns_expected_point() {
 
 fn native_polyline_station_returns_unit_tangent() {
     let mut s = Session::new();
-    let result = s.execute("worldwright.polyline.tangent_at_station", &json!({"inputs":{
-        "points":{"kind":"polyline","value":[
-            {"x":0.0,"y":0.0,"z":0.0},
-            {"x":10.0,"y":0.0,"z":0.0},
-            {"x":10.0,"y":10.0,"z":0.0}
-        ]},
-        "station":{"kind":"number","value":15.0}
-    }})).unwrap();
+    let result = s
+        .execute(
+            "worldwright.polyline.tangent_at_station",
+            &json!({"inputs":{
+                "points":{"kind":"polyline","value":[
+                    {"x":0.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":10.0,"z":0.0}
+                ]},
+                "station":{"kind":"number","value":15.0}
+            }}),
+        )
+        .unwrap();
     assert_eq!(result["output"]["kind"], "vector");
     assert_eq!(result["output"]["value"], json!({"x":0.0,"y":1.0,"z":0.0}));
     assert_eq!(s.doc().unwrap().model.len(), 0);
@@ -1310,15 +1320,20 @@ fn native_polyline_station_returns_unit_tangent() {
 
 fn native_polyline_offset_returns_parallel_rail() {
     let mut s = Session::new();
-    let result = s.execute("worldwright.polyline.offset_xy", &json!({"inputs":{
-        "points":{"kind":"polyline","value":[
-            {"x":0.0,"y":0.0,"z":0.0},
-            {"x":10.0,"y":0.0,"z":0.0},
-            {"x":10.0,"y":10.0,"z":0.0}
-        ]},
-        "distance":{"kind":"number","value":1.0},
-        "miter_limit":{"kind":"number","value":4.0}
-    }})).unwrap();
+    let result = s
+        .execute(
+            "worldwright.polyline.offset_xy",
+            &json!({"inputs":{
+                "points":{"kind":"polyline","value":[
+                    {"x":0.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":10.0,"z":0.0}
+                ]},
+                "distance":{"kind":"number","value":1.0},
+                "miter_limit":{"kind":"number","value":4.0}
+            }}),
+        )
+        .unwrap();
     assert_eq!(result["output"]["kind"], "polyline");
     let points = result["output"]["value"].as_array().unwrap();
     assert_eq!(points.len(), 3);
@@ -1328,56 +1343,80 @@ fn native_polyline_offset_returns_parallel_rail() {
 
 fn native_curve_join_preserves_common_end() {
     let mut s = Session::new();
-    let result = s.execute("worldwright.curve.join", &json!({"inputs":{
-        "a":{"kind":"polyline","value":[{"x":0.0,"y":0.0,"z":0.0},{"x":4.0,"y":0.0,"z":0.0}]},
-        "b":{"kind":"polyline","value":[{"x":4.0,"y":0.0,"z":0.0},{"x":10.0,"y":0.0,"z":0.0}]},
-        "tolerance":{"kind":"number","value":0.001}
-    }})).unwrap();
+    let result = s
+        .execute(
+            "worldwright.curve.join",
+            &json!({"inputs":{
+                "a":{"kind":"polyline","value":[{"x":0.0,"y":0.0,"z":0.0},{"x":4.0,"y":0.0,"z":0.0}]},
+                "b":{"kind":"polyline","value":[{"x":4.0,"y":0.0,"z":0.0},{"x":10.0,"y":0.0,"z":0.0}]},
+                "tolerance":{"kind":"number","value":0.001}
+            }}),
+        )
+        .unwrap();
     assert_eq!(result["output"]["kind"], "polyline");
-    assert_eq!(result["output"]["value"], json!([
-        {"x":0.0,"y":0.0,"z":0.0},
-        {"x":4.0,"y":0.0,"z":0.0},
-        {"x":10.0,"y":0.0,"z":0.0}
-    ]));
+    assert_eq!(
+        result["output"]["value"],
+        json!([
+            {"x":0.0,"y":0.0,"z":0.0},
+            {"x":4.0,"y":0.0,"z":0.0},
+            {"x":10.0,"y":0.0,"z":0.0}
+        ])
+    );
     assert_eq!(s.doc().unwrap().model.len(), 0);
 }
 
 fn native_curve_trim_keeps_requested_interval() {
     let mut s = Session::new();
-    let result = s.execute("worldwright.curve.trim", &json!({"inputs":{
-        "points":{"kind":"polyline","value":[
-            {"x":0.0,"y":0.0,"z":0.0},
-            {"x":10.0,"y":0.0,"z":0.0},
-            {"x":10.0,"y":10.0,"z":0.0}
-        ]},
-        "start":{"kind":"number","value":2.0},
-        "end":{"kind":"number","value":15.0}
-    }})).unwrap();
+    let result = s
+        .execute(
+            "worldwright.curve.trim",
+            &json!({"inputs":{
+                "points":{"kind":"polyline","value":[
+                    {"x":0.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":10.0,"z":0.0}
+                ]},
+                "start":{"kind":"number","value":2.0},
+                "end":{"kind":"number","value":15.0}
+            }}),
+        )
+        .unwrap();
     assert_eq!(result["output"]["kind"], "polyline");
-    assert_eq!(result["output"]["value"], json!([
-        {"x":2.0,"y":0.0,"z":0.0},
-        {"x":10.0,"y":0.0,"z":0.0},
-        {"x":10.0,"y":5.0,"z":0.0}
-    ]));
+    assert_eq!(
+        result["output"]["value"],
+        json!([
+            {"x":2.0,"y":0.0,"z":0.0},
+            {"x":10.0,"y":0.0,"z":0.0},
+            {"x":10.0,"y":5.0,"z":0.0}
+        ])
+    );
     assert_eq!(s.doc().unwrap().model.len(), 0);
 }
 
 fn native_curve_extend_follows_tangent() {
     let mut s = Session::new();
-    let result = s.execute("worldwright.curve.extend", &json!({"inputs":{
-        "points":{"kind":"polyline","value":[
-            {"x":0.0,"y":0.0,"z":0.0},
-            {"x":10.0,"y":0.0,"z":0.0}
-        ]},
-        "distance":{"kind":"number","value":3.0},
-        "at_start":{"kind":"count","value":0}
-    }})).unwrap();
+    let result = s
+        .execute(
+            "worldwright.curve.extend",
+            &json!({"inputs":{
+                "points":{"kind":"polyline","value":[
+                    {"x":0.0,"y":0.0,"z":0.0},
+                    {"x":10.0,"y":0.0,"z":0.0}
+                ]},
+                "distance":{"kind":"number","value":3.0},
+                "at_start":{"kind":"count","value":0}
+            }}),
+        )
+        .unwrap();
     assert_eq!(result["output"]["kind"], "polyline");
-    assert_eq!(result["output"]["value"], json!([
-        {"x":0.0,"y":0.0,"z":0.0},
-        {"x":10.0,"y":0.0,"z":0.0},
-        {"x":13.0,"y":0.0,"z":0.0}
-    ]));
+    assert_eq!(
+        result["output"]["value"],
+        json!([
+            {"x":0.0,"y":0.0,"z":0.0},
+            {"x":10.0,"y":0.0,"z":0.0},
+            {"x":13.0,"y":0.0,"z":0.0}
+        ])
+    );
     assert_eq!(s.doc().unwrap().model.len(), 0);
 }
 

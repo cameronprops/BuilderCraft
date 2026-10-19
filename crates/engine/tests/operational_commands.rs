@@ -1771,20 +1771,22 @@ fn history_test_scope(s: &mut Session) -> serde_json::Value {
 }
 
 fn history_append_midpoint(s: &mut Session, scope: &serde_json::Value) {
-    let result = s.execute(
-        "worldwright.history.edit",
-        &json!({
-            "scope":scope,
-            "expected_revision":0,
-            "change":{"edit":"append","step":{
-                "id":3,"name":"Driven Point","operation":"kernel.point.midpoint",
-                "inputs":{
-                    "a":{"source":"constant","value":{"kind":"point","value":{"x":0.0,"y":0.0,"z":0.0}}},
-                    "b":{"source":"constant","value":{"kind":"point","value":{"x":10.0,"y":0.0,"z":0.0}}}
-                }
-            }}
-        }),
-    ).unwrap();
+    let result = s
+        .execute(
+            "worldwright.history.edit",
+            &json!({
+                "scope":scope,
+                "expected_revision":0,
+                "change":{"edit":"append","step":{
+                    "id":3,"name":"Driven Point","operation":"kernel.point.midpoint",
+                    "inputs":{
+                        "a":{"source":"constant","value":{"kind":"point","value":{"x":0.0,"y":0.0,"z":0.0}}},
+                        "b":{"source":"constant","value":{"kind":"point","value":{"x":10.0,"y":0.0,"z":0.0}}}
+                    }
+                }}
+            }),
+        )
+        .unwrap();
     assert_eq!(result["revision"], 1);
 }
 

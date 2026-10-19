@@ -155,6 +155,28 @@ mod tests {
     }
 
     #[test]
+    fn g2_scales_consistently_with_model_units() {
+        let (a, b) = quadratic_rails();
+        let baseline = blend_nurbs_curves(&a, &b, 2, 0.35, 0.45, 0, 0).unwrap();
+        for factor in [0.01, 1.0, 100.0] {
+            let mut scaled_a = a.clone();
+            let mut scaled_b = b.clone();
+            for point in &mut scaled_a.control {
+                *point = *point * factor;
+            }
+            for point in &mut scaled_b.control {
+                *point = *point * factor;
+            }
+            let scaled = blend_nurbs_curves(&scaled_a, &scaled_b, 2, 0.35, 0.45, 0, 0).unwrap();
+            for (actual, expected) in scaled.control.iter().zip(&baseline.control) {
+                close(*actual, *expected * factor, 1e-8 * factor.max(1.0));
+            }
+            close(scaled.curvature_vector(0.0).unwrap() * factor, baseline.curvature_vector(0.0).unwrap(), 1e-8);
+            close(scaled.curvature_vector(1.0).unwrap() * factor, baseline.curvature_vector(1.0).unwrap(), 1e-8);
+        }
+    }
+
+    #[test]
     fn g2_reversal_matches_oriented_tangents_and_geometric_curvature() {
         let (a, b) = quadratic_rails();
         let inputs = (a.clone(), b.clone());

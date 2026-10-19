@@ -30,15 +30,16 @@ missing coverage rather than passing. The fixture table is in
 `crates/engine/tests/operational_commands.rs`. Add real assertions for geometry,
 coordinates, returned IDs and state changes, not just `is_ok()`.
 
-**Current tranche (2026-10-18):** 128 independently asserted positive
-success-path fixtures are authored against 396 registered commands.
-**268 registered commands still lack positive-path fixtures.** The first
-120 positive-path fixtures are merged in main, following PR #110. This
-reconciled branch adds eight vector/polyline/curve-split fixtures that assert
-length, unitization, dot/cross, regular stations, curve split branches, and
-read-only document behavior. Latest branch must pass focused modeling,
-native Linux/macOS/Windows and exact BRep CI before merge. Success-path
-fixtures are not equivalent to full five-part operational certification.
+**Current tranche (2026-10-18):** 134 independently asserted
+positive success-path fixtures are authored against 396 registered commands.
+**262 still lack positive-path fixtures.** The first 128 are merged on main,
+including the eight native vector/polyline/split cases from PR #111.
+This reconciled PR adds six document-native NURBS/3D organization cases: Curve3D,
+Split, Trim, Geometry3D List, Set and ControlPoint. Tests assert rational
+curve evaluations, stable identities, undo, control-point editability and
+.dftba round-trip. The reconciled branch must pass focused modeling,
+Linux/macOS/Windows native and exact BRep CI before merge; positive-path
+fixtures alone are not five-part operational certification.
 
 ## Completion criteria for EACH command
 

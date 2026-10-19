@@ -128,6 +128,12 @@ const CASES: &[Case] = &[
     ("worldwright.polyline.divide_count", native_polyline_divides_by_count),
     ("worldwright.polyline.divide_distance", native_polyline_divides_by_spacing),
     ("worldwright.curve.split", native_curve_split_yields_two_actual_fragments),
+    ("nurbs.curve3d", nurbs_3d_curve_is_rational_and_persistent),
+    ("nurbs.split_object", nurbs_document_split_preserves_exact_curve_shape),
+    ("nurbs.trim_object", nurbs_document_trim_preserves_object_identity),
+    ("geometry3d.list", geometry3d_list_returns_real_curve_object),
+    ("geometry3d.set", geometry3d_set_updates_name_and_visibility),
+    ("geometry3d.controlpoint", geometry3d_controlpoint_edits_exact_geometry),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1553,6 +1559,138 @@ fn native_curve_split_yields_two_actual_fragments() {
         ])
     );
     assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
+}
+
+fn make_quadratic_nurbs(s: &mut Session) -> u64 {
+    let created = s
+        .execute(
+            "nurbs.curve3d",
+            &json!({
+                "name":"Attraction path",
+                "curve":{
+                    "degree":2,
+                    "control":[
+                        {"x":0.0,"y":0.0,"z":0.0},
+                        {"x":2.0,"y":4.0,"z":0.0},
+                        {"x":4.0,"y":0.0,"z":0.0}
+                    ],
+                    "weights":[1.0,0.5,1.0],
+                    "knots":[0.0,0.0,0.0,1.0,1.0,1.0]
+                }
+            }),
+        )
+        .unwrap();
+    created["id"].as_u64().unwrap()
+}
+
+fn exact_quadratic(s: &Session, id: u64) -> std::sync::Arc<cadcraft_geom::nurbs3d::Curve> {
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    match &object.shape {
+        cadcraft_doc::organization::Shape::Curve(curve) => curve.clone(),
+        other => panic!("expected editable native NURBS curve, got {other:?}"),
+    }
+}
+
+fn nurbs_3d_curve_is_rational_and_persistent() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let curve = exact_quadratic(&s, id);
+    assert!(curve.valid());
+    assert_eq!(curve.degree, 2);
+    assert_eq!(curve.weights, vec![1.0, 0.5, 1.0]);
+    assert_eq!(curve.evaluate(0.0).unwrap(), cadcraft_geom::Vec3::new(0.0, 0.0, 0.0));
+    assert_eq!(curve.evaluate(1.0).unwrap(), cadcraft_geom::Vec3::new(4.0, 0.0, 0.0));
+    let bytes = cadcraft_io::write(s.doc().unwrap(), "curve.dftba").unwrap();
+    let reopened = cadcraft_io::read(&bytes, "curve.dftba").unwrap();
+    assert_eq!(reopened.geometry3d, s.doc().unwrap().geometry3d);
+}
+
+fn nurbs_document_split_preserves_exact_curve_shape() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let original = exact_quadratic(&s, id);
+    let result = s.execute("nurbs.split_object", &json!({"id":id,"t":0.5})).unwrap();
+    assert_eq!(result["count"], 2);
+    assert_eq!(result["source_preserved"], true);
+    let left = result["ids"][0].as_u64().unwrap();
+    let right = result["ids"][1].as_u64().unwrap();
+    assert_ne!(left, id);
+    assert_ne!(right, id);
+    assert_ne!(left, right);
+    assert_eq!(exact_quadratic(&s, id), original);
+    for i in 0..=20 {
+        let t = i as f64 / 20.0;
+        let piece = if t <= 0.5 { left } else { right };
+        let local = if t <= 0.5 { t * 2.0 } else { (t - 0.5) * 2.0 };
+        let deviation = (exact_quadratic(&s, piece).evaluate(local).unwrap() - original.evaluate(t).unwrap()).len();
+        assert!(deviation < 1e-8, "rational curve changed at t={t}");
+    }
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+}
+
+fn nurbs_document_trim_preserves_object_identity() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let before = exact_quadratic(&s, id);
+    let result = s.execute("nurbs.trim_object", &json!({"id":id,"start":0.2,"end":0.8,"copy":false})).unwrap();
+    assert_eq!(result["id"], id);
+    assert_eq!(result["copy"], false);
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 1);
+    let after = exact_quadratic(&s, id);
+    assert_ne!(after, before);
+    for i in 0..=20 {
+        let local = i as f64 / 20.0;
+        let deviation = (after.evaluate(local).unwrap() - before.evaluate(0.2 + local * 0.6).unwrap()).len();
+        assert!(deviation < 1e-8, "trimmed rational shape changed at t={local}");
+    }
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(exact_quadratic(&s, id), before);
+}
+
+fn geometry3d_list_returns_real_curve_object() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let revision = s.state().unwrap().revision;
+    let result = s.execute("geometry3d.list", &json!({})).unwrap();
+    let objects = result["objects"].as_array().unwrap();
+    assert_eq!(objects.len(), 1);
+    assert_eq!(objects[0]["id"], id);
+    assert_eq!(objects[0]["name"], "Attraction path");
+    assert_eq!(objects[0]["visible"], true);
+    assert_eq!(s.state().unwrap().revision, revision);
+}
+
+fn geometry3d_set_updates_name_and_visibility() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let original = exact_quadratic(&s, id);
+    let result = s.execute("geometry3d.set", &json!({"id":id,"name":"Attraction path REV B","visible":false})).unwrap();
+    assert_eq!(result["id"], id);
+    let object = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    assert_eq!(object.name, "Attraction path REV B");
+    assert!(!object.visible);
+    assert_eq!(exact_quadratic(&s, id), original);
+    s.execute("undo", &json!({})).unwrap();
+    let restored = s.doc().unwrap().geometry3d.iter().find(|o| o.id == id).unwrap();
+    assert_eq!(restored.name, "Attraction path");
+    assert!(restored.visible);
+}
+
+fn geometry3d_controlpoint_edits_exact_geometry() {
+    let mut s = Session::new();
+    let id = make_quadratic_nurbs(&mut s);
+    let original = exact_quadratic(&s, id);
+    let result = s.execute("geometry3d.controlpoint", &json!({"id":id,"index":1,"point":[2.0,6.0,0.0]})).unwrap();
+    assert_eq!(result["id"], id);
+    assert_eq!(result["index"], 1);
+    let edited = exact_quadratic(&s, id);
+    assert_eq!(edited.control[1], cadcraft_geom::Vec3::new(2.0, 6.0, 0.0));
+    assert!(edited.valid());
+    assert_ne!(edited.evaluate(0.5), original.evaluate(0.5));
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(exact_quadratic(&s, id), original);
 }
 
 fn path_array_places_copies_along_rail() {

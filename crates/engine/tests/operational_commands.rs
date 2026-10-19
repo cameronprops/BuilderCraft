@@ -550,7 +550,7 @@ fn plane_projection_preserves_xy_and_removes_height() {
     });
     let direct = s.execute("worldwright.project", &json!({"inputs": inputs})).unwrap();
     let graph = s.execute("worldwright.tool.run", &json!({
-        "operation": "orbweaver.project", "inputs": inputs
+        "operation": "orbweaver.project.plane", "inputs": inputs
     })).unwrap();
     assert_eq!(direct["output"], graph["output"]);
     assert_eq!(direct["output"]["kind"], "polyline");

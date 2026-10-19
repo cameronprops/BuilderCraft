@@ -10,9 +10,10 @@ API names, menu visibility or registration as functionality.
 The positive-case registry covers **166 / 396** live engine command IDs on
 merged `main`. It does **not** certify them. The explicit certification ledger
 is [`certification-registry.json`](certification-registry.json). It currently
-records **0 fully certified commands** and three candidates in PR #126:
-`worldwright.point.distance`, `worldwright.point.midpoint`, and
-`worldwright.point.interpolate`.
+records **0 fully certified commands**, three merged headless point-command
+candidates from PR #126, and three new state-changing candidates in PR #127:
+`line`, `move`, and `copy`. Certification status changes only upon verified
+evidence and the required interface review.
 
 Each candidate is executable in
 `crates/engine/tests/command_certification.rs`, with five distinct gates:
@@ -30,6 +31,18 @@ all required platform CI, post-merge `main` checks, and applicability review
 are green. Do not silently promote candidates based on the existence of a
 test, or imply that read-only output persists in a drawing. Stateful commands
 must add meaningful undo, redo, save/reopen and UI tests before certification.
+
+**Stateful certification tranche #127:**
+`crates/engine/tests/stateful_command_certification.rs` runs dimensioned
+Line, Move, Copy operations at multiple positions, checks generated and
+retained handles, rejects invalid input and replication over budget, asserts
+preserved selection/revision/undo/redo on failure, and tests undo/redo plus
+`.dftba` reopening for the modified model. CAD command registration, aliases,
+JSON parameters and interactive factory are checked as contract evidence;
+actual interactive mouse/keyboard UI verification remains a separate required
+gate. Passing this headless suite must not be presented as completed UI
+certification.
+
 
 ## Automated first pass
 

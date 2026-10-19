@@ -102,6 +102,8 @@ const CASES: &[Case] = &[
     ("explode", explode_splits_polyline_into_lines),
     ("overkill", overkill_removes_duplicate_geometry),
     ("offset", offset_circle_changes_radius),
+    ("trim", trim_keeps_expected_segment),
+    ("extend", extend_meets_nearest_cutting_boundary),
     ("measure", measure_places_all_four_line_stations),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
@@ -1035,6 +1037,40 @@ fn offset_circle_changes_radius() {
         })
         .collect();
     assert!(radii.contains(&2.0) && radii.contains(&3.0), "{radii:?}");
+}
+
+fn trim_keeps_expected_segment() {
+    let mut s = Session::new();
+    let target = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let boundary = s.execute("line", &json!({"points":[[5,-2],[5,2]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let result = s.execute("trim", &json!({"handle":target,"pick":[8,0],"edges":[boundary]})).unwrap();
+    let handles = result["handles"].as_array().unwrap();
+    assert_eq!(handles.len(), 1);
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    let kept = cadcraft_doc::Handle::parse_hex(handles[0].as_str().unwrap()).unwrap();
+    match &s.doc().unwrap().entity(kept).unwrap().kind {
+        EntityKind::Line(l) => {
+            assert_eq!((l.a.x, l.a.y), (0.0, 0.0));
+            assert!((l.b.x - 5.0).abs() < 1e-9 && l.b.y.abs() < 1e-9);
+        }
+        other => panic!("expected retained segment, got {other:?}"),
+    }
+}
+
+fn extend_meets_nearest_cutting_boundary() {
+    let mut s = Session::new();
+    let target = s.execute("line", &json!({"points":[[0,0],[2,0]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    let boundary = s.execute("line", &json!({"points":[[5,-2],[5,2]]})).unwrap()["handles"][0].as_str().unwrap().to_string();
+    s.execute("extend", &json!({"handle":target,"pick":[2,0],"edges":[boundary]})).unwrap();
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    let kept = cadcraft_doc::Handle::parse_hex(&target).unwrap();
+    match &s.doc().unwrap().entity(kept).unwrap().kind {
+        EntityKind::Line(l) => {
+            assert_eq!((l.a.x, l.a.y), (0.0, 0.0));
+            assert!((l.b.x - 5.0).abs() < 1e-9 && l.b.y.abs() < 1e-9);
+        }
+        other => panic!("expected extended line, got {other:?}"),
+    }
 }
 
 fn path_array_places_copies_along_rail() {

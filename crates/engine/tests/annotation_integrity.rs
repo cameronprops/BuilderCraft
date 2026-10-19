@@ -64,9 +64,7 @@ fn mtext_rejects_silent_clamping_or_defaulting_without_edits() {
         assert_eq!(s.state().unwrap().revision, revision);
         assert_eq!(s.state().unwrap().undo.len(), undo);
     }
-    let result = s
-        .execute("mtext", &json!({"at":[4,5],"text":"Scenic\nNotes","height":2,"width":10,"attach":9,"lineSpacing":1.25}))
-        .unwrap();
+    let result = s.execute("mtext", &json!({"at":[4,5],"text":"Scenic\nNotes","height":2,"width":10,"attach":9,"lineSpacing":1.25})).unwrap();
     assert!(result["handle"].is_string());
     assert_eq!(s.doc().unwrap().model.len(), 1);
     match &s.doc().unwrap().model.iter().next().unwrap().kind {

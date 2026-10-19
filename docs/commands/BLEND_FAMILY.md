@@ -25,13 +25,13 @@ All **seven typed ports** are required for the initial headless API:
 | Port | Type | Semantics |
 |---|---|---|
 | `a`, `b` | curve | Valid rational NURBS source curves |
-| `continuity` | count | **0**: position-only G0; **1**: geometric tangent G1 |
+| `continuity` | count | **0**: position-only G0; **1**: geometric tangent G1; **2**: geometric curvature G2 |
 | `strength_a`, `strength_b` | number | Endpoint tangent handle fractions of endpoint distance; each 0.01 to 2 |
 | `reverse_a`, `reverse_b` | count | **0**: normal direction; **1**: reverse source orientation |
 
 Default connection uses the end of A and start of B. Flipping either
 orientation selects the other respective source endpoint. G0 yields a
-degree-one NURBS segment; G1 a degree-three polynomial Bézier encoded in
+degree-one NURBS segment; G1 a degree-three polynomial Bézier, and G2 a degree-five polynomial Bézier encoded in
 the existing rational NURBS type. The G1 source tangent directions come
 from the *analytic derivatives of the original NURBS*, not sampled meshes.
 The exact endpoints and source curves are retained and unmodified.
@@ -65,9 +65,11 @@ python3 tools/check_paired_tools.py
   history dependency or persistent CAD document bake. The `blend` alias
   resolves the headless command ID but is **not** a complete interactive
   drawing tool.
-- G1 aligns unit tangent directions. It does **not** enforce parametric C1
-  equal derivative magnitudes, curvature G2, geometric G3/G4 or radius
-  constraints. Unsupported levels explicitly reject.
+- G1 aligns unit tangent directions; G2 also matches the geometric curvature
+  vector using analytic rational endpoint derivatives and a quintic Hermite
+  construction. Neither option enforces parametric C1/C2 derivative
+  magnitudes, G3/G4, collision freedom, trim/joins, or radius limits.
+  Unsupported levels explicitly reject.
 - No BlendCrv two-ended curvature solver/adjustable editor yet. No BlendSrf
   tangent/curvature matching on NURBS surfaces, seam or chain-edge matching.
   No BlendEdge or VariableBlendSrf radius-handle policies, dynamic maximum
@@ -77,9 +79,9 @@ python3 tools/check_paired_tools.py
 
 ## Next dependencies
 
-1. Add analytic second derivatives to the shared rational NURBS curve and
-   a quintic G2 Hermite blend with independent end conditions and bounded
-   curvature handles. Preserve the G0/G1 implementation as one solver.
+1. Validate G2 curvature limits, non-self-intersection, and endpoint
+   degeneracy diagnostics. Analytic second derivatives and a quintic G2
+   Hermite blend are proposed in #133 and this stacked PR, respectively.
 2. Add orientation/end-pick state, preview, history and document persistence
    through normal CAD and OrbWeaver interfaces.
 3. Add surface edge continuity and matched sections across untrimmed

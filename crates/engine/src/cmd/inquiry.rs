@@ -183,7 +183,8 @@ fn area_of(pts: &[Vec2]) -> (f64, f64) {
 }
 
 fn run_area(s: &mut Session, p: &Value) -> Result<Value> {
-    let (a, per) = if let Some(pts) = points_param(p, "points") {
+    let (a, per) = if p.get("points").is_some() {
+        let pts = points_param(p, "points").ok_or_else(|| bad("area", "points must be an array of valid [x,y] coordinates"))?;
         if pts.len() < 3 {
             return Err(bad("area", "polygon area needs at least three points"));
         }

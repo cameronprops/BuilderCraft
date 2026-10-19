@@ -32,6 +32,13 @@ are green. Do not silently promote candidates based on the existence of a
 test, or imply that read-only output persists in a drawing. Stateful commands
 must add meaningful undo, redo, save/reopen and UI tests before certification.
 
+**Transform certification tranche #128 (stacked on #127):**
+Rotate, Scale, and Mirror reuse the exact same stateful engine document
+transactions and certification helper. They check analytical geometry,
+copy and erase-source modifiers, source and generated object identities,
+invalid parameters, native save/reopen and undo/redo for 24 translated
+fixtures. These are **headless candidates**, not UI-certified operations.
+
 **Stateful certification tranche #127:**
 `crates/engine/tests/stateful_command_certification.rs` runs dimensioned
 Line, Move, Copy operations at multiple positions, checks generated and

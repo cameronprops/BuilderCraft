@@ -1562,22 +1562,24 @@ fn native_curve_split_yields_two_actual_fragments() {
 }
 
 fn make_quadratic_nurbs(s: &mut Session) -> u64 {
-    let created = s.execute(
-        "nurbs.curve3d",
-        &json!({
-            "name":"Attraction path",
-            "curve":{
-                "degree":2,
-                "control":[
-                    {"x":0.0,"y":0.0,"z":0.0},
-                    {"x":2.0,"y":4.0,"z":0.0},
-                    {"x":4.0,"y":0.0,"z":0.0}
-                ],
-                "weights":[1.0,0.5,1.0],
-                "knots":[0.0,0.0,0.0,1.0,1.0,1.0]
-            }
-        }),
-    ).unwrap();
+    let created = s
+        .execute(
+            "nurbs.curve3d",
+            &json!({
+                "name":"Attraction path",
+                "curve":{
+                    "degree":2,
+                    "control":[
+                        {"x":0.0,"y":0.0,"z":0.0},
+                        {"x":2.0,"y":4.0,"z":0.0},
+                        {"x":4.0,"y":0.0,"z":0.0}
+                    ],
+                    "weights":[1.0,0.5,1.0],
+                    "knots":[0.0,0.0,0.0,1.0,1.0,1.0]
+                }
+            }),
+        )
+        .unwrap();
     created["id"].as_u64().unwrap()
 }
 

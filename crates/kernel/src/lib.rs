@@ -2,11 +2,11 @@
 //! not total process RSS; callers must budget input decoding and job workspace.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod blend_regularity;
 mod bounds;
 mod bounds_ops;
 mod closest3d;
 mod curve_blend;
-mod blend_regularity;
 mod data_tree;
 mod feature_history;
 mod geometry;
@@ -49,11 +49,11 @@ mod tool_broadcast;
 mod transform;
 mod vector_ops;
 mod wireframe;
+pub use blend_regularity::*;
 pub use bounds::*;
 pub use bounds_ops::*;
 pub use closest3d::*;
 pub use curve_blend::*;
-pub use blend_regularity::*;
 pub use data_tree::*;
 pub use feature_history::*;
 pub use geometry::*;

@@ -16,12 +16,8 @@ fn wolfram_reversal_case_rejects_unsafe_g1_and_preserves_sources() {
         let b = line(Vec3::new(1.5 * scale, 0.0, 0.0), Vec3::new(0.5 * scale, 0.0, 0.0));
         let original = (a.clone(), b.clone());
 
-        let control = [
-            Vec3::new(scale, 0.0, 0.0),
-            Vec3::new(2.0 * scale, 0.0, 0.0),
-            Vec3::new(2.5 * scale, 0.0, 0.0),
-            Vec3::new(1.5 * scale, 0.0, 0.0),
-        ];
+        let control =
+            [Vec3::new(scale, 0.0, 0.0), Vec3::new(2.0 * scale, 0.0, 0.0), Vec3::new(2.5 * scale, 0.0, 0.0), Vec3::new(1.5 * scale, 0.0, 0.0)];
         let hit = cubic_bezier_stationary_point(control).expect("Wolfram witness must be detected");
         assert!((hit.parameter - golden_parameter).abs() < 1e-12);
         let result = blend_nurbs_curves(&a, &b, 1, 2.0, 2.0, 0, 0);
@@ -44,13 +40,7 @@ fn ordinary_g1_curves_still_construct() {
     let result = blend_nurbs_curves(&a, &b, 1, 0.25, 0.25, 0, 0).expect("regular cubic");
     assert!(result.valid());
     assert_eq!(result.degree, 3);
-    assert!(cubic_bezier_stationary_point([
-        result.control[0],
-        result.control[1],
-        result.control[2],
-        result.control[3],
-    ])
-    .is_none());
+    assert!(cubic_bezier_stationary_point([result.control[0], result.control[1], result.control[2], result.control[3],]).is_none());
 }
 
 #[test]

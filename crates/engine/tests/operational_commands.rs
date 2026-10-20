@@ -36,6 +36,7 @@ const CASES: &[Case] = &[
     ("worldwright.nurbs.evaluate", nurbs_evaluation_uses_exact_rational_curve),
     ("worldwright.curve.blend", curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels),
     ("geometry3d.curve.blend", document_curve_blend_previews_and_bakes_exact_g2),
+    ("geometry3d.curve.blend.selected", selected_curve_blend_reuses_document_operator),
     ("worldwright.tool.run", generic_dispatch_matches_direct_command),
     ("mesh3d.create", mesh_creation_is_persistent),
     ("mesh3d.list", mesh_listing_finds_created_object),
@@ -884,6 +885,55 @@ fn document_curve_blend_previews_and_bakes_exact_g2() {
     assert_eq!(s.doc().unwrap().geometry3d, before);
     s.execute("redo", &json!({})).unwrap();
     assert_eq!(s.doc().unwrap().geometry3d.len(), before.len() + 1);
+}
+
+fn selected_curve_blend_reuses_document_operator() {
+    use cadcraft_geom::{Vec3, nurbs3d::Curve};
+    let mut s = Session::new();
+    let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0)], 1).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(4.0, 3.0, 0.0)], 1).unwrap();
+    let a_id = s.execute("nurbs.curve3d", &json!({"name":"A","curve":a})).unwrap()["id"].as_u64().unwrap();
+    let b_id = s.execute("nurbs.curve3d", &json!({"name":"B","curve":b})).unwrap()["id"].as_u64().unwrap();
+    let revision = s.state().unwrap().revision;
+    let before = s.doc().unwrap().geometry3d.clone();
+    assert!(s.execute("geometry3d.curve.blend.selected", &json!({"name":"No Selection"})).is_err());
+    s.execute("geometry3d.select", &json!({"ids":[a_id,b_id]})).unwrap();
+    assert_eq!(s.state().unwrap().revision, revision);
+    let options = json!({"name":"Selected Blend","continuity":1,"preview":true,"selected_revision":revision});
+    let selected = s.execute("geometry3d.curve.blend.selected", &options).unwrap();
+    let explicit = s
+        .execute(
+            "geometry3d.curve.blend",
+            &json!({
+                "name":"Selected Blend","a_id":a_id,"b_id":b_id,
+                "continuity":1,"preview":true,"selected_revision":revision
+            }),
+        )
+        .unwrap();
+    assert_eq!(selected["curve"], explicit["curve"]);
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(
+        s.execute(
+            "geometry3d.curve.blend.selected",
+            &json!({
+                "name":"No Mixed IDs","a_id":a_id
+            })
+        )
+        .is_err()
+    );
+    let baked = s
+        .execute(
+            "geometry3d.curve.blend.selected",
+            &json!({
+                "name":"Selected Blend","continuity":1,"selected_revision":revision
+            }),
+        )
+        .unwrap();
+    assert_eq!(baked["baked"], true);
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
 }
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {

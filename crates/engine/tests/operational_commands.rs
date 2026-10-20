@@ -35,6 +35,7 @@ const CASES: &[Case] = &[
     ("worldwright.surface.ruled", ruled_surface_preserves_exact_control_rails),
     ("worldwright.nurbs.evaluate", nurbs_evaluation_uses_exact_rational_curve),
     ("worldwright.curve.blend", curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels),
+    ("geometry3d.curve.blend", document_curve_blend_previews_and_bakes_exact_g2),
     ("worldwright.tool.run", generic_dispatch_matches_direct_command),
     ("mesh3d.create", mesh_creation_is_persistent),
     ("mesh3d.list", mesh_listing_finds_created_object),
@@ -831,6 +832,58 @@ fn curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels() {
     assert!(s.execute("worldwright.curve.blend", &json!({"inputs": missing})).is_err());
     assert_eq!(s.state().unwrap().revision, revision);
     assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn document_curve_blend_previews_and_bakes_exact_g2() {
+    use cadcraft_geom::{Vec3, nurbs3d::Curve};
+    let mut s = Session::new();
+    let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)], 2).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)], 2).unwrap();
+    let a_id = s.execute("nurbs.curve3d", &json!({"name":"Source A","curve":a})).unwrap()["id"].as_u64().unwrap();
+    let b_id = s.execute("nurbs.curve3d", &json!({"name":"Source B","curve":b})).unwrap()["id"].as_u64().unwrap();
+    let revision = s.state().unwrap().revision;
+    let undo_count = s.state().unwrap().undo.len();
+    let before = s.doc().unwrap().geometry3d.clone();
+    let args = json!({
+        "name":"G2 Connector", "a_id":a_id, "b_id":b_id,
+        "continuity":2, "strength_a":0.35, "strength_b":0.45,
+        "selected_revision":revision
+    });
+    let mut preview_args = args.clone();
+    preview_args["preview"] = json!(true);
+    let preview = s.execute("geometry3d.curve.blend", &preview_args).unwrap();
+    assert_eq!(preview["baked"], false);
+    assert_eq!(preview["source_revision"], revision);
+    let expected: Curve = serde_json::from_value(preview["curve"].clone()).unwrap();
+    assert_eq!(expected.degree, 5);
+    assert_eq!(expected.evaluate(0.0), a.evaluate(1.0));
+    assert_eq!(expected.evaluate(1.0), b.evaluate(0.0));
+    assert!((expected.curvature_vector(0.0).unwrap() - a.curvature_vector(1.0).unwrap()).len() < 1e-8);
+    assert!((expected.curvature_vector(1.0).unwrap() - b.curvature_vector(0.0).unwrap()).len() < 1e-8);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo_count);
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+
+    let baked = s.execute("geometry3d.curve.blend", &args).unwrap();
+    assert_eq!(baked["baked"], true);
+    let output_id = baked["id"].as_u64().unwrap();
+    assert_ne!(output_id, a_id);
+    assert_ne!(output_id, b_id);
+    let geometry = &s.doc().unwrap().geometry3d;
+    assert_eq!(geometry.len(), before.len() + 1);
+    match &geometry.iter().find(|o| o.id == output_id).unwrap().shape {
+        cadcraft_doc::organization::Shape::Curve(actual) => assert_eq!(**actual, expected),
+        _ => panic!("blend must bake a native NURBS curve"),
+    }
+    assert_eq!(&geometry[..before.len()], before.as_slice());
+    let saved = cadcraft_io::write(s.doc().unwrap(), "blend.dftba").unwrap();
+    let reopened = cadcraft_io::read(&saved, "blend.dftba").unwrap();
+    assert_eq!(reopened.geometry3d, s.doc().unwrap().geometry3d);
+    assert!(s.execute("geometry3d.curve.blend", &args).is_err(), "stale selection must fail");
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+    s.execute("redo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d.len(), before.len() + 1);
 }
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {

@@ -5,13 +5,15 @@ use serde_json::json;
 
 fn block_reference(s: &mut Session) -> String {
     let line = s.execute("line", &json!({"points":[[0,0],[3,4]]})).unwrap();
-    s.execute("block", &json!({
-        "name":"NestedTest", "base":[0,0], "handles":line["handles"], "keep":"delete"
-    }))
+    s.execute(
+        "block",
+        &json!({
+            "name":"NestedTest", "base":[0,0], "handles":line["handles"], "keep":"delete"
+        }),
+    )
     .unwrap();
     assert_eq!(s.doc().unwrap().model.len(), 0);
-    s.execute("insert", &json!({"name":"NestedTest","at":[5,6]}))
-        .unwrap()["handle"].as_str().unwrap().to_string()
+    s.execute("insert", &json!({"name":"NestedTest","at":[5,6]})).unwrap()["handle"].as_str().unwrap().to_string()
 }
 
 #[test]

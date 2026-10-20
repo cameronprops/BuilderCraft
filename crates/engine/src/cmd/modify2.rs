@@ -1549,32 +1549,56 @@ fn chspace(s: &mut Session, hs: &[Handle], to: Option<&str>, vp: Option<Handle>)
     };
     let m = match viewport_of(s, &layout, vp) {
         Some(v) => {
+            if !v.height.is_finite() || v.height <= 0.0 || !v.view_height.is_finite() || v.view_height <= 0.0 {
+                return Err(bad("chspace", "viewport dimensions must be positive and finite"));
+            }
             let k = v.view_height / v.height;
+            if !k.is_finite() || k <= 0.0 {
+                return Err(bad("chspace", "viewport scale is not finite and positive"));
+            }
             let to_paper = Mat3::translate(v.center.xy()).then_before(Mat3::scale(1.0 / k, 1.0 / k)).then_before(Mat3::translate(-v.view_center));
-            if target == Space::Model { to_paper.inverse().unwrap_or(Mat3::IDENTITY) } else { to_paper }
+            if target == Space::Model {
+                to_paper.inverse().ok_or_else(|| bad("chspace", "viewport transform is not invertible"))?
+            } else {
+                to_paper
+            }
         }
         None => Mat3::IDENTITY,
     };
+    if ![m.a, m.b, m.c, m.d, m.e, m.f].into_iter().all(f64::is_finite) {
+        return Err(bad("chspace", "viewport transform contains non-finite coordinates"));
+    }
+
+    // Validate the entire selection and the destination before moving any
+    // object. Previously locked, missing, wrong-space and viewport targets
+    // were silently skipped, and a missing destination could discard objects.
+    {
+        let d = s.doc()?;
+        if d.space(&target).is_none() {
+            return Err(bad("chspace", "destination drawing space does not exist"));
+        }
+        for h in hs {
+            let e = d.entity(*h).ok_or_else(|| bad("chspace", format!("object {} does not exist", h.hex())))?;
+            if d.space_of(*h).as_ref() != Some(&from) {
+                return Err(bad("chspace", format!("object {} is outside the active drawing space", h.hex())));
+            }
+            if d.layer(&e.common.layer).is_some_and(|layer| layer.locked) {
+                return Err(bad("chspace", format!("object {} is on a locked layer", h.hex())));
+            }
+            if matches!(&e.kind, EntityKind::Viewport(_)) {
+                return Err(bad("chspace", format!("object {} is a viewport and cannot be moved between spaces", h.hex())));
+            }
+        }
+    }
     let mut n = 0;
     for h in hs {
-        if curves::is_locked(s, *h) {
-            continue;
-        }
         let d = s.doc_mut()?;
-        if d.space_of(*h).as_ref() != Some(&from) {
-            continue;
-        }
-        let Some(e) = d.entity(*h).map(|e| (**e).clone()) else { continue };
-        if matches!(e.kind, EntityKind::Viewport(_)) {
-            continue;
-        }
-        let mut e = e;
+        let mut e = d.entity(*h).map(|e| (**e).clone()).ok_or_else(|| bad("chspace", format!("object {} disappeared", h.hex())))?;
         e.kind.transform(&m);
         d.remove_entity(*h);
-        if let Some(st) = d.space_mut(&target) {
-            st.push(e);
-            n += 1;
-        }
+        let dest = d.space_mut(&target).ok_or_else(|| bad("chspace", "destination drawing space disappeared"))?;
+        dest.push(e);
+        n += 1;
     }
     s.set_selection(Vec::new());
     Ok((n, from, target))

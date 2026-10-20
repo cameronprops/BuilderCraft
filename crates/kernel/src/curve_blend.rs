@@ -155,6 +155,43 @@ mod tests {
     }
 
     #[test]
+    fn g2_mixed_endpoint_reversals_preserve_exact_boundary_geometry() {
+        let (a, b) = quadratic_rails();
+        let original = (a.clone(), b.clone());
+        for (reverse_a, reverse_b) in [(0, 1), (1, 0)] {
+            let blend = blend_nurbs_curves(&a, &b, 2, 0.35, 0.45, reverse_a, reverse_b).unwrap();
+            let ta = if reverse_a == 0 { 1.0 } else { 0.0 };
+            let tb = if reverse_b == 0 { 0.0 } else { 1.0 };
+            let orientation_a = if reverse_a == 0 { 1.0 } else { -1.0 };
+            let orientation_b = if reverse_b == 0 { 1.0 } else { -1.0 };
+
+            assert_eq!(blend.degree, 5);
+            assert_eq!(blend.control.len(), 6);
+            assert_eq!(blend.evaluate(0.0), a.evaluate(ta));
+            assert_eq!(blend.evaluate(1.0), b.evaluate(tb));
+            assert!(
+                blend.tangent(0.0).unwrap().dot(a.tangent(ta).unwrap() * orientation_a)
+                    > 1.0 - 1e-9
+            );
+            assert!(
+                blend.tangent(1.0).unwrap().dot(b.tangent(tb).unwrap() * orientation_b)
+                    > 1.0 - 1e-9
+            );
+            close(
+                blend.curvature_vector(0.0).unwrap(),
+                a.curvature_vector(ta).unwrap(),
+                1e-8,
+            );
+            close(
+                blend.curvature_vector(1.0).unwrap(),
+                b.curvature_vector(tb).unwrap(),
+                1e-8,
+            );
+        }
+        assert_eq!((a, b), original, "blending must preserve input curves");
+    }
+
+    #[test]
     fn g2_scales_consistently_with_model_units() {
         let (a, b) = quadratic_rails();
         let baseline = blend_nurbs_curves(&a, &b, 2, 0.35, 0.45, 0, 0).unwrap();

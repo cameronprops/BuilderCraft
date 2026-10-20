@@ -7,8 +7,10 @@ API names, menu visibility or registration as functionality.
 
 ## Five-gate command certification begins now
 
-The positive-case registry covers **175 / 396** live engine command IDs on
-merged `main`. It does **not** certify them. The explicit certification ledger
+The positive-case registry contains **178 distinct fixtures** in the reviewed
+merged `main` baseline, with **3 new BLOCK/INSERT/NCOPY cases** authored on
+this branch (181 total, pending CI). The engine registry snapshot lists
+396 commands. Positive fixtures do **not** certify commands. The explicit certification ledger
 is [`certification-registry.json`](certification-registry.json). It currently
 records **3 headless-certified commands** (Point Distance, Midpoint,
 Interpolate), plus **6 stateful command candidates** (Line, Move, Copy,

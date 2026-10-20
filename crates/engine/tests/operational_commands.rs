@@ -901,19 +901,35 @@ fn selected_curve_blend_reuses_document_operator() {
     assert_eq!(s.state().unwrap().revision, revision);
     let options = json!({"name":"Selected Blend","continuity":1,"preview":true,"selected_revision":revision});
     let selected = s.execute("geometry3d.curve.blend.selected", &options).unwrap();
-    let explicit = s.execute("geometry3d.curve.blend", &json!({
-        "name":"Selected Blend","a_id":a_id,"b_id":b_id,
-        "continuity":1,"preview":true,"selected_revision":revision
-    })).unwrap();
+    let explicit = s
+        .execute(
+            "geometry3d.curve.blend",
+            &json!({
+                "name":"Selected Blend","a_id":a_id,"b_id":b_id,
+                "continuity":1,"preview":true,"selected_revision":revision
+            }),
+        )
+        .unwrap();
     assert_eq!(selected["curve"], explicit["curve"]);
     assert_eq!(s.doc().unwrap().geometry3d, before);
     assert_eq!(s.state().unwrap().revision, revision);
-    assert!(s.execute("geometry3d.curve.blend.selected", &json!({
-        "name":"No Mixed IDs","a_id":a_id
-    })).is_err());
-    let baked = s.execute("geometry3d.curve.blend.selected", &json!({
-        "name":"Selected Blend","continuity":1,"selected_revision":revision
-    })).unwrap();
+    assert!(
+        s.execute(
+            "geometry3d.curve.blend.selected",
+            &json!({
+                "name":"No Mixed IDs","a_id":a_id
+            })
+        )
+        .is_err()
+    );
+    let baked = s
+        .execute(
+            "geometry3d.curve.blend.selected",
+            &json!({
+                "name":"Selected Blend","continuity":1,"selected_revision":revision
+            }),
+        )
+        .unwrap();
     assert_eq!(baked["baked"], true);
     assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
     s.execute("undo", &json!({})).unwrap();

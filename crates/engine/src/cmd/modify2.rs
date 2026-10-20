@@ -1557,11 +1557,7 @@ fn chspace(s: &mut Session, hs: &[Handle], to: Option<&str>, vp: Option<Handle>)
                 return Err(bad("chspace", "viewport scale is not finite and positive"));
             }
             let to_paper = Mat3::translate(v.center.xy()).then_before(Mat3::scale(1.0 / k, 1.0 / k)).then_before(Mat3::translate(-v.view_center));
-            if target == Space::Model {
-                to_paper.inverse().ok_or_else(|| bad("chspace", "viewport transform is not invertible"))?
-            } else {
-                to_paper
-            }
+            if target == Space::Model { to_paper.inverse().ok_or_else(|| bad("chspace", "viewport transform is not invertible"))? } else { to_paper }
         }
         None => Mat3::IDENTITY,
     };

@@ -1,7 +1,10 @@
 //! Frozen symbolic Wolfram oracle data; CI does not need Wolfram installed.
 //! Oracle generator: tools/wolfram/blend_oracle.wl
 use buildercraft_kernel::blend_nurbs_curves;
-use cadcraft_geom::{Vec3, nurbs3d::{Curve, uniform_knots}};
+use cadcraft_geom::{
+    Vec3,
+    nurbs3d::{Curve, uniform_knots},
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -77,8 +80,8 @@ fn close(actual: Vec3, reference: [f64; 3], case: &str, label: &str) {
 
 #[test]
 fn exact_wolfram_blend_reference_positions_derivatives_and_curvature() {
-    let oracle: Oracle = serde_json::from_str(include_str!("fixtures/wolfram_blend_oracle.json"))
-        .expect("versioned Wolfram reference must remain valid JSON");
+    let oracle: Oracle =
+        serde_json::from_str(include_str!("fixtures/wolfram_blend_oracle.json")).expect("versioned Wolfram reference must remain valid JSON");
     assert_eq!(oracle.schema_version, 1);
     assert!(oracle.generator.contains("Wolfram"));
     assert_eq!(oracle.cases.len(), 4, "fixture changes require explicit review");
@@ -88,16 +91,8 @@ fn exact_wolfram_blend_reference_positions_derivatives_and_curvature() {
         assert!(a.valid() && b.valid(), "invalid oracle sources: {}", case.name);
         let source_a = a.clone();
         let source_b = b.clone();
-        let result = blend_nurbs_curves(
-            &a,
-            &b,
-            case.continuity,
-            case.strength_a,
-            case.strength_b,
-            case.reverse_a,
-            case.reverse_b,
-        )
-        .unwrap_or_else(|error| panic!("{} failed to blend: {error}", case.name));
+        let result = blend_nurbs_curves(&a, &b, case.continuity, case.strength_a, case.strength_b, case.reverse_a, case.reverse_b)
+            .unwrap_or_else(|error| panic!("{} failed to blend: {error}", case.name));
         assert_eq!(result.degree, case.expected.degree, "{}", case.name);
         assert!(result.valid(), "{} produced invalid rational NURBS", case.name);
         assert_eq!(result.control.len(), case.expected.control.len(), "{}", case.name);
@@ -115,12 +110,7 @@ fn exact_wolfram_blend_reference_positions_derivatives_and_curvature() {
         if let Some(curv) = &case.expected.curvature {
             assert_eq!(case.continuity, 2);
             for (t, expected) in [(0.0, curv.start), (0.5, curv.mid), (1.0, curv.end)] {
-                close(
-                    result.curvature_vector(t).expect("regular oracle curvature station"),
-                    expected,
-                    &case.name,
-                    &format!("K({t})"),
-                );
+                close(result.curvature_vector(t).expect("regular oracle curvature station"), expected, &case.name, &format!("K({t})"));
             }
         }
         assert_eq!(a, source_a, "{} mutated input curve A", case.name);

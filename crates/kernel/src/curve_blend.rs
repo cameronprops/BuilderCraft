@@ -1,6 +1,6 @@
 //! Bounded native G0/G1 NURBS curve blends. No polyline tessellation.
 use crate::{KernelError, Result};
-use cadcraft_geom::{Vec3, nurbs3d::Curve};
+use cadcraft_geom::nurbs3d::Curve;
 
 /// Exact G0 (line) or geometric G1 (cubic Bezier) from A's end to B's start.
 /// Reversal flags 0/1 select the other endpoints with oriented tangents.

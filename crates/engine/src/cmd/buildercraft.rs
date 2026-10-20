@@ -123,39 +123,24 @@ fn preview3d(s: &mut Session, p: &Value) -> Result<Value> {
 fn blend_document_curves(s: &mut Session, p: &Value) -> Result<Value> {
     let object = p.as_object().ok_or_else(|| error("blend options must be an object"))?;
     if object.keys().any(|key| {
-        ![
-            "name", "a_id", "b_id", "continuity", "strength_a", "strength_b",
-            "reverse_a", "reverse_b", "selected_revision", "preview",
-        ]
-        .contains(&key.as_str())
+        !["name", "a_id", "b_id", "continuity", "strength_a", "strength_b", "reverse_a", "reverse_b", "selected_revision", "preview"]
+            .contains(&key.as_str())
     }) {
         return Err(error("unsupported blend option"));
     }
     let name = name(p)?;
-    let a_id = p
-        .get("a_id")
-        .and_then(Value::as_u64)
-        .filter(|id| *id != 0)
-        .ok_or_else(|| error("a_id must be a curve ID"))?;
-    let b_id = p
-        .get("b_id")
-        .and_then(Value::as_u64)
-        .filter(|id| *id != 0 && *id != a_id)
-        .ok_or_else(|| error("b_id must be a distinct curve ID"))?;
+    let a_id = p.get("a_id").and_then(Value::as_u64).filter(|id| *id != 0).ok_or_else(|| error("a_id must be a curve ID"))?;
+    let b_id = p.get("b_id").and_then(Value::as_u64).filter(|id| *id != 0 && *id != a_id).ok_or_else(|| error("b_id must be a distinct curve ID"))?;
     let continuity = match p.get("continuity") {
         None => 1,
-        Some(value) => value
-            .as_u64()
-            .filter(|n| *n <= 2)
-            .ok_or_else(|| error("continuity must be 0, 1 or 2"))? as usize,
+        Some(value) => value.as_u64().filter(|n| *n <= 2).ok_or_else(|| error("continuity must be 0, 1 or 2"))? as usize,
     };
     let strength = |key: &str| -> Result<f64> {
         match p.get(key) {
             None => Ok(1.0 / 3.0),
-            Some(value) => value
-                .as_f64()
-                .filter(|n| n.is_finite() && (0.01..=2.0).contains(n))
-                .ok_or_else(|| error("blend strength must be in [0.01, 2]")),
+            Some(value) => {
+                value.as_f64().filter(|n| n.is_finite() && (0.01..=2.0).contains(n)).ok_or_else(|| error("blend strength must be in [0.01, 2]"))
+            }
         }
     };
     let reversal = |key: &str| -> Result<usize> {
@@ -178,11 +163,7 @@ fn blend_document_curves(s: &mut Session, p: &Value) -> Result<Value> {
     }
     let doc = s.doc()?;
     let source = |source_id| -> Result<std::sync::Arc<cadcraft_geom::nurbs3d::Curve>> {
-        let geometry = doc
-            .geometry3d
-            .iter()
-            .find(|geometry| geometry.id == source_id)
-            .ok_or_else(|| error("blend source ID not found"))?;
+        let geometry = doc.geometry3d.iter().find(|geometry| geometry.id == source_id).ok_or_else(|| error("blend source ID not found"))?;
         match &geometry.shape {
             cadcraft_doc::organization::Shape::Curve(curve) => Ok(curve.clone()),
             cadcraft_doc::organization::Shape::Surface(_) => Err(error("blend source must be a NURBS curve")),

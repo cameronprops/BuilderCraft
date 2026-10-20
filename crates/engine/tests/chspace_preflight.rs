@@ -16,10 +16,7 @@ fn chspace_rejects_mixed_locked_stale_and_wrong_space_batches_atomically() {
     let before = s.state().unwrap().doc.clone();
     let revision = s.state().unwrap().revision;
     let undo_len = s.state().unwrap().undo.len();
-    for params in [
-        json!({"handles":[a.clone(),b.clone()],"to":"AuditSheet"}),
-        json!({"handles":[a.clone(),"FFFFFFFFFFFFFFFF"],"to":"AuditSheet"}),
-    ] {
+    for params in [json!({"handles":[a.clone(),b.clone()],"to":"AuditSheet"}), json!({"handles":[a.clone(),"FFFFFFFFFFFFFFFF"],"to":"AuditSheet"})] {
         assert!(s.execute("chspace", &params).is_err(), "invalid CHSPACE accepted {params}");
         assert!(std::sync::Arc::ptr_eq(&before, &s.state().unwrap().doc));
         assert_eq!(s.state().unwrap().revision, revision);

@@ -5,11 +5,8 @@ use serde_json::json;
 
 fn tagged_reference() -> (Session, String) {
     let mut s = Session::new();
-    let def = s
-        .execute("attdef", &json!({"tag":"MATERIAL","at":[0,0],"height":0.5,"default":"WOOD","prompt":"Finish"}))
-        .unwrap();
-    s.execute("block", &json!({"name":"SceneryTag","base":[0,0],"handles":[def["handle"]],"keep":"delete"}))
-        .unwrap();
+    let def = s.execute("attdef", &json!({"tag":"MATERIAL","at":[0,0],"height":0.5,"default":"WOOD","prompt":"Finish"})).unwrap();
+    s.execute("block", &json!({"name":"SceneryTag","base":[0,0],"handles":[def["handle"]],"keep":"delete"})).unwrap();
     let inserted = s.execute("insert", &json!({"name":"SceneryTag","at":[5,6]})).unwrap();
     (s, inserted["handle"].as_str().unwrap().to_string())
 }

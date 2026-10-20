@@ -1,5 +1,5 @@
 //! Bounded native G0/G1/G2 NURBS curve blends. No polyline tessellation.
-use crate::{KernelError, Result};
+use crate::{KernelError, Result, cubic_bezier_stationary_point};
 use cadcraft_geom::{Vec3, nurbs3d::Curve};
 
 /// Exact G0 (line), geometric G1 (cubic) or geometric G2 (quintic) connector.
@@ -55,8 +55,13 @@ pub fn blend_nurbs_curves(
         let handle_a = incoming * (span * strength_a / la);
         let handle_b = outgoing * (span * strength_b / lb);
         if continuity == 1 {
-            let control: Vec<Vec3> = vec![start, start + handle_a, end - handle_b, end];
-            Curve::from_control(control, 3)
+            let control = [start, start + handle_a, end - handle_b, end];
+            if cubic_bezier_stationary_point(control).is_some() {
+                return Err(KernelError::Invalid(
+                    "G1 blend has an interior stationary point; change end orientation or handle strengths",
+                ));
+            }
+            Curve::from_control(control.to_vec(), 3)
         } else {
             // Degree-five Hermite interpolation uses endpoint position,
             // oriented first derivative and curvature at BOTH ends. Its

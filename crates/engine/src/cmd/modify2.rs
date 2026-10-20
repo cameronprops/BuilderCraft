@@ -1166,12 +1166,38 @@ pub(crate) fn align_matrix(s1: Vec2, d1: Vec2, pair2: Option<(Vec2, Vec2)>, scal
     m
 }
 
+fn checked_align_matrix(s1: Vec2, d1: Vec2, pair2: Option<(Vec2, Vec2)>, scale: bool) -> Result<Mat3> {
+    if scale && pair2.is_none() {
+        return Err(bad("align", "scaling requires both second source and destination points"));
+    }
+    if let Some((s2, d2)) = pair2 {
+        let source = (s2 - s1).len();
+        let destination = (d2 - d1).len();
+        if !source.is_finite() || !destination.is_finite() || source <= 1e-12 || destination <= 1e-12 {
+            return Err(bad("align", "second reference points must define positive finite source and destination lengths"));
+        }
+    }
+    let m = align_matrix(s1, d1, pair2, scale);
+    if ![m.a, m.b, m.c, m.d, m.e, m.f].into_iter().all(f64::is_finite) {
+        return Err(bad("align", "alignment transform contains non-finite values"));
+    }
+    Ok(m)
+}
+
 fn run_align(s: &mut Session, p: &Value) -> Result<Value> {
     let hs = targets(s, p)?;
     let s1 = point_req("align", p, "s1")?;
     let d1 = point_req("align", p, "d1")?;
-    let pair2 = point_param(p, "s2").zip(point_param(p, "d2"));
-    let m = align_matrix(s1, d1, pair2, bool_or(p, "scale", false));
+    let pair2 = match (p.get("s2"), p.get("d2")) {
+        (None, None) => None,
+        (Some(_), Some(_)) => Some((point_req("align", p, "s2")?, point_req("align", p, "d2")?)),
+        _ => return Err(bad("align", "s2 and d2 must be supplied together")),
+    };
+    let scale = match p.get("scale") {
+        Some(value) => value.as_bool().ok_or_else(|| bad("align", "scale must be a boolean"))?,
+        None => false,
+    };
+    let m = checked_align_matrix(s1, d1, pair2, scale)?;
     let r = super::modify::transform_entities(s, &hs, &m, false)?;
     Ok(json!({ "handles": r.iter().map(|h| h.hex()).collect::<Vec<_>>() }))
 }
@@ -1188,7 +1214,7 @@ impl AlignM {
     fn finish(&self, s: &mut Session, scale: bool) -> Result<Step> {
         let (Some(s1), Some(d1)) = (self.pts.first().copied(), self.pts.get(1).copied()) else { return Ok(Step::Cancel) };
         let pair2 = self.pts.get(2).copied().zip(self.pts.get(3).copied());
-        let m = align_matrix(s1, d1, pair2, scale);
+        let m = checked_align_matrix(s1, d1, pair2, scale)?;
         super::modify::transform_entities(s, &self.objs, &m, false)?;
         s.set_selection(Vec::new());
         Ok(Step::Done)

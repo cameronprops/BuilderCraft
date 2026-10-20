@@ -142,6 +142,33 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
     {
         app.session.set_selection(vec![cadcraft_doc::Handle(id)]);
     }
+    // Operate on the same ordered viewport selection used by the headless
+    // document Blend command. The kernel and transaction logic live in engine.
+    ui.horizontal(|ui| {
+        ui.label("Blend selected curves");
+        for (label, continuity) in [("G0", 0), ("G1", 1), ("G2", 2)] {
+            if ui
+                .add_enabled(selected_curves.len() == 2, egui::Button::new(label))
+                .on_hover_text("Bake an exact NURBS connector between the two selected curves. Undo restores the previous document.")
+                .clicked()
+                && let Some(revision) = app.session.state().ok().map(|state| state.revision)
+            {
+                match app.run(
+                    "geometry3d.curve.blend.selected",
+                    json!({"name":format!("Blend {label}"),"continuity":continuity,"selected_revision":revision}),
+                ) {
+                    Ok(result) => {
+                        if let Some(id) = result["id"].as_u64() {
+                            app.session.set_selection(vec![cadcraft_doc::Handle(id)]);
+                        }
+                    }
+                    Err(error) => {
+                        app.session.echo(format!("Blend failed: {error}"));
+                    }
+                }
+            }
+        }
+    });
     let nodes = app.session.doc().map(|d| d.organization.nodes.clone()).unwrap_or_default();
     if nodes.is_empty() {
         ui.label("Select geometry, then create a named body.");

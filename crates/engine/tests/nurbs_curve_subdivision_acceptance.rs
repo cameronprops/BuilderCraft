@@ -4,16 +4,7 @@ use cadcraft_geom::{Vec3, nurbs3d::Curve};
 use serde_json::{Value, json};
 
 fn source() -> Curve {
-    Curve::from_control(
-        vec![
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(1.0, 2.0, 0.0),
-            Vec3::new(3.0, 2.0, 1.0),
-            Vec3::new(4.0, 0.0, 1.0),
-        ],
-        3,
-    )
-    .unwrap()
+    Curve::from_control(vec![Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 2.0, 0.0), Vec3::new(3.0, 2.0, 1.0), Vec3::new(4.0, 0.0, 1.0)], 3).unwrap()
 }
 
 fn execute_three(session: &mut Session, cad: &str, kernel: &str, graph: &str, inputs: &Value) -> Value {

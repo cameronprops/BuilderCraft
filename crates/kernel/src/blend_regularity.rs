@@ -89,12 +89,7 @@ mod tests {
     use super::*;
 
     fn witness(scale: f64) -> [Vec3; 4] {
-        [
-            Vec3::new(1.0 * scale, 0.0, 0.0),
-            Vec3::new(2.0 * scale, 0.0, 0.0),
-            Vec3::new(2.5 * scale, 0.0, 0.0),
-            Vec3::new(1.5 * scale, 0.0, 0.0),
-        ]
+        [Vec3::new(1.0 * scale, 0.0, 0.0), Vec3::new(2.0 * scale, 0.0, 0.0), Vec3::new(2.5 * scale, 0.0, 0.0), Vec3::new(1.5 * scale, 0.0, 0.0)]
     }
 
     #[test]
@@ -110,23 +105,13 @@ mod tests {
 
     #[test]
     fn coordinate_extremum_is_not_false_positive_when_other_axes_move() {
-        let curve = [
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(2.0, 0.0, 0.0),
-            Vec3::new(2.5, 1.0, 0.0),
-            Vec3::new(1.5, 2.0, 0.0),
-        ];
+        let curve = [Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 0.0, 0.0), Vec3::new(2.5, 1.0, 0.0), Vec3::new(1.5, 2.0, 0.0)];
         assert!(cubic_bezier_stationary_point(curve).is_none());
     }
 
     #[test]
     fn regular_monotone_cubic_has_no_stationary_point() {
-        let curve = [
-            Vec3::ZERO,
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(2.0, 1.0, 0.0),
-            Vec3::new(3.0, 1.0, 0.0),
-        ];
+        let curve = [Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0), Vec3::new(3.0, 1.0, 0.0)];
         assert!(cubic_bezier_stationary_point(curve).is_none());
     }
 

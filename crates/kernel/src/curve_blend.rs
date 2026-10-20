@@ -57,9 +57,7 @@ pub fn blend_nurbs_curves(
         if continuity == 1 {
             let control = [start, start + handle_a, end - handle_b, end];
             if cubic_bezier_stationary_point(control).is_some() {
-                return Err(KernelError::Invalid(
-                    "G1 blend has an interior stationary point; change end orientation or handle strengths",
-                ));
+                return Err(KernelError::Invalid("G1 blend has an interior stationary point; change end orientation or handle strengths"));
             }
             Curve::from_control(control.to_vec(), 3)
         } else {

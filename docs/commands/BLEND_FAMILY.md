@@ -11,9 +11,9 @@ plus [VariableBlendSrf](https://docs.mcneel.com/rhino/8/help/en-us/commands/vari
 for radius-varying transitions between intersecting surface edges.
 See [blend-parity.json](blend-parity.json) for the machine-readable inventory.
 
-## Proposed G0/G1/G2 curve-blend vertical slice
+## Merged G0/G1/G2 headless curve-blend vertical slice
 
-The stacked PRs share **one** geometry algorithm,
+Merged PRs #132 and #134 share **one** geometry algorithm,
 `buildercraft_kernel::blend_nurbs_curves`, and exposes it to the typed
 shared operator `kernel.curve.blend`, CAD command
 `worldwright.curve.blend` (alias `blend` for command lookup), and
@@ -90,11 +90,10 @@ maximum feasible blend strength, or collision certificate is yet provided.
 
 ## Next dependencies
 
-1. **Implemented in the stacked G2 PR:** analytic second derivatives were
-   merged separately; the existing G0/G1 solver now conditionally constructs
-   a degree-five Hermite G2 transition, with independently adjustable end
-   handle fractions. Numerical curvature continuity is tested at each end.
-   G2 is not called released until this PR passes CI and merges.
+1. **Merged on main:** analytic second derivatives, the shared G0/G1 solver,
+   and degree-five G2 Hermite transition with independent end handle fractions.
+   Numerical endpoint curvature continuity and CAD/OrbWeaver parity have
+   automated tests. This is headless capability, not interactive Rhino parity.
 2. Add orientation/end-pick state, preview, history and document persistence
    through normal CAD and OrbWeaver interfaces.
 3. Add surface edge continuity and matched sections across untrimmed
@@ -103,6 +102,9 @@ maximum feasible blend strength, or collision certificate is yet provided.
 4. Certify accurate continuity and failure limits, collision and trim
    diagnostics, .dftba roundtrips, undo/redo and actual viewport inputs.
 
-The G2 addition is **stacked behind G0/G1 PR #132** and requires its own
-pinned formatting, native Rust, modeling and OpenCascade integration checks,
-plus post-merge checks on `main`. Until then it is not a released command.
+PRs #132 and #134 merged into `main` on October 19, 2026. Their exact-head
+native Rust, modeling and OpenCascade checks were green before #134 merged.
+PR #136 was closed as redundant; its G2 core and acceptance tests overlap
+with the merged solution. **Post-merge `main` checks are not independently
+verified here.** Headless G0/G1/G2 is distinct from certified interactive
+BlendCrv, surface blends and edge blends.

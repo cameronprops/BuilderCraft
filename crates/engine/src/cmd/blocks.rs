@@ -177,26 +177,61 @@ fn run_attdef(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad("attdef", "tag must be non-empty without spaces"));
     }
     let at = point_req("attdef", p, "at")?;
-    let h = f64_or(p, "height", s.doc()?.header.f64("TEXTSIZE", 0.2));
+    let h = match p.get("height") {
+        Some(value) => value.as_f64().ok_or_else(|| bad("attdef", "height must be a positive finite number"))?,
+        None => s.doc()?.header.f64("TEXTSIZE", 0.2),
+    };
+    if !h.is_finite() || h <= 0.0 {
+        return Err(bad("attdef", "height must be a positive finite number"));
+    }
     let k = attdef_kind(s, tag, str_param(p, "prompt").unwrap_or(tag), str_param(p, "default").unwrap_or(""), at, h, bool_or(p, "invisible", false));
     Ok(json!({ "handle": s.add_entity(k)?.hex() }))
 }
 
 fn run_attedit(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("attedit", "`handle` is required"))?;
-    let vals = p.get("values").and_then(Value::as_object).cloned().unwrap_or_default();
-    let mut n = 0;
-    s.doc_mut()?.modify_entity(h, |e| {
-        if let EntityKind::Insert(i) = &mut e.kind {
-            for a in &mut i.attribs {
-                if let Some(v) = vals.get(&a.tag).and_then(Value::as_str) {
-                    a.text.value = v.to_string();
-                    n += 1;
+    let values = p.get("values").and_then(Value::as_object).ok_or_else(|| bad("attedit", "`values` must be a non-empty object"))?;
+    if values.is_empty() {
+        return Err(bad("attedit", "`values` must contain at least one attribute"));
+    }
+    let drawing = s.doc()?;
+    let entity = drawing.entity(h).ok_or_else(|| bad("attedit", format!("object {} does not exist", h.hex())))?;
+    if drawing.space_of(h).as_ref() != Some(&s.space()) {
+        return Err(bad("attedit", format!("object {} is outside the current drawing space", h.hex())));
+    }
+    if drawing.layer(&entity.common.layer).is_some_and(|layer| layer.locked) {
+        return Err(bad("attedit", format!("object {} is on a locked layer", h.hex())));
+    }
+    let EntityKind::Insert(insert) = &entity.kind else {
+        return Err(bad("attedit", "select a block reference containing editable attributes"));
+    };
+    // Preflight the entire edit batch. Unknown tags and incorrect value types
+    // must not produce a partially applied block attribute update.
+    let mut updates = Vec::new();
+    let mut tags = std::collections::HashSet::new();
+    for (tag, value) in values {
+        let canonical = tag.to_ascii_uppercase();
+        let text = value.as_str().ok_or_else(|| bad("attedit", format!("attribute `{tag}` must be text")))?;
+        if !tags.insert(canonical.clone()) {
+            return Err(bad("attedit", format!("attribute `{tag}` was supplied more than once")));
+        }
+        if !insert.attribs.iter().any(|attribute| attribute.tag.eq_ignore_ascii_case(tag)) {
+            return Err(bad("attedit", format!("attribute `{tag}` does not exist on this block reference")));
+        }
+        updates.push((canonical, text.to_string()));
+    }
+    let mut changed = 0;
+    s.doc_mut()?.modify_entity(h, |entity| {
+        if let EntityKind::Insert(insert) = &mut entity.kind {
+            for attribute in &mut insert.attribs {
+                if let Some((_, value)) = updates.iter().find(|(tag, _)| tag.eq_ignore_ascii_case(&attribute.tag)) {
+                    attribute.text.value.clone_from(value);
+                    changed += 1;
                 }
             }
         }
     })?;
-    Ok(json!({ "changed": n }))
+    Ok(json!({ "changed": changed }))
 }
 
 fn run_wblock(s: &mut Session, p: &Value) -> Result<Value> {

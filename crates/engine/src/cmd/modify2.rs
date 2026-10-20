@@ -1708,9 +1708,7 @@ fn run_ncopy(s: &mut Session, p: &Value) -> Result<Value> {
     // copy-all/zero-displacement behavior.
     let parse_point = |key: &str| -> Result<Option<Vec2>> {
         match p.get(key) {
-            Some(_) => point_param(p, key)
-                .map(Some)
-                .ok_or_else(|| bad("ncopy", format!("`{key}` must be a finite [x,y] point"))),
+            Some(_) => point_param(p, key).map(Some).ok_or_else(|| bad("ncopy", format!("`{key}` must be a finite [x,y] point"))),
             None => Ok(None),
         }
     };

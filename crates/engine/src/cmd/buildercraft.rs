@@ -156,10 +156,10 @@ fn blend_document_curves(s: &mut Session, p: &Value) -> Result<Value> {
         _ => return Err(error("preview must be boolean")),
     };
     let revision = s.state()?.revision;
-    if let Some(value) = p.get("selected_revision") {
-        if value.as_u64() != Some(revision) {
-            return Err(error("selected geometry revision is stale"));
-        }
+    if let Some(value) = p.get("selected_revision")
+        && value.as_u64() != Some(revision)
+    {
+        return Err(error("selected geometry revision is stale"));
     }
     let doc = s.doc()?;
     let source = |source_id| -> Result<std::sync::Arc<cadcraft_geom::nurbs3d::Curve>> {

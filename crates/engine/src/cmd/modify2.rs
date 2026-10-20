@@ -1701,19 +1701,43 @@ fn place_copies(s: &mut Session, items: &[(Common, EntityKind)], delta: Vec2) ->
 
 fn run_ncopy(s: &mut Session, p: &Value) -> Result<Value> {
     let h = targets(s, p)?.first().copied().ok_or_else(|| bad("ncopy", "`handle` (block reference) is required"))?;
+    if s.doc()?.space_of(h).as_ref() != Some(&s.space()) {
+        return Err(bad("ncopy", format!("object {} is outside the current drawing space", h.hex())));
+    }
+    // Explicit malformed points must never fall back to the default
+    // copy-all/zero-displacement behavior.
+    let parse_point = |key: &str| -> Result<Option<Vec2>> {
+        match p.get(key) {
+            Some(_) => point_param(p, key)
+                .map(Some)
+                .ok_or_else(|| bad("ncopy", format!("`{key}` must be a finite [x,y] point"))),
+            None => Ok(None),
+        }
+    };
+    let pick = parse_point("pick")?;
+    let displacement = parse_point("delta")?;
+    let from = parse_point("from")?;
+    let to = parse_point("to")?;
+    let delta = match (displacement, from, to) {
+        (Some(d), None, None) => d,
+        (None, Some(a), Some(b)) => b - a,
+        (None, None, None) => Vec2::ZERO,
+        _ => return Err(bad("ncopy", "supply either `delta` or both `from` and `to`, not conflicting or partial coordinates")),
+    };
+    if !delta.is_finite() {
+        return Err(bad("ncopy", "displacement exceeds the finite drawing range"));
+    }
     let leaves = leaves_of(s, h)?;
-    let items: Vec<(Common, EntityKind)> = match point_param(p, "pick") {
+    if leaves.len() >= MAX_GEN {
+        return Err(bad("ncopy", format!("nested block reaches the {MAX_GEN}-object traversal limit; cannot copy a possibly truncated selection")));
+    }
+    let items: Vec<(Common, EntityKind)> = match pick {
         Some(q) => nearest_leaf(leaves, q).into_iter().collect(),
         None => leaves,
     };
     if items.is_empty() {
         return Err(other("The block reference has no nested objects."));
     }
-    let delta = match (point_param(p, "delta"), point_param(p, "from"), point_param(p, "to")) {
-        (Some(d), _, _) => d,
-        (None, Some(a), Some(b)) => b - a,
-        _ => Vec2::ZERO,
-    };
     let hs = place_copies(s, &items, delta)?;
     Ok(json!({ "handles": hs.iter().map(|h| h.hex()).collect::<Vec<_>>() }))
 }

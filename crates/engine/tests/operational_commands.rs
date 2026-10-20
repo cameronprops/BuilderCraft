@@ -124,6 +124,9 @@ const CASES: &[Case] = &[
     ("textedit", textedit_changes_text_without_replacing_handle),
     ("xline", xline_keeps_unit_direction),
     ("mline", mline_builds_two_parallel_rails),
+    ("block", block_creates_definition_from_line),
+    ("insert", insert_places_reference_at_point),
+    ("ncopy", ncopy_places_independent_transformed_line),
     ("centermark", centermark_crosses_circle_center),
     ("centerline", centerline_bisects_parallel_lines),
     ("worldwright.polyline.point_at_station", native_polyline_station_returns_expected_point),
@@ -2892,6 +2895,53 @@ fn measure_places_all_four_line_stations() {
         .collect();
     for station in [2.0, 4.0, 6.0, 8.0] {
         assert!(xs.contains(&station), "missing station {station}: {xs:?}");
+    }
+}
+
+fn fixture_block(s: &mut Session) {
+    let line = s.execute("line", &json!({"points":[[0,0],[3,4]]})).unwrap();
+    s.execute("block", &json!({"name":"NCopyFixture","base":[0,0],"handles":line["handles"],"keep":"delete"})).unwrap();
+}
+
+fn block_creates_definition_from_line() {
+    let mut s = Session::new();
+    fixture_block(&mut s);
+    assert!(s.doc().unwrap().model.is_empty());
+    let block = s.doc().unwrap().block("NCopyFixture").unwrap();
+    assert_eq!(block.entities.len(), 1);
+    assert!(matches!(&block.entities.iter().next().unwrap().kind, EntityKind::Line(_)));
+}
+
+fn insert_places_reference_at_point() {
+    let mut s = Session::new();
+    fixture_block(&mut s);
+    let result = s.execute("insert", &json!({"name":"NCopyFixture","at":[5,6]})).unwrap();
+    let entity = s.doc().unwrap().model.iter().next().unwrap();
+    assert_eq!(entity.handle.hex(), result["handle"].as_str().unwrap());
+    match &entity.kind {
+        EntityKind::Insert(insert) => {
+            assert_eq!(insert.block, "NCopyFixture");
+            assert_eq!((insert.insert.x, insert.insert.y), (5.0, 6.0));
+        }
+        other => panic!("expected block reference, got {other:?}"),
+    }
+}
+
+fn ncopy_places_independent_transformed_line() {
+    let mut s = Session::new();
+    fixture_block(&mut s);
+    let source = s.execute("insert", &json!({"name":"NCopyFixture","at":[5,6]})).unwrap();
+    let result = s.execute("ncopy", &json!({"handle":source["handle"],"delta":[10,-2]})).unwrap();
+    let handles = result["handles"].as_array().unwrap();
+    assert_eq!(handles.len(), 1);
+    assert_eq!(s.doc().unwrap().model.len(), 2);
+    let entity = s.doc().unwrap().model.iter().find(|e| e.handle.hex() == handles[0].as_str().unwrap()).unwrap();
+    match &entity.kind {
+        EntityKind::Line(line) => {
+            assert_eq!((line.a.x, line.a.y), (15.0, 4.0));
+            assert_eq!((line.b.x, line.b.y), (18.0, 8.0));
+        }
+        other => panic!("expected independent copied line, got {other:?}"),
     }
 }
 

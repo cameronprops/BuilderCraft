@@ -837,16 +837,8 @@ fn curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels() {
 fn document_curve_blend_previews_and_bakes_exact_g2() {
     use cadcraft_geom::{Vec3, nurbs3d::Curve};
     let mut s = Session::new();
-    let a = Curve::from_control(
-        vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)],
-        2,
-    )
-    .unwrap();
-    let b = Curve::from_control(
-        vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)],
-        2,
-    )
-    .unwrap();
+    let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)], 2).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)], 2).unwrap();
     let a_id = s.execute("nurbs.curve3d", &json!({"name":"Source A","curve":a})).unwrap()["id"].as_u64().unwrap();
     let b_id = s.execute("nurbs.curve3d", &json!({"name":"Source B","curve":b})).unwrap()["id"].as_u64().unwrap();
     let revision = s.state().unwrap().revision;

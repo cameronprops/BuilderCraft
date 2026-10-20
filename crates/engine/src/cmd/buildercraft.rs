@@ -16,6 +16,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("visualization.stop", "Stop Live Visualization", stop_visualization).noundo(),
         CommandSpec::new("visualization.publish", "Publish Visualization Scene", publish_visualization).params("{project_id:32 hex digits,directory}").noundo(),
         CommandSpec::new("geometry3d.preview", "Tessellate 3D Preview", preview3d).params("{id,curve_segments?:64,surface_u?:16,surface_v?:16}").noundo(),
+        CommandSpec::new("geometry3d.curve.blend", "Blend Document NURBS Curves", blend_document_curves).params("{name,a_id,b_id,continuity?:0..2,strength_a?:0.333333,strength_b?:0.333333,reverse_a?:false,reverse_b?:false,selected_revision?:number,preview?:false}"),
         CommandSpec::new("kernel.manifest", "Suite Scene Manifest", kernel_manifest).params("{project_id:32 hex digits, geometry_budget_bytes?:positive bytes}").noundo(),
         CommandSpec::new("buildercraft.capabilities", "BuilderCraft API Capabilities", |_,_| Ok(json!({"apiVersion":"0.1","projectSchema":1,"kernelProtocol":1,"sceneManifest":true,"visualizationPublication":true,"productionMetadata":true,"geometry":["rationalCurve3d","controlSurface","polygonMesh","exactOcctBrep"],"nativeProject":"dftba","legacyNativeProject":"bcraft","solids":"nativeOCCTWorkerOptional","meshTools":true,"meshViewport":true,"viewportPicking":"orthographicPreviewWires","transient3dSelection":true,"changeSubscriptions":false,"constructionPlanePointInput":"orthographic","endpointSnapping":"exactCurveEndsAndSurfaceCorners","meshExchange":["stl","triangularObj"],"controlCurveFromPoints":true}))).enabled(always).noundo(),
         CommandSpec::new("nurbs.curve3d", "3D NURBS Curve", curve3d).params("{name, curve:{degree,control:[{x,y,z}],weights,knots}}"),
@@ -117,6 +118,107 @@ fn preview3d(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"source_id":object_id,"source_revision":s.state()?.revision,"sampling":"uniform_parameter",
         "tolerance_certified":false,"preview":preview.data(),"estimated_geometry_bytes":preview.estimated_bytes()}))
 }
+/// One shared kernel blend, with document-aware endpoint IDs and atomic bake.
+/// Preview returns exact NURBS data without mutating the document or undo stack.
+fn blend_document_curves(s: &mut Session, p: &Value) -> Result<Value> {
+    let object = p.as_object().ok_or_else(|| error("blend options must be an object"))?;
+    if object.keys().any(|key| {
+        ![
+            "name", "a_id", "b_id", "continuity", "strength_a", "strength_b",
+            "reverse_a", "reverse_b", "selected_revision", "preview",
+        ]
+        .contains(&key.as_str())
+    }) {
+        return Err(error("unsupported blend option"));
+    }
+    let name = name(p)?;
+    let a_id = p
+        .get("a_id")
+        .and_then(Value::as_u64)
+        .filter(|id| *id != 0)
+        .ok_or_else(|| error("a_id must be a curve ID"))?;
+    let b_id = p
+        .get("b_id")
+        .and_then(Value::as_u64)
+        .filter(|id| *id != 0 && *id != a_id)
+        .ok_or_else(|| error("b_id must be a distinct curve ID"))?;
+    let continuity = match p.get("continuity") {
+        None => 1,
+        Some(value) => value
+            .as_u64()
+            .filter(|n| *n <= 2)
+            .ok_or_else(|| error("continuity must be 0, 1 or 2"))? as usize,
+    };
+    let strength = |key: &str| -> Result<f64> {
+        match p.get(key) {
+            None => Ok(1.0 / 3.0),
+            Some(value) => value
+                .as_f64()
+                .filter(|n| n.is_finite() && (0.01..=2.0).contains(n))
+                .ok_or_else(|| error("blend strength must be in [0.01, 2]")),
+        }
+    };
+    let reversal = |key: &str| -> Result<usize> {
+        match p.get(key) {
+            None | Some(Value::Bool(false)) => Ok(0),
+            Some(Value::Bool(true)) => Ok(1),
+            _ => Err(error("blend reversal must be boolean")),
+        }
+    };
+    let preview = match p.get("preview") {
+        None | Some(Value::Bool(false)) => false,
+        Some(Value::Bool(true)) => true,
+        _ => return Err(error("preview must be boolean")),
+    };
+    let revision = s.state()?.revision;
+    if let Some(value) = p.get("selected_revision") {
+        if value.as_u64() != Some(revision) {
+            return Err(error("selected geometry revision is stale"));
+        }
+    }
+    let doc = s.doc()?;
+    let source = |source_id| -> Result<std::sync::Arc<cadcraft_geom::nurbs3d::Curve>> {
+        let geometry = doc
+            .geometry3d
+            .iter()
+            .find(|geometry| geometry.id == source_id)
+            .ok_or_else(|| error("blend source ID not found"))?;
+        match &geometry.shape {
+            cadcraft_doc::organization::Shape::Curve(curve) => Ok(curve.clone()),
+            cadcraft_doc::organization::Shape::Surface(_) => Err(error("blend source must be a NURBS curve")),
+        }
+    };
+    let a = source(a_id)?;
+    let b = source(b_id)?;
+    let curve = buildercraft_kernel::blend_nurbs_curves(
+        &a,
+        &b,
+        continuity,
+        strength("strength_a")?,
+        strength("strength_b")?,
+        reversal("reverse_a")?,
+        reversal("reverse_b")?,
+    )
+    .map_err(|e| error(&e.to_string()))?;
+    if preview {
+        return Ok(json!({
+            "preview": true,
+            "name": name,
+            "source_ids": [a_id, b_id],
+            "source_revision": revision,
+            "curve": curve,
+            "baked": false,
+        }));
+    }
+    let result = add3d(s, p, cadcraft_doc::organization::Shape::Curve(curve.into()))?;
+    Ok(json!({
+        "id": result["id"],
+        "source_ids": [a_id, b_id],
+        "continuity": continuity,
+        "baked": true,
+    }))
+}
+
 fn kernel_manifest(s: &mut Session, p: &Value) -> Result<Value> {
     let project = p.get("project_id").and_then(Value::as_str).ok_or_else(|| error("project_id required"))?;
     let project = buildercraft_kernel::Id::try_from(project.to_string()).map_err(|e| error(&e.to_string()))?;

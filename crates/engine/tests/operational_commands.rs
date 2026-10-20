@@ -119,6 +119,9 @@ const CASES: &[Case] = &[
     ("divide", divide_stations_match_geometry),
     ("revcloud", revcloud_replaces_source_with_closed_boundary),
     ("pedit", pedit_joins_touching_geometry),
+    ("attdef", attdef_creates_real_attribute_definition),
+    ("battman", battman_lists_attribute_definition),
+    ("attedit", attedit_updates_real_insert_attribute),
     ("text", text_preserves_content_and_position),
     ("mtext", mtext_preserves_paragraphs_and_dimensions),
     ("textedit", textedit_changes_text_without_replacing_handle),
@@ -190,6 +193,53 @@ const CASES: &[Case] = &[
     ("align", align_translates_with_two_reference_points),
     ("lengthen", lengthen_changes_line_length),
 ];
+
+fn attdef_creates_real_attribute_definition() {
+    let mut s = Session::new();
+    let result = s.execute("attdef", &json!({"tag":"MATERIAL","at":[2,3],"height":0.5,"default":"WOOD"})).unwrap();
+    let entity = s.doc().unwrap().model.iter().next().unwrap();
+    assert_eq!(entity.handle.hex(), result["handle"].as_str().unwrap());
+    match &entity.kind {
+        EntityKind::AttDef(def) => {
+            assert_eq!(def.tag, "MATERIAL");
+            assert_eq!(def.text.value, "WOOD");
+            assert_eq!(def.text.height, 0.5);
+            assert_eq!((def.text.insert.x, def.text.insert.y), (2.0, 3.0));
+        }
+        other => panic!("expected attribute definition, got {other:?}"),
+    }
+}
+
+fn fixture_attribute_block(s: &mut Session) {
+    let definition = s.execute("attdef", &json!({"tag":"MATERIAL","at":[0,0],"default":"WOOD","height":0.5})).unwrap();
+    s.execute("block", &json!({"name":"TaggedFixture","base":[0,0],"handles":[definition["handle"]],"keep":"delete"})).unwrap();
+}
+
+fn battman_lists_attribute_definition() {
+    let mut s = Session::new();
+    fixture_attribute_block(&mut s);
+    let report = s.execute("battman", &json!({"name":"TaggedFixture"})).unwrap();
+    assert_eq!(report["attributes"].as_array().unwrap().len(), 1);
+    assert_eq!(report["attributes"][0]["tag"], "MATERIAL");
+    assert_eq!(report["attributes"][0]["default"], "WOOD");
+}
+
+fn attedit_updates_real_insert_attribute() {
+    let mut s = Session::new();
+    fixture_attribute_block(&mut s);
+    let inserted = s.execute("insert", &json!({"name":"TaggedFixture","at":[5,6]})).unwrap();
+    let result = s.execute("attedit", &json!({"handle":inserted["handle"],"values":{"material":"METAL"}})).unwrap();
+    assert_eq!(result["changed"], 1);
+    let entity = s.doc().unwrap().model.iter().next().unwrap();
+    match &entity.kind {
+        EntityKind::Insert(insert) => {
+            assert_eq!(insert.attribs.len(), 1);
+            assert_eq!(insert.attribs[0].tag, "MATERIAL");
+            assert_eq!(insert.attribs[0].text.value, "METAL");
+        }
+        other => panic!("expected edited block reference, got {other:?}"),
+    }
+}
 
 fn mesh_closest_point_reports_projected_triangle() {
     let mut s = Session::new();

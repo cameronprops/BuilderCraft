@@ -179,6 +179,7 @@ const CASES: &[Case] = &[
     ("worldwright.tree.simplify", tree_simplify_removes_only_shared_prefix),
     ("worldwright.tree.match", tree_match_longest_repeats_last_item),
     ("measure", measure_places_all_four_line_stations),
+    ("chspace", change_space_retains_entity_identity_and_undo),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
     ("spline", spline_control_degree_is_preserved),
@@ -2893,6 +2894,22 @@ fn measure_places_all_four_line_stations() {
     for station in [2.0, 4.0, 6.0, 8.0] {
         assert!(xs.contains(&station), "missing station {station}: {xs:?}");
     }
+}
+
+fn change_space_retains_entity_identity_and_undo() {
+    let mut s = Session::new();
+    let line = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap();
+    let handle = line["handles"][0].as_str().unwrap().to_string();
+    let parsed = cadcraft_doc::Handle::parse_hex(&handle).unwrap();
+    s.execute("layout.new", &json!({"name":"CertSheet"})).unwrap();
+    let moved = s.execute("chspace", &json!({"handles":[handle],"to":"CertSheet"})).unwrap();
+    assert_eq!(moved["moved"], 1);
+    let paper = cadcraft_doc::Space::Paper("CertSheet".to_string());
+    assert_eq!(s.doc().unwrap().space_of(parsed), Some(paper));
+    assert!(matches!(&s.doc().unwrap().entity(parsed).unwrap().kind, EntityKind::Line(line) if line.a.is_finite() && line.b.is_finite()));
+    s.undo().unwrap();
+    assert_eq!(s.doc().unwrap().space_of(parsed), Some(cadcraft_doc::Space::Model));
+    assert!(matches!(&s.doc().unwrap().entity(parsed).unwrap().kind, EntityKind::Line(line) if line.a.x == 0.0 && line.b.x == 10.0));
 }
 
 #[test]

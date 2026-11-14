@@ -166,6 +166,14 @@ after merged #125 (`743681f`). Nine certification candidates are tracked
 in the #129 consolidated stack; zero are formally promoted. The native
 prompt-engine suite is not a desktop mouse/keyboard/render certification.
 
+**2026-10-20 source reconciliation:** The current `main` positive-case table
+contains 178 distinct fixtures after subsequent merges. PR #147 adds a
+geometry-and-undo assertion for CHSPACE, yielding **179 authored positive
+fixtures on that branch**, pending current CI. The 396 command denominator
+above is the older dated registry snapshot; the executable acceptance test
+derives the live registry count instead. These additions do not promote any
+command through all five certification gates.
+
 ## Completion criteria for EACH command
 
 1. **Correctness:** invoke with valid geometry and meaningful parameters;

@@ -4,9 +4,38 @@
 
 This register explicitly audits **all 39 PRs open at the start of the stabilization sprint**. Five are merged in the first pass (#25, #27, #34, #53, #63); the rest are unresolved at this snapshot. Re-query GitHub before making state claims. A prior green head check is **not** proof that an updated `main` passes. Preserve original branch work until its functionality has landed or has an explained disposition.
 
+## Current punchlist (2026-11-18 Pacific)
+
+Work through this list from the top. The October sections below preserve the original stabilization record.
+
+| Priority | Task | Done when |
+|---|---|---|
+| 1 | Resolve open CAD PRs and confirm a green baseline | [NCOPY #152](https://github.com/cameronprops/BuilderCraft/pull/152) merged after all three hosted workflows passed. The post-merge Linux engine and UI suites passed with OpenCascade installed. Recheck [Rebuild #142](https://github.com/cameronprops/BuilderCraft/pull/142) and [Blend regularity #151](https://github.com/cameronprops/BuilderCraft/pull/151) independently. Validate [Blend UI #145](https://github.com/cameronprops/BuilderCraft/pull/145) before its dependent [handle controls #146](https://github.com/cameronprops/BuilderCraft/pull/146). Verify the integrated head after each merge. |
+| 2 | Run the native desktop and prove the everyday CAD workflow | Launch the app and exercise picking, transforming, undo/redo, save and reopen using one drawing with a NURBS curve, surface, polygon mesh and exact solid. Record Windows, Linux, and Intel Mac results separately. |
+| 3 | Validate exact modeling and scenic mesh workflows | Run the exact BRep, Boolean, and STEP round-trip checks. Exercise mesh inspection, a failed repair, repair preview and commit, and simplification on a representative scenic mesh. |
+| 4 | Integrate PocketSculpt as a suite app | Complete the PocketSculpt checklist below. Use one PocketSculpt creature in the representative scene alongside CAD and scenic geometry. |
+| 5 | Package and verify recovery | Install the alpha from clean packages, reopen the representative scene, and verify a dated backup with a checksum and test restore. |
+
+### Linux baseline verification
+
+On `main` at `ed38d00c` with Rust 1.95.0, 18 focused engine tests and 57 egui tests passed. Coverage included NURBS and model organization round-trips, transforms and undo, invalid primitive input, viewport selection and camera behavior, and synthetic pointer input. Native window launch and a single mixed-geometry desktop walkthrough still require verification.
+
+[NCOPY #152](https://github.com/cameronprops/BuilderCraft/pull/152) merged at `cf70fd5`. On that commit, 378 engine and UI tests passed with the native OpenCascade worker configured. One full-command certification release gate remained intentionally ignored. The desktop target also passed `cargo check`. Mesh checks covered quad preservation, stale-pick rejection, topology inspection, repair, simplification preview and bake, and save/reopen. A representative scenic mesh and interactive window walkthrough remain open.
+
+[Mixed geometry smoke test #155](https://github.com/cameronprops/BuilderCraft/pull/155) passed locally on Linux with the native OpenCascade worker. It saves rational curves, a ruled surface, a quad mesh and exact solids together in one `.dftba` project, compares the three geometry collections after reopening, and exercises exact Boolean, STEP, and undo/redo operations. Cross-platform CI and the interactive desktop walkthrough are pending.
+
+### PocketSculpt integration
+
+- [ ] **Direct scene import.** Add a native file-picker and drag-and-drop path for saved PocketSculpt projects into the active BuilderCraft scene. Preserve scene object names, intended scale, source units and up-axis. Test a saved sculpt-stage project, a skeleton-stage project, and the OBJ handoff for geometry. Give a clear explanation if an input stage needs a surface export.
+- [ ] **Tool synonyms in the command search.** Use PocketSculpt terms as aliases for matching tools. Map Move, Size, Pose and Mirror to their actual transform equivalents. Map Node Axes and Squidge to axis scaling where the scope matches. Track missing rig, node, shell and brush operations, including the difference between axis flattening and the Flatten brush.
+- [ ] **Akeley's Tool.** Make Akeley's Tool, Ball Joint and Socket searchable when the corresponding commands exist. Keep joint locations, connector type, fit dimensions and part boundaries in the handoff. Verify that ball and socket fit-test parts arrive as separate, correctly scaled objects.
+- [ ] **Sculpt-mode joint protection.** Carry the connector indicator and the toggleable, feathered protected region with editable connector data if the workflow transfers the rig. Verify the region displays at the joint and can be unlocked for brush edits.
+- [ ] **PocketSculpt node metadata.** Verify that editable-project handoffs preserve stable node IDs and optional alternate XYZ positions and per-axis scales. Keep alternate states available as metadata for later blend support.
+- [ ] **Scene acceptance.** Import an actual PocketSculpt creature, move and orient it alongside other scene objects, then undo/redo and save/reopen the combined project. Check which paint, shell, rig and connector data survive each route and report omissions in the import result.
+
 ## Live acceptance stack (2026-10-19)
 
-This section supersedes historical PR statuses below. The original stabilization
+This October section supersedes the earlier October PR statuses below. The original stabilization
 snapshot is retained for traceability and must not be treated as live GitHub state.
 
 | PR | Dependency | Authored success fixtures | Merge gate |

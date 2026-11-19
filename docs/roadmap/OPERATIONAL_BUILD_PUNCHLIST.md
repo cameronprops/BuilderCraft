@@ -18,9 +18,11 @@ Work through this list from the top. The October sections below preserve the ori
 
 ### Linux baseline verification
 
-On `main` at `ed38d00c` with Rust 1.95.0, 18 focused engine tests and 57 egui tests passed. Coverage included NURBS and model organization round-trips, transforms and undo, invalid primitive input, viewport selection and camera behavior, and synthetic pointer input. Native window launch, an installed local OCCT worker, and a single mixed-geometry desktop walkthrough still require verification.
+On `main` at `ed38d00c` with Rust 1.95.0, 18 focused engine tests and 57 egui tests passed. Coverage included NURBS and model organization round-trips, transforms and undo, invalid primitive input, viewport selection and camera behavior, and synthetic pointer input. Native window launch and a single mixed-geometry desktop walkthrough still require verification.
 
 [NCOPY #152](https://github.com/cameronprops/BuilderCraft/pull/152) passed hosted modeling acceptance and native Rust validation. The exact BRep workflow passed its Linux and macOS jobs and remained pending on Windows at this checkpoint.
+
+[Mixed geometry smoke test #155](https://github.com/cameronprops/BuilderCraft/pull/155) passed locally on Linux with the native OpenCascade worker. It saves rational curves, a ruled surface, a quad mesh and exact solids together in one `.dftba` project, compares the three geometry collections after reopening, and exercises exact Boolean, STEP, and undo/redo operations. Cross-platform CI and the interactive desktop walkthrough are pending.
 
 ### PocketSculpt integration
 

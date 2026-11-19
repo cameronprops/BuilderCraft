@@ -1062,6 +1062,28 @@ mod tests {
             return;
         }
         let mut s = Session::new();
+        let mut rails = Vec::new();
+        for z in [0., 2.] {
+            let rail = s
+                .execute(
+                    "nurbs.curve3d",
+                    &json!({"name":format!("Scenic rail {z}"),"curve":{
+                        "degree":2,"control":[{"x":4.,"y":0.,"z":z},{"x":5.,"y":1.,"z":z},{"x":6.,"y":0.,"z":z}],
+                        "weights":[1.,0.75,1.],"knots":[0.,0.,0.,1.,1.,1.]
+                    }}),
+                )
+                .unwrap();
+            rails.push(rail["id"].as_u64().unwrap());
+        }
+        s.execute("nurbs.surface.ruled", &json!({"name":"Scenic skin","a_id":rails[0],"b_id":rails[1]})).unwrap();
+        s.execute(
+            "mesh3d.create",
+            &json!({"name":"Scenic mesh","mesh":{
+                "vertices":[{"x":4.,"y":0.,"z":0.},{"x":6.,"y":0.,"z":0.},{"x":6.,"y":2.,"z":0.},{"x":4.,"y":2.,"z":0.}],
+                "faces":[{"quad":[0,1,2,3]}]
+            }}),
+        )
+        .unwrap();
         let a = s.execute("brep.box", &json!({"name":"A","min":[0.,0.,0.],"max":[2.,2.,2.]})).unwrap();
         let b = s.execute("brep.box", &json!({"name":"B","min":[1.,1.,1.],"max":[3.,3.,3.]})).unwrap();
         let id_a = a["ids"][0].as_u64().unwrap();
@@ -1084,6 +1106,8 @@ mod tests {
         assert_eq!(imported["count"], 1);
         let exported = cadcraft_io::write(s.doc().unwrap(), "solid.dftba").unwrap();
         let reopened = cadcraft_io::read(&exported, "solid.dftba").unwrap();
+        assert_eq!(reopened.geometry3d, s.doc().unwrap().geometry3d);
+        assert_eq!(reopened.mesh3d, s.doc().unwrap().mesh3d);
         assert_eq!(reopened.exact_breps, s.doc().unwrap().exact_breps);
         assert!(cadcraft_io::write(&reopened, "solid.dxf").is_err());
         s.execute("undo", &json!({})).unwrap();

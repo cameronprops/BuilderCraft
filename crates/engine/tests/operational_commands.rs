@@ -2949,7 +2949,6 @@ fn measure_places_all_four_line_stations() {
     }
 }
 
-<<<<<<< HEAD
 fn fixture_block(s: &mut Session) {
     let line = s.execute("line", &json!({"points":[[0,0],[3,4]]})).unwrap();
     s.execute("block", &json!({"name":"NCopyFixture","base":[0,0],"handles":line["handles"],"keep":"delete"})).unwrap();

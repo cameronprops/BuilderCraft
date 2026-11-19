@@ -1,7 +1,7 @@
 //! Shared Curve Rebuild acceptance: real NURBS, numeric shape, bounded failure.
 //! This tests the existing control-fitting operation, not Rhino interpolation parity.
 use cadcraft_engine::Session;
-use cadcraft_geom::{Vec3, nurbs3d::Curve};
+use cadcraft_geom::nurbs3d::Curve;
 use serde_json::{Value, json};
 
 fn inputs(controls: usize, degree: usize) -> Value {

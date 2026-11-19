@@ -35,6 +35,8 @@ const CASES: &[Case] = &[
     ("worldwright.surface.ruled", ruled_surface_preserves_exact_control_rails),
     ("worldwright.nurbs.evaluate", nurbs_evaluation_uses_exact_rational_curve),
     ("worldwright.curve.blend", curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels),
+    ("geometry3d.curve.blend", document_curve_blend_previews_and_bakes_exact_g2),
+    ("geometry3d.curve.blend.selected", selected_curve_blend_reuses_document_operator),
     ("worldwright.tool.run", generic_dispatch_matches_direct_command),
     ("mesh3d.create", mesh_creation_is_persistent),
     ("mesh3d.list", mesh_listing_finds_created_object),
@@ -117,6 +119,9 @@ const CASES: &[Case] = &[
     ("divide", divide_stations_match_geometry),
     ("revcloud", revcloud_replaces_source_with_closed_boundary),
     ("pedit", pedit_joins_touching_geometry),
+    ("attdef", attdef_creates_real_attribute_definition),
+    ("battman", battman_lists_attribute_definition),
+    ("attedit", attedit_updates_real_insert_attribute),
     ("text", text_preserves_content_and_position),
     ("mtext", mtext_preserves_paragraphs_and_dimensions),
     ("textedit", textedit_changes_text_without_replacing_handle),
@@ -177,6 +182,7 @@ const CASES: &[Case] = &[
     ("worldwright.tree.simplify", tree_simplify_removes_only_shared_prefix),
     ("worldwright.tree.match", tree_match_longest_repeats_last_item),
     ("measure", measure_places_all_four_line_stations),
+    ("chspace", change_space_retains_entity_identity_and_undo),
     ("list", list_reports_line_length_and_handle),
     ("spline.cv", spline_cv_degree_is_preserved),
     ("spline", spline_control_degree_is_preserved),
@@ -188,6 +194,53 @@ const CASES: &[Case] = &[
     ("align", align_translates_with_two_reference_points),
     ("lengthen", lengthen_changes_line_length),
 ];
+
+fn attdef_creates_real_attribute_definition() {
+    let mut s = Session::new();
+    let result = s.execute("attdef", &json!({"tag":"MATERIAL","at":[2,3],"height":0.5,"default":"WOOD"})).unwrap();
+    let entity = s.doc().unwrap().model.iter().next().unwrap();
+    assert_eq!(entity.handle.hex(), result["handle"].as_str().unwrap());
+    match &entity.kind {
+        EntityKind::AttDef(def) => {
+            assert_eq!(def.tag, "MATERIAL");
+            assert_eq!(def.text.value, "WOOD");
+            assert_eq!(def.text.height, 0.5);
+            assert_eq!((def.text.insert.x, def.text.insert.y), (2.0, 3.0));
+        }
+        other => panic!("expected attribute definition, got {other:?}"),
+    }
+}
+
+fn fixture_attribute_block(s: &mut Session) {
+    let definition = s.execute("attdef", &json!({"tag":"MATERIAL","at":[0,0],"default":"WOOD","height":0.5})).unwrap();
+    s.execute("block", &json!({"name":"TaggedFixture","base":[0,0],"handles":[definition["handle"]],"keep":"delete"})).unwrap();
+}
+
+fn battman_lists_attribute_definition() {
+    let mut s = Session::new();
+    fixture_attribute_block(&mut s);
+    let report = s.execute("battman", &json!({"name":"TaggedFixture"})).unwrap();
+    assert_eq!(report["attributes"].as_array().unwrap().len(), 1);
+    assert_eq!(report["attributes"][0]["tag"], "MATERIAL");
+    assert_eq!(report["attributes"][0]["default"], "WOOD");
+}
+
+fn attedit_updates_real_insert_attribute() {
+    let mut s = Session::new();
+    fixture_attribute_block(&mut s);
+    let inserted = s.execute("insert", &json!({"name":"TaggedFixture","at":[5,6]})).unwrap();
+    let result = s.execute("attedit", &json!({"handle":inserted["handle"],"values":{"material":"METAL"}})).unwrap();
+    assert_eq!(result["changed"], 1);
+    let entity = s.doc().unwrap().model.iter().next().unwrap();
+    match &entity.kind {
+        EntityKind::Insert(insert) => {
+            assert_eq!(insert.attribs.len(), 1);
+            assert_eq!(insert.attribs[0].tag, "MATERIAL");
+            assert_eq!(insert.attribs[0].text.value, "METAL");
+        }
+        other => panic!("expected edited block reference, got {other:?}"),
+    }
+}
 
 fn mesh_closest_point_reports_projected_triangle() {
     let mut s = Session::new();
@@ -831,6 +884,107 @@ fn curve_blend_preserves_g1_tangents_and_rejects_unsupported_levels() {
     assert!(s.execute("worldwright.curve.blend", &json!({"inputs": missing})).is_err());
     assert_eq!(s.state().unwrap().revision, revision);
     assert!(s.doc().unwrap().model.is_empty());
+}
+
+fn document_curve_blend_previews_and_bakes_exact_g2() {
+    use cadcraft_geom::{Vec3, nurbs3d::Curve};
+    let mut s = Session::new();
+    let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 1.0, 0.0)], 2).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(5.0, 3.0, 0.0), Vec3::new(6.0, 3.0, 0.0)], 2).unwrap();
+    let a_id = s.execute("nurbs.curve3d", &json!({"name":"Source A","curve":a})).unwrap()["id"].as_u64().unwrap();
+    let b_id = s.execute("nurbs.curve3d", &json!({"name":"Source B","curve":b})).unwrap()["id"].as_u64().unwrap();
+    let revision = s.state().unwrap().revision;
+    let undo_count = s.state().unwrap().undo.len();
+    let before = s.doc().unwrap().geometry3d.clone();
+    let args = json!({
+        "name":"G2 Connector", "a_id":a_id, "b_id":b_id,
+        "continuity":2, "strength_a":0.35, "strength_b":0.45,
+        "selected_revision":revision
+    });
+    let mut preview_args = args.clone();
+    preview_args["preview"] = json!(true);
+    let preview = s.execute("geometry3d.curve.blend", &preview_args).unwrap();
+    assert_eq!(preview["baked"], false);
+    assert_eq!(preview["source_revision"], revision);
+    let expected: Curve = serde_json::from_value(preview["curve"].clone()).unwrap();
+    assert_eq!(expected.degree, 5);
+    assert_eq!(expected.evaluate(0.0), a.evaluate(1.0));
+    assert_eq!(expected.evaluate(1.0), b.evaluate(0.0));
+    assert!((expected.curvature_vector(0.0).unwrap() - a.curvature_vector(1.0).unwrap()).len() < 1e-8);
+    assert!((expected.curvature_vector(1.0).unwrap() - b.curvature_vector(0.0).unwrap()).len() < 1e-8);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert_eq!(s.state().unwrap().undo.len(), undo_count);
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+
+    let baked = s.execute("geometry3d.curve.blend", &args).unwrap();
+    assert_eq!(baked["baked"], true);
+    let output_id = baked["id"].as_u64().unwrap();
+    assert_ne!(output_id, a_id);
+    assert_ne!(output_id, b_id);
+    let geometry = &s.doc().unwrap().geometry3d;
+    assert_eq!(geometry.len(), before.len() + 1);
+    match &geometry.iter().find(|o| o.id == output_id).unwrap().shape {
+        cadcraft_doc::organization::Shape::Curve(actual) => assert_eq!(**actual, expected),
+        _ => panic!("blend must bake a native NURBS curve"),
+    }
+    assert_eq!(&geometry[..before.len()], before.as_slice());
+    let saved = cadcraft_io::write(s.doc().unwrap(), "blend.dftba").unwrap();
+    let reopened = cadcraft_io::read(&saved, "blend.dftba").unwrap();
+    assert_eq!(reopened.geometry3d, s.doc().unwrap().geometry3d);
+    assert!(s.execute("geometry3d.curve.blend", &args).is_err(), "stale selection must fail");
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+    s.execute("redo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d.len(), before.len() + 1);
+}
+
+fn selected_curve_blend_reuses_document_operator() {
+    use cadcraft_geom::{Vec3, nurbs3d::Curve};
+    let mut s = Session::new();
+    let a = Curve::from_control(vec![Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0)], 1).unwrap();
+    let b = Curve::from_control(vec![Vec3::new(4.0, 2.0, 0.0), Vec3::new(4.0, 3.0, 0.0)], 1).unwrap();
+    let a_id = s.execute("nurbs.curve3d", &json!({"name":"A","curve":a})).unwrap()["id"].as_u64().unwrap();
+    let b_id = s.execute("nurbs.curve3d", &json!({"name":"B","curve":b})).unwrap()["id"].as_u64().unwrap();
+    let revision = s.state().unwrap().revision;
+    let before = s.doc().unwrap().geometry3d.clone();
+    assert!(s.execute("geometry3d.curve.blend.selected", &json!({"name":"No Selection"})).is_err());
+    s.execute("geometry3d.select", &json!({"ids":[a_id,b_id]})).unwrap();
+    assert_eq!(s.state().unwrap().revision, revision);
+    let options = json!({"name":"Selected Blend","continuity":1,"preview":true,"selected_revision":revision});
+    let selected = s.execute("geometry3d.curve.blend.selected", &options).unwrap();
+    let explicit = s
+        .execute(
+            "geometry3d.curve.blend",
+            &json!({
+                "name":"Selected Blend","a_id":a_id,"b_id":b_id,
+                "continuity":1,"preview":true,"selected_revision":revision
+            }),
+        )
+        .unwrap();
+    assert_eq!(selected["curve"], explicit["curve"]);
+    assert_eq!(s.doc().unwrap().geometry3d, before);
+    assert_eq!(s.state().unwrap().revision, revision);
+    assert!(
+        s.execute(
+            "geometry3d.curve.blend.selected",
+            &json!({
+                "name":"No Mixed IDs","a_id":a_id
+            })
+        )
+        .is_err()
+    );
+    let baked = s
+        .execute(
+            "geometry3d.curve.blend.selected",
+            &json!({
+                "name":"Selected Blend","continuity":1,"selected_revision":revision
+            }),
+        )
+        .unwrap();
+    assert_eq!(baked["baked"], true);
+    assert_eq!(s.doc().unwrap().geometry3d.len(), 3);
+    s.execute("undo", &json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().geometry3d, before);
 }
 
 fn first_line(s: &Session) -> (f64, f64, f64, f64) {
@@ -2790,6 +2944,22 @@ fn measure_places_all_four_line_stations() {
     for station in [2.0, 4.0, 6.0, 8.0] {
         assert!(xs.contains(&station), "missing station {station}: {xs:?}");
     }
+}
+
+fn change_space_retains_entity_identity_and_undo() {
+    let mut s = Session::new();
+    let line = s.execute("line", &json!({"points":[[0,0],[10,0]]})).unwrap();
+    let handle = line["handles"][0].as_str().unwrap().to_string();
+    let parsed = cadcraft_doc::Handle::parse_hex(&handle).unwrap();
+    s.execute("layout.new", &json!({"name":"CertSheet"})).unwrap();
+    let moved = s.execute("chspace", &json!({"handles":[handle],"to":"CertSheet"})).unwrap();
+    assert_eq!(moved["moved"], 1);
+    let paper = cadcraft_doc::Space::Paper("CertSheet".to_string());
+    assert_eq!(s.doc().unwrap().space_of(parsed), Some(paper));
+    assert!(matches!(&s.doc().unwrap().entity(parsed).unwrap().kind, EntityKind::Line(line) if line.a.is_finite() && line.b.is_finite()));
+    s.undo().unwrap();
+    assert_eq!(s.doc().unwrap().space_of(parsed), Some(cadcraft_doc::Space::Model));
+    assert!(matches!(&s.doc().unwrap().entity(parsed).unwrap().kind, EntityKind::Line(line) if line.a.x == 0.0 && line.b.x == 10.0));
 }
 
 #[test]

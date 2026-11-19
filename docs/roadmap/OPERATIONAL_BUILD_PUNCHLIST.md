@@ -16,6 +16,12 @@ Work through this list from the top. The October sections below preserve the ori
 | 4 | Integrate PocketSculpt as a suite app | Complete the PocketSculpt checklist below. Use one PocketSculpt creature in the representative scene alongside CAD and scenic geometry. |
 | 5 | Package and verify recovery | Install the alpha from clean packages, reopen the representative scene, and verify a dated backup with a checksum and test restore. |
 
+### Linux baseline verification
+
+On `main` at `ed38d00c` with Rust 1.95.0, 18 focused engine tests and 57 egui tests passed. Coverage included NURBS and model organization round-trips, transforms and undo, invalid primitive input, viewport selection and camera behavior, and synthetic pointer input. Native window launch, an installed local OCCT worker, and a single mixed-geometry desktop walkthrough still require verification.
+
+[NCOPY #152](https://github.com/cameronprops/BuilderCraft/pull/152) passed hosted modeling acceptance and native Rust validation. The exact BRep workflow passed its Linux and macOS jobs and remained pending on Windows at this checkpoint.
+
 ### PocketSculpt integration
 
 - [ ] **Direct scene import.** Add a native file-picker and drag-and-drop path for saved PocketSculpt projects into the active BuilderCraft scene. Preserve scene object names, intended scale, source units and up-axis. Test a saved sculpt-stage project, a skeleton-stage project, and the OBJ handoff for geometry. Give a clear explanation if an input stage needs a surface export.

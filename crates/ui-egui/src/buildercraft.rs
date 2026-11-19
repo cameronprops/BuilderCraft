@@ -145,6 +145,13 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
     // Operate on the same ordered viewport selection used by the headless
     // document Blend command. The kernel and transaction logic live in engine.
     ui.horizontal(|ui| {
+        ui.label("Blend handles");
+        ui.label("A");
+        ui.add(egui::DragValue::new(&mut app.ui.blend_strength_a).range(0.01..=2.0).speed(0.01));
+        ui.label("B");
+        ui.add(egui::DragValue::new(&mut app.ui.blend_strength_b).range(0.01..=2.0).speed(0.01));
+    });
+    ui.horizontal(|ui| {
         ui.label("Blend selected curves");
         for (label, continuity) in [("G0", 0), ("G1", 1), ("G2", 2)] {
             if ui
@@ -155,7 +162,7 @@ pub fn model_browser(app: &mut CadApp, ui: &mut egui::Ui) {
             {
                 match app.run(
                     "geometry3d.curve.blend.selected",
-                    json!({"name":format!("Blend {label}"),"continuity":continuity,"selected_revision":revision}),
+                    json!({"name":format!("Blend {label}"),"continuity":continuity,"strength_a":app.ui.blend_strength_a,"strength_b":app.ui.blend_strength_b,"selected_revision":revision}),
                 ) {
                     Ok(result) => {
                         if let Some(id) = result["id"].as_u64() {

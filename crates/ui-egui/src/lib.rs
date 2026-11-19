@@ -72,6 +72,9 @@ pub struct UiState {
     /// Rhino-style WorldBuilder or history-first SolidCraft, UI preference only.
     pub modeling_mode: workbench::ModelingMode,
     pub model_name: String,
+    /// Curve Blend G1/G2 tangent handle fractions of endpoint distance.
+    pub blend_strength_a: f64,
+    pub blend_strength_b: f64,
     /// Index of the polygon face selected for numeric mesh edit commands.
     pub mesh_face_index: u32,
     /// Last viewport-picked mesh identity and its source document revision.
@@ -137,6 +140,8 @@ impl Default for UiState {
             buildercraft_workspace: true,
             modeling_mode: workbench::ModelingMode::WorldBuilder,
             model_name: "Body".into(),
+            blend_strength_a: 1.0 / 3.0,
+            blend_strength_b: 1.0 / 3.0,
             mesh_face_index: 0,
             mesh_face_object_id: None,
             mesh_face_document_uid: None,
